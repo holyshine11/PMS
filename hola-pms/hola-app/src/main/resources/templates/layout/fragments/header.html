@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<header th:fragment="header">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top" style="z-index: 1030;">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" th:href="@{/admin/dashboard}">
+                <i class="fas fa-hotel me-2"></i>Hola PMS
+            </a>
+
+            <!-- 호텔/프로퍼티 선택 -->
+            <div class="d-flex align-items-center me-auto ms-4">
+                <select id="headerHotelSelect" class="form-select form-select-sm bg-white" style="width: 200px;"
+                        onchange="HolaPms.context.onHotelChange(this.value)">
+                    <option value="">호텔 선택</option>
+                </select>
+                <select id="headerPropertySelect" class="form-select form-select-sm bg-white ms-2" style="width: 200px;"
+                        onchange="HolaPms.context.onPropertyChange(this.value)">
+                    <option value="">프로퍼티 선택</option>
+                </select>
+            </div>
+
+            <div class="d-flex align-items-center">
+                <span class="text-white me-3" sec:authorize="isAuthenticated()">
+                    <i class="fas fa-user me-1"></i>
+                    <span sec:authentication="name">관리자</span>
+                </span>
+                <form th:action="@{/logout}" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-sign-out-alt me-1"></i>로그아웃
+                    </button>
+                </form>
+            </div>
+        </div>
+    </nav>
+</header>
+</html>

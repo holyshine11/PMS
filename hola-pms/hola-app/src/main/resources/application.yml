@@ -1,0 +1,60 @@
+spring:
+  profiles:
+    active: local
+
+  application:
+    name: hola-pms
+
+  # JPA 공통
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+
+  # Flyway
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # Multipart 파일 업로드
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # Thymeleaf
+  thymeleaf:
+    cache: true
+    prefix: classpath:/templates/
+    suffix: .html
+    encoding: UTF-8
+
+  # Jackson
+  jackson:
+    time-zone: Asia/Seoul
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+# 파일 업로드 경로
+hola:
+  upload:
+    path: ./uploads
+
+# 로깅
+logging:
+  level:
+    root: INFO
+    com.hola: INFO

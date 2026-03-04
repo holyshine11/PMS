@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>호텔 관리자 등록/수정</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0" id="pageTitle">
+            <i class="fas fa-user-tie me-2"></i>호텔 관리자 등록
+        </h4>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <form id="hotelAdminForm">
+                <input type="hidden" id="adminId" th:value="${adminId}">
+
+                <!-- 기본정보 영역 -->
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered mb-0">
+                        <tbody>
+                        <tr>
+                            <th class="table-light" style="width:15%">회원번호</th>
+                            <td style="width:35%">
+                                <span id="memberNumber" class="text-muted">자동생성</span>
+                            </td>
+                            <th class="table-light" style="width:15%">계정유형</th>
+                            <td style="width:35%">호텔 관리자</td>
+                        </tr>
+                        <tr>
+                            <th class="table-light">가입일</th>
+                            <td>
+                                <span id="createdAt" class="text-muted">자동생성</span>
+                            </td>
+                            <th class="table-light">계정상태 <span class="text-danger">*</span></th>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="useYn" id="useYnY" value="true" checked>
+                                    <label class="btn btn-outline-primary btn-sm" for="useYnY">Y</label>
+                                    <input type="radio" class="btn-check" name="useYn" id="useYnN" value="false">
+                                    <label class="btn btn-outline-primary btn-sm" for="useYnN">N</label>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 호텔명 + 비밀번호초기화 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">호텔명</label>
+                    <div class="col-sm-4">
+                        <input type="text" id="hotelName" class="form-control-plaintext fw-bold" readonly>
+                    </div>
+                    <div class="col-sm-4" id="resetPwdArea" style="display:none;">
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="HotelAdminForm.resetPassword()">
+                            <i class="fas fa-key me-1"></i>비밀번호 초기화
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 프로퍼티 선택 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">프로퍼티 선택</label>
+                    <div class="col-sm-8">
+                        <div class="border rounded p-3" id="propertyCheckboxArea">
+                            <div class="form-check form-check-inline mb-2">
+                                <input class="form-check-input" type="checkbox" id="propertyAll" onchange="HotelAdminForm.toggleAllProperties(this)">
+                                <label class="form-check-label fw-bold" for="propertyAll">전체</label>
+                            </div>
+                            <hr class="my-2">
+                            <div id="propertyList">
+                                <span class="text-muted">호텔을 선택하면 프로퍼티가 표시됩니다.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 아이디 + 중복확인 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">아이디</label>
+                    <div class="col-sm-6">
+                        <div class="input-group">
+                            <input type="text" id="loginId" class="form-control" maxlength="50"
+                                   placeholder="아이디를 입력하세요" required>
+                            <button type="button" class="btn btn-outline-secondary" id="btnCheckLoginId"
+                                    onclick="HotelAdminForm.checkLoginId()">중복확인</button>
+                        </div>
+                        <small id="loginIdCheckResult" class="form-text"></small>
+                    </div>
+                </div>
+
+                <!-- 담당자명 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">담당자명</label>
+                    <div class="col-sm-4">
+                        <input type="text" id="userName" class="form-control" maxlength="100"
+                               placeholder="담당자명을 입력하세요" required>
+                    </div>
+                </div>
+
+                <!-- 휴대폰 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">휴대폰</label>
+                    <div class="col-sm-2">
+                        <select id="mobileCountryCode" class="form-select">
+                            <option th:replace="~{layout/fragments/common-fields :: countryCodeOptions}"></option>
+                        </select>
+                    </div>
+                    <div class="col-sm-4">
+                        <input type="text" id="mobile" class="form-control" maxlength="20"
+                               placeholder="010-1234-5678">
+                    </div>
+                </div>
+
+                <!-- 이메일 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">이메일</label>
+                    <div class="col-sm-6">
+                        <input type="email" id="email" class="form-control" maxlength="200"
+                               placeholder="이메일을 입력하세요" required>
+                    </div>
+                </div>
+
+                <!-- 연락처 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">연락처</label>
+                    <div class="col-sm-2">
+                        <select id="phoneCountryCode" class="form-select">
+                            <option th:replace="~{layout/fragments/common-fields :: countryCodeOptions}"></option>
+                        </select>
+                    </div>
+                    <div class="col-sm-4">
+                        <input type="text" id="phone" class="form-control" maxlength="20"
+                               placeholder="02-1234-5678" required>
+                    </div>
+                </div>
+
+                <!-- 부서명 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">부서명</label>
+                    <div class="col-sm-4">
+                        <input type="text" id="department" class="form-control" maxlength="100"
+                               placeholder="부서명을 입력하세요">
+                    </div>
+                </div>
+
+                <!-- 직급/직책 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">직급/직책</label>
+                    <div class="col-sm-4">
+                        <input type="text" id="position" class="form-control" maxlength="100"
+                               placeholder="직급/직책을 입력하세요">
+                    </div>
+                </div>
+
+                <!-- 호텔관리자 권한 (임시 텍스트) -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">호텔관리자 권한</label>
+                    <div class="col-sm-6">
+                        <input type="text" id="roleName" class="form-control" maxlength="100"
+                               placeholder="권한명을 입력하세요" required>
+                    </div>
+                </div>
+
+                <!-- 버튼 -->
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <button type="button" id="btnDelete" class="btn btn-outline-danger" style="display:none;"
+                                onclick="HotelAdminForm.remove()">
+                            <i class="fas fa-trash me-1"></i>삭제
+                        </button>
+                    </div>
+                    <div>
+                        <a href="/admin/members/hotel-admins" class="btn btn-secondary me-2">
+                            <i class="fas fa-arrow-left me-1"></i>취소
+                        </a>
+                        <button type="button" class="btn btn-primary" onclick="HotelAdminForm.save()">
+                            <i class="fas fa-save me-1"></i><span id="btnSaveText">등록</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div layout:fragment="scripts">
+    <script th:src="@{/js/hotel-admin-form.js}"></script>
+</div>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>호텔 목록</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-hotel me-2"></i>호텔 관리</h4>
+        <a href="/admin/hotels/new" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>호텔 등록
+        </a>
+    </div>
+
+    <!-- 검색 -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="searchHotelName" class="form-control"
+                               placeholder="호텔명 검색">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnAll" value="" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnAll">전체</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnY" value="true">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnY">사용</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnN" value="false">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnN">미사용</label>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-primary" onclick="HotelPage.search()">검색</button>
+                    <button class="btn btn-outline-secondary" onclick="HotelPage.reset()">초기화</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 호텔 목록 테이블 -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <table id="hotelTable" class="table table-hover" style="width:100%">
+                <thead class="table-light">
+                <tr>
+                    <th>No</th>
+                    <th>호텔코드</th>
+                    <th>호텔명</th>
+                    <th>사용여부</th>
+                    <th>최종수정일</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div layout:fragment="scripts">
+    <script th:src="@{/js/hotel.js}"></script>
+</div>
+</body>
+</html>

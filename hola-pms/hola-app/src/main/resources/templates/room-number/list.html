@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>호수코드 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-door-open me-2"></i>호수코드 관리</h4>
+    </div>
+
+    <!-- 검색 필터 -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="searchCode" class="form-control"
+                               placeholder="호수코드 유형 검색">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnAll" value="" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnAll">전체</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnY" value="true">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnY">사용</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnN" value="false">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnN">미사용</label>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-primary btn-sm" onclick="RoomNumberPage.search()">
+                        <i class="fas fa-search me-1"></i>검색
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="RoomNumberPage.resetSearch()">
+                        <i class="fas fa-undo me-1"></i>초기화
+                    </button>
+                </div>
+                <div class="col-auto ms-auto" id="btnCreateWrap">
+                    <button class="btn btn-primary btn-sm" onclick="RoomNumberPage.openCreateModal()">
+                        <i class="fas fa-plus me-1"></i>호수코드등록
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 안내 메시지 -->
+    <div id="contextAlert" class="alert alert-info" style="display:none;">
+        <i class="fas fa-info-circle me-1"></i>상단 헤더에서 호텔과 프로퍼티를 선택해주세요.
+    </div>
+
+    <!-- 페이지 사이즈 & 총 건수 -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="d-flex align-items-center">
+            <select id="pageSizeSelect" class="form-select form-select-sm" style="width:auto;">
+                <option value="10">10개씩 보기</option>
+                <option value="20" selected>20개씩 보기</option>
+                <option value="50">50개씩 보기</option>
+                <option value="100">100개씩 보기</option>
+            </select>
+        </div>
+        <div>
+            <span class="text-muted" id="totalCount">검색 결과 총 0 개</span>
+        </div>
+    </div>
+
+    <!-- 호수 목록 테이블 -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <table id="roomNumberTable" class="table table-hover" style="width:100%">
+                <thead class="table-light">
+                <tr>
+                    <th style="width:60px">NO</th>
+                    <th>코드명</th>
+                    <th>호수 코드 설명(국문)</th>
+                    <th style="width:90px">사용여부</th>
+                    <th style="width:130px">최종 수정일</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 호수 등록/수정 모달 -->
+    <div class="modal fade" id="roomNumberModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="roomNumberModalTitle">호수코드 등록</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="roomNumberForm">
+                        <input type="hidden" id="rnId">
+                        <!-- 프로퍼티 (readonly) -->
+                        <div class="mb-3">
+                            <label class="form-label">프로퍼티</label>
+                            <input type="text" id="rnPropertyName" class="form-control" readonly disabled>
+                        </div>
+                        <!-- 코드 명 -->
+                        <div class="mb-3">
+                            <label class="form-label required">코드 명</label>
+                            <div class="input-group">
+                                <input type="text" id="rnCode" class="form-control" maxlength="20"
+                                       placeholder="코드명을 입력하세요." required>
+                                <button type="button" id="btnCheckDuplicate" class="btn btn-outline-secondary"
+                                        onclick="RoomNumberPage.checkDuplicate()">중복확인</button>
+                            </div>
+                            <small id="duplicateResult" class="form-text" style="display:none;"></small>
+                        </div>
+                        <!-- 설명 (국문) -->
+                        <div class="mb-3">
+                            <label class="form-label required">설명 (국문)</label>
+                            <input type="text" id="rnDescKo" class="form-control" maxlength="200"
+                                   placeholder="국문 설명을 입력하세요">
+                        </div>
+                        <!-- 설명 (영문) -->
+                        <div class="mb-3">
+                            <label class="form-label">설명 (영문)</label>
+                            <input type="text" id="rnDescEn" class="form-control" maxlength="200"
+                                   placeholder="영문 설명을 입력하세요">
+                        </div>
+                        <!-- 사용여부 -->
+                        <div class="mb-3">
+                            <label class="form-label required">사용여부</label>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="rnUseYn" id="rnUseYnY" value="true" checked>
+                                <label class="btn btn-outline-primary" for="rnUseYnY">Y</label>
+                                <input type="radio" class="btn-check" name="rnUseYn" id="rnUseYnN" value="false">
+                                <label class="btn btn-outline-primary" for="rnUseYnN">N</label>
+                            </div>
+                        </div>
+                        <!-- 최종 수정일 -->
+                        <div class="mb-3">
+                            <label class="form-label">최종 수정일</label>
+                            <input type="text" id="rnUpdatedAt" class="form-control" readonly disabled>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" id="btnDelete" class="btn btn-danger" style="display:none;"
+                            onclick="RoomNumberPage.remove()">
+                        <i class="fas fa-trash me-1"></i>삭제
+                    </button>
+                    <button type="button" id="btnSave" class="btn btn-primary" onclick="RoomNumberPage.save()">
+                        <i class="fas fa-save me-1"></i>등록
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div layout:fragment="scripts">
+    <script th:src="@{/js/room-number-page.js}"></script>
+</div>
+</body>
+</html>

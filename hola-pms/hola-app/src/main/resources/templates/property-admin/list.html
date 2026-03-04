@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>프로퍼티 관리자 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-user-cog me-2"></i>프로퍼티 관리자 관리</h4>
+        <a href="/admin/members/property-admins/new" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>프로퍼티관리자등록
+        </a>
+    </div>
+
+    <!-- 검색 -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-2">
+                    <label class="form-label mb-0 small text-muted">호텔명</label>
+                    <input type="text" id="searchHotelName" class="form-control form-control-sm" readonly
+                           placeholder="호텔을 선택하세요">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-0 small text-muted">프로퍼티명</label>
+                    <input type="text" id="searchPropertyName" class="form-control form-control-sm" readonly
+                           placeholder="프로퍼티를 선택하세요">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-0 small text-muted">아이디</label>
+                    <input type="text" id="searchLoginId" class="form-control form-control-sm"
+                           placeholder="아이디 검색">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-0 small text-muted">관리자명</label>
+                    <input type="text" id="searchUserName" class="form-control form-control-sm"
+                           placeholder="관리자명 검색">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-0 small text-muted">계정상태</label>
+                    <div class="btn-group d-block" role="group">
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnAll" value="" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnAll">전체</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnY" value="true">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnY">Y</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnN" value="false">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnN">N</label>
+                    </div>
+                </div>
+                <div class="col-auto align-self-end">
+                    <button class="btn btn-outline-primary btn-sm" onclick="PropertyAdminPage.search()">검색</button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="PropertyAdminPage.reset()">초기화</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="contextAlert" class="alert alert-info" style="display:none;">
+        <i class="fas fa-info-circle me-1"></i>상단 헤더에서 호텔과 프로퍼티를 선택해주세요.
+    </div>
+
+    <!-- 목록 테이블 (5컬럼) -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <table id="propertyAdminTable" class="table table-hover" style="width:100%">
+                <thead class="table-light">
+                <tr>
+                    <th>NO</th>
+                    <th>아이디</th>
+                    <th>관리자명</th>
+                    <th>계정상태</th>
+                    <th>회원가입일</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div layout:fragment="scripts">
+    <script th:src="@{/js/property-admin-page.js}"></script>
+</div>
+</body>
+</html>

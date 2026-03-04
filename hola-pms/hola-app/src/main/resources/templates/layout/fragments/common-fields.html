@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!-- 국가번호 셀렉트 옵션 (공통) -->
+<!-- 사용법: <select><option th:replace="~{layout/fragments/common-fields :: countryCodeOptions}"></option></select> -->
+<th:block th:fragment="countryCodeOptions">
+    <option value="" selected>국가번호 선택</option>
+    <option value="+82">+82 (대한민국)</option>
+    <option value="+1">+1 (미국)</option>
+    <option value="+66">+66 (태국)</option>
+    <option value="+81">+81 (일본)</option>
+    <option value="+86">+86 (중국)</option>
+</th:block>
+
+</html>

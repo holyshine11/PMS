@@ -1,0 +1,48 @@
+/* Hola PMS 커스텀 CSS */
+
+/* 사이드바 활성 메뉴 */
+.sidebar .nav-link.active {
+    border-radius: 4px;
+}
+
+.sidebar .nav-link:hover:not(.disabled) {
+    background-color: rgba(255,255,255,0.1);
+    border-radius: 4px;
+}
+
+/* DataTables 커스텀 */
+.dataTables_wrapper .dataTables_filter input {
+    border-radius: 8px;
+}
+
+/* 카드 hover 효과 */
+.card.shadow-sm:hover {
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+    transition: box-shadow 0.2s ease;
+}
+
+/* 테이블 행 hover */
+table.dataTable tbody tr:hover {
+    background-color: #f0f7ff !important;
+    cursor: pointer;
+}
+
+/* 모달 헤더 */
+.modal-header {
+    background-color: #0d6efd;
+    color: white;
+}
+.modal-header .btn-close {
+    filter: invert(1);
+}
+
+/* 탭 스타일 */
+.nav-tabs .nav-link.active {
+    font-weight: bold;
+}
+
+/* 필수 입력 표시 */
+.required::after {
+    content: " *";
+    color: red;
+}

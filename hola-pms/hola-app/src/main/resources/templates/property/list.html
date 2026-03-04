@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>프로퍼티 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-city me-2"></i>프로퍼티 관리</h4>
+        <a href="/admin/properties/new" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>프로퍼티 등록
+        </a>
+    </div>
+
+    <!-- 검색 -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="searchPropertyName" class="form-control"
+                               placeholder="프로퍼티명 검색">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnAll" value="" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnAll">전체</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnY" value="true">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnY">사용</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnN" value="false">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnN">미사용</label>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-primary" onclick="PropertyListPage.search()">검색</button>
+                    <button class="btn btn-outline-secondary" onclick="PropertyListPage.reset()">초기화</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="contextAlert" class="alert alert-info" style="display:none;">
+        <i class="fas fa-info-circle me-1"></i>상단 헤더에서 호텔을 선택해주세요.
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <table id="propertyTable" class="table table-hover" style="width:100%">
+                <thead class="table-light">
+                <tr>
+                    <th>No</th>
+                    <th>프로퍼티코드</th>
+                    <th>프로퍼티명</th>
+                    <th>호텔명</th>
+                    <th>사용여부</th>
+                    <th>최종수정일</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div layout:fragment="scripts">
+    <script th:src="@{/js/property-list.js}"></script>
+</div>
+</body>
+</html>

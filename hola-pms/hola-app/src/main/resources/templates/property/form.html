@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>프로퍼티 등록/수정</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0" id="pageTitle">
+            <i class="fas fa-city me-2"></i>프로퍼티 등록
+        </h4>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <form id="propertyForm">
+                <input type="hidden" id="propertyId" th:value="${propertyId}">
+
+                <!-- 탭 네비게이션 -->
+                <ul class="nav nav-tabs px-3 pt-3" id="propertyTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-basic" data-bs-toggle="tab"
+                                data-bs-target="#pane-basic" type="button" role="tab">기본정보</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-settlement" data-bs-toggle="tab"
+                                data-bs-target="#pane-settlement" type="button" role="tab">정산정보</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-cancel" data-bs-toggle="tab"
+                                data-bs-target="#pane-cancel" type="button" role="tab">취소 수수료 정보</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-tax" data-bs-toggle="tab"
+                                data-bs-target="#pane-tax" type="button" role="tab">TAX/봉사료 정보</button>
+                    </li>
+                </ul>
+
+                <!-- 탭 콘텐츠 -->
+                <div class="tab-content p-4">
+
+                    <!-- ========== 기본정보 탭 ========== -->
+                    <div class="tab-pane fade show active" id="pane-basic" role="tabpanel">
+                        <p class="text-muted small mb-3"><span class="text-danger">*</span>은 필수 입력 항목입니다.</p>
+
+                        <!-- 호텔명 (읽기전용) / 프로퍼티 시간대 -->
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">호텔명</label>
+                            <div class="col-sm-4">
+                                <select id="hotelSelect" class="form-select">
+                                    <option value="">호텔을 선택해주세요</option>
+                                </select>
+                                <!-- 수정 시 읽기전용 표시 -->
+                                <span id="hotelReadonly" class="form-control-plaintext fw-bold" style="display:none;"></span>
+                            </div>
+                            <label class="col-sm-2 col-form-label required">프로퍼티 시간대</label>
+                            <div class="col-sm-4">
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="form-control-plaintext text-center" style="width:40px;">UTC</span>
+                                    <select id="tzSign" class="form-select" style="width:65px;">
+                                        <option value="+">+</option>
+                                        <option value="-">-</option>
+                                    </select>
+                                    <select id="tzHour" class="form-select" style="width:75px;">
+                                        <option value="00">00</option>
+                                        <option value="01">01</option>
+                                        <option value="02">02</option>
+                                        <option value="03">03</option>
+                                        <option value="04">04</option>
+                                        <option value="05">05</option>
+                                        <option value="06">06</option>
+                                        <option value="07">07</option>
+                                        <option value="08">08</option>
+                                        <option value="09" selected>09</option>
+                                        <option value="10">10</option>
+                                        <option value="11">11</option>
+                                        <option value="12">12</option>
+                                    </select>
+                                    <span class="form-control-plaintext text-center" style="width:10px;">:</span>
+                                    <select id="tzMinute" class="form-select" style="width:75px;">
+                                        <option value="00" selected>00</option>
+                                        <option value="15">15</option>
+                                        <option value="30">30</option>
+                                        <option value="45">45</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 프로퍼티명 + 중복확인 -->
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label required">프로퍼티명</label>
+                            <div class="col-sm-4">
+                                <div class="input-group">
+                                    <input type="text" id="propertyName" class="form-control" maxlength="200"
+                                           placeholder="프로퍼티명을 입력하세요" required>
+                                    <button type="button" id="btnCheckName" class="btn btn-outline-secondary"
+                                            onclick="PropertyForm.checkName()">중복확인</button>
+                                </div>
+                                <div id="nameCheckResult" class="small mt-1" style="display:none;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 대표자명(국문/영문) / 사업자등록번호 -->
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label required">프로퍼티 대표자명</label>
+                            <div class="col-sm-2">
+                                <input type="text" id="representativeName" class="form-control" maxlength="50"
+                                       placeholder="국문" required>
+                            </div>
+                            <div class="col-sm-2">
+                                <input type="text" id="representativeNameEn" class="form-control" maxlength="100"
+                                       placeholder="영문">
+                            </div>
+                            <label class="col-sm-2 col-form-label required">사업자등록번호</label>
+                            <div class="col-sm-4">
+                                <input type="text" id="businessNumber" class="form-control" maxlength="20"
+                                       placeholder="123-45-67890" required>
+                            </div>
+                        </div>
+
+                        <!-- 전화번호(3칸) / 사업자등록증(파일) -->
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label required">프로퍼티 전화번호</label>
+                            <div class="col-sm-4">
+                                <div class="d-flex gap-1">
+                                    <select id="countryCode" class="form-select" style="width:120px;">
+                                        <option th:replace="~{layout/fragments/common-fields :: countryCodeOptions}"></option>
+                                    </select>
+                                    <input type="text" id="phone1" class="form-control" maxlength="4"
+                                           placeholder="지역번호" style="width:90px;">
+                                    <input type="text" id="phone2" class="form-control" maxlength="4"
+                                           placeholder="국번" style="width:90px;">
+                                    <input type="text" id="phone3" class="form-control" maxlength="4"
+                                           placeholder="번호" style="width:90px;">
+                                </div>
+                            </div>
+                            <label class="col-sm-2 col-form-label required">사업자등록증</label>
+                            <div class="col-sm-4">
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" id="btnBizLicense" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-upload me-1"></i>등록
+                                    </button>
+                                    <span id="bizLicenseFileName" class="text-muted small">파일을 선택해주세요</span>
+                                    <a id="bizLicenseDownload" href="#" download class="small text-primary" style="display:none;">
+                                        <i class="fas fa-download me-1"></i><span id="bizLicenseDownloadName"></span>
+                                    </a>
+                                    <input type="file" id="bizLicenseFile" class="d-none" accept=".pdf,.jpg,.jpeg,.png">
+                                    <input type="hidden" id="bizLicensePath" value="">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 사용여부 / 프로퍼티 로고(파일) -->
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label required">사용여부</label>
+                            <div class="col-sm-4">
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="useYn" id="useYnY" value="true" checked>
+                                    <label class="btn btn-outline-primary" for="useYnY">Y</label>
+                                    <input type="radio" class="btn-check" name="useYn" id="useYnN" value="false">
+                                    <label class="btn btn-outline-primary" for="useYnN">N</label>
+                                </div>
+                            </div>
+                            <label class="col-sm-2 col-form-label required">프로퍼티 로고</label>
+                            <div class="col-sm-4">
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" id="btnLogo" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-image me-1"></i>등록
+                                    </button>
+                                    <span id="logoFileName" class="text-muted small">이미지를 선택해주세요</span>
+                                    <a id="logoDownload" href="#" download class="small text-primary" style="display:none;">
+                                        <i class="fas fa-download me-1"></i><span id="logoDownloadName"></span>
+                                    </a>
+                                    <input type="file" id="logoFile" class="d-none" accept=".jpg,.jpeg,.png,.gif,.svg">
+                                    <input type="hidden" id="logoPath" value="">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 프로퍼티 주소 -->
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label required">프로퍼티 주소</label>
+                            <div class="col-sm-10">
+                                <!-- 국문 주소 -->
+                                <div class="border rounded p-3 mb-2">
+                                    <div class="small fw-bold text-muted mb-2">
+                                        <i class="fas fa-map-marker-alt me-1"></i>국문 주소
+                                    </div>
+                                    <div class="d-flex gap-2 mb-2">
+                                        <input type="text" id="zipCode" class="form-control" style="width:130px;"
+                                               maxlength="10" placeholder="우편번호" readonly>
+                                        <button type="button" id="btnZipSearch" class="btn btn-outline-secondary btn-sm"
+                                                onclick="PropertyForm.searchAddress()">
+                                            <i class="fas fa-search me-1"></i>조회
+                                        </button>
+                                    </div>
+                                    <div class="mb-2">
+                                        <input type="text" id="address" class="form-control" maxlength="500"
+                                               placeholder="주소" readonly>
+                                    </div>
+                                    <div>
+                                        <input type="text" id="addressDetail" class="form-control" maxlength="500"
+                                               placeholder="상세주소를 입력하세요">
+                                    </div>
+                                </div>
+                                <!-- 영문 주소 -->
+                                <div class="border rounded p-3">
+                                    <div class="small fw-bold text-muted mb-2">
+                                        <i class="fas fa-globe me-1"></i>영문 주소
+                                    </div>
+                                    <div class="mb-2">
+                                        <input type="text" id="addressEn" class="form-control" maxlength="500"
+                                               placeholder="POST CODE">
+                                    </div>
+                                    <div>
+                                        <input type="text" id="addressDetailEn" class="form-control" maxlength="500"
+                                               placeholder="Enter address">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 프로퍼티 성급 (라디오버튼) -->
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label required">프로퍼티 성급</label>
+                            <div class="col-sm-10">
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="starRating" id="star5" value="5STAR">
+                                    <label class="btn btn-outline-warning" for="star5">5성급</label>
+                                    <input type="radio" class="btn-check" name="starRating" id="star4" value="4STAR">
+                                    <label class="btn btn-outline-warning" for="star4">4성급</label>
+                                    <input type="radio" class="btn-check" name="starRating" id="star3" value="3STAR" checked>
+                                    <label class="btn btn-outline-warning" for="star3">3성급</label>
+                                    <input type="radio" class="btn-check" name="starRating" id="star2" value="2STAR">
+                                    <label class="btn btn-outline-warning" for="star2">2성급</label>
+                                    <input type="radio" class="btn-check" name="starRating" id="star1" value="1STAR">
+                                    <label class="btn btn-outline-warning" for="star1">1성급</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 프로퍼티 소개 -->
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">프로퍼티 소개</label>
+                            <div class="col-sm-10">
+                                <textarea id="introduction" class="form-control" rows="3"
+                                          placeholder="프로퍼티 소개를 입력하세요"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ========== 정산정보 탭 ========== -->
+                    <div class="tab-pane fade" id="pane-settlement" role="tabpanel">
+                        <!-- KR / US 서브탭 -->
+                        <ul class="nav nav-pills mb-3 mt-2" id="settlementSubTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="tab-stl-kr" data-bs-toggle="pill"
+                                        data-bs-target="#pane-stl-kr" type="button" role="tab">KR (국내)</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-stl-us" data-bs-toggle="pill"
+                                        data-bs-target="#pane-stl-us" type="button" role="tab">US (해외)</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content" id="settlementSubTabContent">
+                            <!-- KR 서브탭 -->
+                            <div class="tab-pane fade show active" id="pane-stl-kr" role="tabpanel">
+                                <div class="row mb-3">
+                                    <label class="col-sm-2 col-form-label">계좌번호</label>
+                                    <div class="col-sm-4">
+                                        <input type="text" id="krAccountNumber" class="form-control"
+                                               placeholder="계좌번호 (숫자, - 만 입력)" maxlength="50">
+                                    </div>
+                                    <label class="col-sm-2 col-form-label">은행</label>
+                                    <div class="col-sm-4">
+                                        <select id="krBankCode" class="form-select">
+                                            <option value="">은행을 선택하세요</option>
+                                            <option value="004">KB국민은행</option>
+                                            <option value="088">신한은행</option>
+                                            <option value="020">우리은행</option>
+                                            <option value="081">하나은행</option>
+                                            <option value="011">NH농협은행</option>
+                                            <option value="003">IBK기업은행</option>
+                                            <option value="023">SC제일은행</option>
+                                            <option value="027">한국씨티은행</option>
+                                            <option value="071">우체국</option>
+                                            <option value="031">대구은행</option>
+                                            <option value="032">부산은행</option>
+                                            <option value="034">광주은행</option>
+                                            <option value="035">제주은행</option>
+                                            <option value="037">전북은행</option>
+                                            <option value="039">경남은행</option>
+                                            <option value="045">새마을금고</option>
+                                            <option value="048">신협</option>
+                                            <option value="089">케이뱅크</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <label class="col-sm-2 col-form-label">정산일</label>
+                                    <div class="col-sm-4">
+                                        <div class="input-group">
+                                            <span class="input-group-text">익월</span>
+                                            <select id="krSettlementDay" class="form-select">
+                                                <option value="">선택</option>
+                                                <option value="1">1</option>
+                                                <option value="5">5</option>
+                                                <option value="10">10</option>
+                                                <option value="15">15</option>
+                                                <option value="20">20</option>
+                                                <option value="25">25</option>
+                                                <option value="LAST">말일</option>
+                                            </select>
+                                            <span class="input-group-text" id="krDayLabel">일</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <label class="col-sm-2 col-form-label">통장사본</label>
+                                    <div class="col-sm-4">
+                                        <div class="input-group">
+                                            <input type="hidden" id="krBankBookPath">
+                                            <button type="button" id="btnBankBook" class="btn btn-outline-secondary btn-sm">
+                                                <i class="fas fa-upload me-1"></i>파일 선택
+                                            </button>
+                                            <input type="file" id="bankBookFile" accept=".jpg,.jpeg,.png,.pdf" style="display:none;">
+                                            <span id="bankBookFileName" class="ms-2 text-muted small align-self-center">파일을 선택해주세요</span>
+                                            <a id="bankBookDownload" href="#" target="_blank" class="ms-2 small align-self-center" style="display:none;">
+                                                <i class="fas fa-download me-1"></i><span id="bankBookDownloadName"></span>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- US 서브탭 -->
+                            <div class="tab-pane fade" id="pane-stl-us" role="tabpanel">
+                                <div class="row mb-3">
+                                    <label class="col-sm-2 col-form-label">Account Number</label>
+                                    <div class="col-sm-4">
+                                        <input type="text" id="usAccountNumber" class="form-control"
+                                               placeholder="Account Number" maxlength="50">
+                                    </div>
+                                    <label class="col-sm-2 col-form-label">Bank Name</label>
+                                    <div class="col-sm-4">
+                                        <input type="text" id="usBankName" class="form-control"
+                                               placeholder="Bank Name" maxlength="100">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <label class="col-sm-2 col-form-label">Account Holder</label>
+                                    <div class="col-sm-4">
+                                        <input type="text" id="usAccountHolder" class="form-control"
+                                               placeholder="Account Holder" maxlength="100">
+                                    </div>
+                                    <label class="col-sm-2 col-form-label">Routing Number</label>
+                                    <div class="col-sm-4">
+                                        <input type="text" id="usRoutingNumber" class="form-control"
+                                               placeholder="Routing Number" maxlength="50">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <label class="col-sm-2 col-form-label">SWIFT CODE</label>
+                                    <div class="col-sm-4">
+                                        <input type="text" id="usSwiftCode" class="form-control"
+                                               placeholder="SWIFT CODE" maxlength="50">
+                                    </div>
+                                    <label class="col-sm-2 col-form-label">Settlement Day</label>
+                                    <div class="col-sm-4">
+                                        <div class="input-group">
+                                            <span class="input-group-text">익월</span>
+                                            <select id="usSettlementDay" class="form-select">
+                                                <option value="">선택</option>
+                                                <option value="1">1</option>
+                                                <option value="5">5</option>
+                                                <option value="10">10</option>
+                                                <option value="15">15</option>
+                                                <option value="20">20</option>
+                                                <option value="25">25</option>
+                                                <option value="LAST">말일</option>
+                                            </select>
+                                            <span class="input-group-text" id="usDayLabel">일</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 정산정보 저장 버튼 (수정 모드에서만 표시) -->
+                        <div id="settlementSaveArea" class="text-end mt-3" style="display:none;">
+                            <button type="button" id="btnSaveSettlement" class="btn btn-primary"
+                                    onclick="PropertyForm.saveSettlements()">
+                                <i class="fas fa-save me-1"></i>정산정보 저장
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ========== 취소 수수료 탭 ========== -->
+                    <div class="tab-pane fade" id="pane-cancel" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-bordered align-middle mb-0" id="cancelFeeTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:140px">체크인 기준</th>
+                                        <th style="width:80px">N일</th>
+                                        <th style="width:100px">라벨</th>
+                                        <th style="width:140px">금액</th>
+                                        <th style="width:160px">수수료 유형</th>
+                                        <th style="width:100px">관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cancelFeeBody">
+                                    <!-- 동적 행 (JS에서 렌더링) -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-end mt-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    onclick="PropertyForm.addCancelFeeRow()">
+                                <i class="fas fa-plus me-1"></i>행 추가
+                            </button>
+                        </div>
+                        <!-- 취소 수수료 저장 버튼 (수정 모드에서만 표시) -->
+                        <div id="cancelFeeSaveArea" class="text-end mt-3" style="display:none;">
+                            <button type="button" id="btnSaveCancelFee" class="btn btn-primary"
+                                    onclick="PropertyForm.saveCancellationFees()">
+                                <i class="fas fa-save me-1"></i>취소 수수료 저장
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ========== TAX/봉사료 탭 ========== -->
+                    <div class="tab-pane fade" id="pane-tax" role="tabpanel">
+                        <table class="table table-bordered align-middle mb-0">
+                            <colgroup>
+                                <col style="width:140px;">
+                                <col>
+                            </colgroup>
+                            <tbody>
+                                <!-- TAX -->
+                                <tr>
+                                    <th class="bg-light text-center">
+                                        TAX <span class="text-danger">*</span>
+                                    </th>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <input type="number" id="taxRate" class="form-control"
+                                                   style="width:180px;" min="0" max="100" step="0.01"
+                                                   placeholder="0~100 숫자 + '.' 만 입력 가능">
+                                            <span class="fw-bold">%</span>
+                                            <span class="ms-2">소수 점 :</span>
+                                            <input type="number" id="taxDecimalPlaces" class="form-control"
+                                                   style="width:100px;" min="0" max="10" step="1"
+                                                   placeholder="0~10" value="0">
+                                            <span>자리</span>
+                                            <select id="taxRoundingMethod" class="form-select" style="width:130px;">
+                                                <option value="">선택</option>
+                                                <option value="FLOOR">버림</option>
+                                                <option value="CEIL">올림</option>
+                                                <option value="HALF_DOWN">반내림</option>
+                                                <option value="HALF_UP">반올림</option>
+                                                <option value="TRUNCATE">절사</option>
+                                            </select>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- 봉사료 -->
+                                <tr>
+                                    <th class="bg-light text-center">
+                                        봉사료 <span class="text-danger">*</span>
+                                    </th>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <input type="number" id="serviceChargeRate" class="form-control"
+                                                   style="width:180px;" min="0" max="100" step="0.01"
+                                                   placeholder="0~100 숫자만 입력 가능">
+                                            <span class="fw-bold">%</span>
+                                            <span class="ms-2">소수 점 :</span>
+                                            <input type="number" id="serviceChargeDecimalPlaces" class="form-control"
+                                                   style="width:100px;" min="0" max="10" step="1"
+                                                   placeholder="0~10" value="0">
+                                            <span>자리</span>
+                                            <select id="serviceChargeRoundingMethod" class="form-select" style="width:130px;">
+                                                <option value="">선택</option>
+                                                <option value="FLOOR">버림</option>
+                                                <option value="CEIL">올림</option>
+                                                <option value="HALF_DOWN">반내림</option>
+                                                <option value="HALF_UP">반올림</option>
+                                                <option value="TRUNCATE">절사</option>
+                                            </select>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- TAX/봉사료 저장 버튼 (수정모드에서만 노출) -->
+                        <div id="taxSaveArea" class="text-end mt-3" style="display:none;">
+                            <button type="button" id="btnSaveTax" class="btn btn-primary"
+                                    onclick="PropertyForm.saveTaxServiceCharge()">
+                                <i class="fas fa-save me-1"></i>TAX/봉사료 저장
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 하단 버튼 영역 -->
+                <div class="card-footer bg-white border-top">
+                    <div class="d-flex justify-content-between px-2 py-2">
+                        <div>
+                            <button type="button" id="btnDelete" class="btn btn-danger" style="display:none;"
+                                    onclick="PropertyForm.remove()">
+                                <i class="fas fa-trash me-1"></i>삭제
+                            </button>
+                        </div>
+                        <div>
+                            <a href="/admin/properties" class="btn btn-secondary me-2">
+                                <i class="fas fa-times me-1"></i>취소
+                            </a>
+                            <button type="button" id="btnSave" class="btn btn-primary" onclick="PropertyForm.save()">
+                                <i class="fas fa-save me-1"></i>등록
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div layout:fragment="scripts">
+    <!-- 다음 주소 API -->
+    <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+    <script th:src="@{/js/property-form.js}"></script>
+</div>
+</body>
+</html>

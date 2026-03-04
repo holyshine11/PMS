@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>호텔 등록/수정</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0" id="pageTitle">
+            <i class="fas fa-hotel me-2"></i>호텔 등록
+        </h4>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <form id="hotelForm">
+                <input type="hidden" id="hotelId" th:value="${hotelId}">
+
+                <!-- 호텔코드 (수정 시만 표시) -->
+                <div class="row mb-3" id="hotelCodeRow" style="display:none;">
+                    <label class="col-sm-2 col-form-label">호텔코드</label>
+                    <div class="col-sm-4">
+                        <input type="text" id="hotelCode" class="form-control-plaintext fw-bold" readonly>
+                    </div>
+                </div>
+
+                <!-- 호텔명 + 중복확인 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">호텔명</label>
+                    <div class="col-sm-6">
+                        <div class="input-group">
+                            <input type="text" id="hotelName" class="form-control" maxlength="200"
+                                   placeholder="호텔명을 입력하세요" required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="HotelForm.checkName()">
+                                중복확인
+                            </button>
+                        </div>
+                        <small id="nameCheckResult" class="form-text"></small>
+                    </div>
+                </div>
+
+                <!-- 대표자명 국문/영문 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">대표자명</label>
+                    <div class="col-sm-4">
+                        <input type="text" id="representativeName" class="form-control" maxlength="50"
+                               placeholder="국문">
+                    </div>
+                    <div class="col-sm-4">
+                        <input type="text" id="representativeNameEn" class="form-control" maxlength="100"
+                               placeholder="영문">
+                    </div>
+                </div>
+
+                <!-- 국가번호 + 본사 대표 전화번호 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">본사 대표 전화번호</label>
+                    <div class="col-sm-2">
+                        <select id="countryCode" class="form-select">
+                            <option th:replace="~{layout/fragments/common-fields :: countryCodeOptions}"></option>
+                        </select>
+                    </div>
+                    <div class="col-sm-4">
+                        <input type="text" id="phone" class="form-control" maxlength="20"
+                               placeholder="02-1234-5678">
+                    </div>
+                </div>
+
+                <!-- 호텔 본사 주소 (우편번호 + 주소) -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">호텔 본사 주소</label>
+                    <div class="col-sm-2">
+                        <input type="text" id="zipCode" class="form-control" maxlength="10"
+                               placeholder="우편번호">
+                    </div>
+                    <div class="col-sm-6">
+                        <input type="text" id="address" class="form-control" maxlength="500"
+                               placeholder="주소">
+                    </div>
+                </div>
+
+                <!-- 상세주소 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label"></label>
+                    <div class="col-sm-8">
+                        <input type="text" id="addressDetail" class="form-control" maxlength="500"
+                               placeholder="상세주소">
+                    </div>
+                </div>
+
+                <!-- 영문주소 (POST CODE + Address) -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">영문주소</label>
+                    <div class="col-sm-2">
+                        <input type="text" id="addressDetailEn" class="form-control" maxlength="20"
+                               placeholder="POST CODE">
+                    </div>
+                    <div class="col-sm-6">
+                        <input type="text" id="addressEn" class="form-control" maxlength="500"
+                               placeholder="Address (English)">
+                    </div>
+                </div>
+
+                <!-- 호텔 소개 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">호텔 소개</label>
+                    <div class="col-sm-8">
+                        <textarea id="introduction" class="form-control" rows="4"
+                                  placeholder="호텔 소개를 입력하세요"></textarea>
+                    </div>
+                </div>
+
+                <!-- 사용여부 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">사용여부</label>
+                    <div class="col-sm-4">
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="useYn" id="useYnY" value="true" checked>
+                            <label class="btn btn-outline-primary" for="useYnY">사용</label>
+                            <input type="radio" class="btn-check" name="useYn" id="useYnN" value="false">
+                            <label class="btn btn-outline-primary" for="useYnN">미사용</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 버튼 -->
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <button type="button" id="btnDelete" class="btn btn-outline-danger" style="display:none;"
+                                onclick="HotelForm.remove()">
+                            <i class="fas fa-trash me-1"></i>삭제
+                        </button>
+                    </div>
+                    <div>
+                        <a href="/admin/hotels" class="btn btn-secondary me-2">
+                            <i class="fas fa-arrow-left me-1"></i>목록
+                        </a>
+                        <button type="button" class="btn btn-primary" onclick="HotelForm.save()">
+                            <i class="fas fa-save me-1"></i>저장
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div layout:fragment="scripts">
+    <script th:src="@{/js/hotel-form.js}"></script>
+</div>
+</body>
+</html>
