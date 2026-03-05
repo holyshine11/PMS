@@ -86,6 +86,7 @@ public class PropertyAdminServiceImpl implements PropertyAdminService {
                 .department(admin.getDepartment())
                 .position(admin.getPosition())
                 .roleName(admin.getRoleName())
+                .roleId(admin.getRoleId())
                 .accountType("프로퍼티 관리자")
                 .useYn(admin.getUseYn())
                 .hotelId(property.getHotel().getId())
@@ -120,6 +121,7 @@ public class PropertyAdminServiceImpl implements PropertyAdminService {
                 .department(request.getDepartment())
                 .position(request.getPosition())
                 .roleName(request.getRoleName())
+                .roleId(request.getRoleId())
                 .role("PROPERTY_ADMIN")
                 .memberNumber(memberNumber)
                 .accountType(ACCOUNT_TYPE)
@@ -148,15 +150,21 @@ public class PropertyAdminServiceImpl implements PropertyAdminService {
     public PropertyAdminResponse update(Long propertyId, Long id, PropertyAdminUpdateRequest request) {
         AdminUser admin = findAdminById(id, propertyId);
 
+        log.debug("프로퍼티 관리자 수정 시작 - id: {}, userName: {} → {}, roleId: {} → {}",
+                id, admin.getUserName(), request.getUserName(), admin.getRoleId(), request.getRoleId());
+
         admin.updateProfile(
                 request.getUserName(), request.getEmail(), request.getPhone(),
                 request.getMobileCountryCode(), request.getMobile(),
                 request.getPhoneCountryCode(),
                 request.getDepartment(), request.getPosition(),
-                request.getRoleName(), request.getUseYn());
+                request.getRoleName(), request.getRoleId(), request.getUseYn());
 
-        log.info("프로퍼티 관리자 수정: {} ({})", admin.getUserName(), admin.getLoginId());
-        return getDetail(propertyId, admin.getId());
+        AdminUser saved = adminUserRepository.saveAndFlush(admin);
+        log.debug("프로퍼티 관리자 flush 완료 - id: {}, userName: {}", saved.getId(), saved.getUserName());
+
+        log.info("프로퍼티 관리자 수정 완료: {} ({})", saved.getUserName(), saved.getLoginId());
+        return getDetail(propertyId, saved.getId());
     }
 
     @Override

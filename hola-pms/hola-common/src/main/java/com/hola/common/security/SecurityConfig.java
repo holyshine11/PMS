@@ -42,6 +42,27 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                // selector API: 모든 인증 사용자 허용 (헤더 드롭다운)
+                .requestMatchers("/api/v1/hotels/selector").authenticated()
+                .requestMatchers("/api/v1/properties/selector").authenticated()
+                // 블루웨이브 관리자 API: SUPER_ADMIN 전용
+                .requestMatchers("/api/v1/bluewave-admins/**").hasRole("SUPER_ADMIN")
+                // 호텔 관리자 API: SUPER_ADMIN + HOTEL_ADMIN 전용
+                .requestMatchers("/api/v1/hotels/*/admins/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN")
+                // 호텔 하위 프로퍼티 조회: 관리자 폼 드롭다운용 (모든 인증 사용자)
+                .requestMatchers("/api/v1/hotels/*/properties").authenticated()
+                // 프로퍼티 관리자 API: 모든 인증 사용자 허용
+                .requestMatchers("/api/v1/properties/*/admins/**").authenticated()
+                // 호텔관리 API: SUPER_ADMIN 전용
+                .requestMatchers("/api/v1/hotels/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/api/v1/properties/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/api/v1/market-codes/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/api/v1/floors/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/api/v1/room-numbers/**").hasRole("SUPER_ADMIN")
+                // 권한관리 API: 역할 selector는 모든 인증 사용자 허용 (관리자 폼 드롭다운)
+                .requestMatchers("/api/v1/hotel-admin-roles/selector").authenticated()
+                // 권한관리 API: 나머지는 SUPER_ADMIN 전용
+                .requestMatchers("/api/v1/hotel-admin-roles/**").hasRole("SUPER_ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -62,6 +83,17 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/css/**", "/js/**", "/images/**", "/webjars/**", "/uploads/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                // 호텔관리 전체: SUPER_ADMIN 전용
+                .requestMatchers("/admin/hotels/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/admin/properties/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/admin/market-codes/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/admin/floors/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/admin/room-numbers/**").hasRole("SUPER_ADMIN")
+                // 회원관리
+                .requestMatchers("/admin/members/bluewave-admins/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/admin/members/hotel-admins/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN")
+                // 권한관리: SUPER_ADMIN 전용
+                .requestMatchers("/admin/roles/**").hasRole("SUPER_ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

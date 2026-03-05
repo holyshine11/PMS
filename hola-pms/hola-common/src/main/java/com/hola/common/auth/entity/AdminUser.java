@@ -20,6 +20,16 @@ public class AdminUser extends BaseEntity {
     /** 로그인 실패 잠금 임계값 */
     public static final int MAX_LOGIN_FAIL_COUNT = 5;
 
+    /** 역할 상수 */
+    public static final String ROLE_SUPER_ADMIN = "SUPER_ADMIN";
+    public static final String ROLE_HOTEL_ADMIN = "HOTEL_ADMIN";
+    public static final String ROLE_PROPERTY_ADMIN = "PROPERTY_ADMIN";
+
+    /** SUPER_ADMIN 여부 */
+    public boolean isSuperAdmin() {
+        return ROLE_SUPER_ADMIN.equals(this.role);
+    }
+
     @Column(name = "login_id", nullable = false, unique = true, length = 50)
     private String loginId;
 
@@ -76,6 +86,9 @@ public class AdminUser extends BaseEntity {
     @Column(name = "role_name", length = 100)
     private String roleName;
 
+    @Column(name = "role_id")
+    private Long roleId;
+
     public void incrementLoginFailCount() {
         this.loginFailCount++;
         if (this.loginFailCount >= MAX_LOGIN_FAIL_COUNT) {
@@ -95,7 +108,7 @@ public class AdminUser extends BaseEntity {
                               String mobileCountryCode, String mobile,
                               String phoneCountryCode,
                               String department, String position,
-                              String roleName, Boolean useYn) {
+                              String roleName, Long roleId, Boolean useYn) {
         this.userName = userName;
         this.email = email;
         this.phone = phone;
@@ -105,6 +118,7 @@ public class AdminUser extends BaseEntity {
         this.department = department;
         this.position = position;
         this.roleName = roleName;
+        this.roleId = roleId;
         if (useYn != null) {
             if (useYn) activate();
             else deactivate();

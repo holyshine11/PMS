@@ -1,5 +1,7 @@
 package com.hola.hotel.service;
 
+import com.hola.common.auth.entity.AdminUser;
+import com.hola.common.auth.repository.AdminUserRepository;
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
 import com.hola.hotel.dto.request.HotelCreateRequest;
@@ -27,6 +29,7 @@ public class HotelServiceImpl implements HotelService {
 
     private final HotelRepository hotelRepository;
     private final PropertyRepository propertyRepository;
+    private final AdminUserRepository adminUserRepository;
     private final HotelMapper hotelMapper;
 
     @Override
@@ -123,9 +126,25 @@ public class HotelServiceImpl implements HotelService {
     }
 
     @Override
-    public List<HotelResponse> getHotelsForSelector() {
-        List<Hotel> hotels = hotelRepository.findAllByUseYnTrueOrderBySortOrderAscHotelNameAsc();
-        return hotels.stream().map(hotelMapper::toResponse).collect(Collectors.toList());
+    public List<HotelResponse> getHotelsForSelector(String loginId) {
+        AdminUser currentUser = adminUserRepository.findByLoginIdAndDeletedAtIsNull(loginId)
+                .orElseThrow(() -> new HolaException(ErrorCode.ADMIN_NOT_FOUND));
+
+        // SUPER_ADMIN: 전체 호텔 목록
+        if (currentUser.isSuperAdmin()) {
+            return hotelRepository.findAllByUseYnTrueOrderBySortOrderAscHotelNameAsc()
+                    .stream().map(hotelMapper::toResponse).collect(Collectors.toList());
+        }
+
+        // HOTEL_ADMIN, PROPERTY_ADMIN: 소속 호텔 단건 조회
+        Long userHotelId = currentUser.getHotelId();
+        if (userHotelId == null) {
+            return List.of();
+        }
+        return hotelRepository.findById(userHotelId)
+                .filter(Hotel::getUseYn)
+                .map(h -> List.of(hotelMapper.toResponse(h)))
+                .orElse(List.of());
     }
 
     private Hotel findHotelById(Long id) {

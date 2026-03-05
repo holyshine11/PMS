@@ -45,6 +45,7 @@ const PropertyAdminPage = {
         if (!propertyId) {
             $('#contextAlert').show();
             this.table.clear().draw();
+            HolaPms.requireContext('property');
             return;
         }
         $('#contextAlert').hide();

@@ -20,6 +20,16 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, Long> {
             Long hotelId, String accountType);
 
     /**
+     * accountType 기반 관리자 목록 (블루웨이브 관리자 등 호텔 비종속)
+     */
+    List<AdminUser> findByAccountTypeAndDeletedAtIsNullOrderByCreatedAtDesc(String accountType);
+
+    /**
+     * 특정 권한을 사용하는 관리자 존재 여부
+     */
+    boolean existsByRoleIdAndDeletedAtIsNull(Long roleId);
+
+    /**
      * 회원번호 시퀀스 조회
      */
     @Query(value = "SELECT nextval('sys_member_number_seq')", nativeQuery = true)

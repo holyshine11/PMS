@@ -24,5 +24,5 @@ public interface HotelService {
 
     boolean checkHotelNameDuplicate(String hotelName);
 
-    List<HotelResponse> getHotelsForSelector();
+    List<HotelResponse> getHotelsForSelector(String loginId);
 }

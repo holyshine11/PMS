@@ -28,6 +28,13 @@ const PropertyForm = {
             $('#propertyName').prop('readonly', true);
             $('#btnCheckName').hide();
             this.loadProperty();
+        } else {
+            // 복사등록 파라미터 확인
+            var copyFrom = parseInt(new URLSearchParams(window.location.search).get('copyFrom'), 10);
+            if (copyFrom && !isNaN(copyFrom)) {
+                $('#pageTitle').html('<i class="fas fa-city me-2"></i>프로퍼티 복사등록');
+                this.loadCopyData(copyFrom);
+            }
         }
 
         // 프로퍼티명 변경 시 중복확인 초기화
@@ -284,6 +291,55 @@ const PropertyForm = {
         if (!p1 && !p2 && !p3) return '';
         var parts = [p1, p2, p3].filter(function(p) { return p; });
         return parts.join('-');
+    },
+
+    /** 복사등록 데이터 로드 (등록 모드 유지, 폼만 프리필) */
+    loadCopyData: function(sourceId) {
+        var self = this;
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + sourceId,
+            type: 'GET',
+            success: function(res) {
+                var d = res.data;
+                // 호텔 셀렉트 설정
+                if (d.hotelId) {
+                    $('#hotelSelect').val(d.hotelId);
+                }
+                // 프로퍼티명 복사 (중복확인 필요)
+                $('#propertyName').val(d.propertyName);
+                // 시간대
+                self.parseTimezone(d.timezone);
+                // 대표자명
+                $('#representativeName').val(d.representativeName || '');
+                $('#representativeNameEn').val(d.representativeNameEn || '');
+                $('#businessNumber').val(d.businessNumber || '');
+                // 전화번호
+                self.parsePhone(d.phone);
+                $('#countryCode').val(d.countryCode || '+82');
+                // 사용여부
+                if (d.useYn === false) {
+                    $('#useYnN').prop('checked', true);
+                } else {
+                    $('#useYnY').prop('checked', true);
+                }
+                // 주소
+                $('#zipCode').val(d.zipCode || '');
+                $('#address').val(d.address || '');
+                $('#addressDetail').val(d.addressDetail || '');
+                $('#addressEn').val(d.addressEn || '');
+                $('#addressDetailEn').val(d.addressDetailEn || '');
+                // 성급
+                if (d.starRating) {
+                    $('input[name="starRating"][value="' + d.starRating + '"]').prop('checked', true);
+                }
+                // 소개
+                $('#introduction').val(d.introduction || '');
+                // TAX/봉사료
+                self.populateTaxServiceCharge(d);
+                // propertyCode, 파일 경로는 복사하지 않음 (자동생성/별도 업로드)
+                // nameChecked = false 유지 (중복확인 필요)
+            }
+        });
     },
 
     /** 프로퍼티명 중복확인 */

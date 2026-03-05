@@ -56,6 +56,17 @@ const FloorPage = {
                     },
                     width: '130px',
                     className: 'text-center'
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    render: function(data, type, row) {
+                        var id = parseInt(row.id, 10);
+                        return '<button class="btn btn-outline-info btn-sm text-nowrap" onclick="FloorPage.openCopyModal(' + id + ')">' +
+                               '<i class="fas fa-copy me-1"></i>복사등록</button>';
+                    },
+                    width: '100px',
+                    className: 'text-center'
                 }
             ],
             order: [[1, 'asc']],
@@ -93,25 +104,19 @@ const FloorPage = {
         this.reload();
     },
 
-    /** 헤더 프로퍼티 드롭다운에서 선택된 프로퍼티명 반환 */
-    getPropertyName: function() {
-        var $sel = $('#headerPropertySelect');
-        return $sel.length && $sel.val() ? $sel.find('option:selected').text() : '';
-    },
-
     /** 프로퍼티 변경 시 리로드 */
     reload: function() {
         var propertyId = HolaPms.context.getPropertyId();
-        // 등록 버튼 표시/숨김
-        if (propertyId) {
-            $('#contextAlert').hide();
-            $('#btnCreateWrap').show();
-            this.table.ajax.url('/api/v1/properties/' + propertyId + '/floors').load();
-        } else {
+        if (!propertyId) {
             $('#contextAlert').show();
             $('#btnCreateWrap').hide();
-            this.table.ajax.url('/api/v1/properties/0/floors').load();
+            this.table.clear().draw();
+            HolaPms.requireContext('property');
+            return;
         }
+        $('#contextAlert').hide();
+        $('#btnCreateWrap').show();
+        this.table.ajax.url('/api/v1/properties/' + propertyId + '/floors').load();
     },
 
     /** 검색 */
@@ -152,7 +157,7 @@ const FloorPage = {
         $('#floorModalTitle').text('층코드 등록');
         $('#floorForm')[0].reset();
         $('#floorId').val('');
-        $('#flPropertyName').val(this.getPropertyName());
+        $('#flPropertyName').val(HolaPms.context.getPropertyName());
         $('#floorNumber').prop('readonly', false);
         $('#floorUseYnY').prop('checked', true);
         $('#flUpdatedAt').val('');
@@ -181,7 +186,7 @@ const FloorPage = {
 
                 $('#floorModalTitle').text('층코드 수정');
                 $('#floorId').val(data.id);
-                $('#flPropertyName').val(self.getPropertyName());
+                $('#flPropertyName').val(HolaPms.context.getPropertyName());
                 $('#floorNumber').val(data.floorNumber).prop('readonly', true);
                 $('#descriptionKo').val(data.descriptionKo || '');
                 $('#descriptionEn').val(data.descriptionEn || '');
@@ -204,6 +209,45 @@ const FloorPage = {
                 $('#btnSave').html('<i class="fas fa-save me-1"></i>저장');
 
                 $('#btnDelete').show();
+
+                HolaPms.modal.show('#floorModal');
+            }
+        });
+    },
+
+    /** 복사등록 모달 열기 */
+    openCopyModal: function(id) {
+        var self = this;
+        var propertyId = HolaPms.context.getPropertyId();
+
+        if (!propertyId) {
+            HolaPms.alert('warning', '프로퍼티를 먼저 선택해주세요.');
+            return;
+        }
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + propertyId + '/floors/' + id,
+            type: 'GET',
+            success: function(res) {
+                var data = res.data;
+                self.editId = null;
+                self.duplicateChecked = false;
+
+                $('#floorModalTitle').text('층코드 복사등록');
+                $('#floorForm')[0].reset();
+                $('#floorId').val('');
+                $('#flPropertyName').val(HolaPms.context.getPropertyName());
+                $('#floorNumber').val(data.floorNumber).prop('readonly', false);
+                $('#descriptionKo').val(data.descriptionKo || '');
+                $('#descriptionEn').val(data.descriptionEn || '');
+                $('#floorUseYnY').prop('checked', true);
+                $('#flUpdatedAt').val('');
+
+                $('#btnCheckDuplicate').show();
+                $('#duplicateResult').hide();
+
+                $('#btnSave').html('<i class="fas fa-save me-1"></i>등록');
+                $('#btnDelete').hide();
 
                 HolaPms.modal.show('#floorModal');
             }

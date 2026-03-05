@@ -16,6 +16,13 @@ const HotelForm = {
             $('#hotelCodeRow').show();
             $('#btnDelete').show();
             this.loadHotel();
+        } else {
+            // 복사등록 파라미터 확인
+            var copyFrom = parseInt(new URLSearchParams(window.location.search).get('copyFrom'), 10);
+            if (copyFrom && !isNaN(copyFrom)) {
+                $('#pageTitle').html('<i class="fas fa-hotel me-2"></i>호텔 복사등록');
+                this.loadCopyData(copyFrom);
+            }
         }
 
         // 호텔명 변경 시 중복확인 초기화
@@ -53,6 +60,37 @@ const HotelForm = {
 
                 // 수정 모드에서 호텔명 안 바꿨으면 중복확인 불필요
                 HotelForm.nameChecked = true;
+            }
+        });
+    },
+
+    /** 복사등록 데이터 로드 (등록 모드 유지, 폼만 프리필) */
+    loadCopyData: function(sourceId) {
+        HolaPms.ajax({
+            url: '/api/v1/hotels/' + sourceId,
+            type: 'GET',
+            success: function(res) {
+                var data = res.data;
+                // 호텔명은 복사하되, 중복확인 필요
+                $('#hotelName').val(data.hotelName);
+                $('#representativeName').val(data.representativeName || '');
+                $('#representativeNameEn').val(data.representativeNameEn || '');
+                $('#countryCode').val(data.countryCode || '');
+                $('#phone').val(data.phone || '');
+                $('#zipCode').val(data.zipCode || '');
+                $('#address').val(data.address || '');
+                $('#addressDetail').val(data.addressDetail || '');
+                $('#addressEn').val(data.addressEn || '');
+                $('#addressDetailEn').val(data.addressDetailEn || '');
+                $('#introduction').val(data.introduction || '');
+
+                if (data.useYn === false) {
+                    $('#useYnN').prop('checked', true);
+                } else {
+                    $('#useYnY').prop('checked', true);
+                }
+                // hotelCode는 복사하지 않음 (자동생성)
+                // nameChecked = false 유지 (중복확인 필요)
             }
         });
     },

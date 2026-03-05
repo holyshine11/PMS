@@ -20,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.hola.common.security.AccessControlService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
@@ -35,6 +36,7 @@ public class PropertyApiController {
 
     private final PropertyService propertyService;
     private final PropertySettlementService settlementService;
+    private final AccessControlService accessControlService;
     private final CancellationFeeService cancellationFeeService;
 
     /** 호텔 하위 프로퍼티 목록 */
@@ -139,10 +141,11 @@ public class PropertyApiController {
         return ResponseEntity.ok(HolaResponse.success(propertyService.updateTaxServiceCharge(propertyId, request)));
     }
 
-    /** 헤더 드롭다운용 프로퍼티 목록 (간소화) */
+    /** 헤더 드롭다운용 프로퍼티 목록 (로그인 사용자 권한 기반 필터링) */
     @GetMapping("/api/v1/properties/selector")
     public ResponseEntity<HolaResponse<List<PropertyResponse>>> getPropertiesForSelector(
             @RequestParam Long hotelId) {
-        return ResponseEntity.ok(HolaResponse.success(propertyService.getPropertiesForSelector(hotelId)));
+        String loginId = accessControlService.getCurrentLoginId();
+        return ResponseEntity.ok(HolaResponse.success(propertyService.getPropertiesForSelector(hotelId, loginId)));
     }
 }

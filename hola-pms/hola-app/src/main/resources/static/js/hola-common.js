@@ -170,8 +170,14 @@ const HolaPms = {
     context: {
         selectedHotelId: null,
         selectedPropertyId: null,
+        userRole: null,
 
         init: function() {
+            // 사용자 역할 감지
+            if ($('#roleSuperAdmin').length) this.userRole = 'SUPER_ADMIN';
+            else if ($('#roleHotelAdmin').length) this.userRole = 'HOTEL_ADMIN';
+            else if ($('#rolePropertyAdmin').length) this.userRole = 'PROPERTY_ADMIN';
+
             // sessionStorage에서 복원
             this.selectedHotelId = sessionStorage.getItem('selectedHotelId') || null;
             this.selectedPropertyId = sessionStorage.getItem('selectedPropertyId') || null;
@@ -190,13 +196,28 @@ const HolaPms = {
                     hotels.forEach(function(h) {
                         $select.append('<option value="' + h.id + '">' + HolaPms.escapeHtml(h.hotelName) + '</option>');
                     });
+                    // 저장된 호텔 복원 시도 → 실패하면 stale이므로 클리어
                     if (self.selectedHotelId) {
                         $select.val(self.selectedHotelId);
+                        if ($select.val() !== self.selectedHotelId) {
+                            // stale: 이 사용자가 접근할 수 없는 호텔
+                            self.selectedHotelId = null;
+                            self.selectedPropertyId = null;
+                            sessionStorage.removeItem('selectedHotelId');
+                            sessionStorage.removeItem('selectedPropertyId');
+                        }
+                    }
+
+                    if (self.selectedHotelId) {
                         self.loadProperties(self.selectedHotelId);
                     } else if (hotels.length === 1) {
                         // 호텔이 1개뿐이면 자동 선택
                         self.onHotelChange(hotels[0].id);
                         $select.val(hotels[0].id);
+                    }
+                    // HOTEL_ADMIN, PROPERTY_ADMIN: 호텔 드롭다운 비활성화
+                    if (self.userRole !== 'SUPER_ADMIN' && self.userRole) {
+                        $select.prop('disabled', true);
                     }
                 }
             });
@@ -216,9 +237,33 @@ const HolaPms = {
                     properties.forEach(function(p) {
                         $select.append('<option value="' + p.id + '">' + HolaPms.escapeHtml(p.propertyName) + '</option>');
                     });
+
+                    // 저장된 프로퍼티 복원 시도 → 실패하면 stale이므로 클리어
                     if (self.selectedPropertyId) {
                         $select.val(self.selectedPropertyId);
+                        if ($select.val() !== self.selectedPropertyId) {
+                            // stale: 이 사용자가 접근할 수 없는 프로퍼티
+                            self.selectedPropertyId = null;
+                            sessionStorage.removeItem('selectedPropertyId');
+                        }
                     }
+
+                    // 프로퍼티 미선택 + 1개뿐이면 자동 선택 (모든 역할 공통)
+                    if (!self.selectedPropertyId && properties.length === 1) {
+                        self.selectedPropertyId = String(properties[0].id);
+                        sessionStorage.setItem('selectedPropertyId', self.selectedPropertyId);
+                        $select.val(self.selectedPropertyId);
+                    }
+
+                    // PROPERTY_ADMIN: 프로퍼티 드롭다운 비활성화
+                    if (self.userRole === 'PROPERTY_ADMIN') {
+                        $select.prop('disabled', true);
+                    }
+                    // 초기 로드 완료 후 컨텍스트 변경 이벤트 발행
+                    $(document).trigger('hola:contextChange', {
+                        hotelId: self.selectedHotelId,
+                        propertyId: self.selectedPropertyId
+                    });
                 }
             });
         },
@@ -229,9 +274,8 @@ const HolaPms = {
             sessionStorage.setItem('selectedHotelId', hotelId || '');
             sessionStorage.removeItem('selectedPropertyId');
             $('#headerPropertySelect').val('');
+            // loadProperties 완료 시 contextChange 이벤트 발행 (중복 발행 방지)
             this.loadProperties(hotelId);
-            // 컨텍스트 변경 이벤트 발행
-            $(document).trigger('hola:contextChange', { hotelId: this.selectedHotelId, propertyId: null });
         },
 
         onPropertyChange: function(propertyId) {
@@ -242,7 +286,46 @@ const HolaPms = {
         },
 
         getHotelId: function() { return this.selectedHotelId; },
-        getPropertyId: function() { return this.selectedPropertyId; }
+        getPropertyId: function() { return this.selectedPropertyId; },
+        getHotelName: function() {
+            var $select = $('#headerHotelSelect');
+            return ($select.length && $select.val()) ? $select.find('option:selected').text() : '';
+        },
+        getPropertyName: function() {
+            var $select = $('#headerPropertySelect');
+            return ($select.length && $select.val()) ? $select.find('option:selected').text() : '';
+        }
+    },
+
+    /**
+     * 호텔/프로퍼티 컨텍스트 필수 체크 (미선택 시 toast 안내)
+     * @param {string} type - 'hotel' 또는 'property'
+     * @returns {boolean} 유효하면 true
+     */
+    requireContext: function(type) {
+        var hotelId = this.context.getHotelId();
+        var propertyId = this.context.getPropertyId();
+
+        if ((type === 'hotel' || type === 'property') && !hotelId) {
+            this._showContextAlert('warning', '상단 헤더에서 호텔을 선택해 주세요.');
+            return false;
+        }
+        if (type === 'property' && !propertyId) {
+            this._showContextAlert('warning', '상단 헤더에서 프로퍼티를 선택해 주세요.');
+            return false;
+        }
+        return true;
+    },
+
+    /** 컨텍스트 알림 중복 방지 (3초 내 동일 메시지 무시, 메시지별 관리) */
+    _contextAlertTimers: {},
+    _showContextAlert: function(type, message) {
+        if (this._contextAlertTimers[message]) return;
+        HolaPms.alert(type, message);
+        var self = this;
+        this._contextAlertTimers[message] = setTimeout(function() {
+            delete self._contextAlertTimers[message];
+        }, 3000);
     },
 
     /**
@@ -268,6 +351,23 @@ const HolaPms = {
         responsive: true,
         order: [[0, 'desc']]
     }
+};
+
+// DataTable 에러 글로벌 핸들링 (401/403은 사용자에게 안내, 나머지는 콘솔)
+$.fn.dataTable.ext.errMode = function(settings, techNote, message) {
+    if (settings && settings.jqXHR) {
+        var status = settings.jqXHR.status;
+        if (status === 401) {
+            HolaPms.alert('warning', '세션이 만료되었습니다. 다시 로그인해 주세요.');
+            window.location.href = '/login';
+            return;
+        }
+        if (status === 403) {
+            HolaPms.alert('error', '접근 권한이 없습니다.');
+            return;
+        }
+    }
+    console.warn('DataTable:', message);
 };
 
 // 헤더 호텔/프로퍼티 컨텍스트 초기화

@@ -24,6 +24,16 @@ const PropertyListPage = {
                 { data: 'updatedAt',
                   render: function(data) { return data ? data.substring(0, 10) : '-'; },
                   width: '110px'
+                },
+                { data: null,
+                  orderable: false,
+                  render: function(data, type, row) {
+                    var id = parseInt(row.id, 10);
+                    return '<button class="btn btn-outline-info btn-sm text-nowrap" onclick="PropertyListPage.copyRegister(' + id + ')">' +
+                           '<i class="fas fa-copy me-1"></i>복사등록</button>';
+                  },
+                  width: '100px',
+                  className: 'text-center'
                 }
             ],
             order: [[1, 'asc']]
@@ -45,7 +55,8 @@ const PropertyListPage = {
         var hotelId = HolaPms.context.getHotelId();
         if (!hotelId) {
             $('#contextAlert').show();
-            this.table.ajax.url('/api/v1/hotels/0/properties').load();
+            this.table.clear().draw();
+            HolaPms.requireContext('hotel');
             return;
         }
         $('#contextAlert').hide();
@@ -57,6 +68,10 @@ const PropertyListPage = {
         var name = $('#searchPropertyName').val();
         var useYn = $('input[name="searchUseYn"]:checked').val();
         this.table.search(name).draw();
+    },
+
+    copyRegister: function(id) {
+        location.href = '/admin/properties/new?copyFrom=' + id;
     },
 
     reset: function() {

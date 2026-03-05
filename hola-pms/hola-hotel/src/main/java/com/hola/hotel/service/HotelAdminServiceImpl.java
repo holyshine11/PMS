@@ -97,6 +97,7 @@ public class HotelAdminServiceImpl implements HotelAdminService {
                 .department(admin.getDepartment())
                 .position(admin.getPosition())
                 .roleName(admin.getRoleName())
+                .roleId(admin.getRoleId())
                 .accountType("호텔 관리자")
                 .useYn(admin.getUseYn())
                 .hotelId(hotelId)
@@ -130,6 +131,7 @@ public class HotelAdminServiceImpl implements HotelAdminService {
                 .department(request.getDepartment())
                 .position(request.getPosition())
                 .roleName(request.getRoleName())
+                .roleId(request.getRoleId())
                 .role("HOTEL_ADMIN")
                 .memberNumber(memberNumber)
                 .accountType(ACCOUNT_TYPE)
@@ -154,19 +156,25 @@ public class HotelAdminServiceImpl implements HotelAdminService {
     public HotelAdminResponse update(Long hotelId, Long id, HotelAdminUpdateRequest request) {
         AdminUser admin = findAdminById(id, hotelId);
 
+        log.debug("호텔 관리자 수정 시작 - id: {}, userName: {} → {}, roleId: {} → {}",
+                id, admin.getUserName(), request.getUserName(), admin.getRoleId(), request.getRoleId());
+
         admin.updateProfile(
                 request.getUserName(), request.getEmail(), request.getPhone(),
                 request.getMobileCountryCode(), request.getMobile(),
                 request.getPhoneCountryCode(),
                 request.getDepartment(), request.getPosition(),
-                request.getRoleName(), request.getUseYn());
+                request.getRoleName(), request.getRoleId(), request.getUseYn());
+
+        AdminUser saved = adminUserRepository.saveAndFlush(admin);
+        log.debug("호텔 관리자 flush 완료 - id: {}, userName: {}", saved.getId(), saved.getUserName());
 
         // 프로퍼티 매핑 갱신 (삭제 후 재등록)
         adminUserPropertyRepository.deleteByAdminUserId(admin.getId());
         savePropertyMappings(admin.getId(), request.getPropertyIds());
 
-        log.info("호텔 관리자 수정: {} ({})", admin.getUserName(), admin.getLoginId());
-        return getDetail(hotelId, admin.getId());
+        log.info("호텔 관리자 수정 완료: {} ({})", saved.getUserName(), saved.getLoginId());
+        return getDetail(hotelId, saved.getId());
     }
 
     @Override
@@ -215,7 +223,8 @@ public class HotelAdminServiceImpl implements HotelAdminService {
                         .propertyId(propertyId)
                         .build())
                 .collect(Collectors.toList());
-        adminUserPropertyRepository.saveAll(mappings);
+        adminUserPropertyRepository.saveAllAndFlush(mappings);
+        log.debug("프로퍼티 매핑 저장 완료 - adminUserId: {}, propertyIds: {}", adminUserId, propertyIds);
     }
 
     /**

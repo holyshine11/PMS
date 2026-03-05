@@ -49,7 +49,12 @@ public enum ErrorCode {
     // 회원관리 (HOLA-06xx)
     ADMIN_NOT_FOUND("HOLA-0600", "관리자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     ADMIN_LOGIN_ID_DUPLICATE("HOLA-0601", "이미 사용 중인 아이디입니다.", HttpStatus.CONFLICT),
-    ADMIN_PROPERTY_REQUIRED("HOLA-0602", "프로퍼티를 1개 이상 선택해야 합니다.", HttpStatus.BAD_REQUEST);
+    ADMIN_PROPERTY_REQUIRED("HOLA-0602", "프로퍼티를 1개 이상 선택해야 합니다.", HttpStatus.BAD_REQUEST),
+
+    // 권한관리 (HOLA-07xx)
+    ROLE_NOT_FOUND("HOLA-0700", "권한을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    ROLE_NAME_DUPLICATE("HOLA-0701", "동일 호텔 내 이미 존재하는 권한명입니다.", HttpStatus.CONFLICT),
+    ROLE_HAS_USERS("HOLA-0702", "해당 권한을 사용하는 관리자가 있어 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

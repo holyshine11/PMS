@@ -1,5 +1,9 @@
 package com.hola.hotel.service;
 
+import com.hola.common.auth.entity.AdminUser;
+import com.hola.common.auth.entity.AdminUserProperty;
+import com.hola.common.auth.repository.AdminUserPropertyRepository;
+import com.hola.common.auth.repository.AdminUserRepository;
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
 import com.hola.hotel.dto.request.PropertyCreateRequest;
@@ -18,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -28,6 +33,8 @@ public class PropertyServiceImpl implements PropertyService {
 
     private final PropertyRepository propertyRepository;
     private final HotelRepository hotelRepository;
+    private final AdminUserRepository adminUserRepository;
+    private final AdminUserPropertyRepository adminUserPropertyRepository;
     private final FloorRepository floorRepository;
     private final RoomNumberRepository roomNumberRepository;
     private final MarketCodeRepository marketCodeRepository;
@@ -158,8 +165,25 @@ public class PropertyServiceImpl implements PropertyService {
     }
 
     @Override
-    public List<PropertyResponse> getPropertiesForSelector(Long hotelId) {
-        return propertyRepository.findAllByHotelIdAndUseYnTrueOrderBySortOrderAscPropertyNameAsc(hotelId).stream()
+    public List<PropertyResponse> getPropertiesForSelector(Long hotelId, String loginId) {
+        List<Property> properties = propertyRepository
+                .findAllByHotelIdAndUseYnTrueOrderBySortOrderAscPropertyNameAsc(hotelId);
+
+        // 로그인 사용자의 권한에 따라 필터링
+        AdminUser currentUser = adminUserRepository.findByLoginIdAndDeletedAtIsNull(loginId)
+                .orElseThrow(() -> new HolaException(ErrorCode.ADMIN_NOT_FOUND));
+        if (!currentUser.isSuperAdmin()) {
+            // HOTEL_ADMIN, PROPERTY_ADMIN: 매핑된 프로퍼티만 표시
+            Set<Long> allowedPropertyIds = adminUserPropertyRepository
+                    .findByAdminUserId(currentUser.getId()).stream()
+                    .map(AdminUserProperty::getPropertyId)
+                    .collect(Collectors.toSet());
+            properties = properties.stream()
+                    .filter(p -> allowedPropertyIds.contains(p.getId()))
+                    .collect(Collectors.toList());
+        }
+
+        return properties.stream()
                 .map(p -> hotelMapper.toResponse(p, 0, 0, 0))
                 .collect(Collectors.toList());
     }

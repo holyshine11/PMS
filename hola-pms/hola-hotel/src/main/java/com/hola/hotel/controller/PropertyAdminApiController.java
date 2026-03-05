@@ -1,6 +1,7 @@
 package com.hola.hotel.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.security.AccessControlService;
 import com.hola.hotel.dto.request.PropertyAdminCreateRequest;
 import com.hola.hotel.dto.request.PropertyAdminUpdateRequest;
 import com.hola.hotel.dto.response.PropertyAdminListResponse;
@@ -24,6 +25,7 @@ import java.util.Map;
 public class PropertyAdminApiController {
 
     private final PropertyAdminService propertyAdminService;
+    private final AccessControlService accessControlService;
 
     @GetMapping
     public ResponseEntity<HolaResponse<List<PropertyAdminListResponse>>> getList(
@@ -31,6 +33,7 @@ public class PropertyAdminApiController {
             @RequestParam(required = false) String loginId,
             @RequestParam(required = false) String userName,
             @RequestParam(required = false) Boolean useYn) {
+        accessControlService.validatePropertyAccess(propertyId);
         List<PropertyAdminListResponse> list = propertyAdminService.getList(propertyId, loginId, userName, useYn);
         return ResponseEntity.ok(HolaResponse.success(list));
     }
@@ -39,6 +42,7 @@ public class PropertyAdminApiController {
     public ResponseEntity<HolaResponse<PropertyAdminResponse>> getDetail(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(propertyAdminService.getDetail(propertyId, id)));
     }
 
@@ -46,6 +50,7 @@ public class PropertyAdminApiController {
     public ResponseEntity<HolaResponse<PropertyAdminResponse>> create(
             @PathVariable Long propertyId,
             @Valid @RequestBody PropertyAdminCreateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         PropertyAdminResponse response = propertyAdminService.create(propertyId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(response));
     }
@@ -55,6 +60,7 @@ public class PropertyAdminApiController {
             @PathVariable Long propertyId,
             @PathVariable Long id,
             @Valid @RequestBody PropertyAdminUpdateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(propertyAdminService.update(propertyId, id, request)));
     }
 
@@ -62,6 +68,7 @@ public class PropertyAdminApiController {
     public ResponseEntity<HolaResponse<Void>> delete(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         propertyAdminService.delete(propertyId, id);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -71,6 +78,7 @@ public class PropertyAdminApiController {
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkLoginId(
             @PathVariable Long propertyId,
             @RequestParam String loginId) {
+        accessControlService.validatePropertyAccess(propertyId);
         boolean duplicate = propertyAdminService.checkLoginId(loginId);
         return ResponseEntity.ok(HolaResponse.success(Map.of("duplicate", duplicate)));
     }
@@ -80,6 +88,7 @@ public class PropertyAdminApiController {
     public ResponseEntity<HolaResponse<Void>> resetPassword(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         propertyAdminService.resetPassword(propertyId, id);
         return ResponseEntity.ok(HolaResponse.success());
     }

@@ -7,6 +7,7 @@ const PropertyAdminForm = {
     propertyId: null,
     loginIdChecked: false,
     originalLoginId: '',
+    _savedRoleId: null,
 
     init: function() {
         this.adminId = $('#adminId').val() || null;
@@ -30,13 +31,33 @@ const PropertyAdminForm = {
             this.loadAdmin();
         }
 
+        // 권한 로드 (호텔 기준)
+        var hotelId = HolaPms.context.getHotelId ? HolaPms.context.getHotelId() : null;
+        if (hotelId) {
+            this.loadRoles(hotelId);
+        }
+
         // 컨텍스트(호텔+프로퍼티) 변경 이벤트
         $(document).on('hola:contextChange', function() {
+            // 수정 모드: 프로퍼티/호텔 변경 시 목록 페이지로 이동
+            if (PropertyAdminForm.isEdit) {
+                var newPropertyId = HolaPms.context.getPropertyId();
+                if (newPropertyId && newPropertyId !== String(PropertyAdminForm.propertyId)) {
+                    location.href = '/admin/members/property-admins';
+                }
+                return;
+            }
+
             PropertyAdminForm.propertyId = HolaPms.context.getPropertyId();
             var hName = HolaPms.context.getHotelName ? HolaPms.context.getHotelName() : '';
             var pName = HolaPms.context.getPropertyName ? HolaPms.context.getPropertyName() : '';
             $('#hotelName').val(hName);
             $('#propertyName').val(pName);
+            // 호텔 변경 시 권한 목록도 갱신
+            var newHotelId = HolaPms.context.getHotelId ? HolaPms.context.getHotelId() : null;
+            if (newHotelId) {
+                PropertyAdminForm.loadRoles(newHotelId);
+            }
         });
 
         // 아이디 변경 시 중복확인 초기화
@@ -67,7 +88,14 @@ const PropertyAdminForm = {
                 $('#mobile').val(data.mobile || '');
                 $('#department').val(data.department || '');
                 $('#position').val(data.position || '');
-                $('#roleName').val(data.roleName || '');
+
+                // 권한 저장 후 드롭다운 설정 (영구 보관)
+                if (data.roleId) {
+                    PropertyAdminForm._savedRoleId = data.roleId;
+                    if ($('#roleId option').length > 1) {
+                        $('#roleId').val(data.roleId);
+                    }
+                }
 
                 if (data.useYn === false) {
                     $('#useYnN').prop('checked', true);
@@ -81,6 +109,32 @@ const PropertyAdminForm = {
                 }
                 if (data.propertyName) {
                     $('#propertyName').val(data.propertyName);
+                }
+
+                // 호텔 기준 권한 로드
+                if (data.hotelId) {
+                    PropertyAdminForm.loadRoles(data.hotelId);
+                }
+            }
+        });
+    },
+
+    /** 권한 목록 로드 (드롭다운) */
+    loadRoles: function(hotelId) {
+        if (!hotelId) return;
+        HolaPms.ajax({
+            url: '/api/v1/hotel-admin-roles/selector?hotelId=' + hotelId,
+            type: 'GET',
+            success: function(res) {
+                var roles = res.data || [];
+                var $select = $('#roleId');
+                $select.find('option:not(:first)').remove();
+                roles.forEach(function(r) {
+                    $select.append('<option value="' + r.id + '">' + HolaPms.escapeHtml(r.roleName) + '</option>');
+                });
+                // 수정 모드: 저장된 roleId로 항상 재설정
+                if (PropertyAdminForm._savedRoleId) {
+                    $select.val(PropertyAdminForm._savedRoleId);
                 }
             }
         });
@@ -136,7 +190,7 @@ const PropertyAdminForm = {
         var userName = $.trim($('#userName').val());
         var email = $.trim($('#email').val());
         var phone = $.trim($('#phone').val());
-        var roleName = $.trim($('#roleName').val());
+        var roleId = $('#roleId').val();
 
         if (!this.isEdit && !loginId) {
             HolaPms.alert('warning', '아이디를 입력해주세요.');
@@ -158,11 +212,6 @@ const PropertyAdminForm = {
             $('#phone').focus();
             return;
         }
-        if (!roleName) {
-            HolaPms.alert('warning', '프로퍼티관리자 권한을 입력해주세요.');
-            $('#roleName').focus();
-            return;
-        }
 
         // 아이디 중복확인 (등록 시만)
         if (!this.isEdit && !this.loginIdChecked) {
@@ -179,7 +228,7 @@ const PropertyAdminForm = {
             mobile: HolaPms.form.val('#mobile'),
             department: HolaPms.form.val('#department'),
             position: HolaPms.form.val('#position'),
-            roleName: roleName,
+            roleId: roleId ? parseInt(roleId, 10) : null,
             useYn: $('input[name="useYn"]:checked').val() === 'true'
         };
 
@@ -187,13 +236,16 @@ const PropertyAdminForm = {
             data.loginId = loginId;
         }
 
+        var url = this.isEdit
+            ? '/api/v1/properties/' + this.propertyId + '/admins/' + this.adminId
+            : '/api/v1/properties/' + this.propertyId + '/admins';
+        var method = this.isEdit ? 'PUT' : 'POST';
+
         HolaPms.ajax({
-            url: this.isEdit
-                ? '/api/v1/properties/' + this.propertyId + '/admins/' + this.adminId
-                : '/api/v1/properties/' + this.propertyId + '/admins',
-            type: this.isEdit ? 'PUT' : 'POST',
+            url: url,
+            type: method,
             data: data,
-            success: function() {
+            success: function(res) {
                 HolaPms.alert('success', PropertyAdminForm.isEdit ? '프로퍼티 관리자가 수정되었습니다.' : '프로퍼티 관리자가 등록되었습니다.');
                 setTimeout(function() {
                     location.href = '/admin/members/property-admins';

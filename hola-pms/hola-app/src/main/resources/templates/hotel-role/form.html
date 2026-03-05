@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>호텔 관리자 권한 등록/수정</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0" id="pageTitle">
+            <i class="fas fa-shield-alt me-2"></i>호텔 관리자 권한 등록
+        </h4>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <form id="roleForm">
+                <input type="hidden" id="roleId" th:value="${roleId}">
+
+                <!-- 기본 정보 -->
+                <h6 class="fw-bold mb-3"><i class="fas fa-info-circle me-1"></i>기본 정보</h6>
+
+                <!-- 권한명 + 중복확인 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">권한명</label>
+                    <div class="col-sm-6">
+                        <div class="input-group">
+                            <input type="text" id="roleName" class="form-control" maxlength="100"
+                                   placeholder="권한명을 입력하세요" required>
+                            <button type="button" class="btn btn-outline-secondary" id="btnCheckName"
+                                    onclick="HotelRoleForm.checkName()">중복확인</button>
+                        </div>
+                        <small id="nameCheckResult" class="form-text"></small>
+                    </div>
+                </div>
+
+                <!-- 호텔 선택 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">호텔</label>
+                    <div class="col-sm-6">
+                        <select id="hotelId" class="form-select">
+                            <option value="">호텔을 선택하세요</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 최종수정일시 (수정 모드만) -->
+                <div class="row mb-3" id="updatedAtRow" style="display:none;">
+                    <label class="col-sm-2 col-form-label">최종수정일시</label>
+                    <div class="col-sm-6">
+                        <span id="updatedAt" class="form-control-plaintext text-muted">-</span>
+                    </div>
+                </div>
+
+                <!-- 사용여부 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">사용여부</label>
+                    <div class="col-sm-2">
+                        <div class="btn-group mt-1" role="group">
+                            <input type="radio" class="btn-check" name="useYn" id="useYnY" value="true" checked>
+                            <label class="btn btn-outline-primary btn-sm" for="useYnY">Y</label>
+                            <input type="radio" class="btn-check" name="useYn" id="useYnN" value="false">
+                            <label class="btn btn-outline-primary btn-sm" for="useYnN">N</label>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <!-- 화면 권한 설정 -->
+                <h6 class="fw-bold mb-3"><i class="fas fa-check-square me-1"></i>화면 권한 설정</h6>
+                <div class="border rounded p-3 mb-3" id="menuTreeArea">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="menuSelectAll"
+                               onchange="HotelRoleForm.toggleAllMenus(this)">
+                        <label class="form-check-label fw-bold" for="menuSelectAll">전체 선택</label>
+                    </div>
+                    <hr class="my-2">
+                    <div id="menuTree">
+                        <span class="text-muted">메뉴 트리를 로딩 중...</span>
+                    </div>
+                </div>
+
+                <!-- 버튼 -->
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <button type="button" id="btnDelete" class="btn btn-outline-danger" style="display:none;"
+                                onclick="HotelRoleForm.remove()">
+                            <i class="fas fa-trash me-1"></i>삭제
+                        </button>
+                    </div>
+                    <div>
+                        <a href="/admin/roles/hotel-admins" class="btn btn-secondary me-2">
+                            <i class="fas fa-arrow-left me-1"></i>취소
+                        </a>
+                        <button type="button" class="btn btn-primary" onclick="HotelRoleForm.save()">
+                            <i class="fas fa-save me-1"></i><span id="btnSaveText">등록</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div layout:fragment="scripts">
+    <script th:src="@{/js/hotel-role-form.js}"></script>
+</div>
+</body>
+</html>

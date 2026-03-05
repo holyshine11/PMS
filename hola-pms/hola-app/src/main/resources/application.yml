@@ -53,7 +53,7 @@ hola:
   upload:
     path: ./uploads
 
-# 로깅
+# 로깅 (기본 - 프로파일별 DEBUG 설정은 application-{profile}.yml에서)
 logging:
   level:
     root: INFO

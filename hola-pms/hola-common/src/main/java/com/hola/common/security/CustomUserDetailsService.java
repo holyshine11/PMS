@@ -26,10 +26,13 @@ public class CustomUserDetailsService implements UserDetailsService {
         AdminUser adminUser = adminUserRepository.findByLoginIdAndDeletedAtIsNull(loginId)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + loginId));
 
+        // useYn=false 또는 계정 잠금 시 로그인 차단
+        boolean enabled = adminUser.getUseYn() && !adminUser.getAccountLocked();
+
         return new User(
                 adminUser.getLoginId(),
                 adminUser.getPassword(),
-                !adminUser.getAccountLocked(), // enabled
+                enabled, // enabled (useYn + 잠금 체크)
                 true, // accountNonExpired
                 true, // credentialsNonExpired
                 !adminUser.getAccountLocked(), // accountNonLocked

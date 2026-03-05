@@ -26,6 +26,16 @@ const HotelPage = {
                     return data.substring(0, 10);
                   },
                   width: '120px'
+                },
+                { data: null,
+                  orderable: false,
+                  render: function(data, type, row) {
+                    var id = parseInt(row.id, 10);
+                    return '<button class="btn btn-outline-info btn-sm text-nowrap" onclick="HotelPage.copyRegister(' + id + ')">' +
+                           '<i class="fas fa-copy me-1"></i>복사등록</button>';
+                  },
+                  width: '100px',
+                  className: 'text-center'
                 }
             ],
             order: [[1, 'asc']]
@@ -55,6 +65,10 @@ const HotelPage = {
 
         var url = '/api/v1/hotels' + (params.length > 0 ? '?' + params.join('&') : '');
         this.table.ajax.url(url).load();
+    },
+
+    copyRegister: function(id) {
+        location.href = '/admin/hotels/new?copyFrom=' + id;
     },
 
     reset: function() {

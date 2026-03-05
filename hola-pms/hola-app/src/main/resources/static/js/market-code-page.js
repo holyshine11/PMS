@@ -56,6 +56,17 @@ const MarketCodePage = {
                     },
                     width: '130px',
                     className: 'text-center'
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    render: function(data, type, row) {
+                        var id = parseInt(row.id, 10);
+                        return '<button class="btn btn-outline-info btn-sm text-nowrap" onclick="MarketCodePage.openCopyModal(' + id + ')">' +
+                               '<i class="fas fa-copy me-1"></i>복사등록</button>';
+                    },
+                    width: '100px',
+                    className: 'text-center'
                 }
             ],
             order: [[1, 'asc']],
@@ -93,24 +104,19 @@ const MarketCodePage = {
         this.reload();
     },
 
-    /** 헤더 프로퍼티 드롭다운에서 선택된 프로퍼티명 반환 */
-    getPropertyName: function() {
-        var $sel = $('#headerPropertySelect');
-        return $sel.length && $sel.val() ? $sel.find('option:selected').text() : '';
-    },
-
     /** 프로퍼티 변경 시 API URL 교체 후 리로드 */
     reload: function() {
         var propertyId = HolaPms.context.getPropertyId();
-        if (propertyId) {
-            $('#contextAlert').hide();
-            $('#btnCreateWrap').show();
-            this.table.ajax.url('/api/v1/properties/' + propertyId + '/market-codes').load();
-        } else {
+        if (!propertyId) {
             $('#contextAlert').show();
             $('#btnCreateWrap').hide();
-            this.table.ajax.url('/api/v1/properties/0/market-codes').load();
+            this.table.clear().draw();
+            HolaPms.requireContext('property');
+            return;
         }
+        $('#contextAlert').hide();
+        $('#btnCreateWrap').show();
+        this.table.ajax.url('/api/v1/properties/' + propertyId + '/market-codes').load();
     },
 
     /** 검색 실행 - DataTable 클라이언트 필터링 */
@@ -153,7 +159,7 @@ const MarketCodePage = {
         $('#marketCodeModalTitle').text('마켓코드 등록');
         $('#marketCodeForm')[0].reset();
         $('#mcId').val('');
-        $('#mcPropertyName').val(this.getPropertyName());
+        $('#mcPropertyName').val(HolaPms.context.getPropertyName());
         $('#mcCode').prop('readonly', false);
         $('#mcUseYnY').prop('checked', true);
         $('#mcUpdatedAt').val('');
@@ -184,7 +190,7 @@ const MarketCodePage = {
 
                 $('#marketCodeModalTitle').text('마켓코드 수정');
                 $('#mcId').val(data.id);
-                $('#mcPropertyName').val(self.getPropertyName());
+                $('#mcPropertyName').val(HolaPms.context.getPropertyName());
                 $('#mcCode').val(data.marketCode).prop('readonly', true);
                 $('#mcDescKo').val(data.marketName || '');
                 $('#mcDescEn').val(data.descriptionEn || '');
@@ -245,6 +251,45 @@ const MarketCodePage = {
                     $result.text('사용 가능한 코드명입니다.').removeClass('text-danger').addClass('text-success').show();
                     self.duplicateChecked = true;
                 }
+            }
+        });
+    },
+
+    /** 복사등록 모달 열기 */
+    openCopyModal: function(id) {
+        var self = this;
+        var propertyId = HolaPms.context.getPropertyId();
+
+        if (!propertyId) {
+            HolaPms.alert('warning', '프로퍼티를 먼저 선택해주세요.');
+            return;
+        }
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + propertyId + '/market-codes/' + id,
+            type: 'GET',
+            success: function(res) {
+                var data = res.data;
+                self.editId = null;
+                self.duplicateChecked = false;
+
+                $('#marketCodeModalTitle').text('마켓코드 복사등록');
+                $('#marketCodeForm')[0].reset();
+                $('#mcId').val('');
+                $('#mcPropertyName').val(HolaPms.context.getPropertyName());
+                $('#mcCode').val(data.marketCode).prop('readonly', false);
+                $('#mcDescKo').val(data.marketName || '');
+                $('#mcDescEn').val(data.descriptionEn || '');
+                $('#mcUseYnY').prop('checked', true);
+                $('#mcUpdatedAt').val('');
+
+                $('#btnCheckDuplicate').show();
+                $('#duplicateResult').hide();
+
+                $('#btnSave').html('<i class="fas fa-save me-1"></i>등록');
+                $('#btnDelete').hide();
+
+                HolaPms.modal.show('#marketCodeModal');
             }
         });
     },

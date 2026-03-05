@@ -46,3 +46,11 @@ table.dataTable tbody tr:hover {
     content: " *";
     color: red;
 }
+
+/* 수정 불가(readonly) 필드 시각적 구분 */
+input[readonly].form-control,
+textarea[readonly].form-control {
+    background-color: #e9ecef;
+    opacity: 1;
+    cursor: not-allowed;
+}

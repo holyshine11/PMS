@@ -25,7 +25,7 @@ public interface PropertyService {
 
     long getPropertyCount();
 
-    List<PropertyResponse> getPropertiesForSelector(Long hotelId);
+    List<PropertyResponse> getPropertiesForSelector(Long hotelId, String loginId);
 
     boolean existsPropertyName(Long hotelId, String propertyName);
 

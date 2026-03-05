@@ -47,6 +47,7 @@ const HotelAdminPage = {
         if (!hotelId) {
             $('#contextAlert').show();
             this.table.clear().draw();
+            HolaPms.requireContext('hotel');
             return;
         }
         $('#contextAlert').hide();

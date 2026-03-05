@@ -56,6 +56,17 @@ const RoomNumberPage = {
                     },
                     width: '130px',
                     className: 'text-center'
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    render: function(data, type, row) {
+                        var id = parseInt(row.id, 10);
+                        return '<button class="btn btn-outline-info btn-sm" onclick="RoomNumberPage.openCopyModal(' + id + ')">' +
+                               '<i class="fas fa-copy me-1"></i>복사등록</button>';
+                    },
+                    width: '100px',
+                    className: 'text-center'
                 }
             ],
             order: [[1, 'asc']],
@@ -93,24 +104,19 @@ const RoomNumberPage = {
         this.reload();
     },
 
-    /** 헤더 프로퍼티 드롭다운에서 선택된 프로퍼티명 반환 */
-    getPropertyName: function() {
-        var $sel = $('#headerPropertySelect');
-        return $sel.length && $sel.val() ? $sel.find('option:selected').text() : '';
-    },
-
     /** 프로퍼티 변경 시 리로드 */
     reload: function() {
         var propertyId = HolaPms.context.getPropertyId();
-        if (propertyId) {
-            $('#contextAlert').hide();
-            $('#btnCreateWrap').show();
-            this.table.ajax.url('/api/v1/properties/' + propertyId + '/room-numbers').load();
-        } else {
+        if (!propertyId) {
             $('#contextAlert').show();
             $('#btnCreateWrap').hide();
-            this.table.ajax.url('/api/v1/properties/0/room-numbers').load();
+            this.table.clear().draw();
+            HolaPms.requireContext('property');
+            return;
         }
+        $('#contextAlert').hide();
+        $('#btnCreateWrap').show();
+        this.table.ajax.url('/api/v1/properties/' + propertyId + '/room-numbers').load();
     },
 
     /** 검색 */
@@ -151,7 +157,7 @@ const RoomNumberPage = {
         $('#roomNumberModalTitle').text('호수코드 등록');
         $('#roomNumberForm')[0].reset();
         $('#rnId').val('');
-        $('#rnPropertyName').val(this.getPropertyName());
+        $('#rnPropertyName').val(HolaPms.context.getPropertyName());
         $('#rnCode').prop('readonly', false);
         $('#rnUseYnY').prop('checked', true);
         $('#rnUpdatedAt').val('');
@@ -180,7 +186,7 @@ const RoomNumberPage = {
 
                 $('#roomNumberModalTitle').text('호수코드 수정');
                 $('#rnId').val(data.id);
-                $('#rnPropertyName').val(self.getPropertyName());
+                $('#rnPropertyName').val(HolaPms.context.getPropertyName());
                 $('#rnCode').val(data.roomNumber).prop('readonly', true);
                 $('#rnDescKo').val(data.descriptionKo || '');
                 $('#rnDescEn').val(data.descriptionEn || '');
@@ -203,6 +209,45 @@ const RoomNumberPage = {
                 $('#btnSave').html('<i class="fas fa-save me-1"></i>저장');
 
                 $('#btnDelete').show();
+
+                HolaPms.modal.show('#roomNumberModal');
+            }
+        });
+    },
+
+    /** 복사등록 모달 열기 */
+    openCopyModal: function(id) {
+        var self = this;
+        var propertyId = HolaPms.context.getPropertyId();
+
+        if (!propertyId) {
+            HolaPms.alert('warning', '프로퍼티를 먼저 선택해주세요.');
+            return;
+        }
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + propertyId + '/room-numbers/' + id,
+            type: 'GET',
+            success: function(res) {
+                var data = res.data;
+                self.editId = null;
+                self.duplicateChecked = false;
+
+                $('#roomNumberModalTitle').text('호수코드 복사등록');
+                $('#roomNumberForm')[0].reset();
+                $('#rnId').val('');
+                $('#rnPropertyName').val(HolaPms.context.getPropertyName());
+                $('#rnCode').val(data.roomNumber).prop('readonly', false);
+                $('#rnDescKo').val(data.descriptionKo || '');
+                $('#rnDescEn').val(data.descriptionEn || '');
+                $('#rnUseYnY').prop('checked', true);
+                $('#rnUpdatedAt').val('');
+
+                $('#btnCheckDuplicate').show();
+                $('#duplicateResult').hide();
+
+                $('#btnSave').html('<i class="fas fa-save me-1"></i>등록');
+                $('#btnDelete').hide();
 
                 HolaPms.modal.show('#roomNumberModal');
             }

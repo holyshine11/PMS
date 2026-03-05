@@ -7,6 +7,8 @@ const HotelAdminForm = {
     hotelId: null,
     loginIdChecked: false,
     originalLoginId: '',
+    _savedRoleId: null,
+    _savedPropertyIds: null,
 
     init: function() {
         this.adminId = $('#adminId').val() || null;
@@ -28,18 +30,29 @@ const HotelAdminForm = {
             this.loadAdmin();
         }
 
-        // 프로퍼티 로드
+        // 프로퍼티 + 권한 로드
         if (this.hotelId) {
             this.loadProperties();
+            this.loadRoles();
         }
 
         // 컨텍스트(호텔) 변경 이벤트
         $(document).on('hola:contextChange', function() {
+            // 수정 모드: 호텔 변경 시 목록 페이지로 이동
+            if (HotelAdminForm.isEdit) {
+                var newHotelId = HolaPms.context.getHotelId();
+                if (newHotelId && newHotelId !== String(HotelAdminForm.hotelId)) {
+                    location.href = '/admin/members/hotel-admins';
+                }
+                return;
+            }
+
             HotelAdminForm.hotelId = HolaPms.context.getHotelId();
             var name = HolaPms.context.getHotelName ? HolaPms.context.getHotelName() : '';
             $('#hotelName').val(name);
             if (HotelAdminForm.hotelId) {
                 HotelAdminForm.loadProperties();
+                HotelAdminForm.loadRoles();
             }
         });
 
@@ -71,7 +84,14 @@ const HotelAdminForm = {
                 $('#mobile').val(data.mobile || '');
                 $('#department').val(data.department || '');
                 $('#position').val(data.position || '');
-                $('#roleName').val(data.roleName || '');
+
+                // 권한 저장 후 드롭다운 설정 (영구 보관)
+                if (data.roleId) {
+                    HotelAdminForm._savedRoleId = data.roleId;
+                    if ($('#roleId option').length > 1) {
+                        $('#roleId').val(data.roleId);
+                    }
+                }
 
                 if (data.useYn === false) {
                     $('#useYnN').prop('checked', true);
@@ -84,8 +104,9 @@ const HotelAdminForm = {
                     $('#hotelName').val(data.hotelName);
                 }
 
-                // 프로퍼티 체크
+                // 프로퍼티 저장 후 체크 (영구 보관)
                 if (data.propertyIds && data.propertyIds.length > 0) {
+                    HotelAdminForm._savedPropertyIds = data.propertyIds;
                     HotelAdminForm.checkProperties(data.propertyIds);
                 }
             }
@@ -111,10 +132,30 @@ const HotelAdminForm = {
                 }
                 $('#propertyList').html(html);
 
-                // 수정 모드일 때 프로퍼티 재체크
-                if (HotelAdminForm.isEdit && HotelAdminForm._pendingPropertyIds) {
-                    HotelAdminForm.checkProperties(HotelAdminForm._pendingPropertyIds);
-                    HotelAdminForm._pendingPropertyIds = null;
+                // 수정 모드: 저장된 프로퍼티 ID로 항상 재체크
+                if (HotelAdminForm.isEdit && HotelAdminForm._savedPropertyIds) {
+                    HotelAdminForm.checkProperties(HotelAdminForm._savedPropertyIds);
+                }
+            }
+        });
+    },
+
+    /** 권한 목록 로드 (드롭다운) */
+    loadRoles: function() {
+        if (!this.hotelId) return;
+        HolaPms.ajax({
+            url: '/api/v1/hotel-admin-roles/selector?hotelId=' + this.hotelId,
+            type: 'GET',
+            success: function(res) {
+                var roles = res.data || [];
+                var $select = $('#roleId');
+                $select.find('option:not(:first)').remove();
+                roles.forEach(function(r) {
+                    $select.append('<option value="' + r.id + '">' + HolaPms.escapeHtml(r.roleName) + '</option>');
+                });
+                // 수정 모드: 저장된 roleId로 항상 재설정
+                if (HotelAdminForm._savedRoleId) {
+                    $select.val(HotelAdminForm._savedRoleId);
                 }
             }
         });
@@ -122,9 +163,8 @@ const HotelAdminForm = {
 
     checkProperties: function(propertyIds) {
         if (!propertyIds) return;
-        // 프로퍼티 체크박스가 아직 로드되지 않았으면 보류
+        // 프로퍼티 체크박스가 아직 로드되지 않았으면 무시 (loadProperties 완료 시 재시도)
         if ($('.property-check').length === 0) {
-            this._pendingPropertyIds = propertyIds;
             return;
         }
         $('.property-check').prop('checked', false);
@@ -194,7 +234,7 @@ const HotelAdminForm = {
         var userName = $.trim($('#userName').val());
         var email = $.trim($('#email').val());
         var phone = $.trim($('#phone').val());
-        var roleName = $.trim($('#roleName').val());
+        var roleId = $('#roleId').val();
 
         if (!this.isEdit && !loginId) {
             HolaPms.alert('warning', '아이디를 입력해주세요.');
@@ -214,11 +254,6 @@ const HotelAdminForm = {
         if (!phone) {
             HolaPms.alert('warning', '연락처를 입력해주세요.');
             $('#phone').focus();
-            return;
-        }
-        if (!roleName) {
-            HolaPms.alert('warning', '호텔관리자 권한을 입력해주세요.');
-            $('#roleName').focus();
             return;
         }
 
@@ -247,7 +282,7 @@ const HotelAdminForm = {
             mobile: HolaPms.form.val('#mobile'),
             department: HolaPms.form.val('#department'),
             position: HolaPms.form.val('#position'),
-            roleName: roleName,
+            roleId: roleId ? parseInt(roleId, 10) : null,
             useYn: $('input[name="useYn"]:checked').val() === 'true',
             propertyIds: propertyIds
         };
@@ -256,13 +291,16 @@ const HotelAdminForm = {
             data.loginId = loginId;
         }
 
+        var url = this.isEdit
+            ? '/api/v1/hotels/' + this.hotelId + '/admins/' + this.adminId
+            : '/api/v1/hotels/' + this.hotelId + '/admins';
+        var method = this.isEdit ? 'PUT' : 'POST';
+
         HolaPms.ajax({
-            url: this.isEdit
-                ? '/api/v1/hotels/' + this.hotelId + '/admins/' + this.adminId
-                : '/api/v1/hotels/' + this.hotelId + '/admins',
-            type: this.isEdit ? 'PUT' : 'POST',
+            url: url,
+            type: method,
             data: data,
-            success: function() {
+            success: function(res) {
                 HolaPms.alert('success', HotelAdminForm.isEdit ? '호텔 관리자가 수정되었습니다.' : '호텔 관리자가 등록되었습니다.');
                 setTimeout(function() {
                     location.href = '/admin/members/hotel-admins';

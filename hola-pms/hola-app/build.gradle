@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation project(':hola-common')
     implementation project(':hola-hotel')
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 }
 
 bootJar {

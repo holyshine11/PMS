@@ -18,47 +18,47 @@
             <form id="hotelAdminForm">
                 <input type="hidden" id="adminId" th:value="${adminId}">
 
-                <!-- 기본정보 영역 -->
-                <div class="table-responsive mb-4">
-                    <table class="table table-bordered mb-0">
-                        <tbody>
-                        <tr>
-                            <th class="table-light" style="width:15%">회원번호</th>
-                            <td style="width:35%">
-                                <span id="memberNumber" class="text-muted">자동생성</span>
-                            </td>
-                            <th class="table-light" style="width:15%">계정유형</th>
-                            <td style="width:35%">호텔 관리자</td>
-                        </tr>
-                        <tr>
-                            <th class="table-light">가입일</th>
-                            <td>
-                                <span id="createdAt" class="text-muted">자동생성</span>
-                            </td>
-                            <th class="table-light">계정상태 <span class="text-danger">*</span></th>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <input type="radio" class="btn-check" name="useYn" id="useYnY" value="true" checked>
-                                    <label class="btn btn-outline-primary btn-sm" for="useYnY">Y</label>
-                                    <input type="radio" class="btn-check" name="useYn" id="useYnN" value="false">
-                                    <label class="btn btn-outline-primary btn-sm" for="useYnN">N</label>
-                                </div>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
+                <!-- 회원번호 / 계정유형 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">회원번호</label>
+                    <div class="col-sm-3">
+                        <span id="memberNumber" class="form-control-plaintext text-muted">자동생성</span>
+                    </div>
+                    <label class="col-sm-2 col-form-label">계정유형</label>
+                    <div class="col-sm-3">
+                        <span class="form-control-plaintext">호텔 관리자</span>
+                    </div>
                 </div>
 
-                <!-- 호텔명 + 비밀번호초기화 -->
+                <!-- 가입일 / 계정상태 / 비밀번호 초기화 -->
                 <div class="row mb-3">
-                    <label class="col-sm-2 col-form-label">호텔명</label>
-                    <div class="col-sm-4">
-                        <input type="text" id="hotelName" class="form-control-plaintext fw-bold" readonly>
+                    <label class="col-sm-2 col-form-label">가입일</label>
+                    <div class="col-sm-3">
+                        <span id="createdAt" class="form-control-plaintext text-muted">자동생성</span>
                     </div>
-                    <div class="col-sm-4" id="resetPwdArea" style="display:none;">
-                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="HotelAdminForm.resetPassword()">
+                    <label class="col-sm-2 col-form-label required">계정상태</label>
+                    <div class="col-sm-2">
+                        <div class="btn-group mt-1" role="group">
+                            <input type="radio" class="btn-check" name="useYn" id="useYnY" value="true" checked>
+                            <label class="btn btn-outline-primary btn-sm" for="useYnY">Y</label>
+                            <input type="radio" class="btn-check" name="useYn" id="useYnN" value="false">
+                            <label class="btn btn-outline-primary btn-sm" for="useYnN">N</label>
+                        </div>
+                    </div>
+                    <div class="col-sm-3" id="resetPwdArea" style="display:none;">
+                        <button type="button" class="btn btn-outline-warning btn-sm mt-1" onclick="HotelAdminForm.resetPassword()">
                             <i class="fas fa-key me-1"></i>비밀번호 초기화
                         </button>
+                    </div>
+                </div>
+
+                <hr class="mb-3">
+
+                <!-- 호텔명 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">호텔명</label>
+                    <div class="col-sm-6">
+                        <input type="text" id="hotelName" class="form-control-plaintext fw-bold" readonly>
                     </div>
                 </div>
 
@@ -82,7 +82,7 @@
                 <!-- 아이디 + 중복확인 -->
                 <div class="row mb-3">
                     <label class="col-sm-2 col-form-label required">아이디</label>
-                    <div class="col-sm-6">
+                    <div class="col-sm-8">
                         <div class="input-group">
                             <input type="text" id="loginId" class="form-control" maxlength="50"
                                    placeholder="아이디를 입력하세요" required>
@@ -96,7 +96,7 @@
                 <!-- 담당자명 -->
                 <div class="row mb-3">
                     <label class="col-sm-2 col-form-label required">담당자명</label>
-                    <div class="col-sm-4">
+                    <div class="col-sm-6">
                         <input type="text" id="userName" class="form-control" maxlength="100"
                                placeholder="담당자명을 입력하세요" required>
                     </div>
@@ -110,7 +110,7 @@
                             <option th:replace="~{layout/fragments/common-fields :: countryCodeOptions}"></option>
                         </select>
                     </div>
-                    <div class="col-sm-4">
+                    <div class="col-sm-6">
                         <input type="text" id="mobile" class="form-control" maxlength="20"
                                placeholder="010-1234-5678">
                     </div>
@@ -119,7 +119,7 @@
                 <!-- 이메일 -->
                 <div class="row mb-3">
                     <label class="col-sm-2 col-form-label required">이메일</label>
-                    <div class="col-sm-6">
+                    <div class="col-sm-8">
                         <input type="email" id="email" class="form-control" maxlength="200"
                                placeholder="이메일을 입력하세요" required>
                     </div>
@@ -133,7 +133,7 @@
                             <option th:replace="~{layout/fragments/common-fields :: countryCodeOptions}"></option>
                         </select>
                     </div>
-                    <div class="col-sm-4">
+                    <div class="col-sm-6">
                         <input type="text" id="phone" class="form-control" maxlength="20"
                                placeholder="02-1234-5678" required>
                     </div>
@@ -142,7 +142,7 @@
                 <!-- 부서명 -->
                 <div class="row mb-3">
                     <label class="col-sm-2 col-form-label">부서명</label>
-                    <div class="col-sm-4">
+                    <div class="col-sm-6">
                         <input type="text" id="department" class="form-control" maxlength="100"
                                placeholder="부서명을 입력하세요">
                     </div>
@@ -151,18 +151,19 @@
                 <!-- 직급/직책 -->
                 <div class="row mb-3">
                     <label class="col-sm-2 col-form-label">직급/직책</label>
-                    <div class="col-sm-4">
+                    <div class="col-sm-6">
                         <input type="text" id="position" class="form-control" maxlength="100"
                                placeholder="직급/직책을 입력하세요">
                     </div>
                 </div>
 
-                <!-- 호텔관리자 권한 (임시 텍스트) -->
+                <!-- 호텔관리자 권한 -->
                 <div class="row mb-3">
-                    <label class="col-sm-2 col-form-label required">호텔관리자 권한</label>
+                    <label class="col-sm-2 col-form-label">호텔관리자 권한</label>
                     <div class="col-sm-6">
-                        <input type="text" id="roleName" class="form-control" maxlength="100"
-                               placeholder="권한명을 입력하세요" required>
+                        <select id="roleId" class="form-select">
+                            <option value="">권한을 선택하세요</option>
+                        </select>
                     </div>
                 </div>
 
@@ -190,7 +191,7 @@
 </div>
 
 <div layout:fragment="scripts">
-    <script th:src="@{/js/hotel-admin-form.js}"></script>
+    <script th:src="@{/js/hotel-admin-form.js(v=20260305)}"></script>
 </div>
 </body>
 </html>

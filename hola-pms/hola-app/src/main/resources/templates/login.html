@@ -70,6 +70,10 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+    // 로그인 페이지 진입 시 이전 세션 컨텍스트 제거 (계정 간 데이터 유출 방지)
+    sessionStorage.removeItem('selectedHotelId');
+    sessionStorage.removeItem('selectedPropertyId');
+
     document.querySelector('form').addEventListener('submit', function(e) {
         var username = document.getElementById('username').value.trim();
         var password = document.getElementById('password').value;

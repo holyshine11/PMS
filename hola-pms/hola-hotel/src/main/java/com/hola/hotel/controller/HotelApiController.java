@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.hola.common.security.AccessControlService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.Map;
 public class HotelApiController {
 
     private final HotelService hotelService;
+    private final AccessControlService accessControlService;
 
     @GetMapping
     public ResponseEntity<HolaResponse<List<HotelResponse>>> getHotels(
@@ -71,9 +73,10 @@ public class HotelApiController {
         return ResponseEntity.ok(HolaResponse.success(Map.of("duplicate", duplicate)));
     }
 
-    /** 헤더 드롭다운용 호텔 목록 (간소화) */
+    /** 헤더 드롭다운용 호텔 목록 (로그인 사용자 권한 기반 필터링) */
     @GetMapping("/selector")
     public ResponseEntity<HolaResponse<List<HotelResponse>>> getHotelsForSelector() {
-        return ResponseEntity.ok(HolaResponse.success(hotelService.getHotelsForSelector()));
+        String loginId = accessControlService.getCurrentLoginId();
+        return ResponseEntity.ok(HolaResponse.success(hotelService.getHotelsForSelector(loginId)));
     }
 }

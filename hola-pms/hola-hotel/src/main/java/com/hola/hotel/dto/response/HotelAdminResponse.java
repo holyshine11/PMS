@@ -26,6 +26,7 @@ public class HotelAdminResponse {
     private String department;
     private String position;
     private String roleName;
+    private Long roleId;
     private String accountType;
     private Boolean useYn;
     private Long hotelId;

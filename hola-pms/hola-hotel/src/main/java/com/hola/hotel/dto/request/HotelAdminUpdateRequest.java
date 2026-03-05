@@ -40,6 +40,8 @@ public class HotelAdminUpdateRequest {
     @Size(max = 100, message = "권한명은 100자 이하입니다.")
     private String roleName;
 
+    private Long roleId;
+
     private Boolean useYn;
 
     @NotEmpty(message = "프로퍼티를 1개 이상 선택해주세요.")
