@@ -1,56 +1,315 @@
-/* Hola PMS 커스텀 CSS */
+/* ========================================
+   Hola PMS - 커스텀 테마
+   컬러 팔레트: #051923, #003554, #0582CA, #EF476F, #000, #FFF
+   폰트: Pretendard
+   ======================================== */
 
-/* 사이드바 활성 메뉴 */
+/* Pretendard 폰트 */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+
+/* Bootstrap CSS 변수 오버라이드 */
+:root {
+    /* Primary: 밝은 블루 */
+    --bs-primary: #0582CA;
+    --bs-primary-rgb: 5, 130, 202;
+
+    /* Danger: 핑크 레드 */
+    --bs-danger: #EF476F;
+    --bs-danger-rgb: 239, 71, 111;
+
+    /* Dark: 가장 어두운 네이비 */
+    --bs-dark: #051923;
+    --bs-dark-rgb: 5, 25, 35;
+
+    /* 폰트 */
+    --bs-body-font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+    /* 링크 컬러 */
+    --bs-link-color: #0582CA;
+    --bs-link-color-rgb: 5, 130, 202;
+    --bs-link-hover-color: #003554;
+    --bs-link-hover-color-rgb: 0, 53, 84;
+
+    /* Success: 밝은 블루 (긍정 피드백) */
+    --bs-success: #0582CA;
+    --bs-success-rgb: 5, 130, 202;
+
+    /* Info: 어두운 블루 */
+    --bs-info: #003554;
+    --bs-info-rgb: 0, 53, 84;
+
+    /* Warning: 어두운 블루 (중간 톤) */
+    --bs-warning: #003554;
+    --bs-warning-rgb: 0, 53, 84;
+
+    /* Hola 커스텀 변수 */
+    --hola-header-bg: #003554;
+    --hola-sidebar-bg: #051923;
+    --hola-accent: #0582CA;
+    --hola-danger: #EF476F;
+}
+
+body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* ── 버튼 오버라이드 ── */
+.btn-primary {
+    --bs-btn-bg: #0582CA;
+    --bs-btn-border-color: #0582CA;
+    --bs-btn-hover-bg: #003554;
+    --bs-btn-hover-border-color: #003554;
+    --bs-btn-active-bg: #003554;
+    --bs-btn-active-border-color: #051923;
+    --bs-btn-disabled-bg: #0582CA;
+    --bs-btn-disabled-border-color: #0582CA;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: #0582CA;
+    --bs-btn-border-color: #0582CA;
+    --bs-btn-hover-bg: #0582CA;
+    --bs-btn-hover-border-color: #0582CA;
+    --bs-btn-active-bg: #003554;
+    --bs-btn-active-border-color: #003554;
+}
+
+.btn-danger {
+    --bs-btn-bg: #EF476F;
+    --bs-btn-border-color: #EF476F;
+    --bs-btn-hover-bg: #d63860;
+    --bs-btn-hover-border-color: #d63860;
+    --bs-btn-active-bg: #c03055;
+    --bs-btn-active-border-color: #c03055;
+}
+
+.btn-outline-danger {
+    --bs-btn-color: #EF476F;
+    --bs-btn-border-color: #EF476F;
+    --bs-btn-hover-bg: #EF476F;
+    --bs-btn-hover-border-color: #EF476F;
+    --bs-btn-active-bg: #d63860;
+    --bs-btn-active-border-color: #d63860;
+}
+
+/* ── 배경 클래스 오버라이드 ── */
+.bg-primary {
+    background-color: #0582CA !important;
+}
+
+.bg-dark {
+    background-color: #051923 !important;
+}
+
+.bg-danger {
+    background-color: #EF476F !important;
+}
+
+.text-primary {
+    color: #0582CA !important;
+}
+
+.text-danger {
+    color: #EF476F !important;
+}
+
+/* ── Success/Info/Warning 오버라이드 ── */
+.bg-success {
+    background-color: #0582CA !important;
+}
+
+.bg-info {
+    background-color: #003554 !important;
+}
+
+.bg-warning {
+    background-color: #003554 !important;
+}
+
+.text-success {
+    color: #0582CA !important;
+}
+
+.text-info {
+    color: #003554 !important;
+}
+
+.text-warning {
+    color: #003554 !important;
+}
+
+.btn-success {
+    --bs-btn-bg: #0582CA;
+    --bs-btn-border-color: #0582CA;
+    --bs-btn-hover-bg: #003554;
+    --bs-btn-hover-border-color: #003554;
+}
+
+.btn-info {
+    --bs-btn-bg: #003554;
+    --bs-btn-border-color: #003554;
+    --bs-btn-hover-bg: #051923;
+    --bs-btn-hover-border-color: #051923;
+    --bs-btn-color: #fff;
+    --bs-btn-hover-color: #fff;
+}
+
+.btn-warning {
+    --bs-btn-bg: #003554;
+    --bs-btn-border-color: #003554;
+    --bs-btn-hover-bg: #051923;
+    --bs-btn-hover-border-color: #051923;
+    --bs-btn-color: #fff;
+    --bs-btn-hover-color: #fff;
+}
+
+.alert-success {
+    --bs-alert-bg: #e8f4fc;
+    --bs-alert-border-color: #0582CA;
+    --bs-alert-color: #003554;
+}
+
+.alert-info {
+    --bs-alert-bg: #e6edf2;
+    --bs-alert-border-color: #003554;
+    --bs-alert-color: #051923;
+}
+
+.alert-warning {
+    --bs-alert-bg: #e6edf2;
+    --bs-alert-border-color: #003554;
+    --bs-alert-color: #051923;
+}
+
+/* ── 헤더 (navbar) ── */
+.navbar.hola-header {
+    background-color: var(--hola-header-bg) !important;
+}
+
+/* ── 사이드바 ── */
+.sidebar.hola-sidebar {
+    background-color: var(--hola-sidebar-bg) !important;
+}
+
 .sidebar .nav-link.active {
+    background-color: var(--hola-accent) !important;
     border-radius: 4px;
 }
 
 .sidebar .nav-link:hover:not(.disabled) {
-    background-color: rgba(255,255,255,0.1);
+    background-color: rgba(5, 130, 202, 0.2);
     border-radius: 4px;
 }
 
-/* DataTables 커스텀 */
-.dataTables_wrapper .dataTables_filter input {
-    border-radius: 8px;
-}
-
-/* 카드 hover 효과 */
-.card.shadow-sm:hover {
-    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
-    transition: box-shadow 0.2s ease;
-}
-
-/* 테이블 행 hover */
-table.dataTable tbody tr:hover {
-    background-color: #f0f7ff !important;
-    cursor: pointer;
-}
-
-/* 모달 헤더 */
+/* ── 모달 헤더 ── */
 .modal-header {
-    background-color: #0d6efd;
+    background-color: var(--hola-header-bg);
     color: white;
 }
 .modal-header .btn-close {
     filter: invert(1);
 }
 
-/* 탭 스타일 */
+/* ── DataTables 커스텀 ── */
+.dataTables_wrapper .dataTables_filter input {
+    border-radius: 8px;
+}
+
+/* DataTables info: 왼쪽 패딩 없이 붙임 */
+div.dataTables_wrapper div.dataTables_info.dataTables_info {
+    padding-top: 0.75rem;
+    padding-left: 0;
+}
+
+/* DataTables 페이지네이션: 가운데 정렬 */
+div.dataTables_wrapper div.dataTables_paginate.dataTables_paginate {
+    text-align: center;
+    float: none;
+    padding-top: 0.5rem;
+}
+div.dataTables_wrapper div.dataTables_paginate.dataTables_paginate ul.pagination {
+    justify-content: center;
+}
+
+/* ── 카드 hover 효과 ── */
+.card.shadow-sm:hover {
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important;
+    transition: box-shadow 0.2s ease;
+}
+
+/* ── 테이블 행 hover ── */
+table.dataTable tbody tr:hover {
+    background-color: rgba(5, 130, 202, 0.08) !important;
+    cursor: pointer;
+}
+
+/* ── 탭 스타일 ── */
 .nav-tabs .nav-link.active {
     font-weight: bold;
+    color: #0582CA;
+    border-bottom-color: #0582CA;
 }
 
-/* 필수 입력 표시 */
+/* ── 필수 입력 표시 ── */
 .required::after {
     content: " *";
-    color: red;
+    color: #EF476F;
 }
 
-/* 수정 불가(readonly) 필드 시각적 구분 */
+/* ── 수정 불가(readonly) 필드 ── */
 input[readonly].form-control,
 textarea[readonly].form-control {
     background-color: #e9ecef;
     opacity: 1;
     cursor: not-allowed;
+}
+
+/* ── 대시보드 아이콘 박스 ── */
+.hola-icon-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.hola-icon-box.hola-icon-dark {
+    background-color: rgba(0, 53, 84, 0.1);
+    color: #003554;
+}
+.hola-icon-box.hola-icon-accent {
+    background-color: rgba(5, 130, 202, 0.1);
+    color: #0582CA;
+}
+.hola-icon-box.hola-icon-danger {
+    background-color: rgba(239, 71, 111, 0.1);
+    color: #EF476F;
+}
+
+/* ── 폼 포커스 컬러 ── */
+.form-control:focus,
+.form-select:focus {
+    border-color: #0582CA;
+    box-shadow: 0 0 0 0.25rem rgba(5, 130, 202, 0.25);
+}
+
+/* ── 페이지네이션 ── */
+.page-link {
+    color: #0582CA;
+}
+.page-item.active .page-link {
+    background-color: #0582CA;
+    border-color: #0582CA;
+}
+
+/* ── 알림/뱃지 ── */
+.alert-danger {
+    --bs-alert-bg: #fdedf1;
+    --bs-alert-border-color: #EF476F;
+    --bs-alert-color: #8b1a31;
+}
+
+.badge.bg-primary {
+    background-color: #0582CA !important;
+}
+
+.badge.bg-danger {
+    background-color: #EF476F !important;
 }

@@ -2,4 +2,5 @@ rootProject.name = 'hola-pms'
 
 include 'hola-common'
 include 'hola-hotel'
+include 'hola-room'
 include 'hola-app'

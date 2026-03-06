@@ -119,11 +119,16 @@ const PropertyAdminForm = {
         });
     },
 
-    /** 권한 목록 로드 (드롭다운) */
+    /** 권한 목록 로드 (드롭다운) - 프로퍼티 관리자 권한 */
     loadRoles: function(hotelId) {
         if (!hotelId) return;
+        var propertyId = PropertyAdminForm.propertyId;
+        var url = '/api/v1/property-admin-roles/selector?hotelId=' + hotelId;
+        if (propertyId) {
+            url += '&propertyId=' + propertyId;
+        }
         HolaPms.ajax({
-            url: '/api/v1/hotel-admin-roles/selector?hotelId=' + hotelId,
+            url: url,
             type: 'GET',
             success: function(res) {
                 var roles = res.data || [];

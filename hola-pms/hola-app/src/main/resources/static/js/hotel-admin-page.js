@@ -12,6 +12,11 @@ const HotelAdminPage = {
             },
             serverSide: false,
             pageLength: 20,
+            dom: 'rtip',
+            drawCallback: function() {
+                var info = this.api().page.info();
+                $('#totalCount').text(info.recordsTotal);
+            },
             columns: [
                 { data: null, render: function(data, type, row, meta) { return meta.row + 1; }, width: '50px' },
                 { data: 'loginId',
@@ -37,6 +42,12 @@ const HotelAdminPage = {
         });
         $('input[name="searchUseYn"]').on('change', function() {
             HotelAdminPage.search();
+        });
+
+        // 페이지 사이즈 변경
+        var self = this;
+        $('#pageSizeSelect').on('change', function() {
+            self.table.page.len(parseInt($(this).val())).draw();
         });
 
         this.reload();

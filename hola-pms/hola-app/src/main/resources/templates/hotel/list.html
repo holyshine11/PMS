@@ -43,10 +43,23 @@
         </div>
     </div>
 
+    <!-- 테이블 헤더 -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <select id="pageSizeSelect" class="form-select form-select-sm d-inline-block" style="width: auto;">
+                <option value="10">10개씩 보기</option>
+                <option value="20" selected>20개씩 보기</option>
+                <option value="50">50개씩 보기</option>
+                <option value="100">100개씩 보기</option>
+            </select>
+            <span class="ms-2 text-muted">검색 결과 총 <strong id="totalCount">0</strong> 개</span>
+        </div>
+    </div>
+
     <!-- 호텔 목록 테이블 -->
     <div class="card border-0 shadow-sm">
-        <div class="card-body">
-            <table id="hotelTable" class="table table-hover" style="width:100%">
+        <div class="card-body p-0">
+            <table id="hotelTable" class="table table-hover mb-0" style="width:100%">
                 <thead class="table-light">
                 <tr>
                     <th>No</th>

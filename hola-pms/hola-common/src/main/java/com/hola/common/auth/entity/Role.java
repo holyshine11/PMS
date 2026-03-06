@@ -9,7 +9,7 @@ import lombok.*;
  */
 @Entity
 @Table(name = "sys_role",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"role_name", "hotel_id"}))
+        uniqueConstraints = @UniqueConstraint(columnNames = {"role_name", "hotel_id", "property_id"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -21,6 +21,9 @@ public class Role extends BaseEntity {
 
     @Column(name = "hotel_id")
     private Long hotelId;
+
+    @Column(name = "property_id")
+    private Long propertyId;
 
     @Column(name = "target_type", nullable = false, length = 20)
     @Builder.Default

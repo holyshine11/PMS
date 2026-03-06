@@ -95,6 +95,25 @@ const HotelForm = {
         });
     },
 
+    /** 우편번호 조회 (다음 주소 API) */
+    searchAddress: function() {
+        if (typeof daum !== 'undefined' && daum.Postcode) {
+            new daum.Postcode({
+                oncomplete: function(data) {
+                    $('#zipCode').val(data.zonecode);
+                    $('#address').val(data.roadAddress || data.jibunAddress);
+                    $('#addressDetail').val('').focus();
+                    // 영문 주소 자동 채우기
+                    if (data.engAddress) {
+                        $('#addressDetailEn').val(data.engAddress);
+                    }
+                }
+            }).open();
+        } else {
+            HolaPms.alert('info', '우편번호 검색 서비스를 로드 중입니다. 잠시 후 다시 시도해주세요.');
+        }
+    },
+
     checkName: function() {
         var hotelName = $.trim($('#hotelName').val());
         if (!hotelName) {
@@ -138,6 +157,14 @@ const HotelForm = {
                 HolaPms.alert('warning', '호텔명 중복확인을 해주세요.');
                 return;
             }
+        }
+
+        // 주소 검증: 국문/영문 중 1개 이상 입력
+        var hasKoreanAddr = $.trim($('#zipCode').val()) && $.trim($('#address').val());
+        var hasEnglishAddr = $.trim($('#addressEn').val()) || $.trim($('#addressDetailEn').val());
+        if (!hasKoreanAddr && !hasEnglishAddr) {
+            HolaPms.alert('warning', '국문 또는 영문 주소 중 1개 이상 입력해주세요.');
+            return;
         }
 
         var data = {

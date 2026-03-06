@@ -22,6 +22,8 @@ public class RoleCreateRequest {
     @NotNull(message = "호텔을 선택해주세요.")
     private Long hotelId;
 
+    private Long propertyId;
+
     private Boolean useYn;
 
     private List<Long> menuIds;

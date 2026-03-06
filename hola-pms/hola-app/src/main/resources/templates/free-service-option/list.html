@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>무료 옵션 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- 컨텍스트 미선택 경고 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-gift me-2"></i>무료 옵션 관리</h4>
+        <a href="/admin/free-service-options/new" class="btn btn-primary" id="btnCreate">
+            <i class="fas fa-plus me-1"></i>무료옵션등록
+        </a>
+    </div>
+
+    <!-- 검색 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">서비스 옵션 코드명</label>
+                    <input type="text" class="form-control" id="searchCode" placeholder="서비스 옵션코드 명을 입력하세요.">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">서비스명</label>
+                    <input type="text" class="form-control" id="searchName" placeholder="서비스 명을 입력하세요.">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">서비스 옵션 유형</label>
+                    <select id="searchServiceType" class="form-select">
+                        <option value="">전체</option>
+                        <option value="BED">베드</option>
+                        <option value="VIEW">뷰</option>
+                        <option value="FLOOR">층수/위치</option>
+                        <option value="AMENITY">어메니티</option>
+                        <option value="BREAKFAST">조식</option>
+                        <option value="TRANSFER">교통/셔틀</option>
+                        <option value="PARKING">주차</option>
+                        <option value="INTERNET">인터넷</option>
+                        <option value="WELCOME">웰컴 서비스</option>
+                        <option value="EARLY_CHECKIN">얼리 체크인</option>
+                        <option value="LATE_CHECKOUT">레이트 체크아웃</option>
+                        <option value="LOUNGE">라운지 이용</option>
+                        <option value="POOL_FITNESS">부대시설</option>
+                        <option value="KIDS">키즈 서비스</option>
+                        <option value="PET">반려동물</option>
+                        <option value="SPECIAL_REQUEST">특별 요청</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">사용여부</label>
+                    <div class="btn-group d-block" role="group">
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnAll" value="" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnAll">전체</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnY" value="true">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnY">Y</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnN" value="false">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnN">N</label>
+                    </div>
+                </div>
+                <div class="col-md-2 text-end">
+                    <button class="btn btn-outline-primary btn-sm" onclick="FreeServiceOptionPage.search()">
+                        <i class="fas fa-search me-1"></i>검색
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="FreeServiceOptionPage.reset()">
+                        <i class="fas fa-redo me-1"></i>초기화
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 테이블 헤더 -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <select id="pageSizeSelect" class="form-select form-select-sm d-inline-block" style="width: auto;">
+                <option value="10">10개씩 보기</option>
+                <option value="20" selected>20개씩 보기</option>
+                <option value="50">50개씩 보기</option>
+                <option value="100">100개씩 보기</option>
+            </select>
+            <span class="ms-2 text-muted">검색 결과 총 <strong id="totalCount">0</strong> 개</span>
+        </div>
+    </div>
+
+    <!-- DataTable -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <table id="freeServiceOptionTable" class="table table-hover mb-0" style="width:100%">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:60px">NO</th>
+                        <th>서비스 옵션 코드명</th>
+                        <th>서비스명</th>
+                        <th>서비스 옵션 유형</th>
+                        <th>적용박수</th>
+                        <th style="width:100px">사용여부</th>
+                        <th style="width:180px">최종 수정일시</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/free-service-option-page.js}"></script>
+</th:block>
+</body>
+</html>

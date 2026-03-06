@@ -201,3 +201,55 @@ main ──── production
 
 - 커밋: `[HOLA-XXX] feat/fix/refactor: description`
 - PR: 최소 1인 리뷰, 2주 단위 릴리즈
+
+## UI 공통 규칙 (Admin Frontend)
+
+### 테이블 디자인
+- Bootstrap 5 + DataTables 사용, 공통 CSS 기반 통일
+- 테이블 클래스: `table table-hover mb-0`, 카드 래핑: `card border-0 shadow-sm`
+- 헤더: `thead class="table-light"`
+- DataTable 초기화: `$.extend({}, HolaPms.dataTableDefaults, {...})` 패턴 사용
+- 개별 language 직접 정의 금지 → `HolaPms.dataTableDefaults` 또는 `HolaPms.dataTableLanguage` 사용
+
+### 리스트 페이지 공통
+- **pageSizeSelect**: 10, 20(기본값), 50, 100 — 한글 ("10개씩 보기", "20개씩 보기" 등)
+  ```html
+  <select id="pageSizeSelect" class="form-select form-select-sm d-inline-block" style="width: auto;">
+      <option value="10">10개씩 보기</option>
+      <option value="20" selected>20개씩 보기</option>
+      <option value="50">50개씩 보기</option>
+      <option value="100">100개씩 보기</option>
+  </select>
+  ```
+- **검색 결과 카운트**: `검색 결과 총 <strong id="totalCount">0</strong> 개`
+- **페이지네이션**: 한글 (이전/다음/처음/마지막) — `HolaPms.dataTableDefaults.language.paginate` 참조
+- **검색 필드 라벨**: `form-label fw-bold` (리스트 검색 영역에서만 bold 허용)
+
+### 폼 페이지 공통 (등록/수정/상세)
+- **레이아웃**: Bootstrap grid (`row mb-3` + `col-sm-2 col-form-label`) 사용 필수
+  - `table table-bordered` 레이아웃 사용 금지 (리스트 테이블만 table 사용)
+  - 단일 필드: `col-sm-2` (label) + `col-sm-6~10` (input)
+  - 2열 배치: `col-sm-2` + `col-sm-3` + `col-sm-2` + `col-sm-3`
+  - 읽기전용 텍스트: `form-control-plaintext` 클래스
+  - 필수 항목: label에 `required` 클래스 (CSS에서 `*` 표시)
+- **fw-bold 사용 규칙**:
+  - 허용: 페이지 타이틀(`h4`), 섹션 헤더(`h6`)
+  - 금지: 폼 라벨(`label`), 데이터 표시 `span`, 읽기전용 `input`, 모달 내 검색 라벨
+  - 별도 요청이 없으면 볼드 처리하지 않음
+- **버튼 레이아웃**: `d-flex justify-content-between` — 왼쪽: 삭제(btn-outline-danger, 수정모드만), 오른쪽: 취소(btn-secondary)+저장(btn-primary)
+- **취소 버튼 아이콘**: `fa-arrow-left`, **삭제 버튼**: 수정모드에서만 `.show()`
+
+### DataTable Ajax 패턴
+- 프로퍼티 의존 페이지: function 기반 ajax (propertyId 미선택 시 빈 배열 반환)
+  ```javascript
+  ajax: function(data, callback) {
+      var propertyId = HolaPms.context.getPropertyId();
+      if (!propertyId) { callback({ data: [] }); return; }
+      $.ajax({ url: '/api/v1/...', success: function(res) { callback(res); } });
+  }
+  ```
+- 프로퍼티 비의존 페이지: URL 기반 ajax (`{ url: '...', dataSrc: 'data' }`)
+
+### 컬러 테마
+- 5색: #051923, #003554, #0582CA, #EF476F, #000/#FFF + gray(secondary)
+- 폰트: Pretendard (CDN)

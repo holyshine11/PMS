@@ -54,7 +54,19 @@ public enum ErrorCode {
     // 권한관리 (HOLA-07xx)
     ROLE_NOT_FOUND("HOLA-0700", "권한을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     ROLE_NAME_DUPLICATE("HOLA-0701", "동일 호텔 내 이미 존재하는 권한명입니다.", HttpStatus.CONFLICT),
-    ROLE_HAS_USERS("HOLA-0702", "해당 권한을 사용하는 관리자가 있어 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST);
+    ROLE_HAS_USERS("HOLA-0702", "해당 권한을 사용하는 관리자가 있어 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    ROLE_PROPERTY_ALREADY_EXISTS("HOLA-0703", "해당 프로퍼티에 이미 권한이 설정되어 있습니다.", HttpStatus.CONFLICT),
+
+    // 객실관리 (HOLA-2xxx)
+    ROOM_CLASS_NOT_FOUND("HOLA-2000", "객실 클래스를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    ROOM_CLASS_CODE_DUPLICATE("HOLA-2001", "동일 프로퍼티 내 이미 존재하는 객실 클래스 코드입니다.", HttpStatus.CONFLICT),
+    ROOM_CLASS_HAS_ROOM_TYPES("HOLA-2002", "하위 객실 타입이 존재하여 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    ROOM_TYPE_NOT_FOUND("HOLA-2010", "객실 타입을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    ROOM_TYPE_CODE_DUPLICATE("HOLA-2011", "동일 프로퍼티 내 이미 존재하는 객실 타입 코드입니다.", HttpStatus.CONFLICT),
+    FREE_SERVICE_OPTION_NOT_FOUND("HOLA-2020", "무료 서비스 옵션을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    FREE_SERVICE_CODE_DUPLICATE("HOLA-2021", "동일 프로퍼티 내 이미 존재하는 서비스 옵션 코드입니다.", HttpStatus.CONFLICT),
+    PAID_SERVICE_OPTION_NOT_FOUND("HOLA-2030", "유료 서비스 옵션을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    PAID_SERVICE_CODE_DUPLICATE("HOLA-2031", "동일 프로퍼티 내 이미 존재하는 서비스 옵션 코드입니다.", HttpStatus.CONFLICT);
 
     private final String code;
     private final String message;

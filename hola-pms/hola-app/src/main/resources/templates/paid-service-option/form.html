@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>유료 옵션 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- 컨텍스트 미선택 경고 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <h4 class="fw-bold mb-4" id="pageTitle"><i class="fas fa-coins me-2"></i>유료 옵션 관리</h4>
+
+    <!-- 기본정보 섹션 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 서비스 옵션 기본정보</h6>
+                <small class="text-muted">"<span class="text-danger">*</span>"은 필수 입력 항목입니다.</small>
+            </div>
+
+            <!-- 호텔/프로퍼티 명 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label">호텔/프로퍼티 명</label>
+                <div class="col-sm-10">
+                    <span id="hotelPropertyName" class="form-control-plaintext">-</span>
+                </div>
+            </div>
+
+            <!-- 서비스 옵션 코드명 + 중복확인 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">서비스 옵션 코드 명</label>
+                <div class="col-sm-8">
+                    <div class="d-flex align-items-center">
+                        <input type="text" class="form-control me-2" id="serviceOptionCode" maxlength="50"
+                               placeholder="서비스 옵션 코드명을 입력하세요." style="max-width: 400px;">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnCheckDuplicate"
+                                onclick="PaidServiceOptionForm.checkDuplicate()">중복확인</button>
+                        <span id="codeCheckResult" class="ms-2"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 서비스명 국문/영문 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">서비스 명</label>
+                <div class="col-sm-4">
+                    <input type="text" class="form-control" id="serviceNameKo" maxlength="200"
+                           placeholder="국문 서비스명을 입력하세요.">
+                </div>
+                <div class="col-sm-4">
+                    <input type="text" class="form-control" id="serviceNameEn" maxlength="200"
+                           placeholder="영문 서비스명을 입력하세요.">
+                </div>
+            </div>
+
+            <!-- 서비스 옵션 유형 + 사용여부 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">서비스 옵션 유형</label>
+                <div class="col-sm-3">
+                    <select id="serviceType" class="form-select">
+                        <option value="">구분 선택</option>
+                        <option value="ROOM_UPGRADE">객실 업그레이드</option>
+                        <option value="BED_EXTRA">추가 침대</option>
+                        <option value="BREAKFAST_PAID">유료 조식</option>
+                        <option value="MEAL">식사 패키지</option>
+                        <option value="MINIBAR">미니바</option>
+                        <option value="ROOM_SERVICE">룸서비스</option>
+                        <option value="AMENITY_PREMIUM">유료 어메니티</option>
+                        <option value="SPA_WELLNESS">스파/웰니스</option>
+                        <option value="LAUNDRY">세탁 서비스</option>
+                        <option value="TRANSFER_PAID">유료 교통</option>
+                        <option value="PARKING_PAID">유료 주차</option>
+                        <option value="TOUR_ACTIVITY">투어/액티비티</option>
+                        <option value="CHILDCARE">육아 서비스</option>
+                        <option value="BUSINESS">비즈니스 서비스</option>
+                        <option value="DECORATION">객실 데코레이션</option>
+                        <option value="PHOTO">촬영 서비스</option>
+                        <option value="INTERNET_PAID">유료 인터넷</option>
+                        <option value="SAFE_LOCKER">금고/보관</option>
+                        <option value="MINI_KITCHEN">주방 서비스</option>
+                        <option value="GIFT_PACKAGE">기프트 패키지</option>
+                    </select>
+                </div>
+                <label class="col-sm-2 col-form-label required text-end">사용여부</label>
+                <div class="col-sm-3">
+                    <div class="btn-group mt-1" role="group">
+                        <input type="radio" class="btn-check" name="useYn" id="useYnY" value="true" checked>
+                        <label class="btn btn-outline-primary btn-sm" for="useYnY">Y</label>
+                        <input type="radio" class="btn-check" name="useYn" id="useYnN" value="false">
+                        <label class="btn btn-outline-primary btn-sm" for="useYnN">N</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 적용 박수 설정 + 수량 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">적용 박수 설정</label>
+                <div class="col-sm-3">
+                    <div class="btn-group mt-1" role="group">
+                        <input type="radio" class="btn-check" name="applicableNights" id="nightFirst" value="FIRST_NIGHT_ONLY">
+                        <label class="btn btn-outline-secondary btn-sm" for="nightFirst">1박만</label>
+                        <input type="radio" class="btn-check" name="applicableNights" id="nightAll" value="ALL_NIGHTS">
+                        <label class="btn btn-outline-secondary btn-sm" for="nightAll">모든 박수</label>
+                        <input type="radio" class="btn-check" name="applicableNights" id="nightNa" value="NOT_APPLICABLE" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="nightNa">해당 없음</label>
+                    </div>
+                </div>
+                <label class="col-sm-2 col-form-label required text-end">수량</label>
+                <div class="col-sm-3">
+                    <div class="d-flex gap-2">
+                        <input type="number" class="form-control" id="quantity" min="1" value="1"
+                               placeholder="숫자만 입력 가능" style="max-width: 120px;">
+                        <select id="quantityUnit" class="form-select" style="max-width: 120px;">
+                            <option value="EA">EA</option>
+                            <option value="SET">SET</option>
+                            <option value="TIME">TIME</option>
+                            <option value="SERVICE">SERVICE</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 관리자 메모 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label">관리자 메모</label>
+                <div class="col-sm-8">
+                    <textarea class="form-control" id="adminMemo" rows="3" maxlength="2000"
+                              placeholder="관리자 메모를 입력하세요."></textarea>
+                </div>
+            </div>
+
+            <!-- 최종 수정일시 (수정 모드에서만 표시) -->
+            <div class="row mb-3" id="updatedAtRow" style="display:none;">
+                <label class="col-sm-2 col-form-label">최종 수정일시</label>
+                <div class="col-sm-6">
+                    <span id="updatedAt" class="form-control-plaintext">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 가격정보 섹션 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 서비스 옵션 가격정보</h6>
+
+            <!-- 통화 구분 + 부가세 포함여부 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">통화 구분</label>
+                <div class="col-sm-3">
+                    <div class="btn-group mt-1" role="group">
+                        <input type="radio" class="btn-check" name="currencyCode" id="currKRW" value="KRW" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="currKRW">KRW</label>
+                        <input type="radio" class="btn-check" name="currencyCode" id="currUSD" value="USD">
+                        <label class="btn btn-outline-secondary btn-sm" for="currUSD">USD</label>
+                    </div>
+                </div>
+                <label class="col-sm-2 col-form-label required text-end">부가세 포함여부</label>
+                <div class="col-sm-3">
+                    <div class="btn-group mt-1" role="group">
+                        <input type="radio" class="btn-check" name="vatIncluded" id="vatIncludedY" value="true" checked>
+                        <label class="btn btn-outline-primary btn-sm" for="vatIncludedY">Y</label>
+                        <input type="radio" class="btn-check" name="vatIncluded" id="vatIncludedN" value="false">
+                        <label class="btn btn-outline-primary btn-sm" for="vatIncludedN">N</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 세율 -->
+            <div class="row mb-3" id="taxRateRow">
+                <label class="col-sm-2 col-form-label required">세율</label>
+                <div class="col-sm-3">
+                    <div class="input-group">
+                        <input type="number" class="form-control text-end" id="taxRate" min="0" max="100" step="0.01" value="0"
+                               placeholder="세율을 입력하세요.">
+                        <span class="input-group-text">%</span>
+                    </div>
+                    <small class="text-muted">소수점 2자리까지 입력 가능</small>
+                </div>
+            </div>
+
+            <!-- 공급가 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">공급가</label>
+                <div class="col-sm-3">
+                    <div class="input-group">
+                        <input type="number" class="form-control text-end" id="supplyPrice" min="0" step="1" value="0"
+                               placeholder="공급가를 입력하세요.">
+                        <span class="input-group-text" id="currencyLabel">원</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAX -->
+            <div class="row mb-3" id="taxAmountRow">
+                <label class="col-sm-2 col-form-label">TAX</label>
+                <div class="col-sm-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control text-end bg-light" id="taxAmount" readonly value="0">
+                        <span class="input-group-text currency-unit">원</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VAT 포함 합계 -->
+            <div class="row mb-3" id="vatIncludedPriceRow">
+                <label class="col-sm-2 col-form-label">VAT 포함 합계</label>
+                <div class="col-sm-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control text-end bg-light" id="vatIncludedPrice" readonly value="0">
+                        <span class="input-group-text currency-unit">원</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 버튼 -->
+    <div class="d-flex justify-content-between mt-4">
+        <div>
+            <button type="button" id="btnDelete" class="btn btn-outline-danger" style="display:none;"
+                    onclick="PaidServiceOptionForm.remove()">
+                <i class="fas fa-trash me-1"></i>삭제
+            </button>
+        </div>
+        <div>
+            <a href="/admin/paid-service-options" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left me-1"></i>취소
+            </a>
+            <button type="button" class="btn btn-primary" id="btnSave" onclick="PaidServiceOptionForm.save()">
+                <i class="fas fa-save me-1"></i>등록
+            </button>
+        </div>
+    </div>
+
+    <!-- 숨겨진 필드 -->
+    <input type="hidden" id="paidServiceOptionId" th:value="${paidServiceOptionId}">
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/paid-service-option-form.js}"></script>
+</th:block>
+</body>
+</html>

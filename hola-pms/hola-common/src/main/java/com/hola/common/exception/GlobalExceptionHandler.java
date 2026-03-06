@@ -7,6 +7,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -35,6 +36,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .badRequest()
                 .body(HolaResponse.error(ErrorCode.INVALID_INPUT.getCode(), message));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<HolaResponse<Void>> handleNoResourceFound(NoResourceFoundException e) {
+        // favicon.ico, .well-known 등 브라우저 자동 요청은 무시
+        log.debug("정적 리소스 없음: {}", e.getResourcePath());
+        return ResponseEntity
+                .status(404)
+                .body(HolaResponse.error("HOLA-0004", "리소스를 찾을 수 없습니다."));
     }
 
     @ExceptionHandler(Exception.class)

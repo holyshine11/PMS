@@ -21,4 +21,19 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
      * 동일 호텔 내 권한명 중복 확인 (자기 자신 제외)
      */
     boolean existsByRoleNameAndHotelIdAndIdNotAndDeletedAtIsNull(String roleName, Long hotelId, Long id);
+
+    /**
+     * 해당 프로퍼티에 이미 권한이 존재하는지 확인
+     */
+    boolean existsByPropertyIdAndTargetTypeAndDeletedAtIsNull(Long propertyId, String targetType);
+
+    /**
+     * 동일 호텔+프로퍼티 내 권한명 중복 확인
+     */
+    boolean existsByRoleNameAndHotelIdAndPropertyIdAndDeletedAtIsNull(String roleName, Long hotelId, Long propertyId);
+
+    /**
+     * 동일 호텔+프로퍼티 내 권한명 중복 확인 (자기 자신 제외)
+     */
+    boolean existsByRoleNameAndHotelIdAndPropertyIdAndIdNotAndDeletedAtIsNull(String roleName, Long hotelId, Long propertyId, Long id);
 }

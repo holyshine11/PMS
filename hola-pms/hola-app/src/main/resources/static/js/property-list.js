@@ -11,6 +11,11 @@ const PropertyListPage = {
                 dataSrc: function(json) { return json.data || []; }
             },
             serverSide: false,
+            dom: 'rtip',
+            drawCallback: function() {
+                var info = this.api().page.info();
+                $('#totalCount').text(info.recordsTotal);
+            },
             columns: [
                 { data: null, render: function(data, type, row, meta) { return meta.row + 1; }, width: '50px' },
                 { data: 'propertyCode', width: '130px' },
@@ -46,6 +51,12 @@ const PropertyListPage = {
         });
         $('input[name="searchUseYn"]').on('change', function() {
             PropertyListPage.search();
+        });
+
+        // 페이지 사이즈 변경
+        var self = this;
+        $('#pageSizeSelect').on('change', function() {
+            self.table.page.len(parseInt($(this).val())).draw();
         });
 
         this.reload();

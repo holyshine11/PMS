@@ -53,7 +53,15 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/hotels/*/properties").authenticated()
                 // 프로퍼티 관리자 API: 모든 인증 사용자 허용
                 .requestMatchers("/api/v1/properties/*/admins/**").authenticated()
-                // 호텔관리 API: SUPER_ADMIN 전용
+                // 객실관리 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/api/v1/properties/*/room-classes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                .requestMatchers("/api/v1/properties/*/room-types/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                .requestMatchers("/api/v1/properties/*/free-service-options/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                .requestMatchers("/api/v1/properties/*/paid-service-options/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 층/호수 조회: 객실 타입 폼에서 사용
+                .requestMatchers("/api/v1/properties/*/floors/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                .requestMatchers("/api/v1/properties/*/room-numbers/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 호텔관리 API: SUPER_ADMIN 전용 (제너릭 경로는 마지막)
                 .requestMatchers("/api/v1/hotels/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/api/v1/properties/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/api/v1/market-codes/**").hasRole("SUPER_ADMIN")
@@ -61,8 +69,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/room-numbers/**").hasRole("SUPER_ADMIN")
                 // 권한관리 API: 역할 selector는 모든 인증 사용자 허용 (관리자 폼 드롭다운)
                 .requestMatchers("/api/v1/hotel-admin-roles/selector").authenticated()
-                // 권한관리 API: 나머지는 SUPER_ADMIN 전용
+                .requestMatchers("/api/v1/property-admin-roles/selector").authenticated()
+                // 권한관리 API: 호텔 권한 = SUPER_ADMIN 전용, 프로퍼티 권한 = SUPER_ADMIN + HOTEL_ADMIN
                 .requestMatchers("/api/v1/hotel-admin-roles/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/api/v1/property-admin-roles/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -89,11 +99,17 @@ public class SecurityConfig {
                 .requestMatchers("/admin/market-codes/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/floors/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/room-numbers/**").hasRole("SUPER_ADMIN")
+                // 객실관리 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/admin/room-classes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                .requestMatchers("/admin/room-types/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                .requestMatchers("/admin/free-service-options/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                .requestMatchers("/admin/paid-service-options/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 회원관리
                 .requestMatchers("/admin/members/bluewave-admins/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/members/hotel-admins/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN")
-                // 권한관리: SUPER_ADMIN 전용
-                .requestMatchers("/admin/roles/**").hasRole("SUPER_ADMIN")
+                // 권한관리: 호텔 권한 = SUPER_ADMIN 전용, 프로퍼티 권한 = SUPER_ADMIN + HOTEL_ADMIN
+                .requestMatchers("/admin/roles/hotel-admins/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/admin/roles/property-admins/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

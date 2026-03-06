@@ -13,6 +13,26 @@ const HolaPms = {
     },
 
     /**
+     * Ajax 에러 공통 핸들러
+     */
+    handleAjaxError: function(xhr) {
+        if (xhr.status === 401) {
+            HolaPms.alert('warning', '세션이 만료되었습니다. 다시 로그인해 주세요.');
+            window.location.href = '/login';
+            return;
+        }
+        if (xhr.status === 403) {
+            HolaPms.alert('error', '접근 권한이 없습니다.');
+            return;
+        }
+        var message = '서버 오류가 발생했습니다.';
+        if (xhr.responseJSON && xhr.responseJSON.message) {
+            message = xhr.responseJSON.message;
+        }
+        HolaPms.alert('error', message);
+    },
+
+    /**
      * Ajax 요청 래퍼
      */
     ajax: function(options) {
@@ -42,10 +62,10 @@ const HolaPms = {
      */
     alert: function(type, message) {
         var icons = {
-            success: 'fa-check-circle text-success',
+            success: 'fa-check-circle text-primary',
             error: 'fa-exclamation-circle text-danger',
-            warning: 'fa-exclamation-triangle text-warning',
-            info: 'fa-info-circle text-info'
+            warning: 'fa-exclamation-triangle text-secondary',
+            info: 'fa-info-circle text-primary'
         };
 
         // 단일 컨테이너 재사용
@@ -127,12 +147,12 @@ const HolaPms = {
         /** useYn 배지 */
         useYnBadge: function(data) {
             return data
-                ? '<span class="badge bg-success">사용</span>'
+                ? '<span class="badge bg-primary">사용</span>'
                 : '<span class="badge bg-secondary">미사용</span>';
         },
         /** 숫자 배지 */
         countBadge: function(bgClass) {
-            bgClass = bgClass || 'bg-info';
+            bgClass = bgClass || 'bg-primary';
             return function(data) {
                 return '<span class="badge ' + bgClass + '">' + (data || 0) + '</span>';
             };
@@ -352,6 +372,9 @@ const HolaPms = {
         order: [[0, 'desc']]
     }
 };
+
+// dataTableLanguage alias (개별 JS에서 참조용)
+HolaPms.dataTableLanguage = HolaPms.dataTableDefaults.language;
 
 // DataTable 에러 글로벌 핸들링 (401/403은 사용자에게 안내, 나머지는 콘솔)
 $.fn.dataTable.ext.errMode = function(settings, techNote, message) {

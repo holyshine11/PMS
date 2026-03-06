@@ -16,6 +16,8 @@ public class RoleListResponse {
     private String roleName;
     private Long hotelId;
     private String hotelName;
+    private Long propertyId;
+    private String propertyName;
     private Boolean useYn;
     private String updatedAt;
 }

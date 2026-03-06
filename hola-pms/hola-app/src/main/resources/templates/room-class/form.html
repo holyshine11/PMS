@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>객실 그룹 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- 컨텍스트 미선택 경고 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <h4 class="fw-bold mb-4"><i class="fas fa-th-large me-2"></i>객실 그룹 관리</h4>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <!-- 섹션 헤더 -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 기본정보</h6>
+                <small class="text-muted">"<span class="text-danger">*</span>"은 필수 입력 항목입니다.</small>
+            </div>
+
+            <!-- 호텔/프로퍼티 명 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label">호텔/프로퍼티 명</label>
+                <div class="col-sm-10">
+                    <span id="hotelPropertyName" class="form-control-plaintext">-</span>
+                </div>
+            </div>
+
+            <!-- 객실 클래스 명 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">객실 클래스 명</label>
+                <div class="col-sm-6">
+                    <input type="text" class="form-control" id="roomClassName" maxlength="200"
+                           placeholder="객실 클래스명을 입력하세요.">
+                </div>
+            </div>
+
+            <!-- 객실 클래스 + 중복확인 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">객실 클래스</label>
+                <div class="col-sm-8">
+                    <div class="d-flex align-items-center">
+                        <input type="text" class="form-control me-2" id="roomClassCode" maxlength="50"
+                               placeholder="객실 클래스를 입력하세요." style="max-width: 400px;">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnCheckDuplicate"
+                                onclick="RoomClassForm.checkDuplicate()">중복확인</button>
+                        <span id="codeCheckResult" class="ms-2"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 객실 설명 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label">객실 설명</label>
+                <div class="col-sm-10">
+                    <textarea class="form-control" id="description" rows="4" maxlength="2000"
+                              placeholder="객실 설명을 입력하세요."></textarea>
+                </div>
+            </div>
+
+            <!-- 사용 여부 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">사용 여부</label>
+                <div class="col-sm-3">
+                    <div class="btn-group mt-1" role="group">
+                        <input type="radio" class="btn-check" name="useYn" id="useYnY" value="true" checked>
+                        <label class="btn btn-outline-primary btn-sm" for="useYnY">Y</label>
+                        <input type="radio" class="btn-check" name="useYn" id="useYnN" value="false">
+                        <label class="btn btn-outline-primary btn-sm" for="useYnN">N</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 버튼 -->
+    <div class="d-flex justify-content-between mt-4">
+        <div>
+            <button type="button" id="btnDelete" class="btn btn-outline-danger" style="display:none;"
+                    onclick="RoomClassForm.remove()">
+                <i class="fas fa-trash me-1"></i>삭제
+            </button>
+        </div>
+        <div>
+            <a href="/admin/room-classes" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left me-1"></i>취소
+            </a>
+            <button type="button" class="btn btn-primary" id="btnSave" onclick="RoomClassForm.save()">
+                <i class="fas fa-save me-1"></i>등록
+            </button>
+        </div>
+    </div>
+
+    <!-- 숨겨진 필드: 수정 모드용 ID -->
+    <input type="hidden" id="roomClassId" th:value="${roomClassId}">
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/room-class-form.js}"></script>
+</th:block>
+</body>
+</html>

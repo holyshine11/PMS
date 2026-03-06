@@ -11,6 +11,11 @@ const HotelPage = {
                 dataSrc: function(json) { return json.data || []; }
             },
             serverSide: false,
+            dom: 'rtip',
+            drawCallback: function() {
+                var info = this.api().page.info();
+                $('#totalCount').text(info.recordsTotal);
+            },
             columns: [
                 { data: null, render: function(data, type, row, meta) { return meta.row + 1; }, width: '60px' },
                 { data: 'hotelCode', width: '120px' },
@@ -52,6 +57,11 @@ const HotelPage = {
         // 사용여부 라디오 변경 시 자동 검색
         $('input[name="searchUseYn"]').on('change', function() {
             self.search();
+        });
+
+        // 페이지 사이즈 변경
+        $('#pageSizeSelect').on('change', function() {
+            self.table.page.len(parseInt($(this).val())).draw();
         });
     },
 

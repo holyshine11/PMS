@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>객실 타입 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- 컨텍스트 미선택 경고 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <h4 class="fw-bold mb-4"><i class="fas fa-door-closed me-2"></i>객실 타입 관리</h4>
+
+    <!-- 기본정보 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 객실 기본정보</h6>
+                <small class="text-muted">"<span class="text-danger">*</span>"은 필수 입력 항목입니다.</small>
+            </div>
+
+            <!-- 호텔/프로퍼티 명 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label">호텔/프로퍼티 명</label>
+                <div class="col-sm-10">
+                    <span id="hotelPropertyName" class="form-control-plaintext">-</span>
+                </div>
+            </div>
+
+            <!-- 객실 클래스 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">객실 클래스</label>
+                <div class="col-sm-10">
+                    <div class="d-flex align-items-center">
+                        <input type="hidden" id="roomClassId">
+                        <span id="roomClassDisplay" class="me-2">-</span>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnSelectClass"
+                                onclick="RoomTypeForm.openClassPopup()">조회</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 객실 타입(코드) + 중복확인 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">객실 타입(코드)</label>
+                <div class="col-sm-10">
+                    <div class="d-flex align-items-center">
+                        <input type="text" class="form-control me-2" id="roomTypeCode" maxlength="50"
+                               placeholder="객실 타입 코드를 입력하세요." style="max-width: 400px;">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnCheckDuplicate"
+                                onclick="RoomTypeForm.checkDuplicate()">중복확인</button>
+                        <span id="codeCheckResult" class="ms-2"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 객실 설명 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label">객실 설명</label>
+                <div class="col-sm-10">
+                    <textarea class="form-control" id="description" rows="3" maxlength="2000"
+                              placeholder="객실 설명을 입력하세요."></textarea>
+                </div>
+            </div>
+
+            <!-- 객실 크기 + 사용여부 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">객실 크기</label>
+                <div class="col-sm-3">
+                    <div class="d-flex align-items-center">
+                        <input type="number" class="form-control" id="roomSize" min="0" max="9999" step="0.1"
+                               placeholder="0.0" style="max-width: 150px;">
+                        <span class="ms-2">m&sup2;</span>
+                    </div>
+                </div>
+                <label class="col-sm-2 col-form-label required">사용여부</label>
+                <div class="col-sm-3">
+                    <div class="btn-group mt-1" role="group">
+                        <input type="radio" class="btn-check" name="useYn" id="useYnY" value="true" checked>
+                        <label class="btn btn-outline-primary btn-sm" for="useYnY">Y</label>
+                        <input type="radio" class="btn-check" name="useYn" id="useYnN" value="false">
+                        <label class="btn btn-outline-primary btn-sm" for="useYnN">N</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 객실 특징 -->
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label">객실 특징</label>
+                <div class="col-sm-10">
+                    <textarea class="form-control" id="features" rows="3" maxlength="2000"
+                              placeholder="객실 특징을 입력하세요."></textarea>
+                </div>
+            </div>
+
+            <!-- 최종 수정일시 (수정 모드에서만 표시) -->
+            <div class="row mb-3" id="updatedAtRow" style="display:none;">
+                <label class="col-sm-2 col-form-label">최종 수정일시</label>
+                <div class="col-sm-10">
+                    <span id="updatedAt" class="form-control-plaintext text-muted">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 객실 수용 인원정보 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 객실 수용 인원정보</h6>
+
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label required">어른 최대 수용 인원</label>
+                <div class="col-sm-3">
+                    <div class="d-flex align-items-center">
+                        <input type="number" class="form-control" id="maxAdults" min="1" max="99" value="2"
+                               style="max-width: 100px;">
+                        <span class="ms-2">명</span>
+                    </div>
+                </div>
+                <label class="col-sm-2 col-form-label required">어린이 최대 수용 인원</label>
+                <div class="col-sm-3">
+                    <div class="d-flex align-items-center">
+                        <input type="number" class="form-control" id="maxChildren" min="0" max="99" value="0"
+                               style="max-width: 100px;">
+                        <span class="ms-2">명</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 객실 어메니티 정보 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 객실 어메니티 정보</h6>
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label">객실 어메니티 선택</label>
+                <div class="col-sm-10">
+                    <div id="amenityDisplay" class="mb-2">-</div>
+                    <button type="button" class="btn btn-outline-primary btn-sm"
+                            onclick="RoomTypeForm.openServicePopup('AMENITY')">
+                        <i class="fas fa-plus me-1"></i>선택
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 배드 정보 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 배드 정보</h6>
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label">배드 선택</label>
+                <div class="col-sm-3">
+                    <div id="bedDisplay" class="mb-2">-</div>
+                    <button type="button" class="btn btn-outline-primary btn-sm"
+                            onclick="RoomTypeForm.openServicePopup('BED')">
+                        <i class="fas fa-plus me-1"></i>선택
+                    </button>
+                </div>
+                <label class="col-sm-2 col-form-label required">엑스트라 배드 여부</label>
+                <div class="col-sm-3">
+                    <div class="btn-group mt-1" role="group">
+                        <input type="radio" class="btn-check" name="extraBedYn" id="extraBedY" value="true">
+                        <label class="btn btn-outline-primary btn-sm" for="extraBedY">Y</label>
+                        <input type="radio" class="btn-check" name="extraBedYn" id="extraBedN" value="false" checked>
+                        <label class="btn btn-outline-primary btn-sm" for="extraBedN">N</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 유료 서비스 옵션 정보 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 유료 서비스 옵션 정보</h6>
+            <div class="row mb-3">
+                <label class="col-sm-2 col-form-label">유료 옵션 선택</label>
+                <div class="col-sm-10">
+                    <div id="paidOptionDisplay" class="mb-2">-</div>
+                    <button type="button" class="btn btn-outline-primary btn-sm"
+                            onclick="RoomTypeForm.openPaidServicePopup()">
+                        <i class="fas fa-plus me-1"></i>선택
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 층/호수 정보 + 뷰 설정 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row">
+                <!-- 층/호수 정보 -->
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 층/호수 정보</h6>
+                    <div class="row mb-3">
+                        <label class="col-sm-4 col-form-label">층/호수 정보</label>
+                        <div class="col-sm-8">
+                            <span id="floorRoomDisplay" class="me-2">-</span>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="btnSelectFloor"
+                                    onclick="RoomTypeForm.openFloorPopup()">선택</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- 뷰 설정 -->
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 뷰 설정</h6>
+                    <div class="row mb-3">
+                        <label class="col-sm-4 col-form-label">뷰 정보</label>
+                        <div class="col-sm-8">
+                            <div id="viewDisplay" class="mb-2">-</div>
+                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                    onclick="RoomTypeForm.openServicePopup('VIEW')">
+                                <i class="fas fa-plus me-1"></i>선택
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 버튼 -->
+    <div class="d-flex justify-content-between mt-4">
+        <div>
+            <button type="button" id="btnDelete" class="btn btn-outline-danger" style="display:none;"
+                    onclick="RoomTypeForm.remove()">
+                <i class="fas fa-trash me-1"></i>삭제
+            </button>
+        </div>
+        <div>
+            <a href="/admin/room-types" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left me-1"></i>취소
+            </a>
+            <button type="button" class="btn btn-primary" id="btnSave" onclick="RoomTypeForm.save()">
+                <i class="fas fa-save me-1"></i>등록
+            </button>
+        </div>
+    </div>
+
+    <!-- 숨겨진 필드: 수정 모드용 ID -->
+    <input type="hidden" id="roomTypeId" th:value="${roomTypeId}">
+
+    <!-- 객실 클래스 조회 팝업 -->
+    <div class="modal fade" id="classPopupModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">객실 클래스 조회</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="popupPropertyName" class="form-label">프로퍼티 명</label>
+                            <input type="text" class="form-control" id="popupPropertyName" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="popupClassName" class="form-label">객실 클래스 명</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="popupClassName" placeholder="객실 클래스명을 입력하세요.">
+                                <button class="btn btn-outline-primary btn-sm" onclick="RoomTypeForm.searchClass()">검색</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="popupUseYnAll" class="form-label">사용여부</label>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="popupUseYn" id="popupUseYnAll" value="" checked>
+                                <label class="btn btn-outline-secondary btn-sm" for="popupUseYnAll">전체</label>
+                                <input type="radio" class="btn-check" name="popupUseYn" id="popupUseYnY" value="true">
+                                <label class="btn btn-outline-secondary btn-sm" for="popupUseYnY">Y</label>
+                                <input type="radio" class="btn-check" name="popupUseYn" id="popupUseYnN" value="false">
+                                <label class="btn btn-outline-secondary btn-sm" for="popupUseYnN">N</label>
+                            </div>
+                        </div>
+                    </div>
+                    <table id="classPopupTable" class="table table-hover table-bordered mb-0" style="width:100%">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:50px">NO</th>
+                                <th>객실 클래스</th>
+                                <th>객실 클래스 명</th>
+                                <th style="width:80px">사용여부</th>
+                                <th style="width:60px">선택</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="RoomTypeForm.applyClass()">적용</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 무료 서비스 옵션 선택 팝업 -->
+    <div class="modal fade" id="freeServicePopupModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="freeServicePopupTitle">서비스 옵션 선택</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">옵션명 검색</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="freeServiceSearchKeyword" placeholder="옵션명을 입력하세요.">
+                                <button class="btn btn-outline-primary btn-sm" onclick="RoomTypeForm.searchFreeService()">검색</button>
+                            </div>
+                        </div>
+                    </div>
+                    <table id="freeServicePopupTable" class="table table-hover table-bordered mb-0" style="width:100%">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:50px"><input type="checkbox" id="freeServiceCheckAll"></th>
+                                <th>옵션코드</th>
+                                <th>옵션명</th>
+                                <th>유형</th>
+                                <th style="width:100px">수량</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="RoomTypeForm.applyFreeService()">적용</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 유료 서비스 옵션 선택 팝업 -->
+    <div class="modal fade" id="paidServicePopupModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">유료 서비스 옵션 선택</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">옵션명 검색</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="paidServiceSearchKeyword" placeholder="옵션명을 입력하세요.">
+                                <button class="btn btn-outline-primary btn-sm" onclick="RoomTypeForm.searchPaidService()">검색</button>
+                            </div>
+                        </div>
+                    </div>
+                    <table id="paidServicePopupTable" class="table table-hover table-bordered mb-0" style="width:100%">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:50px"><input type="checkbox" id="paidServiceCheckAll"></th>
+                                <th>옵션코드</th>
+                                <th>옵션명</th>
+                                <th>유형</th>
+                                <th>요금(VAT포함)</th>
+                                <th style="width:100px">수량</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="RoomTypeForm.applyPaidService()">적용</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 층/호수 선택 팝업 -->
+    <div class="modal fade" id="floorPopupModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">층/호수 선택</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">층/호수 설정</h6>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="RoomTypeForm.addFloorRow()">
+                            <i class="fas fa-plus me-1"></i>신규층추가
+                        </button>
+                    </div>
+                    <div id="floorRoomSummary" class="text-muted mb-3">총 선택 호수(객실) 0 개</div>
+                    <div id="floorRowContainer">
+                        <!-- 층/호수 행들이 동적으로 추가됨 -->
+                    </div>
+                    <div id="floorEmptyMessage" class="text-center text-muted py-4 border rounded">
+                        선택한 층과 호수가 존재하지 않습니다. 신규 층 추가 버튼을 눌러 입력 해주세요.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/room-type-form.js}"></script>
+</th:block>
+</body>
+</html>

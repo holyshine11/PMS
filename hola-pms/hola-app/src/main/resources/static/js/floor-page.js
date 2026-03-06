@@ -70,10 +70,10 @@ const FloorPage = {
                 }
             ],
             order: [[1, 'asc']],
-            drawCallback: function(settings) {
-                var api = new $.fn.dataTable.Api(settings);
-                var info = api.page.info();
-                $('#totalCount').text('검색 결과 총 ' + info.recordsDisplay + ' 개');
+            dom: 'rtip',
+            drawCallback: function() {
+                var info = this.api().page.info();
+                $('#totalCount').text(info.recordsTotal);
             }
         }));
 
