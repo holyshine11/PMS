@@ -333,7 +333,7 @@ const HolaPms = {
         },
 
         onHotelChange: function(hotelId) {
-            this.selectedHotelId = hotelId || null;
+            this.selectedHotelId = hotelId ? String(hotelId) : null;
             this.selectedPropertyId = null;
             sessionStorage.setItem('selectedHotelId', hotelId || '');
             sessionStorage.removeItem('selectedPropertyId');
@@ -343,7 +343,7 @@ const HolaPms = {
         },
 
         onPropertyChange: function(propertyId) {
-            this.selectedPropertyId = propertyId || null;
+            this.selectedPropertyId = propertyId ? String(propertyId) : null;
             sessionStorage.setItem('selectedPropertyId', propertyId || '');
             // 컨텍스트 변경 이벤트 발행
             $(document).trigger('hola:contextChange', { hotelId: this.selectedHotelId, propertyId: this.selectedPropertyId });

@@ -1,0 +1,9 @@
+dependencies {
+    implementation project(':hola-common')
+    implementation project(':hola-hotel')
+    implementation project(':hola-room')
+    implementation project(':hola-rate')
+
+    // MapStruct
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+}

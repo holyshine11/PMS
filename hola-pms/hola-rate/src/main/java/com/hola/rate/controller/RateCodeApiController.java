@@ -1,6 +1,7 @@
 package com.hola.rate.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.security.AccessControlService;
 import com.hola.rate.dto.request.RateCodeCreateRequest;
 import com.hola.rate.dto.request.RateCodeUpdateRequest;
 import com.hola.rate.dto.request.RatePricingRequest;
@@ -25,11 +26,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class RateCodeApiController {
 
+    private final AccessControlService accessControlService;
     private final RateCodeService rateCodeService;
 
     @GetMapping
     public ResponseEntity<HolaResponse<List<RateCodeListResponse>>> getRateCodes(
             @PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         List<RateCodeListResponse> list = rateCodeService.getRateCodes(propertyId);
         return ResponseEntity.ok(HolaResponse.success(list));
     }
@@ -38,6 +41,7 @@ public class RateCodeApiController {
     public ResponseEntity<HolaResponse<RateCodeResponse>> getRateCode(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.getRateCode(id)));
     }
 
@@ -45,6 +49,7 @@ public class RateCodeApiController {
     public ResponseEntity<HolaResponse<RateCodeResponse>> createRateCode(
             @PathVariable Long propertyId,
             @Valid @RequestBody RateCodeCreateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         RateCodeResponse response = rateCodeService.createRateCode(propertyId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(response));
     }
@@ -54,6 +59,7 @@ public class RateCodeApiController {
             @PathVariable Long propertyId,
             @PathVariable Long id,
             @Valid @RequestBody RateCodeUpdateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.updateRateCode(id, request)));
     }
 
@@ -61,6 +67,7 @@ public class RateCodeApiController {
     public ResponseEntity<HolaResponse<Void>> deleteRateCode(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         rateCodeService.deleteRateCode(id);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -69,6 +76,7 @@ public class RateCodeApiController {
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkCode(
             @PathVariable Long propertyId,
             @RequestParam String rateCode) {
+        accessControlService.validatePropertyAccess(propertyId);
         boolean duplicate = rateCodeService.existsRateCode(propertyId, rateCode);
         return ResponseEntity.ok(HolaResponse.success(Map.of("duplicate", duplicate)));
     }
@@ -79,6 +87,7 @@ public class RateCodeApiController {
     public ResponseEntity<HolaResponse<RatePricingResponse>> getRatePricing(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.getRatePricing(id)));
     }
 
@@ -87,6 +96,7 @@ public class RateCodeApiController {
             @PathVariable Long propertyId,
             @PathVariable Long id,
             @RequestBody RatePricingRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.saveRatePricing(id, request)));
     }
 
@@ -95,6 +105,7 @@ public class RateCodeApiController {
             @PathVariable Long propertyId,
             @PathVariable Long id,
             @PathVariable Long pricingId) {
+        accessControlService.validatePropertyAccess(propertyId);
         rateCodeService.deleteRatePricingRow(id, pricingId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -105,6 +116,7 @@ public class RateCodeApiController {
     public ResponseEntity<HolaResponse<List<Long>>> getOptionPricing(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.getOptionPricing(id)));
     }
 
@@ -113,6 +125,7 @@ public class RateCodeApiController {
             @PathVariable Long propertyId,
             @PathVariable Long id,
             @RequestBody List<Long> paidServiceOptionIds) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.saveOptionPricing(id, paidServiceOptionIds)));
     }
 }

@@ -1,6 +1,7 @@
 package com.hola.room.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.security.AccessControlService;
 import com.hola.room.dto.request.RoomTypeCreateRequest;
 import com.hola.room.dto.request.RoomTypeUpdateRequest;
 import com.hola.room.dto.response.RoomTypeListResponse;
@@ -23,11 +24,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class RoomTypeApiController {
 
+    private final AccessControlService accessControlService;
     private final RoomTypeService roomTypeService;
 
     @GetMapping
     public ResponseEntity<HolaResponse<List<RoomTypeListResponse>>> getRoomTypes(
             @PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(roomTypeService.getRoomTypes(propertyId)));
     }
 
@@ -35,6 +38,7 @@ public class RoomTypeApiController {
     public ResponseEntity<HolaResponse<RoomTypeResponse>> getRoomType(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(roomTypeService.getRoomType(id)));
     }
 
@@ -42,6 +46,7 @@ public class RoomTypeApiController {
     public ResponseEntity<HolaResponse<RoomTypeResponse>> createRoomType(
             @PathVariable Long propertyId,
             @Valid @RequestBody RoomTypeCreateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         RoomTypeResponse response = roomTypeService.createRoomType(propertyId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(response));
     }
@@ -51,6 +56,7 @@ public class RoomTypeApiController {
             @PathVariable Long propertyId,
             @PathVariable Long id,
             @Valid @RequestBody RoomTypeUpdateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(roomTypeService.updateRoomType(id, request)));
     }
 
@@ -58,6 +64,7 @@ public class RoomTypeApiController {
     public ResponseEntity<HolaResponse<Void>> deleteRoomType(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         roomTypeService.deleteRoomType(id);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -66,6 +73,7 @@ public class RoomTypeApiController {
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkCode(
             @PathVariable Long propertyId,
             @RequestParam String roomTypeCode) {
+        accessControlService.validatePropertyAccess(propertyId);
         boolean duplicate = roomTypeService.existsRoomTypeCode(propertyId, roomTypeCode);
         return ResponseEntity.ok(HolaResponse.success(Map.of("duplicate", duplicate)));
     }

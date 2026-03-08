@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>예약 등록</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- 프로퍼티 미선택 알림 -->
+    <div id="contextAlert" class="alert alert-info d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>프로퍼티를 선택해주세요.
+    </div>
+
+    <div id="formContainer" style="display:none;">
+        <h4 class="fw-bold mb-3"><i class="fas fa-calendar-plus me-2"></i>예약 등록</h4>
+
+        <!-- 탭 네비게이션 -->
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#tabReservation" role="tab">예약정보</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#tabDetail" role="tab">상세정보</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#tabDeposit" role="tab">예치금정보</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#tabEtc" role="tab">기타정보</a>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- ═══ Tab 1: 예약정보 ═══ -->
+            <div class="tab-pane fade show active" id="tabReservation" role="tabpanel">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <!-- 예약 기본 정보 -->
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 예약 기본 정보</h6>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label required">체크인</label>
+                            <div class="col-sm-4">
+                                <input type="date" class="form-control" id="masterCheckIn">
+                            </div>
+                            <label class="col-sm-2 col-form-label required">체크아웃</label>
+                            <div class="col-sm-4">
+                                <input type="date" class="form-control" id="masterCheckOut">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">레이트코드</label>
+                            <div class="col-sm-4">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="rateCodeName" readonly placeholder="선택">
+                                    <button class="btn btn-outline-secondary" type="button" id="rateCodeSearchBtn">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                                <input type="hidden" id="rateCodeId">
+                            </div>
+                            <label class="col-sm-2 col-form-label">마켓코드</label>
+                            <div class="col-sm-4">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="marketCodeName" readonly placeholder="선택">
+                                    <button class="btn btn-outline-secondary" type="button" id="marketCodeSearchBtn">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                                <input type="hidden" id="marketCodeId">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">예약채널</label>
+                            <div class="col-sm-4">
+                                <select class="form-select" id="reservationChannelId">
+                                    <option value="">선택</option>
+                                </select>
+                            </div>
+                            <label class="col-sm-2 col-form-label">프로모션</label>
+                            <div class="col-sm-4">
+                                <input type="text" class="form-control" id="promotionCode" placeholder="프로모션 코드">
+                            </div>
+                        </div>
+
+                        <!-- 예약자 정보 -->
+                        <h6 class="fw-bold mb-3 mt-4"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 예약자 정보</h6>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label required">예약자명(국문)</label>
+                            <div class="col-sm-4">
+                                <input type="text" class="form-control" id="guestNameKo" placeholder="예약자명">
+                            </div>
+                            <label class="col-sm-2 col-form-label">전화번호</label>
+                            <div class="col-sm-4">
+                                <div class="input-group">
+                                    <select class="form-select" id="phoneCountryCode" style="max-width:90px;">
+                                        <option value="+82">+82</option>
+                                        <option value="+1">+1</option>
+                                        <option value="+81">+81</option>
+                                        <option value="+86">+86</option>
+                                    </select>
+                                    <input type="text" class="form-control" id="phoneNumber" placeholder="010-1234-5678">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">영문 성</label>
+                            <div class="col-sm-4">
+                                <input type="text" class="form-control" id="guestLastNameEn" placeholder="Last Name">
+                            </div>
+                            <label class="col-sm-2 col-form-label">영문 이름</label>
+                            <div class="col-sm-4">
+                                <input type="text" class="form-control" id="guestFirstNameEn" placeholder="First Name">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">이메일</label>
+                            <div class="col-sm-4">
+                                <input type="email" class="form-control" id="email" placeholder="example@email.com">
+                            </div>
+                            <label class="col-sm-2 col-form-label">생년월일</label>
+                            <div class="col-sm-4">
+                                <input type="date" class="form-control" id="birthDate">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">성별</label>
+                            <div class="col-sm-4">
+                                <select class="form-select" id="gender">
+                                    <option value="">선택</option>
+                                    <option value="M">남성</option>
+                                    <option value="F">여성</option>
+                                </select>
+                            </div>
+                            <label class="col-sm-2 col-form-label">국적</label>
+                            <div class="col-sm-4">
+                                <input type="text" class="form-control" id="nationality" placeholder="KOR" maxlength="5">
+                            </div>
+                        </div>
+
+                        <!-- OTA 정보 -->
+                        <h6 class="fw-bold mb-3 mt-4"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> OTA 정보</h6>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">OTA 관리</label>
+                            <div class="col-sm-4">
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" id="isOtaManaged">
+                                    <label class="form-check-label" for="isOtaManaged">OTA 수정제한 모드</label>
+                                </div>
+                            </div>
+                            <label class="col-sm-2 col-form-label">OTA 예약번호</label>
+                            <div class="col-sm-4">
+                                <input type="text" class="form-control" id="otaReservationNo" placeholder="OTA 예약번호">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Tab 2: 상세정보 (객실 레그) ═══ -->
+            <div class="tab-pane fade" id="tabDetail" role="tabpanel">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 객실 목록</h6>
+                            <button class="btn btn-primary btn-sm" id="addRoomBtn">
+                                <i class="fas fa-plus me-1"></i>객실 추가
+                            </button>
+                        </div>
+                        <!-- 객실 레그 목록 (동적 추가) -->
+                        <div id="roomLegsContainer">
+                            <!-- JS에서 동적 생성 -->
+                        </div>
+                        <div id="roomLegsEmpty" class="text-center text-muted py-4 border rounded">
+                            <i class="fas fa-bed me-1"></i>등록된 객실이 없습니다. [객실 추가] 버튼을 클릭하세요.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Tab 3: 예치금정보 ═══ -->
+            <div class="tab-pane fade" id="tabDeposit" role="tabpanel">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 예치금 정보</h6>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">예치 방법</label>
+                            <div class="col-sm-4">
+                                <select class="form-select" id="depositMethod">
+                                    <option value="">선택</option>
+                                    <option value="CREDIT_CARD">신용카드</option>
+                                    <option value="CASH">현금</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="creditCardSection" style="display:none;">
+                            <div class="row mb-3">
+                                <label class="col-sm-2 col-form-label">카드사</label>
+                                <div class="col-sm-4">
+                                    <input type="text" class="form-control" id="cardCompany" placeholder="카드사명">
+                                </div>
+                                <label class="col-sm-2 col-form-label">카드번호</label>
+                                <div class="col-sm-4">
+                                    <input type="text" class="form-control" id="cardNumber" placeholder="1234-5678-9012-3456">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-2 col-form-label">유효기간</label>
+                                <div class="col-sm-4">
+                                    <input type="text" class="form-control" id="cardExpiryDate" placeholder="MM/YYYY">
+                                </div>
+                                <label class="col-sm-2 col-form-label">CVC</label>
+                                <div class="col-sm-4">
+                                    <input type="password" class="form-control" id="cardCvc" maxlength="4" placeholder="CVC">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">예치금액</label>
+                            <div class="col-sm-4">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="depositAmount" value="0" min="0">
+                                    <span class="input-group-text">원</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Tab 4: 기타정보 ═══ -->
+            <div class="tab-pane fade" id="tabEtc" role="tabpanel">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 고객 요청사항</h6>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <textarea class="form-control" id="customerRequest" rows="4" placeholder="고객 요청사항을 입력하세요."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 하단 버튼 -->
+        <div class="d-flex justify-content-between mt-3">
+            <div></div>
+            <div>
+                <a href="/admin/reservations" class="btn btn-secondary me-2">
+                    <i class="fas fa-arrow-left me-1"></i>취소
+                </a>
+                <button type="button" class="btn btn-primary" id="saveBtn">
+                    <i class="fas fa-save me-1"></i>저장
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 레이트코드 선택 모달 ═══ -->
+    <div class="modal fade" id="rateCodeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">레이트코드 선택</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">레이트코드명 검색</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="rateCodeSearchKeyword" placeholder="코드명을 입력하세요.">
+                                <button class="btn btn-outline-primary btn-sm" id="rateCodeSearchAction">검색</button>
+                            </div>
+                        </div>
+                    </div>
+                    <table id="rateCodeSelectTable" class="table table-hover table-bordered mb-0" style="width:100%">
+                        <thead class="table-light">
+                        <tr>
+                            <th style="width:50px">NO</th>
+                            <th>레이트코드</th>
+                            <th>코드명</th>
+                            <th>카테고리</th>
+                            <th>판매기간</th>
+                            <th style="width:60px">선택</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="rateCodeApplyBtn">적용</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 마켓코드 선택 모달 ═══ -->
+    <div class="modal fade" id="marketCodeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">마켓코드 선택</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">마켓코드명 검색</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="marketCodeSearchKeyword" placeholder="코드명을 입력하세요.">
+                                <button class="btn btn-outline-primary btn-sm" id="marketCodeSearchAction">검색</button>
+                            </div>
+                        </div>
+                    </div>
+                    <table id="marketCodeSelectTable" class="table table-hover table-bordered mb-0" style="width:100%">
+                        <thead class="table-light">
+                        <tr>
+                            <th style="width:50px">NO</th>
+                            <th>마켓코드</th>
+                            <th>코드명</th>
+                            <th>설명</th>
+                            <th style="width:60px">선택</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="marketCodeApplyBtn">적용</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 객실타입 선택 모달 ═══ -->
+    <div class="modal fade" id="roomTypeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">객실타입 선택</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">객실타입 검색</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="roomTypeSearchKeyword" placeholder="객실타입을 입력하세요.">
+                                <button class="btn btn-outline-primary btn-sm" id="roomTypeSearchAction">검색</button>
+                            </div>
+                        </div>
+                    </div>
+                    <table id="roomTypeSelectTable" class="table table-hover table-bordered mb-0" style="width:100%">
+                        <thead class="table-light">
+                        <tr>
+                            <th style="width:50px">NO</th>
+                            <th>객실타입 코드</th>
+                            <th>객실 클래스</th>
+                            <th>객실크기</th>
+                            <th>최대인원</th>
+                            <th style="width:60px">선택</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="roomTypeApplyBtn">적용</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 층/호수 선택 모달 ═══ -->
+    <div class="modal fade" id="roomAssignModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">층/호수 선택</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">층 선택</label>
+                            <select class="form-select" id="assignFloorSelect">
+                                <option value="">선택</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">호수 선택</label>
+                            <select class="form-select" id="assignRoomNumberSelect">
+                                <option value="">층을 먼저 선택하세요</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="roomAssignApplyBtn">적용</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/reservation-form.js}"></script>
+</th:block>
+</body>
+</html>

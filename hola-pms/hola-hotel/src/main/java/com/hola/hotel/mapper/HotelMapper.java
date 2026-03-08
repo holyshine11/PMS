@@ -1,6 +1,7 @@
 package com.hola.hotel.mapper;
 
 import com.hola.hotel.dto.request.HotelCreateRequest;
+import com.hola.hotel.dto.request.ReservationChannelRequest;
 import com.hola.hotel.dto.response.*;
 import com.hola.hotel.entity.*;
 import org.springframework.stereotype.Component;
@@ -170,6 +171,34 @@ public class HotelMapper {
                 .useYn(settlement.getUseYn())
                 .createdAt(settlement.getCreatedAt())
                 .updatedAt(settlement.getUpdatedAt())
+                .build();
+    }
+
+    // 예약채널 변환
+    public ReservationChannel toReservationChannelEntity(ReservationChannelRequest request, Property property) {
+        return ReservationChannel.builder()
+                .property(property)
+                .channelCode(request.getChannelCode())
+                .channelName(request.getChannelName())
+                .channelType(request.getChannelType())
+                .descriptionKo(request.getDescriptionKo())
+                .descriptionEn(request.getDescriptionEn())
+                .build();
+    }
+
+    public ReservationChannelResponse toReservationChannelResponse(ReservationChannel channel) {
+        return ReservationChannelResponse.builder()
+                .id(channel.getId())
+                .propertyId(channel.getProperty().getId())
+                .channelCode(channel.getChannelCode())
+                .channelName(channel.getChannelName())
+                .channelType(channel.getChannelType())
+                .descriptionKo(channel.getDescriptionKo())
+                .descriptionEn(channel.getDescriptionEn())
+                .sortOrder(channel.getSortOrder())
+                .useYn(channel.getUseYn())
+                .createdAt(channel.getCreatedAt())
+                .updatedAt(channel.getUpdatedAt())
                 .build();
     }
 }

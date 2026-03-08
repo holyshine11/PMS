@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>예약채널 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-satellite-dish me-2"></i>예약채널 관리</h4>
+    </div>
+
+    <!-- 검색 필터 -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="searchKeyword" class="form-control"
+                               placeholder="채널코드 또는 채널명 검색">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnAll" value="" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnAll">전체</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnY" value="true">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnY">사용</label>
+                        <input type="radio" class="btn-check" name="searchUseYn" id="useYnN" value="false">
+                        <label class="btn btn-outline-secondary btn-sm" for="useYnN">미사용</label>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-primary btn-sm" onclick="ReservationChannelPage.search()">
+                        <i class="fas fa-search me-1"></i>검색
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="ReservationChannelPage.resetSearch()">
+                        <i class="fas fa-undo me-1"></i>초기화
+                    </button>
+                </div>
+                <div class="col-auto ms-auto" id="btnCreateWrap">
+                    <button class="btn btn-primary btn-sm" onclick="ReservationChannelPage.openCreateModal()">
+                        <i class="fas fa-plus me-1"></i>예약채널 등록
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="contextAlert" class="alert alert-info" style="display:none;">
+        <i class="fas fa-info-circle me-1"></i>상단 헤더에서 호텔과 프로퍼티를 선택해주세요.
+    </div>
+
+    <!-- 테이블 헤더 -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <select id="pageSizeSelect" class="form-select form-select-sm d-inline-block" style="width: auto;">
+                <option value="10">10개씩 보기</option>
+                <option value="20" selected>20개씩 보기</option>
+                <option value="50">50개씩 보기</option>
+                <option value="100">100개씩 보기</option>
+            </select>
+            <span class="ms-2 text-muted">검색 결과 총 <strong id="totalCount">0</strong> 개</span>
+        </div>
+    </div>
+
+    <!-- 테이블 -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <table id="reservationChannelTable" class="table table-hover mb-0" style="width:100%">
+                <thead class="table-light">
+                <tr>
+                    <th style="width:60px">NO</th>
+                    <th>채널코드</th>
+                    <th>채널명</th>
+                    <th>채널유형</th>
+                    <th>설명(국문)</th>
+                    <th style="width:90px">사용여부</th>
+                    <th style="width:100px">관리</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 예약채널 등록/수정 모달 -->
+    <div class="modal fade" id="reservationChannelModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rcModalTitle">예약채널 등록</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="rcForm">
+                        <input type="hidden" id="rcId">
+                        <!-- 프로퍼티 (readonly) -->
+                        <div class="mb-3">
+                            <label class="form-label">프로퍼티</label>
+                            <input type="text" id="rcPropertyName" class="form-control" readonly disabled>
+                        </div>
+                        <!-- 채널코드 -->
+                        <div class="mb-3">
+                            <label class="form-label required">채널코드</label>
+                            <div class="input-group">
+                                <input type="text" id="rcCode" class="form-control" maxlength="20"
+                                       placeholder="최대 20자" required>
+                                <button type="button" id="btnCheckDuplicate" class="btn btn-outline-secondary"
+                                        onclick="ReservationChannelPage.checkDuplicate()">중복확인</button>
+                            </div>
+                            <small id="duplicateResult" class="form-text" style="display:none;"></small>
+                        </div>
+                        <!-- 채널명 -->
+                        <div class="mb-3">
+                            <label class="form-label required">채널명</label>
+                            <input type="text" id="rcName" class="form-control" maxlength="200" required>
+                        </div>
+                        <!-- 채널유형 -->
+                        <div class="mb-3">
+                            <label class="form-label required">채널유형</label>
+                            <select id="rcType" class="form-select" required>
+                                <option value="">선택하세요</option>
+                                <option value="WALK_IN">WALK_IN</option>
+                                <option value="PHONE">PHONE</option>
+                                <option value="EMAIL">EMAIL</option>
+                                <option value="OTA">OTA</option>
+                                <option value="B2B">B2B</option>
+                                <option value="WEBSITE">WEBSITE</option>
+                            </select>
+                        </div>
+                        <!-- 설명 (국문) -->
+                        <div class="mb-3">
+                            <label class="form-label">설명 (국문)</label>
+                            <input type="text" id="rcDescKo" class="form-control" maxlength="200">
+                        </div>
+                        <!-- 설명 (영문) -->
+                        <div class="mb-3">
+                            <label class="form-label">설명 (영문)</label>
+                            <input type="text" id="rcDescEn" class="form-control" maxlength="200">
+                        </div>
+                        <!-- 사용여부 -->
+                        <div class="mb-3">
+                            <label class="form-label required">사용여부</label>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="rcUseYn" id="rcUseYnY" value="true" checked>
+                                <label class="btn btn-outline-primary" for="rcUseYnY">Y</label>
+                                <input type="radio" class="btn-check" name="rcUseYn" id="rcUseYnN" value="false">
+                                <label class="btn btn-outline-primary" for="rcUseYnN">N</label>
+                            </div>
+                        </div>
+                        <!-- 최종 수정일 -->
+                        <div class="mb-3">
+                            <label class="form-label">최종 수정일</label>
+                            <input type="text" id="rcUpdatedAt" class="form-control" readonly disabled>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" id="btnDelete" class="btn btn-danger" style="display:none;"
+                            onclick="ReservationChannelPage.remove()">
+                        <i class="fas fa-trash me-1"></i>삭제
+                    </button>
+                    <button type="button" id="btnSave" class="btn btn-primary" onclick="ReservationChannelPage.save()">
+                        <i class="fas fa-save me-1"></i>등록
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div layout:fragment="scripts">
+    <script th:src="@{/js/reservation-channel-page.js}"></script>
+</div>
+</body>
+</html>

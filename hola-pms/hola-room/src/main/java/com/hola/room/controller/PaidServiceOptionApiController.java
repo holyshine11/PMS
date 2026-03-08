@@ -1,6 +1,7 @@
 package com.hola.room.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.security.AccessControlService;
 import com.hola.room.dto.request.PaidServiceOptionCreateRequest;
 import com.hola.room.dto.request.PaidServiceOptionUpdateRequest;
 import com.hola.room.dto.response.PaidServiceOptionResponse;
@@ -22,11 +23,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PaidServiceOptionApiController {
 
+    private final AccessControlService accessControlService;
     private final PaidServiceOptionService paidServiceOptionService;
 
     @GetMapping
     public ResponseEntity<HolaResponse<List<PaidServiceOptionResponse>>> getPaidServiceOptions(
             @PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         List<PaidServiceOptionResponse> list = paidServiceOptionService.getPaidServiceOptions(propertyId);
         return ResponseEntity.ok(HolaResponse.success(list));
     }
@@ -35,6 +38,7 @@ public class PaidServiceOptionApiController {
     public ResponseEntity<HolaResponse<PaidServiceOptionResponse>> getPaidServiceOption(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(paidServiceOptionService.getPaidServiceOption(id)));
     }
 
@@ -42,6 +46,7 @@ public class PaidServiceOptionApiController {
     public ResponseEntity<HolaResponse<PaidServiceOptionResponse>> createPaidServiceOption(
             @PathVariable Long propertyId,
             @Valid @RequestBody PaidServiceOptionCreateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         PaidServiceOptionResponse response = paidServiceOptionService.createPaidServiceOption(propertyId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(response));
     }
@@ -51,6 +56,7 @@ public class PaidServiceOptionApiController {
             @PathVariable Long propertyId,
             @PathVariable Long id,
             @Valid @RequestBody PaidServiceOptionUpdateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(paidServiceOptionService.updatePaidServiceOption(id, request)));
     }
 
@@ -58,6 +64,7 @@ public class PaidServiceOptionApiController {
     public ResponseEntity<HolaResponse<Void>> deletePaidServiceOption(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         paidServiceOptionService.deletePaidServiceOption(id);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -66,6 +73,7 @@ public class PaidServiceOptionApiController {
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkCode(
             @PathVariable Long propertyId,
             @RequestParam String serviceOptionCode) {
+        accessControlService.validatePropertyAccess(propertyId);
         boolean duplicate = paidServiceOptionService.existsServiceOptionCode(propertyId, serviceOptionCode);
         return ResponseEntity.ok(HolaResponse.success(Map.of("duplicate", duplicate)));
     }

@@ -1,6 +1,7 @@
 package com.hola.room.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.security.AccessControlService;
 import com.hola.room.dto.request.FreeServiceOptionCreateRequest;
 import com.hola.room.dto.request.FreeServiceOptionUpdateRequest;
 import com.hola.room.dto.response.FreeServiceOptionResponse;
@@ -22,11 +23,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class FreeServiceOptionApiController {
 
+    private final AccessControlService accessControlService;
     private final FreeServiceOptionService freeServiceOptionService;
 
     @GetMapping
     public ResponseEntity<HolaResponse<List<FreeServiceOptionResponse>>> getFreeServiceOptions(
             @PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         List<FreeServiceOptionResponse> list = freeServiceOptionService.getFreeServiceOptions(propertyId);
         return ResponseEntity.ok(HolaResponse.success(list));
     }
@@ -35,6 +38,7 @@ public class FreeServiceOptionApiController {
     public ResponseEntity<HolaResponse<FreeServiceOptionResponse>> getFreeServiceOption(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(freeServiceOptionService.getFreeServiceOption(id)));
     }
 
@@ -42,6 +46,7 @@ public class FreeServiceOptionApiController {
     public ResponseEntity<HolaResponse<FreeServiceOptionResponse>> createFreeServiceOption(
             @PathVariable Long propertyId,
             @Valid @RequestBody FreeServiceOptionCreateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         FreeServiceOptionResponse response = freeServiceOptionService.createFreeServiceOption(propertyId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(response));
     }
@@ -51,6 +56,7 @@ public class FreeServiceOptionApiController {
             @PathVariable Long propertyId,
             @PathVariable Long id,
             @Valid @RequestBody FreeServiceOptionUpdateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(freeServiceOptionService.updateFreeServiceOption(id, request)));
     }
 
@@ -58,6 +64,7 @@ public class FreeServiceOptionApiController {
     public ResponseEntity<HolaResponse<Void>> deleteFreeServiceOption(
             @PathVariable Long propertyId,
             @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         freeServiceOptionService.deleteFreeServiceOption(id);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -66,6 +73,7 @@ public class FreeServiceOptionApiController {
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkCode(
             @PathVariable Long propertyId,
             @RequestParam String serviceOptionCode) {
+        accessControlService.validatePropertyAccess(propertyId);
         boolean duplicate = freeServiceOptionService.existsServiceOptionCode(propertyId, serviceOptionCode);
         return ResponseEntity.ok(HolaResponse.success(Map.of("duplicate", duplicate)));
     }

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>예약 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-calendar-check me-2"></i>예약 관리</h4>
+    </div>
+
+    <!-- 프로퍼티 미선택 알림 -->
+    <div id="contextAlert" class="alert alert-info" style="display:none;">
+        <i class="fas fa-info-circle me-1"></i>상단 헤더에서 호텔과 프로퍼티를 선택해주세요.
+    </div>
+
+    <!-- 검색/필터 카드 -->
+    <div class="card border-0 shadow-sm mb-3" id="searchCard" style="display:none;">
+        <div class="card-body py-3">
+            <div class="row g-2 align-items-center">
+                <!-- 날짜 선택: 이전/다음 + 날짜 표시 -->
+                <div class="col-auto">
+                    <button class="btn btn-outline-secondary btn-sm" id="prevDateBtn">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                </div>
+                <div class="col-auto">
+                    <input type="date" class="form-control form-control-sm" id="selectedDate">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-secondary btn-sm" id="nextDateBtn">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <!-- 상태 필터 -->
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" id="statusFilter">
+                        <option value="">전체 상태</option>
+                        <option value="RESERVED">예약</option>
+                        <option value="CHECK_IN">체크인</option>
+                        <option value="INHOUSE">투숙중</option>
+                        <option value="CHECKED_OUT">체크아웃</option>
+                        <option value="CANCELED">취소</option>
+                        <option value="NO_SHOW">노쇼</option>
+                    </select>
+                </div>
+
+                <!-- 키워드 검색 -->
+                <div class="col-auto">
+                    <input type="text" class="form-control form-control-sm" id="keyword"
+                           placeholder="예약번호/이름/전화번호">
+                </div>
+
+                <!-- 검색 버튼 -->
+                <div class="col-auto">
+                    <button class="btn btn-primary btn-sm" id="searchBtn">
+                        <i class="fas fa-search me-1"></i>검색
+                    </button>
+                </div>
+
+                <!-- 뷰 토글 + 신규 등록 (오른쪽) -->
+                <div class="col-auto ms-auto">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-primary active" id="cardViewBtn">
+                            <i class="fas fa-th-large me-1"></i>카드
+                        </button>
+                        <button class="btn btn-outline-primary" id="tableViewBtn">
+                            <i class="fas fa-list me-1"></i>테이블
+                        </button>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <a href="/admin/reservations/new" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i>신규 예약
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 카드뷰 컨테이너 -->
+    <div id="cardViewContainer" style="display:none;">
+        <!-- JS에서 동적 생성 -->
+    </div>
+
+    <!-- 테이블뷰 컨테이너 -->
+    <div id="tableViewContainer" class="card border-0 shadow-sm" style="display:none;">
+        <div class="card-body">
+            <table id="reservationTable" class="table table-hover mb-0" style="width:100%">
+                <thead class="table-light">
+                <tr>
+                    <th>예약번호</th>
+                    <th>확인번호</th>
+                    <th>상태</th>
+                    <th>예약자</th>
+                    <th>전화번호</th>
+                    <th>체크인</th>
+                    <th>체크아웃</th>
+                    <th>OTA</th>
+                    <th>등록일시</th>
+                    <th style="width:80px">관리</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/reservation-card-view.js}"></script>
+    <script th:src="@{/js/reservation-table-view.js}"></script>
+    <script>
+    $(function() {
+        // 프로퍼티 컨텍스트 체크
+        var propertyId = HolaPms.context.getPropertyId();
+        if (!propertyId) {
+            $('#contextAlert').show();
+            return;
+        }
+        $('#searchCard').show();
+
+        // 오늘 날짜 기본값
+        var today = new Date().toISOString().split('T')[0];
+        $('#selectedDate').val(today);
+
+        // 카드뷰 초기화 (기본)
+        ReservationCardView.init(propertyId);
+        $('#cardViewContainer').show();
+
+        // 테이블뷰 초기화 (숨김 상태)
+        ReservationTableView.init(propertyId);
+
+        // 뷰 토글: 카드뷰
+        $('#cardViewBtn').on('click', function() {
+            $(this).addClass('active');
+            $('#tableViewBtn').removeClass('active');
+            $('#cardViewContainer').show();
+            $('#tableViewContainer').hide();
+            ReservationCardView.load(getSearchParams());
+        });
+
+        // 뷰 토글: 테이블뷰
+        $('#tableViewBtn').on('click', function() {
+            $(this).addClass('active');
+            $('#cardViewBtn').removeClass('active');
+            $('#tableViewContainer').show();
+            $('#cardViewContainer').hide();
+            ReservationTableView.reload(getSearchParams());
+        });
+
+        // 날짜 이전
+        $('#prevDateBtn').on('click', function() {
+            changeDate(-1);
+        });
+
+        // 날짜 다음
+        $('#nextDateBtn').on('click', function() {
+            changeDate(1);
+        });
+
+        // 날짜 변경 시 자동 검색
+        $('#selectedDate').on('change', function() {
+            doSearch();
+        });
+
+        // 검색 버튼
+        $('#searchBtn').on('click', function() {
+            doSearch();
+        });
+
+        // 키워드 엔터 키
+        $('#keyword').on('keypress', function(e) {
+            if (e.which === 13) { doSearch(); }
+        });
+
+        // 컨텍스트 변경 이벤트
+        $(document).on('hola:contextChange', function(e, ctx) {
+            var pid = ctx && ctx.propertyId ? ctx.propertyId : HolaPms.context.getPropertyId();
+            if (!pid) {
+                $('#contextAlert').show();
+                $('#searchCard').hide();
+                $('#cardViewContainer').hide();
+                $('#tableViewContainer').hide();
+                return;
+            }
+            $('#contextAlert').hide();
+            $('#searchCard').show();
+
+            ReservationCardView.propertyId = pid;
+            ReservationTableView.propertyId = pid;
+
+            if ($('#cardViewContainer').is(':visible')) {
+                ReservationCardView.load(getSearchParams());
+            }
+            if ($('#tableViewContainer').is(':visible')) {
+                ReservationTableView.reload(getSearchParams());
+            }
+        });
+
+        /**
+         * 날짜 변경 헬퍼
+         */
+        function changeDate(offset) {
+            var current = $('#selectedDate').val();
+            if (!current) return;
+            var d = new Date(current);
+            d.setDate(d.getDate() + offset);
+            var yyyy = d.getFullYear();
+            var mm = String(d.getMonth() + 1).padStart(2, '0');
+            var dd = String(d.getDate()).padStart(2, '0');
+            $('#selectedDate').val(yyyy + '-' + mm + '-' + dd);
+            doSearch();
+        }
+
+        /**
+         * 검색 파라미터 조립
+         */
+        function getSearchParams() {
+            return {
+                date: $('#selectedDate').val(),
+                status: $('#statusFilter').val(),
+                keyword: $.trim($('#keyword').val())
+            };
+        }
+
+        /**
+         * 검색 실행 (현재 활성 뷰에 따라 분기)
+         */
+        function doSearch() {
+            var params = getSearchParams();
+            if ($('#cardViewContainer').is(':visible')) {
+                ReservationCardView.load(params);
+            }
+            if ($('#tableViewContainer').is(':visible')) {
+                ReservationTableView.reload(params);
+            }
+        }
+    });
+    </script>
+</th:block>
+</body>
+</html>

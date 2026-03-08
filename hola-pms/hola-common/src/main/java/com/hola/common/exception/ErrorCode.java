@@ -11,7 +11,7 @@ import org.springframework.http.HttpStatus;
  * HOLA-2xxx: 객실
  * HOLA-3xxx: 레이트
  * HOLA-06xx: 회원관리
- * HOLA-7xxx: 예약
+ * HOLA-4xxx: 예약
  */
 @Getter
 @RequiredArgsConstructor
@@ -78,7 +78,30 @@ public enum ErrorCode {
     // 프로모션 코드 (HOLA-35xx)
     PROMOTION_CODE_NOT_FOUND("HOLA-3500", "프로모션 코드를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     PROMOTION_CODE_DUPLICATE("HOLA-3501", "동일 프로퍼티 내 이미 존재하는 프로모션 코드입니다.", HttpStatus.CONFLICT),
-    PROMOTION_INVALID_PERIOD("HOLA-3502", "프로모션 종료일은 시작일보다 같거나 이후여야 합니다.", HttpStatus.BAD_REQUEST);
+    PROMOTION_INVALID_PERIOD("HOLA-3502", "프로모션 종료일은 시작일보다 같거나 이후여야 합니다.", HttpStatus.BAD_REQUEST),
+
+    // 예약관리 (HOLA-4xxx)
+    RESERVATION_NOT_FOUND("HOLA-4000", "예약을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    RESERVATION_ALREADY_EXISTS("HOLA-4001", "이미 존재하는 예약번호입니다.", HttpStatus.CONFLICT),
+    RESERVATION_INVALID_STATUS("HOLA-4002", "유효하지 않은 예약 상태입니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_STATUS_CHANGE_NOT_ALLOWED("HOLA-4003", "해당 상태로 변경할 수 없습니다.", HttpStatus.BAD_REQUEST),
+
+    // 서브 예약 (HOLA-401x)
+    SUB_RESERVATION_NOT_FOUND("HOLA-4010", "객실 예약을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    SUB_RESERVATION_ROOM_CONFLICT("HOLA-4011", "해당 기간에 이미 예약된 객실입니다.", HttpStatus.CONFLICT),
+    SUB_RESERVATION_NO_AVAILABILITY("HOLA-4012", "해당 객실 타입의 가용 객실이 없습니다.", HttpStatus.BAD_REQUEST),
+    SUB_RESERVATION_DATE_INVALID("HOLA-4013", "체크아웃은 체크인 이후여야 합니다.", HttpStatus.BAD_REQUEST),
+
+    // 가격/결제 (HOLA-402x)
+    RESERVATION_RATE_NOT_APPLICABLE("HOLA-4020", "해당 기간에 적용 가능한 요금이 없습니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_PAYMENT_ALREADY_COMPLETED("HOLA-4021", "이미 결제 완료된 예약입니다.", HttpStatus.BAD_REQUEST),
+
+    // 예약채널 (HOLA-403x)
+    RESERVATION_CHANNEL_NOT_FOUND("HOLA-4030", "예약채널을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    RESERVATION_CHANNEL_CODE_DUPLICATE("HOLA-4031", "이미 존재하는 채널 코드입니다.", HttpStatus.CONFLICT),
+
+    // OTA (HOLA-404x)
+    RESERVATION_OTA_EDIT_RESTRICTED("HOLA-4040", "OTA 예약은 수정이 제한됩니다.", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final String message;

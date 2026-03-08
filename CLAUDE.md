@@ -1,168 +1,221 @@
-# Hola PMS - 프로젝트 컨텍스트
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Build & Run Commands
+
+```bash
+cd hola-pms
+
+# 전체 빌드
+./gradlew build
+
+# 컴파일만 (빠른 검증)
+./gradlew compileJava
+
+# 서버 실행 (로컬, http://localhost:8080)
+./gradlew :hola-app:bootRun
+
+# 다른 포트로 실행
+./gradlew :hola-app:bootRun --args='--server.port=9090'
+
+# 테스트
+./gradlew test
+
+# 단일 모듈 테스트
+./gradlew :hola-hotel:test
+
+# 클린 빌드
+./gradlew clean build
+```
+
+**로컬 환경 요구사항**: Java 17, PostgreSQL 16 (`hola_pms` DB, user: `hola`/`hola1234`), Redis 7+
+
+**로그인**: http://localhost:8080/login (`admin` / `holapms1!`)
 
 ## 프로젝트 개요
-- **프로젝트명**: 올라(Hola) PMS
-- **비전**: 국내 3~5성급 중견 호텔 대상 Oracle Opera Cloud PMS 한국형 대안
-- **아키텍처**: Modular Monolith (Phase 4+ MSA 전환)
+
+- **프로젝트명**: 올라(Hola) PMS - 국내 3~5성급 호텔 대상 클라우드 PMS
+- **아키텍처**: Modular Monolith (Gradle 멀티모듈)
 - **멀티테넌시**: Schema-per-Tenant (PostgreSQL)
 
-## 기술 스택
+## 기술 스택 (현재 구현)
 
 | 레이어 | 기술 | 버전 |
 |--------|------|------|
 | Language | Java | 17 (LTS) |
-| Framework | Spring Boot | 3.2.x |
-| ORM | Spring Data JPA + QueryDSL | 5.0+ |
+| Framework | Spring Boot | 3.2.5 |
+| ORM | Spring Data JPA | - |
 | Database | PostgreSQL | 16 |
 | Cache | Redis | 7.x |
-| Message Queue | RabbitMQ | 3.13+ |
-| API Gateway | Spring Cloud Gateway | 4.x |
-| Frontend | React 18 + Next.js | 14 (App Router) |
-| UI Library | Ant Design | 5.x |
-| Auth | Spring Security + JWT + OAuth2 | - |
-| Cloud | AWS (ECS Fargate + RDS + ElastiCache) | - |
-| CI/CD | GitHub Actions + Docker | - |
-| Monitoring | Grafana + Prometheus + Loki | - |
 | DB Migration | Flyway | - |
+| Auth | Spring Security + JWT | - |
+| Frontend (Admin) | **Thymeleaf + Bootstrap 5 + jQuery + DataTables** | - |
+| CSS | 커스텀 hola.css + Pretendard 폰트 | - |
 
-## 프로젝트 구조 (Gradle 멀티모듈)
+> **주의**: 기술 스택 계획서에는 React 18 + Next.js 14 + Ant Design 5가 명시되어 있으나,
+> 현재 Admin UI는 Thymeleaf SSR + Bootstrap 5 + jQuery + DataTables로 구현됨.
+
+## 아키텍처 & 모듈 구조
 
 ```
 hola-pms/
-├── hola-common/          # M00: 공통 (코드, 유틸, 보안, 예외처리)
-├── hola-hotel/           # M01: 호텔/프로퍼티/층/호수/마켓코드
-├── hola-room/            # M02: 객실 클래스/타입/서비스옵션
-├── hola-rate/            # M03: 레이트/프로모션
-├── hola-housekeeping/    # M04: 하우스키핑/객실상태
-├── hola-channel/         # M05: 채널매니저/OTA 연동
-├── hola-pos/             # M06: POS 매출/부대시설
-├── hola-reservation/     # M07: 예약/체크인/체크아웃
-├── hola-booking/         # M08: 부킹엔진 API
-├── hola-billing/         # M09: 정산/Night Audit
-├── hola-frontdesk/       # M10: 프론트데스크/Room Rack
-├── hola-ai/              # M11: AI 어시스턴트
-├── hola-report/          # M12: 대시보드/KPI 리포팅
-├── hola-notification/    # 알림 (카카오/이메일/SMS)
-└── hola-gateway/         # API Gateway
+├── build.gradle          # 루트: Java 17, Spring Boot 3.2.5, Lombok, JUnit5
+├── settings.gradle       # 모듈 등록
+├── hola-common/          # M00: 공통 (BaseEntity, HolaResponse, Security, JWT, 예외처리, 인증)
+├── hola-hotel/           # M01: 호텔/프로퍼티/층/호수/마켓코드/회원관리/권한관리
+├── hola-room/            # M02: 객실 클래스/타입/서비스옵션(무료/유료)
+├── hola-rate/            # M03: 레이트 코드/요금
+└── hola-app/             # 실행 모듈 (bootJar, Thymeleaf 템플릿, static, Flyway SQL)
 ```
 
-## 패키지 구조 (모듈별)
+### 모듈 의존성 방향
+
+```
+hola-app → hola-hotel → hola-common
+         → hola-room  → hola-common
+         → hola-rate  → hola-common
+```
+
+- **hola-common**: `java-library` 플러그인, `api` 스코프로 전이 의존성 제공
+- **hola-app**: `org.springframework.boot` 플러그인, bootJar 생성. Thymeleaf 템플릿/static/Flyway SQL 포함
+- **도메인 모듈** (hotel, room, rate): Entity, Repository, Service, Controller, DTO, Mapper 포함
+
+### 패키지 구조 (모듈별)
 
 ```
 com.hola.{module}/
-├── controller/           # REST API 엔드포인트
-│   └── {Entity}Controller.java
-├── service/              # 비즈니스 로직
-│   ├── {Entity}Service.java (인터페이스)
-│   └── {Entity}ServiceImpl.java
-├── repository/           # 데이터 접근
-│   └── {Entity}Repository.java
-├── dto/                  # 요청/응답 DTO
-│   ├── request/
-│   └── response/
+├── controller/           # REST API (@RestController) + View (@Controller)
+├── service/              # 인터페이스 + Impl 분리
+├── repository/           # Spring Data JPA
+├── dto/request/          # 요청 DTO
+├── dto/response/         # 응답 DTO
 ├── entity/               # JPA 엔티티
-│   └── {Entity}.java
-├── mapper/               # Entity <-> DTO 변환 (MapStruct)
-├── event/                # 도메인 이벤트 (발행/수신)
-└── exception/            # 모듈별 예외
+└── mapper/               # 수동 @Component 매퍼 (Entity <-> DTO 변환)
+```
+
+### Frontend 파일 위치 (모두 hola-app 내)
+
+- 템플릿: `hola-app/src/main/resources/templates/{feature}/list.html`, `form.html`
+- JS: `hola-app/src/main/resources/static/js/{feature}-page.js` (리스트), `{feature}-form.js` (폼)
+- 공통 JS: `hola-app/src/main/resources/static/js/hola-common.js` (`HolaPms` 네임스페이스)
+- CSS: `hola-app/src/main/resources/static/css/hola.css`
+- 레이아웃: `templates/layout/default.html` (Thymeleaf Layout Dialect)
+
+## 핵심 코드 패턴
+
+### API 응답 형식
+
+모든 REST API는 `HolaResponse<T>`로 통일:
+```java
+HolaResponse.success(data)          // 데이터 응답
+HolaResponse.success()              // 빈 성공 응답
+HolaResponse.error(code, message)   // 에러 응답
+```
+
+### 엔티티 공통 (BaseEntity)
+
+모든 엔티티가 상속. 필드: `id` (IDENTITY), `createdAt`, `updatedAt`, `createdBy`, `updatedBy`, `deletedAt`, `useYn`, `sortOrder`
+- **Soft Delete**: `softDelete()` → `deletedAt` 설정 + `useYn = false`. 물리 삭제 금지
+- **JPA Auditing**: `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`
+
+### 예외 처리
+
+```java
+throw new HolaException(ErrorCode.HOTEL_NOT_FOUND);  // ErrorCode enum 사용
+```
+에러 코드 체계: `HOLA-0xxx` 공통, `HOLA-1xxx` 호텔, `HOLA-2xxx` 객실, `HOLA-3xxx` 레이트, `HOLA-06xx` 회원, `HOLA-07xx` 권한
+
+### Mapper 패턴
+
+MapStruct 의존성은 있으나, 실제로는 **수동 `@Component` 매퍼** 사용:
+```java
+@Component
+public class HotelMapper {
+    public Hotel toEntity(HotelCreateRequest request, ...) { ... }
+    public HotelResponse toResponse(Hotel hotel) { ... }
+}
+```
+
+### Security 구조 (이중 필터 체인)
+
+- `@Order(1)` API 체인 (`/api/**`): JWT 인증, SessionCreationPolicy.NEVER
+- `@Order(2)` Web 체인 (`/**`): 세션 기반, form login → `/login`, 성공 → `/admin/dashboard`
+- 역할: `SUPER_ADMIN`, `HOTEL_ADMIN`, `PROPERTY_ADMIN`
+
+### DataTable Ajax 패턴 (Frontend)
+
+프로퍼티 의존 페이지에서는 function 기반 ajax:
+```javascript
+ajax: function(data, callback) {
+    var propertyId = HolaPms.context.getPropertyId();
+    if (!propertyId) { callback({ data: [] }); return; }
+    $.ajax({ url: '/api/v1/...', success: function(res) { callback(res); } });
+}
 ```
 
 ## 코드 컨벤션
 
 ### 네이밍
-- 변수/필드: `camelCase`
-- 클래스/인터페이스: `PascalCase`
-- 상수: `UPPER_SNAKE_CASE`
-- 패키지: `lowercase`
-- DB 테이블: `snake_case` (접두사: `htl_`, `rm_`, `rsv_` 등)
-- DB 컬럼: `snake_case`
+- 변수/필드: `camelCase`, 클래스: `PascalCase`, 상수: `UPPER_SNAKE_CASE`
+- DB 테이블: `snake_case` (접두사: `htl_`, `rm_`, `rt_` 등), DB 컬럼: `snake_case`
 
-### API 설계 규칙
-- RESTful 리소스 중심: `/api/v1/{resource}`
-- JWT Bearer Token + `X-Tenant-ID` 헤더 필수
-- 통일된 JSON 응답: `HolaResponse<T>`
-  ```json
-  {
-    "success": true,
-    "code": "HOLA-0000",
-    "message": "성공",
-    "data": {},
-    "pagination": { "page": 0, "size": 20, "totalElements": 0, "totalPages": 0 },
-    "timestamp": "2026-03-03T00:00:00Z"
-  }
-  ```
-- 에러 코드: `HOLA-XXXX` 형식
+### API 설계
+- RESTful: `/api/v1/{resource}` (프로퍼티 소속: `/api/v1/properties/{propertyId}/{resource}`)
+- JWT Bearer Token 인증
 - 페이징: `page`, `size`, `sort` 파라미터 표준
-- HTTP 상태: 200(성공), 201(생성), 400(검증실패), 401(인증), 403(인가), 404(없음), 500(서버오류)
+- HTTP: 200(성공), 201(생성), 400(검증실패), 401(인증), 403(인가), 404(없음), 500(서버오류)
 
-### 예외 처리
-- 공통 예외: `HolaException` + `ErrorCode` enum
-- `@RestControllerAdvice`로 전역 처리
-- 에러 코드 체계:
-  - `HOLA-0xxx`: 공통
-  - `HOLA-1xxx`: 호텔/프로퍼티
-  - `HOLA-2xxx`: 객실
-  - `HOLA-3xxx`: 레이트
-  - `HOLA-7xxx`: 예약
+### Git
+- 커밋: `[HOLA-XXX] feat/fix/refactor: description` (영문)
+- 코드 주석: 한글
 
-### 엔티티 공통
-- `BaseEntity`: `createdAt`, `updatedAt`, `createdBy`, `updatedBy` (JPA Auditing)
-- `@TenantRequired`: 멀티테넌트 스키마 자동 전환 어노테이션
-- Soft Delete: `deletedAt` 필드 (물리 삭제 금지)
-- `useYn` (Boolean): 사용 여부 플래그
+### Flyway 마이그레이션
+- 위치: `hola-app/src/main/resources/db/migration/`
+- 네이밍: `V{major}_{minor}_{patch}__{description}.sql` (예: `V2_1_0__create_room_type_tables.sql`)
+- 모듈별 버전 대역: V1.x.x (호텔/공통), V2.x.x (객실), V3.x.x (레이트)
 
-### 테넌트 격리
-- API Gateway에서 `X-Tenant-ID` 헤더로 테넌트 결정
-- `TenantContext` (ThreadLocal) → 스키마 전환
-- `hola_common` 스키마: 호텔/프로퍼티 마스터, 시스템 코드, 관리자
-- `hola_{hotel}_{property}` 스키마: 프로퍼티별 운영 데이터
+## UI 공통 규칙 (Admin Frontend)
 
-## 모듈 의존성 규칙
+### 테이블/리스트
+- Bootstrap 5 + DataTables, 카드 래핑: `card border-0 shadow-sm`
+- DataTable 초기화: `$.extend({}, HolaPms.dataTableDefaults, {...})`
+- 개별 language 정의 금지 → `HolaPms.dataTableDefaults` 사용
+- pageSizeSelect: 10, 20(기본), 50, 100 한글 ("10개씩 보기" 등)
+- 렌더러: `HolaPms.renders.dashIfEmpty`, `HolaPms.renders.useYnBadge`, `HolaPms.renders.actionButtons`
 
-1. 각 모듈은 **자신의 도메인 테이블만** 직접 접근
-2. 타 모듈 데이터 = **API 호출** 또는 **Event 수신**
-3. 동기 호출: REST API (Internal)
-4. 비동기: RabbitMQ Event
+### 폼 (등록/수정/상세)
+- Bootstrap grid 필수 (`row mb-3` + `col-sm-2 col-form-label`), `table table-bordered` 금지
+- 필수 항목: label에 `required` 클래스
+- 버튼: `d-flex justify-content-between` — 왼쪽: 삭제(수정모드만), 오른쪽: 취소+저장
+- 취소 아이콘: `fa-arrow-left`
+- **fw-bold 제한**: 페이지 타이틀(`h4`), 섹션 헤더(`h6`)만 허용. 폼 라벨/데이터 span에는 금지
+
+### 컬러 테마
+- 5색: #051923, #003554, #0582CA, #EF476F, #000/#FFF + gray(secondary)
+- 폰트: Pretendard (CDN)
+
+## 알려진 기술적 함정
+
+### JPQL null 조건부 LIKE 금지
+PostgreSQL + Hibernate 6에서 `(:param IS NULL OR column LIKE ...)` 패턴 사용 시 bytea 캐스팅 에러 발생.
+→ **해결**: Java stream 필터링 또는 Specification 사용
+
+### 벌크 삭제 시 @Modifying @Query 필수
+매핑 테이블(N:M)에서 `deleteAllByXxx()` 파생 삭제 후 `saveAll()` 시 flush 순서 충돌로 500 에러.
+→ **해결**: 반드시 `@Modifying @Query("DELETE FROM ...")` 사용
+
+### SecurityConfig 매칭 순서
+`requestMatchers`는 구체적 경로를 제너릭 경로보다 먼저 선언해야 함.
+(예: `/api/v1/hotels/selector`를 `/api/v1/hotels/**`보다 먼저)
 
 ## 모듈별 API Base Path
 
 | 모듈 | Base Path |
 |------|-----------|
 | M01 호텔관리 | `/api/v1/hotels`, `/api/v1/properties` |
-| M02 객실관리 | `/api/v1/room-classes`, `/api/v1/room-types` |
-| M03 레이트관리 | `/api/v1/rate-codes`, `/api/v1/promotions` |
-| M07 예약관리 | `/api/v1/reservations` |
-| M10 프론트데스크 | `/api/v1/front-desk` |
-
-## 12대 모듈 우선순위
-
-| 우선순위 | 모듈 |
-|----------|------|
-| **P0 (코어)** | M01 호텔관리, M02 객실관리, M03 레이트관리, M07 예약관리, M10 프론트데스크 |
-| **P1 (운영)** | M04 하우스키핑, M05 채널매니저, M08 부킹엔진, M09 정산, M12 대시보드 |
-| **P2 (고도화)** | M06 POS, M11 AI 어시스턴트 |
-
-## 개발 Phase
-
-| Phase | 기간 | 내용 |
-|-------|------|------|
-| Phase 0 | 2026.03~04 (8주) | 기반 구축 (skeleton, 인증, Admin UI, CI/CD) |
-| Phase 1 | 2026.05~08 (16주) | 코어 PMS (M01, M02, M03, M07, M10) |
-| Phase 2 | 2026.09~11 (12주) | 운영 모듈 (M04, M09, M12) |
-| Phase 3 | 2026.12~2027.02 (12주) | 채널/부킹/POS (M05, M06, M08) |
-
-## 개발 사이클 (Claude Code 통합)
-
-```
-[1턴] PM: 설계서 기반 기능 명세
-[2턴] Claude: Backend 코드 생성 (Entity → Repository → Service → Controller)
-[3턴] 개발자: 코드 리뷰 + 비즈니스 로직 보강
-[4턴] Claude: 단위/통합 테스트 + Flyway 마이그레이션
-[5턴] Claude: Frontend 페이지 생성 (Ant Design)
-[6턴] 개발자: UI 리뷰 + API 연동 검증
-```
-
-> 핵심: **1턴 1기능**, 매 턴 결과 확인 후 다음 진행
+| M02 객실관리 | `/api/v1/properties/{id}/room-classes`, `room-types`, `free-service-options`, `paid-service-options` |
+| M03 레이트관리 | `/api/v1/properties/{id}/rate-codes` |
 
 ## 설계 자산 참조
 
@@ -178,78 +231,19 @@ com.hola.{module}/
 | 시스템관리 설계 | `설계/02.화면설계/07_올라 PMS_V1.0_시스템 관리.pptx` |
 | 코드체계 | `설계/99.기타자료/코드관리_v0.1.xlsx` |
 | 논리 ERD | `설계/99.기타자료/bwpms-논리.pdf` |
-| Opera 벤치마킹 | `설계/99.기타자료/조선_Opera_Configuration_GJJ_Base.pptx` |
-| 부킹엔진 요구사항 | `설계/99.기타자료/부킹엔진_개발필요사항.txt` |
+
+## 개발 Phase & 모듈 우선순위
+
+| Phase | 모듈 |
+|-------|------|
+| Phase 0 (현재) | 기반 구축: skeleton, 인증, Admin UI |
+| Phase 1 | **P0 코어**: M01 호텔, M02 객실, M03 레이트, M07 예약, M10 프론트데스크 |
+| Phase 2 | **P1 운영**: M04 하우스키핑, M09 정산, M12 대시보드 |
+| Phase 3 | **P2 고도화**: M05 채널, M06 POS, M08 부킹엔진 |
 
 ## 보안 규칙
 
 - JWT: Access 1h + Refresh 7d
 - 비밀번호: 10~20자, 영문+숫자+특수문자, 5회 실패 시 잠금
-- 세션: Redis 1시간 타임아웃
-- 개인정보: 이름(홍*동), 이메일(user****@), 전화(010-****-1234) 마스킹
-- 전송: TLS 1.3, 저장: AES-256
-- 감사 로그: 로그인/접근/다운로드/권한변경
-
-## Git 전략
-
-```
-main ──── production
-  └── develop ──── staging
-        ├── feature/HOLA-001-hotel-crud
-        └── hotfix/HOLA-099-login-bug
-```
-
-- 커밋: `[HOLA-XXX] feat/fix/refactor: description`
-- PR: 최소 1인 리뷰, 2주 단위 릴리즈
-
-## UI 공통 규칙 (Admin Frontend)
-
-### 테이블 디자인
-- Bootstrap 5 + DataTables 사용, 공통 CSS 기반 통일
-- 테이블 클래스: `table table-hover mb-0`, 카드 래핑: `card border-0 shadow-sm`
-- 헤더: `thead class="table-light"`
-- DataTable 초기화: `$.extend({}, HolaPms.dataTableDefaults, {...})` 패턴 사용
-- 개별 language 직접 정의 금지 → `HolaPms.dataTableDefaults` 또는 `HolaPms.dataTableLanguage` 사용
-
-### 리스트 페이지 공통
-- **pageSizeSelect**: 10, 20(기본값), 50, 100 — 한글 ("10개씩 보기", "20개씩 보기" 등)
-  ```html
-  <select id="pageSizeSelect" class="form-select form-select-sm d-inline-block" style="width: auto;">
-      <option value="10">10개씩 보기</option>
-      <option value="20" selected>20개씩 보기</option>
-      <option value="50">50개씩 보기</option>
-      <option value="100">100개씩 보기</option>
-  </select>
-  ```
-- **검색 결과 카운트**: `검색 결과 총 <strong id="totalCount">0</strong> 개`
-- **페이지네이션**: 한글 (이전/다음/처음/마지막) — `HolaPms.dataTableDefaults.language.paginate` 참조
-- **검색 필드 라벨**: `form-label fw-bold` (리스트 검색 영역에서만 bold 허용)
-
-### 폼 페이지 공통 (등록/수정/상세)
-- **레이아웃**: Bootstrap grid (`row mb-3` + `col-sm-2 col-form-label`) 사용 필수
-  - `table table-bordered` 레이아웃 사용 금지 (리스트 테이블만 table 사용)
-  - 단일 필드: `col-sm-2` (label) + `col-sm-6~10` (input)
-  - 2열 배치: `col-sm-2` + `col-sm-3` + `col-sm-2` + `col-sm-3`
-  - 읽기전용 텍스트: `form-control-plaintext` 클래스
-  - 필수 항목: label에 `required` 클래스 (CSS에서 `*` 표시)
-- **fw-bold 사용 규칙**:
-  - 허용: 페이지 타이틀(`h4`), 섹션 헤더(`h6`)
-  - 금지: 폼 라벨(`label`), 데이터 표시 `span`, 읽기전용 `input`, 모달 내 검색 라벨
-  - 별도 요청이 없으면 볼드 처리하지 않음
-- **버튼 레이아웃**: `d-flex justify-content-between` — 왼쪽: 삭제(btn-outline-danger, 수정모드만), 오른쪽: 취소(btn-secondary)+저장(btn-primary)
-- **취소 버튼 아이콘**: `fa-arrow-left`, **삭제 버튼**: 수정모드에서만 `.show()`
-
-### DataTable Ajax 패턴
-- 프로퍼티 의존 페이지: function 기반 ajax (propertyId 미선택 시 빈 배열 반환)
-  ```javascript
-  ajax: function(data, callback) {
-      var propertyId = HolaPms.context.getPropertyId();
-      if (!propertyId) { callback({ data: [] }); return; }
-      $.ajax({ url: '/api/v1/...', success: function(res) { callback(res); } });
-  }
-  ```
-- 프로퍼티 비의존 페이지: URL 기반 ajax (`{ url: '...', dataSrc: 'data' }`)
-
-### 컬러 테마
-- 5색: #051923, #003554, #0582CA, #EF476F, #000/#FFF + gray(secondary)
-- 폰트: Pretendard (CDN)
+- Soft Delete 필수 (물리 삭제 금지)
+- 감사 로그: BaseEntity의 `createdBy`/`updatedBy` 자동 기록

@@ -62,6 +62,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/properties/*/rate-codes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 프로모션코드 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
                 .requestMatchers("/api/v1/properties/*/promotion-codes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 예약채널 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/api/v1/properties/*/reservation-channels/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 예약관리 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/api/v1/properties/*/reservations/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 층/호수 조회: 객실 타입 폼에서 사용
                 .requestMatchers("/api/v1/properties/*/floors/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 .requestMatchers("/api/v1/properties/*/room-numbers/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
@@ -112,6 +116,10 @@ public class SecurityConfig {
                 .requestMatchers("/admin/rate-codes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 프로모션코드 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
                 .requestMatchers("/admin/promotion-codes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 예약채널 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/admin/reservation-channels/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 예약관리 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/admin/reservations/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 회원관리
                 .requestMatchers("/admin/members/bluewave-admins/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/members/hotel-admins/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN")
