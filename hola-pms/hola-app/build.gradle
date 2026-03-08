@@ -6,6 +6,7 @@ dependencies {
     implementation project(':hola-common')
     implementation project(':hola-hotel')
     implementation project(':hola-room')
+    implementation project(':hola-rate')
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 }
 

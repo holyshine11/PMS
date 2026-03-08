@@ -301,10 +301,7 @@ const HotelAdminForm = {
             type: method,
             data: data,
             success: function(res) {
-                HolaPms.alert('success', HotelAdminForm.isEdit ? '호텔 관리자가 수정되었습니다.' : '호텔 관리자가 등록되었습니다.');
-                setTimeout(function() {
-                    location.href = '/admin/members/hotel-admins';
-                }, 500);
+                HolaPms.alertAndRedirect('success', HotelAdminForm.isEdit ? '호텔 관리자가 수정되었습니다.' : '호텔 관리자가 등록되었습니다.', '/admin/members/hotel-admins');
             }
         });
     },
@@ -315,10 +312,7 @@ const HotelAdminForm = {
                 url: '/api/v1/hotels/' + HotelAdminForm.hotelId + '/admins/' + HotelAdminForm.adminId,
                 type: 'DELETE',
                 success: function() {
-                    HolaPms.alert('success', '호텔 관리자가 삭제되었습니다.');
-                    setTimeout(function() {
-                        location.href = '/admin/members/hotel-admins';
-                    }, 500);
+                    HolaPms.alertAndRedirect('success', '호텔 관리자가 삭제되었습니다.', '/admin/members/hotel-admins');
                 }
             });
         });

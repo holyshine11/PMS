@@ -320,10 +320,7 @@ const HotelRoleForm = {
             type: this.isEdit ? 'PUT' : 'POST',
             data: data,
             success: function() {
-                HolaPms.alert('success', HotelRoleForm.isEdit ? '권한이 수정되었습니다.' : '권한이 등록되었습니다.');
-                setTimeout(function() {
-                    location.href = '/admin/roles/hotel-admins';
-                }, 500);
+                HolaPms.alertAndRedirect('success', HotelRoleForm.isEdit ? '권한이 수정되었습니다.' : '권한이 등록되었습니다.', '/admin/roles/hotel-admins');
             }
         });
     },
@@ -335,10 +332,7 @@ const HotelRoleForm = {
                 url: '/api/v1/hotel-admin-roles/' + HotelRoleForm.roleId,
                 type: 'DELETE',
                 success: function() {
-                    HolaPms.alert('success', '권한이 삭제되었습니다.');
-                    setTimeout(function() {
-                        location.href = '/admin/roles/hotel-admins';
-                    }, 500);
+                    HolaPms.alertAndRedirect('success', '권한이 삭제되었습니다.', '/admin/roles/hotel-admins');
                 }
             });
         });

@@ -157,10 +157,7 @@ const BluewaveAdminForm = {
             type: this.isEdit ? 'PUT' : 'POST',
             data: data,
             success: function() {
-                HolaPms.alert('success', BluewaveAdminForm.isEdit ? '블루웨이브 관리자가 수정되었습니다.' : '블루웨이브 관리자가 등록되었습니다.');
-                setTimeout(function() {
-                    location.href = '/admin/members/bluewave-admins';
-                }, 500);
+                HolaPms.alertAndRedirect('success', BluewaveAdminForm.isEdit ? '블루웨이브 관리자가 수정되었습니다.' : '블루웨이브 관리자가 등록되었습니다.', '/admin/members/bluewave-admins');
             }
         });
     },
@@ -171,10 +168,7 @@ const BluewaveAdminForm = {
                 url: '/api/v1/bluewave-admins/' + BluewaveAdminForm.adminId,
                 type: 'DELETE',
                 success: function() {
-                    HolaPms.alert('success', '블루웨이브 관리자가 삭제되었습니다.');
-                    setTimeout(function() {
-                        location.href = '/admin/members/bluewave-admins';
-                    }, 500);
+                    HolaPms.alertAndRedirect('success', '블루웨이브 관리자가 삭제되었습니다.', '/admin/members/bluewave-admins');
                 }
             });
         });

@@ -962,8 +962,7 @@ var RoomTypeForm = {
             data: JSON.stringify(data),
             success: function(res) {
                 if (res.success) {
-                    HolaPms.alert('success', self.editId ? '수정되었습니다.' : '등록되었습니다.');
-                    window.location.href = '/admin/room-types';
+                    HolaPms.alertAndRedirect('success', self.editId ? '수정되었습니다.' : '등록되었습니다.', '/admin/room-types');
                 }
             },
             error: function(xhr) {
@@ -985,8 +984,7 @@ var RoomTypeForm = {
             method: 'DELETE',
             success: function(res) {
                 if (res.success) {
-                    HolaPms.alert('success', '삭제되었습니다.');
-                    window.location.href = '/admin/room-types';
+                    HolaPms.alertAndRedirect('success', '삭제되었습니다.', '/admin/room-types');
                 }
             },
             error: function(xhr) {

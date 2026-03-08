@@ -201,6 +201,39 @@ body {
     border-radius: 4px;
 }
 
+/* 사이드바 스크롤바 */
+.sidebar.hola-sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+.sidebar.hola-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar.hola-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+.sidebar.hola-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* 사이드바 섹션 헤더 (접기/펴기) */
+.sidebar-section {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    user-select: none;
+}
+.sidebar-section .sidebar-arrow {
+    font-size: 0.6rem;
+    transition: transform 0.2s ease;
+}
+.sidebar-section[aria-expanded="false"] .sidebar-arrow {
+    transform: rotate(-90deg);
+}
+.sidebar-section:hover {
+    color: #fff !important;
+}
+
 /* ── 모달 헤더 ── */
 .modal-header {
     background-color: var(--hola-header-bg);
@@ -215,17 +248,19 @@ body {
     border-radius: 8px;
 }
 
-/* DataTables info: 왼쪽 패딩 없이 붙임 */
+/* DataTables info: 여백 */
 div.dataTables_wrapper div.dataTables_info.dataTables_info {
-    padding-top: 0.75rem;
-    padding-left: 0;
+    padding-top: 1rem;
+    padding-left: 1rem;
+    margin-bottom: 1rem;
 }
 
-/* DataTables 페이지네이션: 가운데 정렬 */
+/* DataTables 페이지네이션: 가운데 정렬 + 하단 여백 */
 div.dataTables_wrapper div.dataTables_paginate.dataTables_paginate {
     text-align: center;
     float: none;
     padding-top: 0.5rem;
+    padding-bottom: 1rem;
 }
 div.dataTables_wrapper div.dataTables_paginate.dataTables_paginate ul.pagination {
     justify-content: center;
@@ -312,4 +347,17 @@ textarea[readonly].form-control {
 
 .badge.bg-danger {
     background-color: #EF476F !important;
+}
+
+/* ── 카드 섹션 접기/펼치기 ── */
+.card-section-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+.card-section-toggle .section-arrow {
+    transition: transform 0.2s ease;
+    font-size: 0.75rem;
+}
+.card-section-toggle.collapsed .section-arrow {
+    transform: rotate(-90deg);
 }

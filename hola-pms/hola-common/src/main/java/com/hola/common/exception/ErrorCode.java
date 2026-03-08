@@ -66,7 +66,19 @@ public enum ErrorCode {
     FREE_SERVICE_OPTION_NOT_FOUND("HOLA-2020", "무료 서비스 옵션을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     FREE_SERVICE_CODE_DUPLICATE("HOLA-2021", "동일 프로퍼티 내 이미 존재하는 서비스 옵션 코드입니다.", HttpStatus.CONFLICT),
     PAID_SERVICE_OPTION_NOT_FOUND("HOLA-2030", "유료 서비스 옵션을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    PAID_SERVICE_CODE_DUPLICATE("HOLA-2031", "동일 프로퍼티 내 이미 존재하는 서비스 옵션 코드입니다.", HttpStatus.CONFLICT);
+    PAID_SERVICE_CODE_DUPLICATE("HOLA-2031", "동일 프로퍼티 내 이미 존재하는 서비스 옵션 코드입니다.", HttpStatus.CONFLICT),
+
+    // 레이트관리 (HOLA-3xxx)
+    RATE_CODE_NOT_FOUND("HOLA-3000", "레이트 코드를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    RATE_CODE_DUPLICATE("HOLA-3001", "동일 프로퍼티 내 이미 존재하는 레이트 코드입니다.", HttpStatus.CONFLICT),
+    RATE_CODE_HAS_PRICING("HOLA-3002", "하위 요금 정보가 존재하여 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    RATE_INVALID_STAY_DAYS("HOLA-3003", "최대 숙박일수는 최소 숙박일수보다 크거나 같아야 합니다.", HttpStatus.BAD_REQUEST),
+    RATE_INVALID_SALE_PERIOD("HOLA-3004", "판매 종료일은 판매 시작일보다 같거나 이후여야 합니다.", HttpStatus.BAD_REQUEST),
+
+    // 프로모션 코드 (HOLA-35xx)
+    PROMOTION_CODE_NOT_FOUND("HOLA-3500", "프로모션 코드를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    PROMOTION_CODE_DUPLICATE("HOLA-3501", "동일 프로퍼티 내 이미 존재하는 프로모션 코드입니다.", HttpStatus.CONFLICT),
+    PROMOTION_INVALID_PERIOD("HOLA-3502", "프로모션 종료일은 시작일보다 같거나 이후여야 합니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

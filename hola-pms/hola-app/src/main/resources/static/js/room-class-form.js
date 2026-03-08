@@ -184,8 +184,7 @@ var RoomClassForm = {
             data: JSON.stringify(data),
             success: function(res) {
                 if (res.success) {
-                    HolaPms.alert('success', self.editId ? '수정되었습니다.' : '등록되었습니다.');
-                    window.location.href = '/admin/room-classes';
+                    HolaPms.alertAndRedirect('success', self.editId ? '수정되었습니다.' : '등록되었습니다.', '/admin/room-classes');
                 }
             },
             error: function(xhr) {
@@ -206,8 +205,7 @@ var RoomClassForm = {
             method: 'DELETE',
             success: function(res) {
                 if (res.success) {
-                    HolaPms.alert('success', '삭제되었습니다.');
-                    window.location.href = '/admin/room-classes';
+                    HolaPms.alertAndRedirect('success', '삭제되었습니다.', '/admin/room-classes');
                 }
             },
             error: function(xhr) {

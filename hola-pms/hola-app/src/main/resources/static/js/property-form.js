@@ -487,8 +487,7 @@ const PropertyForm = {
                 if (!PropertyForm.isEdit && hotelId) {
                     HolaPms.context.onHotelChange(hotelId);
                 }
-                HolaPms.alert('success', PropertyForm.isEdit ? '프로퍼티가 수정되었습니다.' : '프로퍼티가 등록되었습니다.');
-                setTimeout(function() { location.href = '/admin/properties'; }, 500);
+                HolaPms.alertAndRedirect('success', PropertyForm.isEdit ? '프로퍼티가 수정되었습니다.' : '프로퍼티가 등록되었습니다.', '/admin/properties');
             }
         });
     },
@@ -500,8 +499,7 @@ const PropertyForm = {
                 url: '/api/v1/properties/' + PropertyForm.propertyId,
                 type: 'DELETE',
                 success: function() {
-                    HolaPms.alert('success', '프로퍼티가 삭제되었습니다.');
-                    setTimeout(function() { location.href = '/admin/properties'; }, 500);
+                    HolaPms.alertAndRedirect('success', '프로퍼티가 삭제되었습니다.', '/admin/properties');
                 }
             });
         });

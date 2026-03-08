@@ -187,10 +187,7 @@ const HotelForm = {
             type: this.isEdit ? 'PUT' : 'POST',
             data: data,
             success: function() {
-                HolaPms.alert('success', HotelForm.isEdit ? '호텔이 수정되었습니다.' : '호텔이 등록되었습니다.');
-                setTimeout(function() {
-                    location.href = '/admin/hotels';
-                }, 500);
+                HolaPms.alertAndRedirect('success', HotelForm.isEdit ? '호텔이 수정되었습니다.' : '호텔이 등록되었습니다.', '/admin/hotels');
             }
         });
     },
@@ -201,10 +198,7 @@ const HotelForm = {
                 url: '/api/v1/hotels/' + HotelForm.hotelId,
                 type: 'DELETE',
                 success: function() {
-                    HolaPms.alert('success', '호텔이 삭제되었습니다.');
-                    setTimeout(function() {
-                        location.href = '/admin/hotels';
-                    }, 500);
+                    HolaPms.alertAndRedirect('success', '호텔이 삭제되었습니다.', '/admin/hotels');
                 }
             });
         });

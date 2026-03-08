@@ -71,7 +71,7 @@ const HolaPms = {
         // 단일 컨테이너 재사용
         var $container = $('#holaToastContainer');
         if ($container.length === 0) {
-            $container = $('<div id="holaToastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>')
+            $container = $('<div id="holaToastContainer" class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999;"></div>')
                 .appendTo('body');
         }
 
@@ -91,7 +91,17 @@ const HolaPms = {
             '<div class="toast-body">' + safeMessage + '</div>' +
             '</div>').appendTo($container);
 
-        setTimeout(function() { $toast.fadeOut(300, function() { $(this).remove(); }); }, 3000);
+        setTimeout(function() { $toast.fadeOut(300, function() { $(this).remove(); }); }, 1000);
+    },
+
+    /**
+     * 알림 메시지 표시 후 페이지 이동 (sessionStorage에 저장하여 이동 후 표시)
+     */
+    alertAndRedirect: function(type, message, url) {
+        try {
+            sessionStorage.setItem('holaFlashAlert', JSON.stringify({ type: type, message: message }));
+        } catch (e) { /* sessionStorage 비가용 시 alert 생략 */ }
+        window.location.href = url;
     },
 
     /**
@@ -182,6 +192,40 @@ const HolaPms = {
                 func.apply(context, args);
             }, wait);
         };
+    },
+
+    /**
+     * 날짜 범위 바인딩 (시작일/종료일 상호 제한)
+     * - 시작일 선택 시 → 종료일 min 설정
+     * - 종료일 선택 시 → 시작일 max 설정
+     * @param {string} startSel - 시작일 셀렉터 (예: '#saleStartDate')
+     * @param {string} endSel   - 종료일 셀렉터 (예: '#saleEndDate')
+     */
+    bindDateRange: function(startSel, endSel) {
+        var $start = $(startSel);
+        var $end = $(endSel);
+
+        $start.on('change', function() {
+            var startVal = $(this).val();
+            $end.attr('min', startVal || '');
+            // 종료일이 시작일보다 이전이면 자동 보정
+            if (startVal && $end.val() && $end.val() < startVal) {
+                $end.val(startVal);
+            }
+        });
+
+        $end.on('change', function() {
+            var endVal = $(this).val();
+            $start.attr('max', endVal || '');
+            // 시작일이 종료일보다 이후면 자동 보정
+            if (endVal && $start.val() && $start.val() > endVal) {
+                $start.val(endVal);
+            }
+        });
+
+        // 이미 값이 있으면 초기 제한 설정
+        if ($start.val()) $end.attr('min', $start.val());
+        if ($end.val()) $start.attr('max', $end.val());
     },
 
     /**
@@ -393,9 +437,19 @@ $.fn.dataTable.ext.errMode = function(settings, techNote, message) {
     console.warn('DataTable:', message);
 };
 
-// 헤더 호텔/프로퍼티 컨텍스트 초기화
+// 헤더 호텔/프로퍼티 컨텍스트 초기화 + flash alert 표시
 $(document).ready(function() {
     if ($('#headerHotelSelect').length) {
         HolaPms.context.init();
+    }
+
+    // sessionStorage에 저장된 flash alert 표시
+    var flash = sessionStorage.getItem('holaFlashAlert');
+    if (flash) {
+        sessionStorage.removeItem('holaFlashAlert');
+        try {
+            var data = JSON.parse(flash);
+            HolaPms.alert(data.type, data.message);
+        } catch (e) { /* 무시 */ }
     }
 });

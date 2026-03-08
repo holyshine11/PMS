@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>레이트 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- 컨텍스트 미선택 경고 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <h4 class="fw-bold mb-4"><i class="fas fa-won-sign me-2"></i>레이트 관리</h4>
+
+    <!-- 탭 -->
+    <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-basic" data-bs-toggle="tab" data-bs-target="#pane-basic"
+                    type="button" role="tab">기본정보</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-pricing" data-bs-toggle="tab" data-bs-target="#pane-pricing"
+                    type="button" role="tab" aria-controls="pane-pricing">요금정보</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-option" data-bs-toggle="tab" data-bs-target="#pane-option"
+                    type="button" role="tab" aria-controls="pane-option">옵션요금</button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- 기본정보 탭 -->
+        <div class="tab-pane fade show active" id="pane-basic" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <!-- 섹션 헤더 -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 기본정보</h6>
+                        <small class="text-muted">"<span class="text-danger">*</span>"은 필수 입력 항목입니다.</small>
+                    </div>
+
+                    <!-- 호텔/프로퍼티 명 -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label">호텔/프로퍼티 명</label>
+                        <div class="col-sm-10">
+                            <span id="hotelPropertyName" class="form-control-plaintext">-</span>
+                        </div>
+                    </div>
+
+                    <!-- 레이트 코드 + 중복확인 -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label required">레이트 코드</label>
+                        <div class="col-sm-8">
+                            <div class="d-flex align-items-center">
+                                <input type="text" class="form-control me-2" id="rateCode" maxlength="50"
+                                       placeholder="레이트 코드를 입력하세요." style="max-width: 400px;">
+                                <button type="button" class="btn btn-outline-primary btn-sm" id="btnCheckDuplicate"
+                                        onclick="RateCodeForm.checkDuplicate()">중복확인</button>
+                                <span id="codeCheckResult" class="ms-2"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 레이트 코드 설명 (국문) -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label required">레이트 코드 설명 (국문)</label>
+                        <div class="col-sm-6">
+                            <input type="text" class="form-control" id="rateNameKo" maxlength="200"
+                                   placeholder="국문 설명을 입력하세요.">
+                        </div>
+                    </div>
+
+                    <!-- 레이트 코드 설명 (영문) -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label">레이트 코드 설명 (영문)</label>
+                        <div class="col-sm-6">
+                            <input type="text" class="form-control" id="rateNameEn" maxlength="200"
+                                   placeholder="영문 설명을 입력하세요.">
+                        </div>
+                    </div>
+
+                    <!-- 판매기간 -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label required">판매기간</label>
+                        <div class="col-sm-6">
+                            <div class="d-flex align-items-center">
+                                <input type="date" class="form-control" id="saleStartDate" style="max-width: 200px;">
+                                <span class="mx-2">~</span>
+                                <input type="date" class="form-control" id="saleEndDate" style="max-width: 200px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 마켓코드 -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label">마켓코드</label>
+                        <div class="col-sm-6">
+                            <div class="d-flex align-items-center">
+                                <input type="text" class="form-control me-2" id="marketCodeName" readonly
+                                       placeholder="마켓코드를 선택하세요." style="max-width: 300px;">
+                                <input type="hidden" id="marketCodeId">
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-1"
+                                        onclick="RateCodeForm.openMarketCodeModal()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm"
+                                        onclick="RateCodeForm.clearMarketCode()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 레이트 카테고리 -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label required">레이트 카테고리</label>
+                        <div class="col-sm-3">
+                            <div class="btn-group mt-1" role="group">
+                                <input type="radio" class="btn-check" name="rateCategory" id="catRoomOnly" value="ROOM_ONLY" checked>
+                                <label class="btn btn-outline-primary btn-sm" for="catRoomOnly">Room Only</label>
+                                <input type="radio" class="btn-check" name="rateCategory" id="catPackage" value="PACKAGE">
+                                <label class="btn btn-outline-primary btn-sm" for="catPackage">Package</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 통화 -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label required">통화</label>
+                        <div class="col-sm-3">
+                            <select class="form-select" id="currency" style="max-width: 200px;">
+                                <option value="KRW" selected>KRW (원)</option>
+                                <option value="USD">USD (달러)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 숙박일수 -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label required">숙박일수</label>
+                        <div class="col-sm-6">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">최소</span>
+                                <input type="number" class="form-control me-3" id="minStayDays" value="1" min="1" style="max-width: 100px;">
+                                <span class="me-2">최대</span>
+                                <input type="number" class="form-control" id="maxStayDays" value="365" min="1" style="max-width: 100px;">
+                                <span class="ms-2 text-muted">일</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 사용 여부 -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label required">사용 여부</label>
+                        <div class="col-sm-3">
+                            <div class="btn-group mt-1" role="group">
+                                <input type="radio" class="btn-check" name="useYn" id="useYnY" value="true" checked>
+                                <label class="btn btn-outline-primary btn-sm" for="useYnY">Y</label>
+                                <input type="radio" class="btn-check" name="useYn" id="useYnN" value="false">
+                                <label class="btn btn-outline-primary btn-sm" for="useYnN">N</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 객실 -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label">객실</label>
+                        <div class="col-sm-8">
+                            <button type="button" class="btn btn-outline-secondary btn-sm mb-2"
+                                    onclick="RateCodeForm.openRoomTypeModal()">
+                                <i class="fas fa-plus me-1"></i>객실 추가
+                            </button>
+                            <div id="selectedRoomTypes">
+                                <table class="table table-sm table-bordered mb-0" id="roomTypeTable" style="display:none;">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width:60px">NO</th>
+                                            <th>객실 타입 코드</th>
+                                            <th>객실 타입 설명</th>
+                                            <th style="width:60px">삭제</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 요금정보 탭 -->
+        <div class="tab-pane fade" id="pane-pricing" role="tabpanel">
+            <!-- 일반 요금 설정 -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 일반 요금 설정</h6>
+                        <div>
+                            <small class="text-danger me-3">※ 공급가는 VAT 미 포함 금액으로 입력하세요.</small>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="RateCodeForm.addPricingRow()">
+                                <i class="fas fa-plus me-1"></i>요금 행 추가
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="pricingRowsContainer">
+                        <!-- JS로 동적 생성 -->
+                    </div>
+
+                    <div id="pricingEmptyMsg" class="text-center text-muted py-4">
+                        요금 정보가 없습니다. "요금 행 추가" 버튼을 클릭하여 추가하세요.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 옵션요금 탭 -->
+        <div class="tab-pane fade" id="pane-option" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 유료 옵션 서비스</h6>
+                        <div>
+                            <button type="button" class="btn btn-outline-primary btn-sm me-1" onclick="RateCodeForm.openOptionModal()">
+                                <i class="fas fa-plus me-1"></i>추가
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="RateCodeForm.clearAllOptions()">
+                                <i class="fas fa-trash me-1"></i>전체삭제
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="optionCategoryContainer">
+                        <!-- JS로 동적 생성 -->
+                    </div>
+
+                    <div id="optionEmptyMsg" class="text-center text-muted py-4">
+                        등록된 유료 옵션 서비스가 없습니다.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 버튼 -->
+    <div class="d-flex justify-content-between mt-4">
+        <div>
+            <button type="button" id="btnDelete" class="btn btn-outline-danger" style="display:none;"
+                    onclick="RateCodeForm.remove()">
+                <i class="fas fa-trash me-1"></i>삭제
+            </button>
+        </div>
+        <div>
+            <a href="/admin/rate-codes" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left me-1"></i>취소
+            </a>
+            <button type="button" class="btn btn-primary" id="btnSave" onclick="RateCodeForm.save()">
+                <i class="fas fa-save me-1"></i>등록
+            </button>
+        </div>
+    </div>
+
+    <!-- 숨겨진 필드: 수정 모드용 ID -->
+    <input type="hidden" id="rateCodeId" th:value="${rateCodeId}">
+
+    <!-- 마켓코드 검색 모달 -->
+    <div class="modal fade" id="marketCodeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">마켓코드 검색</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="modalMarketCodeSearch"
+                                   placeholder="마켓코드 또는 명칭으로 검색">
+                            <button class="btn btn-outline-primary" onclick="RateCodeForm.searchMarketCodes()">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <table class="table table-hover table-sm" id="modalMarketCodeTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:60px">NO</th>
+                                <th>마켓코드</th>
+                                <th>마켓코드명</th>
+                                <th style="width:80px">선택</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 객실 타입 검색 모달 -->
+    <div class="modal fade" id="roomTypeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">객실 타입 검색</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="modalRoomTypeSearch"
+                                   placeholder="객실 타입 코드 또는 설명으로 검색">
+                            <button class="btn btn-outline-primary" onclick="RateCodeForm.searchRoomTypes()">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <table class="table table-hover table-sm" id="modalRoomTypeTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:60px"><input type="checkbox" id="roomTypeCheckAll"></th>
+                                <th>객실 타입 코드</th>
+                                <th>객실 타입 설명</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="RateCodeForm.applyRoomTypes()">적용</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 유료 옵션 선택 모달 -->
+    <div class="modal fade" id="paidOptionModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="paidOptionModalTitle">유료 옵션 서비스 선택</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 검색 + 통화 필터 -->
+                    <div class="d-flex align-items-center mb-3 gap-2">
+                        <div class="input-group flex-grow-1">
+                            <input type="text" class="form-control" id="modalPaidOptionSearch"
+                                   placeholder="옵션코드명, 서비스명으로 검색">
+                            <button class="btn btn-outline-primary" id="btnPaidOptionSearch">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <div class="btn-group flex-shrink-0" role="group">
+                            <input type="radio" class="btn-check" name="optionCurrencyFilter" id="currAll" value="" checked>
+                            <label class="btn btn-outline-secondary btn-sm" for="currAll">전체</label>
+                            <input type="radio" class="btn-check" name="optionCurrencyFilter" id="currKRW" value="KRW">
+                            <label class="btn btn-outline-secondary btn-sm" for="currKRW">KRW</label>
+                            <input type="radio" class="btn-check" name="optionCurrencyFilter" id="currUSD" value="USD">
+                            <label class="btn btn-outline-secondary btn-sm" for="currUSD">USD</label>
+                        </div>
+                    </div>
+                    <table class="table table-hover table-sm" id="modalPaidOptionTable" style="width:100%">
+                        <thead class="table-light">
+                            <tr>
+                                <th><input type="checkbox" id="paidOptionCheckAll"></th>
+                                <th>옵션코드명</th>
+                                <th>서비스명(국문)</th>
+                                <th>서비스명(영문)</th>
+                                <th>통화</th>
+                                <th>수량</th>
+                                <th>VAT포함금액</th>
+                                <th>TAX</th>
+                                <th>단가</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="RateCodeForm.applyOptions()">적용</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/rate-code-form.js}"></script>
+</th:block>
+</body>
+</html>

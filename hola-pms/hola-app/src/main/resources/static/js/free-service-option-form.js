@@ -224,8 +224,7 @@ var FreeServiceOptionForm = {
             data: JSON.stringify(data),
             success: function(res) {
                 if (res.success) {
-                    HolaPms.alert('success', self.editId ? '수정되었습니다.' : '등록되었습니다.');
-                    window.location.href = '/admin/free-service-options';
+                    HolaPms.alertAndRedirect('success', self.editId ? '수정되었습니다.' : '등록되었습니다.', '/admin/free-service-options');
                 }
             },
             error: function(xhr) {
@@ -246,8 +245,7 @@ var FreeServiceOptionForm = {
             method: 'DELETE',
             success: function(res) {
                 if (res.success) {
-                    HolaPms.alert('success', '삭제되었습니다.');
-                    window.location.href = '/admin/free-service-options';
+                    HolaPms.alertAndRedirect('success', '삭제되었습니다.', '/admin/free-service-options');
                 }
             },
             error: function(xhr) {

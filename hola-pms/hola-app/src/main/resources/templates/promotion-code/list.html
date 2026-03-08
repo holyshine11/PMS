@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>프로모션 코드 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-percentage me-2"></i>프로모션 코드 관리</h4>
+        <a href="/admin/promotion-codes/new" class="btn btn-primary" id="btnCreate">
+            <i class="fas fa-plus me-1"></i>프로모션 코드 등록
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">프로모션 코드</label>
+                    <input type="text" class="form-control form-control-sm" id="searchCode" placeholder="프로모션 코드를 입력하세요.">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">프로모션 기간</label>
+                    <div class="d-flex align-items-center">
+                        <input type="date" class="form-control form-control-sm" id="searchStartDate">
+                        <span class="mx-1">~</span>
+                        <input type="date" class="form-control form-control-sm" id="searchEndDate">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">타입</label>
+                    <div class="btn-group d-block" role="group">
+                        <input type="radio" class="btn-check" name="searchType" id="typeAll" value="" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="typeAll">전체</label>
+                        <input type="radio" class="btn-check" name="searchType" id="typeCompany" value="COMPANY">
+                        <label class="btn btn-outline-secondary btn-sm" for="typeCompany">COMPANY</label>
+                        <input type="radio" class="btn-check" name="searchType" id="typePromotion" value="PROMOTION">
+                        <label class="btn btn-outline-secondary btn-sm" for="typePromotion">PROMOTION</label>
+                        <input type="radio" class="btn-check" name="searchType" id="typeOta" value="OTA">
+                        <label class="btn btn-outline-secondary btn-sm" for="typeOta">OTA</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">사용여부</label>
+                    <div class="d-flex justify-content-between">
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="searchUseYn" id="useYnAll" value="" checked>
+                            <label class="btn btn-outline-secondary btn-sm" for="useYnAll">전체</label>
+                            <input type="radio" class="btn-check" name="searchUseYn" id="useYnY" value="true">
+                            <label class="btn btn-outline-secondary btn-sm" for="useYnY">Y</label>
+                            <input type="radio" class="btn-check" name="searchUseYn" id="useYnN" value="false">
+                            <label class="btn btn-outline-secondary btn-sm" for="useYnN">N</label>
+                        </div>
+                        <div>
+                            <button class="btn btn-outline-primary btn-sm" onclick="PromotionCodePage.search()">
+                                <i class="fas fa-search me-1"></i>검색
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="PromotionCodePage.reset()">
+                                <i class="fas fa-redo me-1"></i>초기화
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <select id="pageSizeSelect" class="form-select form-select-sm d-inline-block" style="width: auto;">
+                <option value="10">10개씩 보기</option>
+                <option value="20" selected>20개씩 보기</option>
+                <option value="50">50개씩 보기</option>
+                <option value="100">100개씩 보기</option>
+            </select>
+            <span class="ms-2 text-muted">검색 결과 총 <strong id="totalCount">0</strong> 개</span>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <table id="promotionCodeTable" class="table table-hover mb-0" style="width:100%">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:60px">NO</th>
+                        <th>프로모션 코드</th>
+                        <th>레이트 코드</th>
+                        <th style="width:120px">타입</th>
+                        <th style="width:100px">사용여부</th>
+                        <th style="width:250px">프로모션 기간</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/promotion-code-page.js}"></script>
+</th:block>
+</body>
+</html>

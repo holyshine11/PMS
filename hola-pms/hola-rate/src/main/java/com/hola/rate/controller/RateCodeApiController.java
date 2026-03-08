@@ -1,0 +1,118 @@
+package com.hola.rate.controller;
+
+import com.hola.common.dto.HolaResponse;
+import com.hola.rate.dto.request.RateCodeCreateRequest;
+import com.hola.rate.dto.request.RateCodeUpdateRequest;
+import com.hola.rate.dto.request.RatePricingRequest;
+import com.hola.rate.dto.response.RateCodeListResponse;
+import com.hola.rate.dto.response.RateCodeResponse;
+import com.hola.rate.dto.response.RatePricingResponse;
+import com.hola.rate.service.RateCodeService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 레이트 코드 REST API 컨트롤러
+ */
+@RestController
+@RequestMapping("/api/v1/properties/{propertyId}/rate-codes")
+@RequiredArgsConstructor
+public class RateCodeApiController {
+
+    private final RateCodeService rateCodeService;
+
+    @GetMapping
+    public ResponseEntity<HolaResponse<List<RateCodeListResponse>>> getRateCodes(
+            @PathVariable Long propertyId) {
+        List<RateCodeListResponse> list = rateCodeService.getRateCodes(propertyId);
+        return ResponseEntity.ok(HolaResponse.success(list));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<HolaResponse<RateCodeResponse>> getRateCode(
+            @PathVariable Long propertyId,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(HolaResponse.success(rateCodeService.getRateCode(id)));
+    }
+
+    @PostMapping
+    public ResponseEntity<HolaResponse<RateCodeResponse>> createRateCode(
+            @PathVariable Long propertyId,
+            @Valid @RequestBody RateCodeCreateRequest request) {
+        RateCodeResponse response = rateCodeService.createRateCode(propertyId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(response));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<HolaResponse<RateCodeResponse>> updateRateCode(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @Valid @RequestBody RateCodeUpdateRequest request) {
+        return ResponseEntity.ok(HolaResponse.success(rateCodeService.updateRateCode(id, request)));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<HolaResponse<Void>> deleteRateCode(
+            @PathVariable Long propertyId,
+            @PathVariable Long id) {
+        rateCodeService.deleteRateCode(id);
+        return ResponseEntity.ok(HolaResponse.success());
+    }
+
+    @GetMapping("/check-code")
+    public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkCode(
+            @PathVariable Long propertyId,
+            @RequestParam String rateCode) {
+        boolean duplicate = rateCodeService.existsRateCode(propertyId, rateCode);
+        return ResponseEntity.ok(HolaResponse.success(Map.of("duplicate", duplicate)));
+    }
+
+    // ===== 요금정보 API =====
+
+    @GetMapping("/{id}/pricing")
+    public ResponseEntity<HolaResponse<RatePricingResponse>> getRatePricing(
+            @PathVariable Long propertyId,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(HolaResponse.success(rateCodeService.getRatePricing(id)));
+    }
+
+    @PostMapping("/{id}/pricing")
+    public ResponseEntity<HolaResponse<RatePricingResponse>> saveRatePricing(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @RequestBody RatePricingRequest request) {
+        return ResponseEntity.ok(HolaResponse.success(rateCodeService.saveRatePricing(id, request)));
+    }
+
+    @DeleteMapping("/{id}/pricing/{pricingId}")
+    public ResponseEntity<HolaResponse<Void>> deleteRatePricingRow(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @PathVariable Long pricingId) {
+        rateCodeService.deleteRatePricingRow(id, pricingId);
+        return ResponseEntity.ok(HolaResponse.success());
+    }
+
+    // ===== 옵션요금 API =====
+
+    @GetMapping("/{id}/option-pricing")
+    public ResponseEntity<HolaResponse<List<Long>>> getOptionPricing(
+            @PathVariable Long propertyId,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(HolaResponse.success(rateCodeService.getOptionPricing(id)));
+    }
+
+    @PostMapping("/{id}/option-pricing")
+    public ResponseEntity<HolaResponse<List<Long>>> saveOptionPricing(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @RequestBody List<Long> paidServiceOptionIds) {
+        return ResponseEntity.ok(HolaResponse.success(rateCodeService.saveOptionPricing(id, paidServiceOptionIds)));
+    }
+}

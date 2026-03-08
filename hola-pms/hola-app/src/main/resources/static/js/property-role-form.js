@@ -409,10 +409,7 @@ const PropertyRoleForm = {
             type: this.isEdit ? 'PUT' : 'POST',
             data: data,
             success: function() {
-                HolaPms.alert('success', PropertyRoleForm.isEdit ? '권한이 수정되었습니다.' : '권한이 등록되었습니다.');
-                setTimeout(function() {
-                    location.href = '/admin/roles/property-admins';
-                }, 500);
+                HolaPms.alertAndRedirect('success', PropertyRoleForm.isEdit ? '권한이 수정되었습니다.' : '권한이 등록되었습니다.', '/admin/roles/property-admins');
             }
         });
     },
@@ -424,10 +421,7 @@ const PropertyRoleForm = {
                 url: '/api/v1/property-admin-roles/' + PropertyRoleForm.roleId,
                 type: 'DELETE',
                 success: function() {
-                    HolaPms.alert('success', '권한이 삭제되었습니다.');
-                    setTimeout(function() {
-                        location.href = '/admin/roles/property-admins';
-                    }, 500);
+                    HolaPms.alertAndRedirect('success', '권한이 삭제되었습니다.', '/admin/roles/property-admins');
                 }
             });
         });

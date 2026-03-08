@@ -251,10 +251,7 @@ const PropertyAdminForm = {
             type: method,
             data: data,
             success: function(res) {
-                HolaPms.alert('success', PropertyAdminForm.isEdit ? '프로퍼티 관리자가 수정되었습니다.' : '프로퍼티 관리자가 등록되었습니다.');
-                setTimeout(function() {
-                    location.href = '/admin/members/property-admins';
-                }, 500);
+                HolaPms.alertAndRedirect('success', PropertyAdminForm.isEdit ? '프로퍼티 관리자가 수정되었습니다.' : '프로퍼티 관리자가 등록되었습니다.', '/admin/members/property-admins');
             }
         });
     },
@@ -265,10 +262,7 @@ const PropertyAdminForm = {
                 url: '/api/v1/properties/' + PropertyAdminForm.propertyId + '/admins/' + PropertyAdminForm.adminId,
                 type: 'DELETE',
                 success: function() {
-                    HolaPms.alert('success', '프로퍼티 관리자가 삭제되었습니다.');
-                    setTimeout(function() {
-                        location.href = '/admin/members/property-admins';
-                    }, 500);
+                    HolaPms.alertAndRedirect('success', '프로퍼티 관리자가 삭제되었습니다.', '/admin/members/property-admins');
                 }
             });
         });
