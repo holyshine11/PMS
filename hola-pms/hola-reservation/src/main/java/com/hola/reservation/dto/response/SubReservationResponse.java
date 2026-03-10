@@ -5,7 +5,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -34,6 +36,10 @@ public class SubReservationResponse {
     private LocalDate checkOut;
     private Boolean earlyCheckIn;
     private Boolean lateCheckOut;
+    private LocalDateTime actualCheckInTime;
+    private LocalDateTime actualCheckOutTime;
+    private BigDecimal earlyCheckInFee;
+    private BigDecimal lateCheckOutFee;
 
     // 동반 투숙객
     private List<ReservationGuestResponse> guests;

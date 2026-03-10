@@ -201,4 +201,21 @@ public class HotelMapper {
                 .updatedAt(channel.getUpdatedAt())
                 .build();
     }
+
+    // 얼리체크인/레이트체크아웃 요금 정책 변환
+    public EarlyLateFeePolicyResponse toResponse(EarlyLateFeePolicy policy) {
+        return EarlyLateFeePolicyResponse.builder()
+                .id(policy.getId())
+                .propertyId(policy.getProperty().getId())
+                .policyType(policy.getPolicyType())
+                .timeFrom(policy.getTimeFrom())
+                .timeTo(policy.getTimeTo())
+                .feeType(policy.getFeeType())
+                .feeValue(policy.getFeeValue())
+                .description(policy.getDescription())
+                .sortOrder(policy.getSortOrder())
+                .createdAt(policy.getCreatedAt())
+                .updatedAt(policy.getUpdatedAt())
+                .build();
+    }
 }

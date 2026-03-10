@@ -35,16 +35,21 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">타입</label>
-                    <div class="btn-group d-block" role="group">
-                        <input type="radio" class="btn-check" name="searchType" id="typeAll" value="" checked>
-                        <label class="btn btn-outline-secondary btn-sm" for="typeAll">전체</label>
-                        <input type="radio" class="btn-check" name="searchType" id="typeCompany" value="COMPANY">
-                        <label class="btn btn-outline-secondary btn-sm" for="typeCompany">COMPANY</label>
-                        <input type="radio" class="btn-check" name="searchType" id="typePromotion" value="PROMOTION">
-                        <label class="btn btn-outline-secondary btn-sm" for="typePromotion">PROMOTION</label>
-                        <input type="radio" class="btn-check" name="searchType" id="typeOta" value="OTA">
-                        <label class="btn btn-outline-secondary btn-sm" for="typeOta">OTA</label>
-                    </div>
+                    <select class="form-select form-select-sm" id="searchType">
+                        <option value="">전체</option>
+                        <option value="COMPANY">기업 프로모션</option>
+                        <option value="PROMOTION">일반 프로모션</option>
+                        <option value="OTA">OTA 프로모션</option>
+                        <option value="PACKAGE">패키지</option>
+                        <option value="SEASONAL">시즌</option>
+                        <option value="EVENT">이벤트</option>
+                        <option value="EARLY_BIRD">조기예약</option>
+                        <option value="LAST_MINUTE">직전예약</option>
+                        <option value="MEMBER">회원 전용</option>
+                        <option value="GROUP">단체</option>
+                        <option value="LONG_STAY">장기투숙</option>
+                        <option value="GOVERNMENT">관공서</option>
+                    </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">사용여부</label>

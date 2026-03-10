@@ -42,6 +42,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                // 내 프로필 API: 모든 인증 사용자
+                .requestMatchers("/api/v1/my-profile/**").authenticated()
                 // selector API: 모든 인증 사용자 허용 (헤더 드롭다운)
                 .requestMatchers("/api/v1/hotels/selector").authenticated()
                 .requestMatchers("/api/v1/properties/selector").authenticated()
@@ -62,6 +64,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/properties/*/rate-codes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 프로모션코드 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
                 .requestMatchers("/api/v1/properties/*/promotion-codes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 얼리/레이트 정책 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/api/v1/properties/*/early-late-policies/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 예약채널 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
                 .requestMatchers("/api/v1/properties/*/reservation-channels/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 예약관리 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
@@ -101,6 +105,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/css/**", "/js/**", "/images/**", "/webjars/**", "/uploads/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                // 내 프로필: 모든 인증 사용자
+                .requestMatchers("/admin/my-profile/**").authenticated()
                 // 호텔관리 전체: SUPER_ADMIN 전용
                 .requestMatchers("/admin/hotels/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/properties/**").hasRole("SUPER_ADMIN")
@@ -116,6 +122,8 @@ public class SecurityConfig {
                 .requestMatchers("/admin/rate-codes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 프로모션코드 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
                 .requestMatchers("/admin/promotion-codes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 얼리/레이트 정책 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/admin/early-late-policies/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 예약채널 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
                 .requestMatchers("/admin/reservation-channels/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 예약관리 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN

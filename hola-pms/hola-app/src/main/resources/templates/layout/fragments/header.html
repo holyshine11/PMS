@@ -25,10 +25,10 @@
                 <span id="roleSuperAdmin" class="d-none" sec:authorize="hasRole('SUPER_ADMIN')"></span>
                 <span id="roleHotelAdmin" class="d-none" sec:authorize="hasRole('HOTEL_ADMIN')"></span>
                 <span id="rolePropertyAdmin" class="d-none" sec:authorize="hasRole('PROPERTY_ADMIN')"></span>
-                <span class="text-white me-3" sec:authorize="isAuthenticated()">
+                <a href="/admin/my-profile" class="text-white text-decoration-none me-3" sec:authorize="isAuthenticated()">
                     <i class="fas fa-user me-1"></i>
                     <span sec:authentication="name">관리자</span>
-                </span>
+                </a>
                 <form th:action="@{/logout}" method="post" class="d-inline"
                       onsubmit="sessionStorage.removeItem('selectedHotelId'); sessionStorage.removeItem('selectedPropertyId');">
                     <button type="submit" class="btn btn-outline-light btn-sm">

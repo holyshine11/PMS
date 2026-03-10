@@ -58,7 +58,7 @@ var ReservationTableView = {
                 },
                 {
                     // 상태
-                    data: 'status',
+                    data: 'reservationStatus',
                     render: function(data) {
                         return ReservationTableView.getStatusBadge(data);
                     },
@@ -67,18 +67,18 @@ var ReservationTableView = {
                 {
                     // 예약자
                     data: 'guestNameKo',
-                    render: function(data, type, row) {
-                        return HolaPms.escapeHtml(data || row.guestName || '-');
+                    render: function(data) {
+                        return HolaPms.escapeHtml(data || '-');
                     }
                 },
                 {
                     // 전화번호
-                    data: 'phone',
+                    data: 'phoneNumber',
                     render: HolaPms.renders.dashIfEmpty
                 },
                 {
                     // 체크인
-                    data: 'checkInDate',
+                    data: 'masterCheckIn',
                     render: function(data) {
                         return data ? data.substring(0, 10) : '-';
                     },
@@ -86,7 +86,7 @@ var ReservationTableView = {
                 },
                 {
                     // 체크아웃
-                    data: 'checkOutDate',
+                    data: 'masterCheckOut',
                     render: function(data) {
                         return data ? data.substring(0, 10) : '-';
                     },
@@ -94,7 +94,7 @@ var ReservationTableView = {
                 },
                 {
                     // OTA 여부
-                    data: 'otaYn',
+                    data: 'isOtaManaged',
                     render: function(data) {
                         if (data === true || data === 'Y') {
                             return '<span class="badge bg-primary">Y</span>';

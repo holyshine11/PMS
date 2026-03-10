@@ -126,6 +126,30 @@ public class AdminUser extends BaseEntity {
     }
 
     /**
+     * 본인 프로필 수정 (역할/계정상태 제외)
+     */
+    public void updateMyProfile(String userName, String email,
+                                String phoneCountryCode, String phone,
+                                String mobileCountryCode, String mobile,
+                                String department, String position) {
+        this.userName = userName;
+        this.email = email;
+        this.phoneCountryCode = phoneCountryCode;
+        this.phone = phone;
+        this.mobileCountryCode = mobileCountryCode;
+        this.mobile = mobile;
+        this.department = department;
+        this.position = position;
+    }
+
+    /**
+     * 비밀번호 변경
+     */
+    public void changePassword(String encodedNewPassword) {
+        this.password = encodedNewPassword;
+    }
+
+    /**
      * 비밀번호 초기화
      */
     public void resetPassword(String encodedPassword) {

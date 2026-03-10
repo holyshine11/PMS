@@ -87,15 +87,21 @@
             <!-- 타입 -->
             <div class="row mb-3">
                 <label class="col-sm-2 col-form-label required">타입</label>
-                <div class="col-sm-6">
-                    <div class="btn-group mt-1" role="group">
-                        <input type="radio" class="btn-check" name="promotionType" id="typeCompany" value="COMPANY" checked>
-                        <label class="btn btn-outline-primary btn-sm" for="typeCompany">COMPANY</label>
-                        <input type="radio" class="btn-check" name="promotionType" id="typePromotion" value="PROMOTION">
-                        <label class="btn btn-outline-primary btn-sm" for="typePromotion">PROMOTION</label>
-                        <input type="radio" class="btn-check" name="promotionType" id="typeOta" value="OTA">
-                        <label class="btn btn-outline-primary btn-sm" for="typeOta">OTA</label>
-                    </div>
+                <div class="col-sm-4">
+                    <select class="form-select" id="promotionType">
+                        <option value="COMPANY">기업 프로모션</option>
+                        <option value="PROMOTION">일반 프로모션</option>
+                        <option value="OTA">OTA 프로모션</option>
+                        <option value="PACKAGE">패키지</option>
+                        <option value="SEASONAL">시즌</option>
+                        <option value="EVENT">이벤트</option>
+                        <option value="EARLY_BIRD">조기예약</option>
+                        <option value="LAST_MINUTE">직전예약</option>
+                        <option value="MEMBER">회원 전용</option>
+                        <option value="GROUP">단체</option>
+                        <option value="LONG_STAY">장기투숙</option>
+                        <option value="GOVERNMENT">관공서</option>
+                    </select>
                 </div>
             </div>
 

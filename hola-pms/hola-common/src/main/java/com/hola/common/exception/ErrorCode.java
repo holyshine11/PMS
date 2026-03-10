@@ -51,6 +51,11 @@ public enum ErrorCode {
     ADMIN_LOGIN_ID_DUPLICATE("HOLA-0601", "이미 사용 중인 아이디입니다.", HttpStatus.CONFLICT),
     ADMIN_PROPERTY_REQUIRED("HOLA-0602", "프로퍼티를 1개 이상 선택해야 합니다.", HttpStatus.BAD_REQUEST),
 
+    // 비밀번호 (HOLA-08xx)
+    PASSWORD_MISMATCH("HOLA-0800", "현재 비밀번호가 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
+    PASSWORD_CONFIRM_MISMATCH("HOLA-0801", "새 비밀번호와 확인 비밀번호가 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
+    PASSWORD_INVALID_FORMAT("HOLA-0802", "비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.", HttpStatus.BAD_REQUEST),
+
     // 권한관리 (HOLA-07xx)
     ROLE_NOT_FOUND("HOLA-0700", "권한을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     ROLE_NAME_DUPLICATE("HOLA-0701", "동일 호텔 내 이미 존재하는 권한명입니다.", HttpStatus.CONFLICT),
@@ -101,7 +106,11 @@ public enum ErrorCode {
     RESERVATION_CHANNEL_CODE_DUPLICATE("HOLA-4031", "이미 존재하는 채널 코드입니다.", HttpStatus.CONFLICT),
 
     // OTA (HOLA-404x)
-    RESERVATION_OTA_EDIT_RESTRICTED("HOLA-4040", "OTA 예약은 수정이 제한됩니다.", HttpStatus.FORBIDDEN);
+    RESERVATION_OTA_EDIT_RESTRICTED("HOLA-4040", "OTA 예약은 수정이 제한됩니다.", HttpStatus.FORBIDDEN),
+
+    // 얼리체크인/레이트체크아웃 (HOLA-405x)
+    EARLY_LATE_POLICY_NOT_FOUND("HOLA-4050", "얼리/레이트 정책을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    EARLY_LATE_INVALID_TIME_RANGE("HOLA-4051", "시작 시간이 종료 시간보다 이후일 수 없습니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

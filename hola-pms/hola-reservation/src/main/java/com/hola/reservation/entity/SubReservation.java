@@ -5,7 +5,9 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,6 +66,22 @@ public class SubReservation extends BaseEntity {
     @Builder.Default
     private Boolean lateCheckOut = false;
 
+    // 실제 체크인/체크아웃 시각
+    @Column(name = "actual_check_in_time")
+    private LocalDateTime actualCheckInTime;
+
+    @Column(name = "actual_check_out_time")
+    private LocalDateTime actualCheckOutTime;
+
+    // 얼리 체크인 / 레이트 체크아웃 요금
+    @Column(name = "early_check_in_fee", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal earlyCheckInFee = BigDecimal.ZERO;
+
+    @Column(name = "late_check_out_fee", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal lateCheckOutFee = BigDecimal.ZERO;
+
     // 동반 투숙객
     @OneToMany(mappedBy = "subReservation", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -102,5 +120,27 @@ public class SubReservation extends BaseEntity {
      */
     public void updateStatus(String newStatus) {
         this.roomReservationStatus = newStatus;
+    }
+
+    /**
+     * 실제 체크인 시각 및 얼리 체크인 요금 기록
+     */
+    public void recordCheckIn(LocalDateTime checkInTime, BigDecimal earlyFee) {
+        this.actualCheckInTime = checkInTime;
+        if (earlyFee != null && earlyFee.compareTo(BigDecimal.ZERO) > 0) {
+            this.earlyCheckIn = true;
+            this.earlyCheckInFee = earlyFee;
+        }
+    }
+
+    /**
+     * 실제 체크아웃 시각 및 레이트 체크아웃 요금 기록
+     */
+    public void recordCheckOut(LocalDateTime checkOutTime, BigDecimal lateFee) {
+        this.actualCheckOutTime = checkOutTime;
+        if (lateFee != null && lateFee.compareTo(BigDecimal.ZERO) > 0) {
+            this.lateCheckOut = true;
+            this.lateCheckOutFee = lateFee;
+        }
     }
 }

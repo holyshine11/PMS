@@ -49,6 +49,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
                     .totalServiceAmount(BigDecimal.ZERO)
                     .totalServiceChargeAmount(BigDecimal.ZERO)
                     .totalAdjustmentAmount(BigDecimal.ZERO)
+                    .totalEarlyLateFee(BigDecimal.ZERO)
                     .grandTotal(BigDecimal.ZERO)
                     .build();
         }
@@ -154,10 +155,11 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
      * 금액 재계산
      */
     private void recalculateAmounts(ReservationPayment payment, Long reservationId) {
-        // 1. 객실 요금 합계 (모든 서브의 DailyCharge 합산)
+        // 1. 객실 요금 합계 (모든 서브의 DailyCharge 합산) + 얼리/레이트 요금
         List<SubReservation> subs = subReservationRepository.findByMasterReservationId(reservationId);
         BigDecimal totalRoom = BigDecimal.ZERO;
         BigDecimal totalServiceCharge = BigDecimal.ZERO;
+        BigDecimal totalEarlyLateFee = BigDecimal.ZERO;
 
         for (SubReservation sub : subs) {
             if ("CANCELED".equals(sub.getRoomReservationStatus())) continue;
@@ -165,6 +167,13 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             for (DailyCharge charge : charges) {
                 totalRoom = totalRoom.add(charge.getSupplyPrice()).add(charge.getTax());
                 totalServiceCharge = totalServiceCharge.add(charge.getServiceCharge());
+            }
+            // 얼리 체크인 / 레이트 체크아웃 요금 합산
+            if (sub.getEarlyCheckInFee() != null) {
+                totalEarlyLateFee = totalEarlyLateFee.add(sub.getEarlyCheckInFee());
+            }
+            if (sub.getLateCheckOutFee() != null) {
+                totalEarlyLateFee = totalEarlyLateFee.add(sub.getLateCheckOutFee());
             }
         }
 
@@ -190,9 +199,11 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             }
         }
 
-        // 4. 최종 합계
-        BigDecimal grandTotal = totalRoom.add(totalService).add(totalServiceCharge).add(totalAdjustment);
+        // 4. 최종 합계 (얼리/레이트 요금 포함)
+        BigDecimal grandTotal = totalRoom.add(totalService).add(totalServiceCharge)
+                .add(totalAdjustment).add(totalEarlyLateFee);
 
         payment.updateAmounts(totalRoom, totalService, totalServiceCharge, totalAdjustment, grandTotal);
+        payment.updateEarlyLateFee(totalEarlyLateFee);
     }
 }

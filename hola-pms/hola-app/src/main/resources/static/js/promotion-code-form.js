@@ -107,7 +107,7 @@ var PromotionCodeForm = {
                 $('#descriptionEn').val(data.descriptionEn || '');
 
                 // 타입
-                $('input[name="promotionType"][value="' + data.promotionType + '"]').prop('checked', true);
+                $('#promotionType').val(data.promotionType);
 
                 // 사용여부
                 $('input[name="useYn"][value="' + data.useYn + '"]').prop('checked', true);
@@ -201,7 +201,7 @@ var PromotionCodeForm = {
             promotionEndDate: $('#promotionEndDate').val(),
             descriptionKo: $('#descriptionKo').val().trim(),
             descriptionEn: $('#descriptionEn').val().trim() || null,
-            promotionType: $('input[name="promotionType"]:checked').val(),
+            promotionType: $('#promotionType').val(),
             useYn: $('input[name="useYn"]:checked').val() === 'true',
             downUpSign: downUpSign || null,
             downUpValue: downUpSign ? (function() {

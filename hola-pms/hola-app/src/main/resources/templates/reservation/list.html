@@ -12,8 +12,8 @@
     </div>
 
     <!-- 프로퍼티 미선택 알림 -->
-    <div id="contextAlert" class="alert alert-info" style="display:none;">
-        <i class="fas fa-info-circle me-1"></i>상단 헤더에서 호텔과 프로퍼티를 선택해주세요.
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
     </div>
 
     <!-- 검색/필터 카드 -->
@@ -115,24 +115,35 @@
     <script th:src="@{/js/reservation-table-view.js}"></script>
     <script>
     $(function() {
-        // 프로퍼티 컨텍스트 체크
-        var propertyId = HolaPms.context.getPropertyId();
-        if (!propertyId) {
-            $('#contextAlert').show();
-            return;
-        }
-        $('#searchCard').show();
+        var viewsInitialized = false;
 
-        // 오늘 날짜 기본값
-        var today = new Date().toISOString().split('T')[0];
-        $('#selectedDate').val(today);
+        // 컨텍스트 변경 이벤트 (항상 바인딩)
+        $(document).on('hola:contextChange', function(e, ctx) {
+            var pid = ctx && ctx.propertyId ? ctx.propertyId : HolaPms.context.getPropertyId();
+            if (!pid) {
+                $('#contextAlert').removeClass('d-none');
+                $('#searchCard').hide();
+                $('#cardViewContainer').hide();
+                $('#tableViewContainer').hide();
+                return;
+            }
+            $('#contextAlert').addClass('d-none');
+            $('#searchCard').show();
 
-        // 카드뷰 초기화 (기본)
-        ReservationCardView.init(propertyId);
-        $('#cardViewContainer').show();
+            if (!viewsInitialized) {
+                initViews(pid);
+            } else {
+                ReservationCardView.propertyId = pid;
+                ReservationTableView.propertyId = pid;
 
-        // 테이블뷰 초기화 (숨김 상태)
-        ReservationTableView.init(propertyId);
+                if ($('#cardViewContainer').is(':visible')) {
+                    ReservationCardView.load(getSearchParams());
+                }
+                if ($('#tableViewContainer').is(':visible')) {
+                    ReservationTableView.reload(getSearchParams());
+                }
+            }
+        });
 
         // 뷰 토글: 카드뷰
         $('#cardViewBtn').on('click', function() {
@@ -177,29 +188,30 @@
             if (e.which === 13) { doSearch(); }
         });
 
-        // 컨텍스트 변경 이벤트
-        $(document).on('hola:contextChange', function(e, ctx) {
-            var pid = ctx && ctx.propertyId ? ctx.propertyId : HolaPms.context.getPropertyId();
-            if (!pid) {
-                $('#contextAlert').show();
-                $('#searchCard').hide();
-                $('#cardViewContainer').hide();
-                $('#tableViewContainer').hide();
-                return;
-            }
-            $('#contextAlert').hide();
-            $('#searchCard').show();
+        // 초기 프로퍼티 컨텍스트 체크
+        var propertyId = HolaPms.context.getPropertyId();
+        if (!propertyId) {
+            $('#contextAlert').removeClass('d-none');
+            return;
+        }
+        $('#searchCard').show();
+        initViews(propertyId);
 
-            ReservationCardView.propertyId = pid;
-            ReservationTableView.propertyId = pid;
+        /**
+         * 뷰 초기화
+         */
+        function initViews(pid) {
+            var today = new Date().toISOString().split('T')[0];
+            if (!$('#selectedDate').val()) {
+                $('#selectedDate').val(today);
+            }
 
-            if ($('#cardViewContainer').is(':visible')) {
-                ReservationCardView.load(getSearchParams());
-            }
-            if ($('#tableViewContainer').is(':visible')) {
-                ReservationTableView.reload(getSearchParams());
-            }
-        });
+            ReservationCardView.init(pid);
+            $('#cardViewContainer').show();
+
+            ReservationTableView.init(pid);
+            viewsInitialized = true;
+        }
 
         /**
          * 날짜 변경 헬퍼

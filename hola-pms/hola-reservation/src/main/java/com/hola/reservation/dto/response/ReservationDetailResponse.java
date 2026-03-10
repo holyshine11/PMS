@@ -42,6 +42,8 @@ public class ReservationDetailResponse {
     // 다른 모듈 FK
     private Long rateCodeId;
     private Long marketCodeId;
+    private String rateCodeName;
+    private String marketCodeName;
     private Long reservationChannelId;
 
     // 프로모션/OTA

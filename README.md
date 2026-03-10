@@ -1,5 +1,24 @@
 # Hola PMS - 로컬 개발 환경 설정 및 테스트 가이드
 
+## 목차
+
+- [1. 사전 요구사항](#1-사전-요구사항)
+- [2. 데이터베이스 초기 설정](#2-데이터베이스-초기-설정)
+- [3. 빠른 시작 (인수인계용)](#3-빠른-시작-인수인계용)
+  - [3-1. Git 저장소 클론](#3-1-git-저장소-클론)
+  - [3-2. 서버 빌드 및 실행](#3-2-서버-빌드-및-실행)
+  - [3-3. 브라우저 접속 및 로그인](#3-3-브라우저-접속-및-로그인)
+  - [3-4. GitHub 코드 반영](#3-4-github-코드-반영)
+- [4. 웹 브라우저 테스트](#4-웹-브라우저-테스트)
+- [5. API 테스트 (curl)](#5-api-테스트-curl)
+- [6. E2E 통합 테스트 시나리오](#6-e2e-통합-테스트-시나리오)
+- [7. DB 직접 확인](#7-db-직접-확인)
+- [8. 트러블슈팅](#8-트러블슈팅)
+- [9. 프로젝트 구조](#9-프로젝트-구조)
+- [10. API 엔드포인트 전체 목록](#10-api-엔드포인트-전체-목록)
+
+---
+
 ## 1. 사전 요구사항
 
 | 도구 | 버전 | 확인 명령어 |
@@ -65,19 +84,35 @@ psql -U hola -d hola_pms -c "SELECT 1;"
 
 ---
 
-## 3. 프로젝트 빌드 및 실행
+## 3. 빠른 시작 (인수인계용)
+
+> 사전 요구사항(1장)과 DB 설정(2장)이 완료된 상태에서,
+> **Git 클론 → 빌드 → 서버 실행 → 브라우저 접속**까지 한 번에 따라하는 가이드입니다.
+
+### 3-1. Git 저장소 클론
 
 ```bash
-cd /Users/Dev/PMS/hola-pms
-
-# 빌드
-./gradlew build
-
-# 서버 실행
-./gradlew :hola-app:bootRun
+# 저장소 클론
+git clone <repository-url>
+cd PMS
 ```
 
-### 실행 성공 로그 (확인 포인트)
+### 3-2. 서버 빌드 및 실행
+
+```bash
+cd hola-pms
+
+# 빌드 (최초 1회 또는 코드 변경 시)
+./gradlew build
+
+# 서버 실행 (로컬, http://localhost:8080)
+./gradlew :hola-app:bootRun
+
+# 다른 포트로 실행해야 할 경우
+./gradlew :hola-app:bootRun --args='--server.port=9090'
+```
+
+**실행 성공 로그 (확인 포인트)**
 
 ```
 Flyway: Successfully applied 2 migrations (V1.0.0, V1.1.0)
@@ -88,11 +123,7 @@ Started HolaPmsApplication in x.xxx seconds
 > Flyway가 자동으로 테이블 생성 + 초기 데이터 삽입까지 처리합니다.
 > 별도 SQL 실행 불필요.
 
----
-
-## 4. 웹 브라우저 테스트
-
-### 4-1. 로그인
+### 3-3. 브라우저 접속 및 로그인
 
 1. 브라우저에서 http://localhost:8080/login 접속
 2. 로그인 정보 입력:
@@ -100,12 +131,65 @@ Started HolaPmsApplication in x.xxx seconds
    - **비밀번호**: `holapms1!`
 3. 로그인 성공 시 대시보드(`/admin/dashboard`)로 이동
 
-### 4-2. 호텔 관리 화면
+### 3-4. GitHub 코드 반영
+
+```bash
+cd hola-pms  # 또는 PMS 루트 디렉토리
+
+# 1. 변경사항 확인
+git status
+git diff
+
+# 2. 변경 파일 스테이징
+git add <파일명>              # 개별 파일
+git add .
+git add hola-pms/hola-hotel/  # 모듈 단위
+# git add -A                  # 전체 (주의: .env 등 민감파일 포함 여부 확인)
+
+# 3. 커밋 (프로젝트 커밋 규칙: [HOLA-XXX] type: description)
+git commit -m "[HOLA-001] feat: add hotel CRUD API and UI"
+
+# 4. 원격 저장소에 푸시
+git push origin main
+
+# 5. (선택) 브랜치 작업 시
+git checkout -b feature/HOLA-002-room-management
+# ... 작업 후 ...
+git push origin feature/HOLA-002-room-management
+# GitHub에서 PR 생성
+```
+
+**커밋 메시지 규칙**
+
+| 타입 | 설명 | 예시 |
+|------|------|------|
+| `feat` | 새 기능 | `[HOLA-001] feat: add hotel CRUD API` |
+| `fix` | 버그 수정 | `[HOLA-002] fix: resolve login redirect issue` |
+| `refactor` | 리팩토링 | `[HOLA-003] refactor: extract access control service` |
+| `docs` | 문서 수정 | `[HOLA-004] docs: update README setup guide` |
+| `chore` | 설정/빌드 | `[HOLA-005] chore: add flyway migration V2_0_0` |
+
+**Git 브랜치 전략**
+
+```
+main ──────── production (안정 버전)
+  └── develop ── staging
+        ├── feature/HOLA-001-hotel-crud
+        └── hotfix/HOLA-099-login-bug
+```
+
+> PR(Pull Request)은 최소 1인 리뷰 후 머지. 커밋 메시지는 영문으로 작성.
+
+---
+
+## 4. 웹 브라우저 테스트
+
+### 4-1. 호텔 관리 화면
 
 1. 좌측 메뉴에서 **호텔 관리 > 호텔 목록** 클릭 (또는 http://localhost:8080/admin/hotels)
 2. 빈 테이블이 표시됨 (아직 데이터 없음)
 
-### 4-3. 호텔 등록 테스트
+### 4-2. 호텔 등록 테스트
 
 1. 우측 상단 **호텔 등록** 버튼 클릭
 2. 모달에 입력:
@@ -117,7 +201,7 @@ Started HolaPmsApplication in x.xxx seconds
 3. **저장** 클릭
 4. 목록에 등록된 호텔 확인
 
-### 4-4. 호텔 상세 > 프로퍼티 등록
+### 4-3. 호텔 상세 > 프로퍼티 등록
 
 1. 목록에서 **올라 호텔 서울** 링크 클릭 → 호텔 상세 페이지
 2. **프로퍼티 등록** 버튼 클릭
@@ -130,7 +214,7 @@ Started HolaPmsApplication in x.xxx seconds
    - 총 객실수: `200`
 4. **저장** 클릭
 
-### 4-5. 프로퍼티 상세 > 층/호수/마켓코드
+### 4-4. 프로퍼티 상세 > 층/호수/마켓코드
 
 1. 프로퍼티 목록에서 **메인타워** 링크 클릭 → 프로퍼티 상세 페이지
 2. **층 관리** 탭 (기본 활성)에서:

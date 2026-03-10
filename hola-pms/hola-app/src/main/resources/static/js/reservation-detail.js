@@ -44,15 +44,29 @@ var ReservationDetail = {
     /**
      * 초기화
      */
-    init: function(propertyId) {
+    init: function() {
         var self = this;
-        self.propertyId = propertyId;
 
         // URL에서 reservationId 추출 (/admin/reservations/{id})
         var pathParts = window.location.pathname.split('/');
         self.reservationId = pathParts[pathParts.length - 1];
 
         self.bindEvents();
+        self.reload();
+    },
+
+    /**
+     * 컨텍스트 기반 새로고침
+     */
+    reload: function() {
+        var self = this;
+        self.propertyId = HolaPms.context.getPropertyId();
+        if (!self.propertyId) {
+            $('#contextAlert').removeClass('d-none');
+            $('#formContainer').hide();
+            return;
+        }
+        $('#contextAlert').addClass('d-none');
         self.loadReservationChannels();
         self.loadData();
     },
@@ -134,8 +148,28 @@ var ReservationDetail = {
         $('#masterCheckOut').val(data.masterCheckOut || '');
         HolaPms.bindDateRange('#masterCheckIn', '#masterCheckOut');
 
-        if (data.rateCodeId) $('#rateCodeId').val(data.rateCodeId);
-        if (data.marketCodeId) $('#marketCodeId').val(data.marketCodeId);
+        if (data.rateCodeId) {
+            $('#rateCodeId').val(data.rateCodeId);
+            if (data.rateCodeName) {
+                $('#rateCodeName').val(data.rateCodeName);
+            } else {
+                self.resolveCodeName('/api/v1/properties/' + self.propertyId + '/rate-codes', data.rateCodeId, '#rateCodeName', 'rateCodeName');
+            }
+        } else {
+            $('#rateCodeId').val('');
+            $('#rateCodeName').val('');
+        }
+        if (data.marketCodeId) {
+            $('#marketCodeId').val(data.marketCodeId);
+            if (data.marketCodeName) {
+                $('#marketCodeName').val(data.marketCodeName);
+            } else {
+                self.resolveCodeName('/api/v1/market-codes', data.marketCodeId, '#marketCodeName', 'marketCodeName');
+            }
+        } else {
+            $('#marketCodeId').val('');
+            $('#marketCodeName').val('');
+        }
         if (data.reservationChannelId) {
             // 채널 로드 후 선택 (약간의 지연 적용)
             setTimeout(function() { $('#reservationChannelId').val(data.reservationChannelId); }, 300);
@@ -205,9 +239,13 @@ var ReservationDetail = {
         var seq = self.roomLegSeq;
 
         // 기본값 설정
-        var checkIn = '', checkOut = '', adults = 1, children = 0, earlyCheckIn = false;
+        var checkIn = '', checkOut = '', adults = 1, children = 0, earlyCheckIn = false, lateCheckOut = false;
         var roomTypeName = '', roomTypeId = '', floorId = '', roomNumberId = '', roomDisplay = '미배정';
         var legId = '', subNo = '';
+
+        // 실제 체크인/아웃 시각 및 얼리/레이트 요금
+        var actualCheckInTime = '', actualCheckOutTime = '';
+        var earlyCheckInFee = 0, lateCheckOutFee = 0;
 
         if (legData) {
             checkIn = legData.checkIn || '';
@@ -215,12 +253,17 @@ var ReservationDetail = {
             adults = legData.adults || 1;
             children = legData.children || 0;
             earlyCheckIn = legData.earlyCheckIn === true;
+            lateCheckOut = legData.lateCheckOut === true;
             roomTypeName = legData.roomTypeName || '';
             roomTypeId = legData.roomTypeId || '';
             floorId = legData.floorId || '';
             roomNumberId = legData.roomNumberId || '';
             legId = legData.id || '';
             subNo = legData.subReservationNo || '';
+            actualCheckInTime = legData.actualCheckInTime || '';
+            actualCheckOutTime = legData.actualCheckOutTime || '';
+            earlyCheckInFee = legData.earlyCheckInFee || 0;
+            lateCheckOutFee = legData.lateCheckOutFee || 0;
             if (legData.floorName && legData.roomNumber) {
                 roomDisplay = legData.floorName + ' / ' + legData.roomNumber;
             } else if (legData.roomNumber) {
@@ -230,6 +273,20 @@ var ReservationDetail = {
             // 신규 추가 시 마스터 날짜 기본값
             checkIn = $('#masterCheckIn').val() || '';
             checkOut = $('#masterCheckOut').val() || '';
+        }
+
+        // 상태에 따른 얼리/레이트 체크박스 활성화 제어
+        // RESERVED/CONFIRMED: 둘 다 편집 가능 (사전 요청)
+        // CHECK_IN/INHOUSE: 얼리 읽기전용 (자동 판정 완료), 레이트 편집 가능
+        // CHECKED_OUT/CANCELED/NO_SHOW: 둘 다 읽기전용
+        var status = self.reservationData ? self.reservationData.reservationStatus : '';
+        var earlyDisabled = '';
+        var lateDisabled = '';
+        if (['CHECK_IN', 'INHOUSE'].indexOf(status) !== -1) {
+            earlyDisabled = ' disabled';
+        } else if (['CHECKED_OUT', 'CANCELED', 'NO_SHOW'].indexOf(status) !== -1) {
+            earlyDisabled = ' disabled';
+            lateDisabled = ' disabled';
         }
 
         var headerLabel = '객실 #' + seq;
@@ -269,15 +326,22 @@ var ReservationDetail = {
             + '      <label class="col-sm-2 col-form-label">체크아웃</label>'
             + '      <div class="col-sm-4"><input type="date" class="form-control leg-check-out" value="' + checkOut + '"></div>'
             + '    </div>'
+            + self.renderActualTimeRow(actualCheckInTime, actualCheckOutTime, earlyCheckInFee, lateCheckOutFee)
             + '    <div class="row mb-3">'
             + '      <label class="col-sm-2 col-form-label">성인</label>'
             + '      <div class="col-sm-2"><input type="number" class="form-control leg-adults" value="' + adults + '" min="1" max="99"></div>'
             + '      <label class="col-sm-2 col-form-label">아동</label>'
             + '      <div class="col-sm-2"><input type="number" class="form-control leg-children" value="' + children + '" min="0" max="99"></div>'
             + '      <label class="col-sm-2 col-form-label">얼리체크인</label>'
-            + '      <div class="col-sm-2">'
+            + '      <div class="col-sm-1">'
             + '        <div class="form-check mt-2">'
-            + '          <input class="form-check-input leg-early-checkin" type="checkbox"' + (earlyCheckIn ? ' checked' : '') + '>'
+            + '          <input class="form-check-input leg-early-checkin" type="checkbox"' + (earlyCheckIn ? ' checked' : '') + earlyDisabled + '>'
+            + '        </div>'
+            + '      </div>'
+            + '      <label class="col-sm-2 col-form-label">레이트체크아웃</label>'
+            + '      <div class="col-sm-1">'
+            + '        <div class="form-check mt-2">'
+            + '          <input class="form-check-input leg-late-checkout" type="checkbox"' + (lateCheckOut ? ' checked' : '') + lateDisabled + '>'
             + '        </div>'
             + '      </div>'
             + '    </div>'
@@ -286,6 +350,55 @@ var ReservationDetail = {
 
         $('#roomLegsContainer').append(legHtml);
         this.updateRoomLegsEmpty();
+    },
+
+    /**
+     * 실제 체크인/아웃 시각 + 얼리/레이트 요금 행 렌더링
+     */
+    renderActualTimeRow: function(actualCheckInTime, actualCheckOutTime, earlyCheckInFee, lateCheckOutFee) {
+        // 표시할 데이터가 없으면 빈 문자열 반환
+        if (!actualCheckInTime && !actualCheckOutTime && !earlyCheckInFee && !lateCheckOutFee) {
+            return '';
+        }
+
+        // 시각 포맷 (2026-03-08T13:00:00 → 2026-03-08 13:00)
+        var formatTime = function(dt) {
+            if (!dt) return '-';
+            return dt.replace('T', ' ').substring(0, 16);
+        };
+
+        // 금액 포맷
+        var formatFee = function(amount) {
+            if (!amount || amount <= 0) return '';
+            return Number(amount).toLocaleString('ko-KR');
+        };
+
+        var checkInDisplay = formatTime(actualCheckInTime);
+        var checkOutDisplay = formatTime(actualCheckOutTime);
+
+        // 얼리 체크인 요금 배지
+        var earlyBadge = '';
+        if (earlyCheckInFee > 0) {
+            earlyBadge = ' <span class="badge bg-info ms-1">얼리 체크인 ₩' + formatFee(earlyCheckInFee) + '</span>';
+        }
+
+        // 레이트 체크아웃 요금 배지
+        var lateBadge = '';
+        if (lateCheckOutFee > 0) {
+            lateBadge = ' <span class="badge ms-1" style="background-color:#EF476F;">레이트 체크아웃 ₩' + formatFee(lateCheckOutFee) + '</span>';
+        }
+
+        return ''
+            + '    <div class="row mb-3">'
+            + '      <label class="col-sm-2 col-form-label text-muted small">실제 체크인</label>'
+            + '      <div class="col-sm-4">'
+            + '        <span class="form-control-plaintext">' + HolaPms.escapeHtml(checkInDisplay) + earlyBadge + '</span>'
+            + '      </div>'
+            + '      <label class="col-sm-2 col-form-label text-muted small">실제 체크아웃</label>'
+            + '      <div class="col-sm-4">'
+            + '        <span class="form-control-plaintext">' + HolaPms.escapeHtml(checkOutDisplay) + lateBadge + '</span>'
+            + '      </div>'
+            + '    </div>';
     },
 
     /**
@@ -435,14 +548,7 @@ var ReservationDetail = {
 
         // 프로퍼티 컨텍스트 변경
         $(document).on('hola:contextChange', function() {
-            self.propertyId = HolaPms.context.getPropertyId();
-            if (self.propertyId) {
-                self.loadReservationChannels();
-                self.loadData();
-            } else {
-                $('#contextAlert').removeClass('d-none');
-                $('#formContainer').hide();
-            }
+            self.reload();
         });
 
         // 레이트코드 검색 버튼
@@ -821,11 +927,12 @@ var ReservationDetail = {
                 roomTypeId: roomTypeId,
                 floorId: HolaPms.form.intVal($leg.find('.floor-id')),
                 roomNumberId: HolaPms.form.intVal($leg.find('.room-number-id')),
-                checkInDate: HolaPms.form.val($leg.find('.leg-check-in')),
-                checkOutDate: HolaPms.form.val($leg.find('.leg-check-out')),
+                checkIn: HolaPms.form.val($leg.find('.leg-check-in')),
+                checkOut: HolaPms.form.val($leg.find('.leg-check-out')),
                 adults: parseInt($leg.find('.leg-adults').val()) || 1,
                 children: parseInt($leg.find('.leg-children').val()) || 0,
-                earlyCheckIn: $leg.find('.leg-early-checkin').is(':checked')
+                earlyCheckIn: $leg.find('.leg-early-checkin').is(':checked'),
+                lateCheckOut: $leg.find('.leg-late-checkout').is(':checked')
             };
 
             // 기존 레그 ID가 있으면 포함
@@ -842,12 +949,14 @@ var ReservationDetail = {
             rateCodeId: HolaPms.form.intVal('#rateCodeId'),
             marketCodeId: HolaPms.form.intVal('#marketCodeId'),
             reservationChannelId: HolaPms.form.intVal('#reservationChannelId'),
+            promotionType: self.reservationData ? self.reservationData.promotionType : null,
             promotionCode: HolaPms.form.val('#promotionCode'),
 
             // 예약자 정보
             guestNameKo: HolaPms.form.val('#guestNameKo'),
             guestLastNameEn: HolaPms.form.val('#guestLastNameEn'),
             guestFirstNameEn: HolaPms.form.val('#guestFirstNameEn'),
+            guestMiddleNameEn: self.reservationData ? self.reservationData.guestMiddleNameEn : null,
             phoneCountryCode: HolaPms.form.val('#phoneCountryCode'),
             phoneNumber: HolaPms.form.val('#phoneNumber'),
             email: HolaPms.form.val('#email'),
@@ -904,12 +1013,12 @@ var ReservationDetail = {
         // 각 서브 예약 검증
         for (var i = 0; i < data.subReservations.length; i++) {
             var sub = data.subReservations[i];
-            if (!sub.checkInDate || !sub.checkOutDate) {
+            if (!sub.checkIn || !sub.checkOut) {
                 HolaPms.alert('warning', '객실 #' + (i + 1) + '의 체크인/체크아웃 날짜를 입력해주세요.');
                 $('a[href="#tabDetail"]').tab('show');
                 return false;
             }
-            if (sub.checkInDate >= sub.checkOutDate) {
+            if (sub.checkIn >= sub.checkOut) {
                 HolaPms.alert('warning', '객실 #' + (i + 1) + '의 체크아웃은 체크인 이후여야 합니다.');
                 $('a[href="#tabDetail"]').tab('show');
                 return false;
@@ -917,6 +1026,27 @@ var ReservationDetail = {
         }
 
         return true;
+    },
+
+    /**
+     * 코드 ID로 이름 조회 (레이트코드, 마켓코드)
+     */
+    resolveCodeName: function(baseUrl, id, targetSelector, nameField) {
+        $.ajax({
+            url: baseUrl,
+            method: 'GET',
+            success: function(res) {
+                var items = res.data || res || [];
+                if (Array.isArray(items)) {
+                    var found = items.find(function(item) { return item.id === id; });
+                    if (found) {
+                        var name = found[nameField] || found.codeName || found.name || '';
+                        $(targetSelector).val(name);
+                    }
+                }
+            },
+            error: function() { /* 무시 */ }
+        });
     },
 
     /**
@@ -1039,10 +1169,5 @@ var ReservationDetail = {
 
 // 초기화
 $(document).ready(function() {
-    var propertyId = HolaPms.context.getPropertyId();
-    if (!propertyId) {
-        $('#contextAlert').removeClass('d-none');
-        return;
-    }
-    ReservationDetail.init(propertyId);
+    ReservationDetail.init();
 });

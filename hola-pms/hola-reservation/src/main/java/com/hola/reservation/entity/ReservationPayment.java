@@ -40,6 +40,10 @@ public class ReservationPayment extends BaseEntity {
     @Column(name = "total_adjustment_amount", precision = 15, scale = 2)
     private BigDecimal totalAdjustmentAmount;
 
+    @Column(name = "total_early_late_fee", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal totalEarlyLateFee = BigDecimal.ZERO;
+
     @Column(name = "grand_total", precision = 15, scale = 2)
     private BigDecimal grandTotal;
 
@@ -60,6 +64,13 @@ public class ReservationPayment extends BaseEntity {
         this.totalServiceChargeAmount = totalServiceChargeAmount;
         this.totalAdjustmentAmount = totalAdjustmentAmount;
         this.grandTotal = grandTotal;
+    }
+
+    /**
+     * 얼리/레이트 요금 업데이트
+     */
+    public void updateEarlyLateFee(BigDecimal totalEarlyLateFee) {
+        this.totalEarlyLateFee = totalEarlyLateFee;
     }
 
     /**

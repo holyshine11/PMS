@@ -65,9 +65,9 @@ var ReservationCardView = {
 
         for (var i = 0; i < data.length; i++) {
             var r = data[i];
-            var status = r.status || '';
-            var checkIn = (r.checkInDate || '').substring(0, 10);
-            var checkOut = (r.checkOutDate || '').substring(0, 10);
+            var status = r.reservationStatus || '';
+            var checkIn = (r.masterCheckIn || '').substring(0, 10);
+            var checkOut = (r.masterCheckOut || '').substring(0, 10);
 
             if (status === 'CANCELED' || status === 'NO_SHOW') {
                 cancelList.push(r);
@@ -137,8 +137,8 @@ var ReservationCardView = {
      */
     renderCard: function(reservation) {
         var id = reservation.id || '';
-        var badge = this.getStatusBadge(reservation.status);
-        var guestName = HolaPms.escapeHtml(reservation.guestNameKo || reservation.guestName || '-');
+        var badge = this.getStatusBadge(reservation.reservationStatus);
+        var guestName = HolaPms.escapeHtml(reservation.guestNameKo || '-');
         var roomInfo = '';
         if (reservation.roomTypeName) {
             roomInfo = HolaPms.escapeHtml(reservation.roomTypeName);
@@ -146,8 +146,8 @@ var ReservationCardView = {
                 roomInfo += ' - ' + HolaPms.escapeHtml(reservation.roomNumber) + '호';
             }
         }
-        var checkIn = (reservation.checkInDate || '').substring(5, 10);
-        var checkOut = (reservation.checkOutDate || '').substring(5, 10);
+        var checkIn = (reservation.masterCheckIn || '').substring(5, 10);
+        var checkOut = (reservation.masterCheckOut || '').substring(5, 10);
         var dateRange = checkIn && checkOut ? checkIn + ' ~ ' + checkOut : '-';
         var reservationNo = HolaPms.escapeHtml(reservation.masterReservationNo || reservation.reservationNo || '-');
 

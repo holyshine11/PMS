@@ -3,7 +3,9 @@ package com.hola.reservation.service;
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
 import com.hola.hotel.entity.Property;
+import com.hola.hotel.repository.MarketCodeRepository;
 import com.hola.hotel.repository.PropertyRepository;
+import com.hola.rate.repository.RateCodeRepository;
 import com.hola.reservation.dto.request.*;
 import com.hola.reservation.dto.response.*;
 import com.hola.reservation.entity.*;
@@ -14,7 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,10 +38,14 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationDepositRepository reservationDepositRepository;
     private final ReservationMemoRepository reservationMemoRepository;
     private final PropertyRepository propertyRepository;
+    private final RateCodeRepository rateCodeRepository;
+    private final MarketCodeRepository marketCodeRepository;
     private final ReservationMapper reservationMapper;
     private final ReservationNumberGenerator numberGenerator;
     private final RoomAvailabilityService availabilityService;
     private final PriceCalculationService priceCalculationService;
+    private final EarlyLateCheckService earlyLateCheckService;
+    private final ReservationPaymentService paymentService;
 
     // 허용되는 상태 전이 매트릭스
     private static final Map<String, Set<String>> STATUS_TRANSITIONS = Map.of(
@@ -108,7 +116,13 @@ public class ReservationServiceImpl implements ReservationService {
                 .gender(response.getGender())
                 .nationality(response.getNationality())
                 .rateCodeId(response.getRateCodeId())
+                .rateCodeName(response.getRateCodeId() != null ?
+                    rateCodeRepository.findById(response.getRateCodeId())
+                        .map(rc -> rc.getRateNameKo()).orElse(null) : null)
                 .marketCodeId(response.getMarketCodeId())
+                .marketCodeName(response.getMarketCodeId() != null ?
+                    marketCodeRepository.findById(response.getMarketCodeId())
+                        .map(mc -> mc.getMarketName()).orElse(null) : null)
                 .reservationChannelId(response.getReservationChannelId())
                 .promotionType(response.getPromotionType())
                 .promotionCode(response.getPromotionCode())
@@ -244,13 +258,31 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         master.updateStatus(newStatus);
+        LocalDateTime now = LocalDateTime.now();
 
         // 서브 예약 동기화 (마스터와 동일 상태로 변경)
         for (SubReservation sub : master.getSubReservations()) {
             // CANCELED 서브는 건너뜀 (부분취소된 경우)
             if (!"CANCELED".equals(sub.getRoomReservationStatus())) {
                 sub.updateStatus(newStatus);
+
+                // 체크인 시 실제 시각 및 얼리 체크인 요금 기록
+                if ("CHECK_IN".equals(newStatus)) {
+                    BigDecimal earlyFee = earlyLateCheckService.calculateEarlyCheckInFee(sub, now);
+                    sub.recordCheckIn(now, earlyFee);
+                }
+
+                // 체크아웃 시 실제 시각 및 레이트 체크아웃 요금 기록
+                if ("CHECKED_OUT".equals(newStatus)) {
+                    BigDecimal lateFee = earlyLateCheckService.calculateLateCheckOutFee(sub, now);
+                    sub.recordCheckOut(now, lateFee);
+                }
             }
+        }
+
+        // 얼리/레이트 요금 발생 시 결제 재계산
+        if ("CHECK_IN".equals(newStatus) || "CHECKED_OUT".equals(newStatus)) {
+            paymentService.recalculatePayment(master.getId());
         }
 
         log.info("예약 상태 변경: {} → {} (예약번호: {})", currentStatus, newStatus, master.getMasterReservationNo());
