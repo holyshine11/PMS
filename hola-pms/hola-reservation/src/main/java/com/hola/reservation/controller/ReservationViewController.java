@@ -12,10 +12,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/admin/reservations")
 public class ReservationViewController {
 
-    /** 예약 리스트 (카드뷰/테이블뷰) */
+    /** 예약 리스트 (캘린더뷰/테이블뷰) */
     @GetMapping
     public String list() {
         return "reservation/list";
+    }
+
+    /** 일별 예약 리스트 */
+    @GetMapping("/daily")
+    public String daily() {
+        return "reservation/daily";
     }
 
     /** 예약 등록 폼 */

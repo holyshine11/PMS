@@ -130,18 +130,20 @@ var ReservationTableView = {
         }));
     },
 
+    /** 외부에서 전달된 검색 파라미터 (reload 시 갱신) */
+    searchParams: {},
+
     /**
      * 검색 파라미터 조립
      */
     buildQueryParams: function() {
         var params = [];
-        var date = $('#selectedDate').val();
-        var status = $('#statusFilter').val();
-        var keyword = $.trim($('#keyword').val());
+        var p = this.searchParams || {};
 
-        if (date) params.push('date=' + date);
-        if (status) params.push('status=' + status);
-        if (keyword) params.push('keyword=' + encodeURIComponent(keyword));
+        if (p.status) params.push('status=' + p.status);
+        if (p.keyword) params.push('keyword=' + encodeURIComponent(p.keyword));
+        if (p.checkInFrom) params.push('checkInFrom=' + p.checkInFrom);
+        if (p.checkInTo) params.push('checkInTo=' + p.checkInTo);
 
         return params.join('&');
     },
@@ -150,6 +152,9 @@ var ReservationTableView = {
      * 데이터 리로드
      */
     reload: function(params) {
+        if (params) {
+            this.searchParams = params;
+        }
         if (this.dataTable) {
             this.dataTable.ajax.reload(null, true);
         }

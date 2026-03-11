@@ -25,6 +25,18 @@ public class ReservationApiController {
     private final ReservationService reservationService;
     private final AccessControlService accessControlService;
 
+    /** 캘린더뷰: 기간 내 예약 날짜별 그룹핑 조회 */
+    @GetMapping("/calendar")
+    public HolaResponse<Map<String, List<ReservationCalendarResponse>>> getCalendarData(
+            @PathVariable Long propertyId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(reservationService.getCalendarData(propertyId, startDate, endDate, status, keyword));
+    }
+
     /** 예약 리스트 조회 */
     @GetMapping
     public HolaResponse<List<ReservationListResponse>> getList(

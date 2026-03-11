@@ -5,6 +5,7 @@ import com.hola.reservation.dto.response.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 예약 관리 서비스 인터페이스
@@ -53,4 +54,9 @@ public interface ReservationService {
 
     /** 예치금 수정 */
     ReservationDepositResponse updateDeposit(Long reservationId, Long depositId, ReservationDepositRequest request);
+
+    /** 캘린더뷰: 기간 내 예약을 날짜별로 그룹핑하여 반환 (이름 마스킹) */
+    Map<String, List<ReservationCalendarResponse>> getCalendarData(
+            Long propertyId, LocalDate startDate, LocalDate endDate,
+            String status, String keyword);
 }

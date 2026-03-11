@@ -2,10 +2,17 @@ package com.hola.reservation.service;
 
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
+import com.hola.common.util.NameMaskingUtil;
+import com.hola.hotel.entity.Floor;
 import com.hola.hotel.entity.Property;
+import com.hola.hotel.entity.RoomNumber;
+import com.hola.hotel.repository.FloorRepository;
 import com.hola.hotel.repository.MarketCodeRepository;
 import com.hola.hotel.repository.PropertyRepository;
+import com.hola.hotel.repository.RoomNumberRepository;
 import com.hola.rate.repository.RateCodeRepository;
+import com.hola.room.entity.RoomType;
+import com.hola.room.repository.RoomTypeRepository;
 import com.hola.reservation.dto.request.*;
 import com.hola.reservation.dto.response.*;
 import com.hola.reservation.entity.*;
@@ -20,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +48,9 @@ public class ReservationServiceImpl implements ReservationService {
     private final PropertyRepository propertyRepository;
     private final RateCodeRepository rateCodeRepository;
     private final MarketCodeRepository marketCodeRepository;
+    private final FloorRepository floorRepository;
+    private final RoomNumberRepository roomNumberRepository;
+    private final RoomTypeRepository roomTypeRepository;
     private final ReservationMapper reservationMapper;
     private final ReservationNumberGenerator numberGenerator;
     private final RoomAvailabilityService availabilityService;
@@ -570,5 +581,109 @@ public class ReservationServiceImpl implements ReservationService {
                 || (r.getGuestNameKo() != null && r.getGuestNameKo().contains(kw))
                 || (r.getPhoneNumber() != null && r.getPhoneNumber().contains(kw))
                 || (r.getConfirmationNo() != null && r.getConfirmationNo().toLowerCase().contains(kw));
+    }
+
+    // ─── 캘린더뷰 ──────────────────────────
+
+    @Override
+    public Map<String, List<ReservationCalendarResponse>> getCalendarData(
+            Long propertyId, LocalDate startDate, LocalDate endDate,
+            String status, String keyword) {
+
+        List<MasterReservation> reservations = masterReservationRepository
+                .findByPropertyIdAndDateRange(propertyId, startDate, endDate);
+
+        // Java 필터링 (상태, 키워드)
+        List<MasterReservation> filtered = reservations.stream()
+                .filter(r -> status == null || status.isEmpty() || status.equals(r.getReservationStatus()))
+                .filter(r -> filterByKeyword(r, keyword))
+                .collect(Collectors.toList());
+
+        // Floor/RoomNumber/RoomType ID 수집 → 벌크 조회 (N+1 방지)
+        Set<Long> floorIds = new HashSet<>();
+        Set<Long> roomNumberIds = new HashSet<>();
+        Set<Long> roomTypeIds = new HashSet<>();
+
+        for (MasterReservation m : filtered) {
+            for (SubReservation sub : m.getSubReservations()) {
+                if (sub.getFloorId() != null) floorIds.add(sub.getFloorId());
+                if (sub.getRoomNumberId() != null) roomNumberIds.add(sub.getRoomNumberId());
+                if (sub.getRoomTypeId() != null) roomTypeIds.add(sub.getRoomTypeId());
+            }
+        }
+
+        Map<Long, String> floorMap = floorIds.isEmpty() ? Map.of()
+                : floorRepository.findAllById(floorIds).stream()
+                    .collect(Collectors.toMap(Floor::getId, Floor::getFloorNumber));
+
+        Map<Long, String> roomNumberMap = roomNumberIds.isEmpty() ? Map.of()
+                : roomNumberRepository.findAllById(roomNumberIds).stream()
+                    .collect(Collectors.toMap(RoomNumber::getId, RoomNumber::getRoomNumber));
+
+        Map<Long, String> roomTypeMap = roomTypeIds.isEmpty() ? Map.of()
+                : roomTypeRepository.findAllById(roomTypeIds).stream()
+                    .collect(Collectors.toMap(RoomType::getId, RoomType::getRoomTypeCode));
+
+        // 날짜별 그룹핑
+        Map<String, List<ReservationCalendarResponse>> result = new LinkedHashMap<>();
+
+        for (MasterReservation m : filtered) {
+            ReservationCalendarResponse dto = toCalendarResponse(m, floorMap, roomNumberMap, roomTypeMap);
+
+            // 체류 기간 내 각 날짜에 매핑
+            LocalDate cursor = m.getMasterCheckIn().isBefore(startDate) ? startDate : m.getMasterCheckIn();
+            LocalDate until = m.getMasterCheckOut().isAfter(endDate) ? endDate : m.getMasterCheckOut();
+
+            while (!cursor.isAfter(until.minusDays(1))) {
+                String dateKey = cursor.toString();
+                result.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(dto);
+                cursor = cursor.plusDays(1);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * 캘린더뷰용 DTO 변환 (이름 마스킹 + 층/호수 조합)
+     */
+    private ReservationCalendarResponse toCalendarResponse(
+            MasterReservation master,
+            Map<Long, String> floorMap,
+            Map<Long, String> roomNumberMap,
+            Map<Long, String> roomTypeMap) {
+
+        // 첫 번째 활성 서브 예약 기준 객실 정보
+        String roomInfo = null;
+        String roomTypeName = null;
+        List<SubReservation> subs = master.getSubReservations();
+        if (subs != null && !subs.isEmpty()) {
+            SubReservation firstSub = subs.stream()
+                    .filter(s -> !"CANCELED".equals(s.getRoomReservationStatus()))
+                    .findFirst()
+                    .orElse(subs.get(0));
+
+            // 층+호수: 12F-1201
+            String floor = firstSub.getFloorId() != null ? floorMap.get(firstSub.getFloorId()) : null;
+            String room = firstSub.getRoomNumberId() != null ? roomNumberMap.get(firstSub.getRoomNumberId()) : null;
+            if (floor != null && room != null) {
+                roomInfo = floor + "-" + room;
+            } else if (room != null) {
+                roomInfo = room;
+            }
+
+            roomTypeName = firstSub.getRoomTypeId() != null ? roomTypeMap.get(firstSub.getRoomTypeId()) : null;
+        }
+
+        return ReservationCalendarResponse.builder()
+                .id(master.getId())
+                .masterReservationNo(master.getMasterReservationNo())
+                .reservationStatus(master.getReservationStatus())
+                .masterCheckIn(master.getMasterCheckIn())
+                .masterCheckOut(master.getMasterCheckOut())
+                .guestNameMasked(NameMaskingUtil.maskKoreanName(master.getGuestNameKo()))
+                .roomInfo(roomInfo)
+                .roomTypeName(roomTypeName)
+                .build();
     }
 }

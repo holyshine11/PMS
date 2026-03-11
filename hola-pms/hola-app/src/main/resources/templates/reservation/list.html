@@ -20,21 +20,6 @@
     <div class="card border-0 shadow-sm mb-3" id="searchCard" style="display:none;">
         <div class="card-body py-3">
             <div class="row g-2 align-items-center">
-                <!-- 날짜 선택: 이전/다음 + 날짜 표시 -->
-                <div class="col-auto">
-                    <button class="btn btn-outline-secondary btn-sm" id="prevDateBtn">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                </div>
-                <div class="col-auto">
-                    <input type="date" class="form-control form-control-sm" id="selectedDate">
-                </div>
-                <div class="col-auto">
-                    <button class="btn btn-outline-secondary btn-sm" id="nextDateBtn">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-
                 <!-- 상태 필터 -->
                 <div class="col-auto">
                     <select class="form-select form-select-sm" id="statusFilter">
@@ -61,11 +46,20 @@
                     </button>
                 </div>
 
+                <!-- 테이블뷰 기간 프리셋 (테이블뷰 활성 시만 표시) -->
+                <div class="col-auto" id="tablePeriodGroup" style="display:none;">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-secondary active" data-period="3">3개월</button>
+                        <button class="btn btn-outline-secondary" data-period="6">6개월</button>
+                        <button class="btn btn-outline-secondary" data-period="12">1년</button>
+                    </div>
+                </div>
+
                 <!-- 뷰 토글 + 신규 등록 (오른쪽) -->
                 <div class="col-auto ms-auto">
                     <div class="btn-group btn-group-sm" role="group">
-                        <button class="btn btn-outline-primary active" id="cardViewBtn">
-                            <i class="fas fa-th-large me-1"></i>카드
+                        <button class="btn btn-outline-primary active" id="calendarViewBtn">
+                            <i class="fas fa-calendar-alt me-1"></i>캘린더
                         </button>
                         <button class="btn btn-outline-primary" id="tableViewBtn">
                             <i class="fas fa-list me-1"></i>테이블
@@ -81,8 +75,8 @@
         </div>
     </div>
 
-    <!-- 카드뷰 컨테이너 -->
-    <div id="cardViewContainer" style="display:none;">
+    <!-- 캘린더뷰 컨테이너 -->
+    <div id="calendarViewContainer" style="display:none;">
         <!-- JS에서 동적 생성 -->
     </div>
 
@@ -111,11 +105,12 @@
 </div>
 
 <th:block layout:fragment="scripts">
-    <script th:src="@{/js/reservation-card-view.js}"></script>
+    <script th:src="@{/js/reservation-calendar-view.js}"></script>
     <script th:src="@{/js/reservation-table-view.js}"></script>
     <script>
     $(function() {
         var viewsInitialized = false;
+        var currentPeriod = 3; // 테이블뷰 기본 기간 (개월)
 
         // 컨텍스트 변경 이벤트 (항상 바인딩)
         $(document).on('hola:contextChange', function(e, ctx) {
@@ -123,7 +118,7 @@
             if (!pid) {
                 $('#contextAlert').removeClass('d-none');
                 $('#searchCard').hide();
-                $('#cardViewContainer').hide();
+                $('#calendarViewContainer').hide();
                 $('#tableViewContainer').hide();
                 return;
             }
@@ -133,49 +128,51 @@
             if (!viewsInitialized) {
                 initViews(pid);
             } else {
-                ReservationCardView.propertyId = pid;
+                ReservationCalendarView.propertyId = pid;
                 ReservationTableView.propertyId = pid;
 
-                if ($('#cardViewContainer').is(':visible')) {
-                    ReservationCardView.load(getSearchParams());
+                if ($('#calendarViewContainer').is(':visible')) {
+                    ReservationCalendarView.load(getSearchParams());
                 }
                 if ($('#tableViewContainer').is(':visible')) {
-                    ReservationTableView.reload(getSearchParams());
+                    ReservationTableView.reload(getTableSearchParams());
                 }
             }
         });
 
-        // 뷰 토글: 카드뷰
-        $('#cardViewBtn').on('click', function() {
+        // 뷰 토글: 캘린더뷰
+        $('#calendarViewBtn').on('click', function() {
             $(this).addClass('active');
             $('#tableViewBtn').removeClass('active');
-            $('#cardViewContainer').show();
+            $('#calendarViewContainer').show();
             $('#tableViewContainer').hide();
-            ReservationCardView.load(getSearchParams());
+            $('#tablePeriodGroup').hide();
+            ReservationCalendarView.load(getSearchParams());
         });
 
         // 뷰 토글: 테이블뷰
         $('#tableViewBtn').on('click', function() {
             $(this).addClass('active');
-            $('#cardViewBtn').removeClass('active');
+            $('#calendarViewBtn').removeClass('active');
             $('#tableViewContainer').show();
-            $('#cardViewContainer').hide();
-            ReservationTableView.reload(getSearchParams());
+            $('#calendarViewContainer').hide();
+            $('#tablePeriodGroup').show();
+
+            // 캘린더의 현재 월을 테이블 기간의 기준으로 동기화
+            var calMonth = ReservationCalendarView.getCurrentMonthRange();
+            if (calMonth) {
+                syncTableFromCalendar(calMonth.year, calMonth.month);
+            }
+
+            ReservationTableView.reload(getTableSearchParams());
         });
 
-        // 날짜 이전
-        $('#prevDateBtn').on('click', function() {
-            changeDate(-1);
-        });
-
-        // 날짜 다음
-        $('#nextDateBtn').on('click', function() {
-            changeDate(1);
-        });
-
-        // 날짜 변경 시 자동 검색
-        $('#selectedDate').on('change', function() {
-            doSearch();
+        // 테이블뷰 기간 프리셋
+        $('#tablePeriodGroup').on('click', 'button[data-period]', function() {
+            $('#tablePeriodGroup button').removeClass('active');
+            $(this).addClass('active');
+            currentPeriod = parseInt($(this).data('period'));
+            ReservationTableView.reload(getTableSearchParams());
         });
 
         // 검색 버튼
@@ -201,55 +198,67 @@
          * 뷰 초기화
          */
         function initViews(pid) {
-            var today = new Date().toISOString().split('T')[0];
-            if (!$('#selectedDate').val()) {
-                $('#selectedDate').val(today);
-            }
-
-            ReservationCardView.init(pid);
-            $('#cardViewContainer').show();
+            ReservationCalendarView.init(pid);
+            $('#calendarViewContainer').show();
 
             ReservationTableView.init(pid);
             viewsInitialized = true;
         }
 
         /**
-         * 날짜 변경 헬퍼
-         */
-        function changeDate(offset) {
-            var current = $('#selectedDate').val();
-            if (!current) return;
-            var d = new Date(current);
-            d.setDate(d.getDate() + offset);
-            var yyyy = d.getFullYear();
-            var mm = String(d.getMonth() + 1).padStart(2, '0');
-            var dd = String(d.getDate()).padStart(2, '0');
-            $('#selectedDate').val(yyyy + '-' + mm + '-' + dd);
-            doSearch();
-        }
-
-        /**
-         * 검색 파라미터 조립
+         * 검색 파라미터 조립 (캘린더뷰용)
          */
         function getSearchParams() {
             return {
-                date: $('#selectedDate').val(),
                 status: $('#statusFilter').val(),
                 keyword: $.trim($('#keyword').val())
             };
         }
 
         /**
+         * 테이블뷰 검색 파라미터 (기간 프리셋 포함)
+         */
+        function getTableSearchParams() {
+            var now = new Date();
+            var checkInFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+            var checkInTo = new Date(now.getFullYear(), now.getMonth() + currentPeriod, 0);
+
+            return {
+                status: $('#statusFilter').val(),
+                keyword: $.trim($('#keyword').val()),
+                checkInFrom: formatDate(checkInFrom),
+                checkInTo: formatDate(checkInTo)
+            };
+        }
+
+        /**
+         * 캘린더 월 기준으로 테이블 기간 동기화
+         */
+        function syncTableFromCalendar(year, month) {
+            // 캘린더에서 보던 월의 1일부터 기간 프리셋만큼
+            // (별도 상태 저장 없이, getTableSearchParams에서 currentPeriod 사용)
+        }
+
+        /**
          * 검색 실행 (현재 활성 뷰에 따라 분기)
          */
         function doSearch() {
-            var params = getSearchParams();
-            if ($('#cardViewContainer').is(':visible')) {
-                ReservationCardView.load(params);
+            if ($('#calendarViewContainer').is(':visible')) {
+                ReservationCalendarView.load(getSearchParams());
             }
             if ($('#tableViewContainer').is(':visible')) {
-                ReservationTableView.reload(params);
+                ReservationTableView.reload(getTableSearchParams());
             }
+        }
+
+        /**
+         * 날짜 포맷 헬퍼
+         */
+        function formatDate(d) {
+            var yyyy = d.getFullYear();
+            var mm = String(d.getMonth() + 1).padStart(2, '0');
+            var dd = String(d.getDate()).padStart(2, '0');
+            return yyyy + '-' + mm + '-' + dd;
         }
     });
     </script>

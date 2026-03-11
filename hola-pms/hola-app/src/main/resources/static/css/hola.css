@@ -361,3 +361,16 @@ textarea[readonly].form-control {
 .card-section-toggle.collapsed .section-arrow {
     transform: rotate(-90deg);
 }
+
+/* ── 예약 캘린더뷰 ── */
+.calendar-cell {
+    transition: background-color 0.15s ease;
+}
+.calendar-cell:hover {
+    background-color: #f0f7ff !important;
+}
+.calendar-item:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+    transition: all 0.15s ease;
+}

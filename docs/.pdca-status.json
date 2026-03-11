@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-03-08T23:45:08.386Z",
+  "lastUpdated": "2026-03-11T05:03:35.837Z",
   "activeFeatures": [
     "hola",
     "entity",
@@ -17,7 +17,8 @@
     "request",
     "response",
     "mapper",
-    "tmp"
+    "tmp",
+    "util"
   ],
   "primaryFeature": "hola",
   "features": {
@@ -121,9 +122,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T01:52:07.687Z",
-        "lastUpdated": "2026-03-08T10:49:56.867Z"
+        "lastUpdated": "2026-03-11T02:14:20.060Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-hotel/src/main/java/com/hola/hotel/repository/EarlyLateFeePolicyRepository.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/repository/MasterReservationRepository.java"
     },
     "service": {
       "phase": "do",
@@ -134,7 +135,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T01:52:13.621Z",
-        "lastUpdated": "2026-03-08T11:17:40.825Z"
+        "lastUpdated": "2026-03-11T05:03:35.837Z"
       },
       "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationServiceImpl.java"
     },
@@ -147,9 +148,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T01:52:16.665Z",
-        "lastUpdated": "2026-03-08T23:24:49.103Z"
+        "lastUpdated": "2026-03-11T02:18:31.904Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-common/src/main/java/com/hola/common/auth/controller/MyProfileViewController.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/controller/ReservationViewController.java"
     },
     "js": {
       "phase": "do",
@@ -160,9 +161,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T01:54:06.614Z",
-        "lastUpdated": "2026-03-08T23:45:08.386Z"
+        "lastUpdated": "2026-03-11T02:19:04.558Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/resources/static/js/reservation-detail.js"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/resources/static/js/reservation-daily.js"
     },
     "web": {
       "phase": "do",
@@ -199,9 +200,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T02:02:20.421Z",
-        "lastUpdated": "2026-03-08T11:17:31.792Z"
+        "lastUpdated": "2026-03-11T02:13:44.260Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/dto/response/ReservationDetailResponse.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/dto/response/ReservationCalendarResponse.java"
     },
     "mapper": {
       "phase": "do",
@@ -228,6 +229,19 @@
         "lastUpdated": "2026-03-07T12:13:02.121Z"
       },
       "lastFile": "/tmp/full-fix-test.js"
+    },
+    "util": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-11T02:02:03.236Z",
+        "lastUpdated": "2026-03-11T02:02:03.236Z"
+      },
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-common/src/main/java/com/hola/common/util/NameMaskingUtil.java"
     }
   },
   "pipeline": {
@@ -238,7 +252,7 @@
   "session": {
     "startedAt": "2026-03-03T00:54:55.026Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-03-08T23:45:08.386Z"
+    "lastActivity": "2026-03-11T05:03:35.837Z"
   },
   "history": [
     {
@@ -6940,6 +6954,96 @@
     {
       "timestamp": "2026-03-08T23:45:08.386Z",
       "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:02:03.236Z",
+      "feature": "util",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:13:44.260Z",
+      "feature": "response",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:14:20.060Z",
+      "feature": "repository",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:14:24.057Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:14:30.510Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:14:40.165Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:14:48.830Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:15:14.811Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:15:22.329Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:15:49.293Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:16:51.104Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:17:52.896Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:18:31.904Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T02:19:04.558Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T05:03:35.837Z",
+      "feature": "service",
       "phase": "do",
       "action": "updated"
     }
