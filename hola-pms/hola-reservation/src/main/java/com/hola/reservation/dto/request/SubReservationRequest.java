@@ -17,6 +17,9 @@ import java.util.List;
 @Builder
 public class SubReservationRequest {
 
+    /** 기존 서브 예약 ID (수정 시 사용, 신규 시 null) */
+    private Long id;
+
     private Long roomTypeId;
     private Long floorId;
     private Long roomNumberId;

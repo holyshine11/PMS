@@ -362,6 +362,24 @@ textarea[readonly].form-control {
     transform: rotate(-90deg);
 }
 
+/* ── 상태 필터 버튼 ── */
+.status-filter-btn {
+    padding: 4px 14px;
+    border-radius: 20px !important;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+.status-filter-btn:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+}
+.status-filter-btn.active {
+    border-color: #051923 !important;
+    box-shadow: 0 0 0 1px #051923 !important;
+    font-weight: 600;
+}
+
 /* ── 예약 캘린더뷰 ── */
 .calendar-cell {
     transition: background-color 0.15s ease;

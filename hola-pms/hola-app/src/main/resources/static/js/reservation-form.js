@@ -38,18 +38,26 @@ var ReservationForm = {
     },
 
     /**
-     * 체크인/체크아웃 기본 날짜 설정 (오늘, 내일)
+     * 체크인/체크아웃 기본 날짜 설정
+     * URL 파라미터 checkInDate가 있으면 해당 날짜 사용, 없으면 오늘/내일
      */
     setDefaultDates: function() {
-        var today = new Date();
-        var tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        var params = new URLSearchParams(window.location.search);
+        var checkInParam = params.get('checkInDate');
 
-        var todayStr = this.formatDate(today);
-        var tomorrowStr = this.formatDate(tomorrow);
+        var checkInDate, checkOutDate;
+        if (checkInParam && /^\d{4}-\d{2}-\d{2}$/.test(checkInParam)) {
+            checkInDate = new Date(checkInParam + 'T00:00:00');
+            checkOutDate = new Date(checkInDate);
+            checkOutDate.setDate(checkOutDate.getDate() + 1);
+        } else {
+            checkInDate = new Date();
+            checkOutDate = new Date(checkInDate);
+            checkOutDate.setDate(checkOutDate.getDate() + 1);
+        }
 
-        $('#masterCheckIn').val(todayStr);
-        $('#masterCheckOut').val(tomorrowStr);
+        $('#masterCheckIn').val(this.formatDate(checkInDate));
+        $('#masterCheckOut').val(this.formatDate(checkOutDate));
 
         // 날짜 범위 바인딩
         HolaPms.bindDateRange('#masterCheckIn', '#masterCheckOut');
@@ -689,8 +697,8 @@ var ReservationForm = {
             $('#masterCheckOut').focus();
             return false;
         }
-        if (!data.guestNameKo) {
-            HolaPms.alert('warning', '예약자명(국문)을 입력해주세요.');
+        if (!data.guestNameKo && !data.guestLastNameEn) {
+            HolaPms.alert('warning', '예약자명(국문) 또는 영문 성을 입력해주세요.');
             $('a[href="#tabReservation"]').tab('show');
             $('#guestNameKo').focus();
             return false;

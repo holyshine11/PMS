@@ -105,8 +105,9 @@ public class MasterReservation extends BaseEntity {
     @Column(name = "customer_request", columnDefinition = "TEXT")
     private String customerRequest;
 
-    // 서브 예약 목록
+    // 서브 예약 목록 (ID 순 정렬 보장)
     @OneToMany(mappedBy = "masterReservation", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id ASC")
     @Builder.Default
     private List<SubReservation> subReservations = new ArrayList<>();
 

@@ -20,4 +20,8 @@ public interface RoomTypeFloorRepository extends JpaRepository<RoomTypeFloor, Lo
     void deleteAllByRoomTypeId(@Param("roomTypeId") Long roomTypeId);
 
     long countByRoomTypeId(Long roomTypeId);
+
+    /** 특정 층에 매핑된 호수 ID 목록 (중복 제거) */
+    @Query("SELECT DISTINCT rtf.roomNumberId FROM RoomTypeFloor rtf WHERE rtf.floorId = :floorId")
+    List<Long> findDistinctRoomNumberIdsByFloorId(@Param("floorId") Long floorId);
 }

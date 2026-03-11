@@ -19,20 +19,19 @@
     <!-- 검색/필터 카드 -->
     <div class="card border-0 shadow-sm mb-3" id="searchCard" style="display:none;">
         <div class="card-body py-3">
-            <div class="row g-2 align-items-center">
-                <!-- 상태 필터 -->
-                <div class="col-auto">
-                    <select class="form-select form-select-sm" id="statusFilter">
-                        <option value="">전체 상태</option>
-                        <option value="RESERVED">예약</option>
-                        <option value="CHECK_IN">체크인</option>
-                        <option value="INHOUSE">투숙중</option>
-                        <option value="CHECKED_OUT">체크아웃</option>
-                        <option value="CANCELED">취소</option>
-                        <option value="NO_SHOW">노쇼</option>
-                    </select>
+            <!-- 상태 필터 버튼 -->
+            <div class="mb-2">
+                <div class="d-flex flex-wrap gap-2" id="statusFilterGroup">
+                    <button class="btn btn-sm status-filter-btn active" data-status="" style="background:#051923; color:#fff; border:2px solid #051923;">전체</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="RESERVED" style="background:#d4edff; color:#0582CA; border:2px solid transparent;">예약</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="CHECK_IN" style="background:#d1ecf1; color:#0c5460; border:2px solid transparent;">체크인</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="INHOUSE" style="background:#003554; color:#ffffff; border:2px solid transparent;">투숙중</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="CHECKED_OUT" style="background:#e2e3e5; color:#383d41; border:2px solid transparent;">체크아웃</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="CANCELED" style="background:#f8d7da; color:#721c24; border:2px solid transparent;">취소</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="NO_SHOW" style="background:#fff3cd; color:#856404; border:2px solid transparent;">노쇼</button>
                 </div>
-
+            </div>
+            <div class="row g-2 align-items-center">
                 <!-- 키워드 검색 -->
                 <div class="col-auto">
                     <input type="text" class="form-control form-control-sm" id="keyword"
@@ -43,6 +42,13 @@
                 <div class="col-auto">
                     <button class="btn btn-primary btn-sm" id="searchBtn">
                         <i class="fas fa-search me-1"></i>검색
+                    </button>
+                </div>
+
+                <!-- 초기화 버튼 -->
+                <div class="col-auto">
+                    <button class="btn btn-outline-secondary btn-sm" id="resetBtn">
+                        <i class="fas fa-undo me-1"></i>초기화
                     </button>
                 </div>
 
@@ -175,8 +181,24 @@
             ReservationTableView.reload(getTableSearchParams());
         });
 
+        // 상태 필터 버튼 클릭
+        $('#statusFilterGroup').on('click', 'button[data-status]', function() {
+            $('#statusFilterGroup button').removeClass('active').css('border-color', 'transparent').css('box-shadow', 'none');
+            $(this).addClass('active').css('border-color', '#051923').css('box-shadow', '0 0 0 1px #051923');
+            doSearch();
+        });
+
         // 검색 버튼
         $('#searchBtn').on('click', function() {
+            doSearch();
+        });
+
+        // 초기화 버튼
+        $('#resetBtn').on('click', function() {
+            $('#statusFilterGroup button').removeClass('active').css('border-color', 'transparent').css('box-shadow', 'none');
+            var $all = $('#statusFilterGroup button[data-status=""]');
+            $all.addClass('active').css('border-color', '#051923').css('box-shadow', '0 0 0 1px #051923');
+            $('#keyword').val('');
             doSearch();
         });
 
@@ -210,7 +232,7 @@
          */
         function getSearchParams() {
             return {
-                status: $('#statusFilter').val(),
+                status: $('#statusFilterGroup button.active').data('status'),
                 keyword: $.trim($('#keyword').val())
             };
         }
@@ -224,7 +246,7 @@
             var checkInTo = new Date(now.getFullYear(), now.getMonth() + currentPeriod, 0);
 
             return {
-                status: $('#statusFilter').val(),
+                status: $('#statusFilterGroup button.active').data('status'),
                 keyword: $.trim($('#keyword').val()),
                 checkInFrom: formatDate(checkInFrom),
                 checkInTo: formatDate(checkInTo)
@@ -244,7 +266,13 @@
          */
         function doSearch() {
             if ($('#calendarViewContainer').is(':visible')) {
-                ReservationCalendarView.load(getSearchParams());
+                var params = getSearchParams();
+                if (params.keyword) {
+                    // 키워드 검색: 해당 예약 월로 자동 이동 후 로드
+                    ReservationCalendarView.searchAndNavigate(params);
+                } else {
+                    ReservationCalendarView.load(params);
+                }
             }
             if ($('#tableViewContainer').is(':visible')) {
                 ReservationTableView.reload(getTableSearchParams());

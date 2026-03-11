@@ -93,6 +93,9 @@ public class ReservationServiceImpl implements ReservationService {
         MasterReservation master = findMasterById(id);
         ReservationDetailResponse response = reservationMapper.toReservationDetailResponse(master);
 
+        // 서브 예약의 층/호수/객실타입 이름 벌크 resolve
+        List<SubReservationResponse> resolvedSubs = resolveSubReservationNames(response.getSubReservations());
+
         // 보증금 목록
         List<ReservationDeposit> deposits = reservationDepositRepository
                 .findByMasterReservationId(id);
@@ -140,12 +143,67 @@ public class ReservationServiceImpl implements ReservationService {
                 .otaReservationNo(response.getOtaReservationNo())
                 .isOtaManaged(response.getIsOtaManaged())
                 .customerRequest(response.getCustomerRequest())
-                .subReservations(response.getSubReservations())
+                .subReservations(resolvedSubs)
                 .deposits(depositResponses)
                 .memos(memoResponses)
                 .createdAt(response.getCreatedAt())
                 .updatedAt(response.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * 서브 예약의 층/호수/객실타입 이름을 벌크 resolve
+     */
+    private List<SubReservationResponse> resolveSubReservationNames(List<SubReservationResponse> subs) {
+        if (subs == null || subs.isEmpty()) return subs;
+
+        // ID 수집
+        Set<Long> floorIds = new HashSet<>();
+        Set<Long> roomNumberIds = new HashSet<>();
+        Set<Long> roomTypeIds = new HashSet<>();
+        for (SubReservationResponse sub : subs) {
+            if (sub.getFloorId() != null) floorIds.add(sub.getFloorId());
+            if (sub.getRoomNumberId() != null) roomNumberIds.add(sub.getRoomNumberId());
+            if (sub.getRoomTypeId() != null) roomTypeIds.add(sub.getRoomTypeId());
+        }
+
+        // 벌크 조회
+        Map<Long, String> floorMap = floorIds.isEmpty() ? Map.of()
+                : floorRepository.findAllById(floorIds).stream()
+                    .collect(Collectors.toMap(Floor::getId, f -> f.getFloorNumber() + (f.getFloorName() != null ? " | " + f.getFloorName() : "")));
+        Map<Long, String> roomNumberMap = roomNumberIds.isEmpty() ? Map.of()
+                : roomNumberRepository.findAllById(roomNumberIds).stream()
+                    .collect(Collectors.toMap(RoomNumber::getId, RoomNumber::getRoomNumber));
+        Map<Long, String> roomTypeMap = roomTypeIds.isEmpty() ? Map.of()
+                : roomTypeRepository.findAllById(roomTypeIds).stream()
+                    .collect(Collectors.toMap(RoomType::getId, RoomType::getRoomTypeCode));
+
+        // 이름이 포함된 새 SubReservationResponse 생성
+        return subs.stream().map(sub -> SubReservationResponse.builder()
+                .id(sub.getId())
+                .subReservationNo(sub.getSubReservationNo())
+                .roomReservationStatus(sub.getRoomReservationStatus())
+                .roomTypeId(sub.getRoomTypeId())
+                .roomTypeName(sub.getRoomTypeId() != null ? roomTypeMap.get(sub.getRoomTypeId()) : null)
+                .floorId(sub.getFloorId())
+                .floorName(sub.getFloorId() != null ? floorMap.get(sub.getFloorId()) : null)
+                .roomNumberId(sub.getRoomNumberId())
+                .roomNumber(sub.getRoomNumberId() != null ? roomNumberMap.get(sub.getRoomNumberId()) : null)
+                .adults(sub.getAdults())
+                .children(sub.getChildren())
+                .checkIn(sub.getCheckIn())
+                .checkOut(sub.getCheckOut())
+                .earlyCheckIn(sub.getEarlyCheckIn())
+                .lateCheckOut(sub.getLateCheckOut())
+                .actualCheckInTime(sub.getActualCheckInTime())
+                .actualCheckOutTime(sub.getActualCheckOutTime())
+                .earlyCheckInFee(sub.getEarlyCheckInFee())
+                .lateCheckOutFee(sub.getLateCheckOutFee())
+                .guests(sub.getGuests())
+                .dailyCharges(sub.getDailyCharges())
+                .services(sub.getServices())
+                .build()
+        ).collect(Collectors.toList());
     }
 
     @Override
@@ -230,6 +288,41 @@ public class ReservationServiceImpl implements ReservationService {
                 request.getOtaReservationNo(), request.getIsOtaManaged(),
                 request.getCustomerRequest()
         );
+
+        // 서브 예약(객실 레그) 업데이트
+        if (request.getSubReservations() != null) {
+            Property property = master.getProperty();
+            for (SubReservationRequest subReq : request.getSubReservations()) {
+                if (subReq.getId() != null) {
+                    // 기존 레그 수정
+                    SubReservation sub = subReservationRepository.findById(subReq.getId())
+                            .orElseThrow(() -> new HolaException(ErrorCode.SUB_RESERVATION_NOT_FOUND));
+                    validateDates(subReq.getCheckIn(), subReq.getCheckOut());
+
+                    if (subReq.getRoomNumberId() != null) {
+                        if (availabilityService.hasRoomConflict(subReq.getRoomNumberId(),
+                                subReq.getCheckIn(), subReq.getCheckOut(), sub.getId())) {
+                            throw new HolaException(ErrorCode.SUB_RESERVATION_ROOM_CONFLICT);
+                        }
+                    }
+
+                    sub.update(subReq.getRoomTypeId(), subReq.getFloorId(), subReq.getRoomNumberId(),
+                            subReq.getAdults() != null ? subReq.getAdults() : 1,
+                            subReq.getChildren() != null ? subReq.getChildren() : 0,
+                            subReq.getCheckIn(), subReq.getCheckOut(),
+                            subReq.getEarlyCheckIn() != null ? subReq.getEarlyCheckIn() : false,
+                            subReq.getLateCheckOut() != null ? subReq.getLateCheckOut() : false);
+
+                    updateGuests(sub, subReq.getGuests());
+                    recalculateDailyCharges(sub, property);
+                } else {
+                    // 신규 레그 추가
+                    int legSeq = master.getSubReservations().size() + 1;
+                    createSubReservation(master, subReq, legSeq, property);
+                }
+            }
+            syncMasterDates(master);
+        }
 
         log.info("마스터 예약 수정: {}", master.getMasterReservationNo());
         return getById(id);
@@ -675,13 +768,27 @@ public class ReservationServiceImpl implements ReservationService {
             roomTypeName = firstSub.getRoomTypeId() != null ? roomTypeMap.get(firstSub.getRoomTypeId()) : null;
         }
 
+        // 이름: 국문 우선, 없으면 영문 폴백 (OTA 예약 대응)
+        String displayName = master.getGuestNameKo();
+        if (displayName == null || displayName.isBlank()) {
+            StringBuilder en = new StringBuilder();
+            if (master.getGuestLastNameEn() != null) en.append(master.getGuestLastNameEn());
+            if (master.getGuestFirstNameEn() != null) {
+                if (en.length() > 0) en.append(" ");
+                en.append(master.getGuestFirstNameEn());
+            }
+            if (en.length() > 0) displayName = en.toString();
+        }
+        String maskedName = (displayName != null && !displayName.isBlank())
+                ? NameMaskingUtil.maskKoreanName(displayName) : null;
+
         return ReservationCalendarResponse.builder()
                 .id(master.getId())
                 .masterReservationNo(master.getMasterReservationNo())
                 .reservationStatus(master.getReservationStatus())
                 .masterCheckIn(master.getMasterCheckIn())
                 .masterCheckOut(master.getMasterCheckOut())
-                .guestNameMasked(NameMaskingUtil.maskKoreanName(master.getGuestNameKo()))
+                .guestNameMasked(maskedName)
                 .roomInfo(roomInfo)
                 .roomTypeName(roomTypeName)
                 .build();

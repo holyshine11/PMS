@@ -14,9 +14,19 @@ var ReservationCalendarView = {
      */
     init: function(propertyId) {
         this.propertyId = propertyId;
-        var today = new Date();
-        this.currentYear = today.getFullYear();
-        this.currentMonth = today.getMonth() + 1;
+
+        // sessionStorage에 저장된 월이 있으면 복원 (뒤로가기 대응)
+        var savedYear = sessionStorage.getItem('cal_year');
+        var savedMonth = sessionStorage.getItem('cal_month');
+        if (savedYear && savedMonth) {
+            this.currentYear = parseInt(savedYear);
+            this.currentMonth = parseInt(savedMonth);
+        } else {
+            var today = new Date();
+            this.currentYear = today.getFullYear();
+            this.currentMonth = today.getMonth() + 1;
+        }
+
         this.bindEvents();
         this.load();
     },
@@ -97,6 +107,10 @@ var ReservationCalendarView = {
 
         var url = '/api/v1/properties/' + this.propertyId + '/reservations/calendar?' + queryParams.join('&');
 
+        // 현재 월 상태를 sessionStorage에 보존 (뒤로가기 복원용)
+        sessionStorage.setItem('cal_year', this.currentYear);
+        sessionStorage.setItem('cal_month', this.currentMonth);
+
         HolaPms.ajax({
             url: url,
             type: 'GET',
@@ -112,17 +126,73 @@ var ReservationCalendarView = {
     },
 
     /**
+     * 키워드 검색 시 해당 예약 월로 자동 이동 후 로드
+     */
+    searchAndNavigate: function(params) {
+        var self = this;
+        if (!self.propertyId) return;
+
+        // 키워드가 없으면 현재 월에서 그냥 로드
+        if (!params || !params.keyword) {
+            self.load(params);
+            return;
+        }
+
+        // 리스트 API로 먼저 해당 예약의 체크인 월을 조회
+        var listParams = 'keyword=' + encodeURIComponent(params.keyword);
+        if (params.status) listParams += '&status=' + params.status;
+
+        $.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations?' + listParams,
+            method: 'GET',
+            success: function(res) {
+                var list = res.data || [];
+                if (list.length > 0 && list[0].masterCheckIn) {
+                    // 첫 번째 검색 결과의 체크인 월로 캘린더 이동
+                    var parts = list[0].masterCheckIn.split('-');
+                    self.currentYear = parseInt(parts[0]);
+                    self.currentMonth = parseInt(parts[1]);
+                }
+                self.load(params);
+            },
+            error: function() {
+                self.load(params);
+            }
+        });
+    },
+
+    /**
      * 캘린더 전체 렌더링 (2개월)
      */
     render: function() {
         var html = '';
 
-        // 헤더: 월 이동 + 오늘
-        html += '<div class="d-flex align-items-center mb-3">';
+        // 헤더: 월 이동 + 오늘 + 상태 범례
+        html += '<div class="d-flex align-items-center justify-content-between mb-3">';
+        html += '<div class="d-flex align-items-center">';
         html += '<button class="btn btn-outline-secondary btn-sm me-2" id="calPrevBtn"><i class="fas fa-chevron-left"></i></button>';
         html += '<h5 class="fw-bold mb-0">' + this.currentYear + '.' + this.padZero(this.currentMonth) + '</h5>';
         html += '<button class="btn btn-outline-secondary btn-sm ms-2" id="calNextBtn"><i class="fas fa-chevron-right"></i></button>';
         html += '<button class="btn btn-outline-primary btn-sm ms-3" id="calTodayBtn">오늘</button>';
+        html += '</div>';
+        // 상태 컬러 범례
+        html += '<div class="d-flex align-items-center gap-2 flex-wrap" style="font-size:0.75rem;">';
+        var legendItems = [
+            { label: '예약', status: 'RESERVED' },
+            { label: '체크인', status: 'CHECK_IN' },
+            { label: '투숙중', status: 'INHOUSE' },
+            { label: '체크아웃', status: 'CHECKED_OUT' },
+            { label: '취소', status: 'CANCELED' },
+            { label: '노쇼', status: 'NO_SHOW' }
+        ];
+        for (var li = 0; li < legendItems.length; li++) {
+            var lc = this.getStatusColor(legendItems[li].status);
+            html += '<span class="d-inline-flex align-items-center">';
+            html += '<span style="display:inline-block; width:12px; height:12px; border-radius:2px; background:' + lc.bg + '; border:1px solid #ccc; margin-right:3px;"></span>';
+            html += legendItems[li].label;
+            html += '</span>';
+        }
+        html += '</div>';
         html += '</div>';
 
         // 첫 번째 달
@@ -185,7 +255,7 @@ var ReservationCalendarView = {
                     var cellStyle = 'min-height:100px; border:1px solid #eee;';
                     if (isToday) cellStyle += ' background:#e8f4fd;';
 
-                    html += '<div class="col calendar-cell" style="' + cellStyle + '">';
+                    html += '<div class="col calendar-cell" style="' + cellStyle + '" data-date="' + dateStr + '" ondblclick="ReservationCalendarView.onCellDblClick(\'' + dateStr + '\')">';
 
                     // 날짜 숫자
                     var numStyle = 'font-size:0.78rem; font-weight:600;';
@@ -212,38 +282,102 @@ var ReservationCalendarView = {
     },
 
     /**
-     * 셀 내 예약 항목 렌더링 (최대 10건 + 더보기)
+     * 셀 내 예약 항목 렌더링 (연속 바 + 상태/예약번호 포함)
      */
     renderCellItems: function(items, dateStr) {
         if (!items || items.length === 0) return '';
 
-        var html = '<div class="px-1 pb-1">';
-        var showCount = Math.min(items.length, this.MAX_ITEMS_PER_CELL);
+        // ID 순 정렬 (일자별 일관된 순서 보장 → 연속 바 위치 유지)
+        var sorted = items.slice().sort(function(a, b) { return a.id - b.id; });
+        var showCount = Math.min(sorted.length, this.MAX_ITEMS_PER_CELL);
+
+        var html = '<div class="pb-1">';
 
         for (var i = 0; i < showCount; i++) {
-            var item = items[i];
+            var item = sorted[i];
+            var pos = this.getBarPosition(item, dateStr);
             var statusColor = this.getStatusColor(item.reservationStatus);
+            var statusLabel = this.getStatusLabel(item.reservationStatus);
             var name = HolaPms.escapeHtml(item.guestNameMasked || '-');
             var room = item.roomInfo ? HolaPms.escapeHtml(item.roomInfo) : '';
+            var resNo = item.masterReservationNo ? HolaPms.escapeHtml(item.masterReservationNo) : '';
 
-            html += '<div class="calendar-item mb-1" style="cursor:pointer; font-size:0.72rem; padding:1px 4px; border-radius:3px; ';
-            html += 'background-color:' + statusColor.bg + '; color:' + statusColor.text + '; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" ';
+            // 위치별 border-radius (연속 바 효과)
+            var radius;
+            if (pos === 'single') radius = '3px';
+            else if (pos === 'start') radius = '3px 0 0 3px';
+            else if (pos === 'end') radius = '0 3px 3px 0';
+            else radius = '0';
+
+            var tooltip = '[' + statusLabel + '] ' + resNo + ' ' + name + (room ? ' | ' + room : '');
+
+            html += '<div class="calendar-item mb-1" style="cursor:pointer; font-size:0.7rem; padding:1px 4px; ';
+            html += 'border-radius:' + radius + '; ';
+            html += 'background-color:' + statusColor.bg + '; color:' + statusColor.text + '; ';
+            html += 'white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" ';
             html += 'onclick="window.location.href=\'/admin/reservations/' + item.id + '\'" ';
-            html += 'title="' + name + (room ? ' | ' + room : '') + '">';
-            html += name;
-            if (room) html += ' <span style="opacity:0.8;">' + room + '</span>';
+            html += 'title="' + tooltip + '">';
+
+            if (pos === 'start' || pos === 'single') {
+                // 시작일/1박: [상태] + 이름 + 호수 (예약 상태만 예약번호 추가)
+                html += '<span style="font-weight:600;">[' + statusLabel + ']</span> ';
+                if (item.reservationStatus === 'RESERVED' && resNo) {
+                    html += '<span style="opacity:0.7;">' + resNo + '</span> ';
+                }
+                html += name;
+                if (room) html += ' <span style="opacity:0.7;">' + room + '</span>';
+            } else {
+                // 중간/끝일: [상태] + 이름 (바 연속성 유지)
+                html += '<span style="font-weight:600;">[' + statusLabel + ']</span> ';
+                html += name;
+            }
+
             html += '</div>';
         }
 
         // +N건 더보기
-        if (items.length > this.MAX_ITEMS_PER_CELL) {
-            var moreCount = items.length - this.MAX_ITEMS_PER_CELL;
+        if (sorted.length > this.MAX_ITEMS_PER_CELL) {
+            var moreCount = sorted.length - this.MAX_ITEMS_PER_CELL;
             html += '<a href="/admin/reservations/daily?date=' + dateStr + '" class="d-block text-center" ';
             html += 'style="font-size:0.7rem; color:#0582CA; text-decoration:none; cursor:pointer;">+' + moreCount + '건 더보기</a>';
         }
 
         html += '</div>';
         return html;
+    },
+
+    /**
+     * 예약 바 위치 판정 (start/middle/end/single)
+     */
+    getBarPosition: function(item, dateStr) {
+        var checkIn = item.masterCheckIn;
+        // 체크아웃 전날이 마지막 숙박일
+        var coDate = new Date(item.masterCheckOut + 'T00:00:00');
+        coDate.setDate(coDate.getDate() - 1);
+        var lastNight = this.formatDate(coDate);
+
+        var isStart = (dateStr === checkIn);
+        var isEnd = (dateStr === lastNight);
+
+        if (isStart && isEnd) return 'single';
+        if (isStart) return 'start';
+        if (isEnd) return 'end';
+        return 'middle';
+    },
+
+    /**
+     * 상태 라벨
+     */
+    getStatusLabel: function(status) {
+        var labels = {
+            'RESERVED': '예약',
+            'CHECK_IN': '체크인',
+            'INHOUSE': '투숙중',
+            'CHECKED_OUT': '체크아웃',
+            'CANCELED': '취소',
+            'NO_SHOW': '노쇼'
+        };
+        return labels[status] || status;
     },
 
     /**
@@ -259,6 +393,13 @@ var ReservationCalendarView = {
             'NO_SHOW':     { bg: '#fff3cd', text: '#856404' }
         };
         return map[status] || { bg: '#e2e3e5', text: '#383d41' };
+    },
+
+    /**
+     * 빈 날짜 셀 더블클릭 → 신규 예약 등록 (해당 일자)
+     */
+    onCellDblClick: function(dateStr) {
+        window.location.href = '/admin/reservations/new?checkInDate=' + dateStr;
     },
 
     /**

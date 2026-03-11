@@ -33,11 +33,11 @@ var ReservationDetail = {
             { status: 'NO_SHOW', label: '노쇼', icon: 'fa-user-slash', cls: 'btn-warning' }
         ],
         CHECK_IN: [
-            { status: 'INHOUSE', label: '입실', icon: 'fa-door-open', cls: 'btn-success' },
+            { status: 'INHOUSE', label: '체크인', icon: 'fa-door-open', cls: 'btn-success' },
             { status: 'CANCELED', label: '취소', icon: 'fa-ban', cls: 'btn-danger' }
         ],
         INHOUSE: [
-            { status: 'CHECKED_OUT', label: '퇴실', icon: 'fa-sign-out-alt', cls: 'btn-secondary' }
+            { status: 'CHECKED_OUT', label: '체크아웃', icon: 'fa-sign-out-alt', cls: 'btn-secondary' }
         ]
     },
 
@@ -144,6 +144,8 @@ var ReservationDetail = {
         if (self.isReadonly) $('#readonlyAlert').removeClass('d-none');
 
         // ── Tab 1: 예약정보 ──
+        $('#masterReservationNoDisplay').val(data.masterReservationNo || '');
+        $('#confirmationNoDisplay').val(data.confirmationNo || '');
         $('#masterCheckIn').val(data.masterCheckIn || '');
         $('#masterCheckOut').val(data.masterCheckOut || '');
         HolaPms.bindDateRange('#masterCheckIn', '#masterCheckOut');
@@ -998,8 +1000,8 @@ var ReservationDetail = {
             $('#masterCheckOut').focus();
             return false;
         }
-        if (!data.guestNameKo) {
-            HolaPms.alert('warning', '예약자명(국문)을 입력해주세요.');
+        if (!data.guestNameKo && !data.guestLastNameEn) {
+            HolaPms.alert('warning', '예약자명(국문) 또는 영문 성을 입력해주세요.');
             $('a[href="#tabReservation"]').tab('show');
             $('#guestNameKo').focus();
             return false;
@@ -1050,7 +1052,7 @@ var ReservationDetail = {
     },
 
     /**
-     * 저장 (PUT /api/v1/properties/{pid}/reservations/{id})
+     * 저장 (예약정보 + 서브예약 + 예치금 통합 저장)
      */
     save: function() {
         var self = this;
@@ -1063,6 +1065,7 @@ var ReservationDetail = {
         var data = self.collectFormData();
         if (!self.validate(data)) return;
 
+        // 1단계: 예약 정보 저장
         $.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId,
             method: 'PUT',
@@ -1070,13 +1073,74 @@ var ReservationDetail = {
             data: JSON.stringify(data),
             success: function(res) {
                 if (res.success) {
-                    HolaPms.alert('success', '예약이 수정되었습니다.');
-                    // 데이터 갱신
-                    setTimeout(function() { self.loadData(); }, 500);
+                    // 2단계: 예치금 저장
+                    self.saveDeposit(function() {
+                        HolaPms.alert('success', '예약이 수정되었습니다.');
+                        setTimeout(function() { self.loadData(); }, 500);
+                    });
                 }
             },
             error: function(xhr) {
                 HolaPms.handleAjaxError(xhr);
+            }
+        });
+    },
+
+    /**
+     * 예치금 저장 (POST 신규 / PUT 수정)
+     */
+    saveDeposit: function(callback) {
+        var self = this;
+        var depositMethod = HolaPms.form.val('#depositMethod');
+        var amount = parseFloat($('#depositAmount').val()) || 0;
+
+        // 예치 방법 미선택이고 금액 0이면 스킵
+        if (!depositMethod && amount === 0) {
+            if (callback) callback();
+            return;
+        }
+
+        var depositData = {
+            depositMethod: depositMethod,
+            currency: 'KRW',
+            amount: amount
+        };
+
+        // 카드 정보
+        if (depositMethod === 'CREDIT_CARD') {
+            depositData.cardCompany = HolaPms.form.val('#cardCompany');
+            depositData.cardNumberEncrypted = HolaPms.form.val('#cardNumber');
+            depositData.cardCvcEncrypted = HolaPms.form.val('#cardCvc');
+            depositData.cardExpiryDate = HolaPms.form.val('#cardExpiryDate');
+        }
+
+        var depositId = HolaPms.form.val('#depositId');
+        var url, method;
+        if (depositId) {
+            // 기존 예치금 수정
+            url = '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/deposit/' + depositId;
+            method = 'PUT';
+        } else {
+            // 신규 예치금 등록
+            url = '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/deposit';
+            method = 'POST';
+        }
+
+        $.ajax({
+            url: url,
+            method: method,
+            contentType: 'application/json',
+            data: JSON.stringify(depositData),
+            success: function(res) {
+                if (res.success && res.data) {
+                    // 반환된 depositId 업데이트 (신규 등록 시)
+                    $('#depositId').val(res.data.id || '');
+                }
+                if (callback) callback();
+            },
+            error: function(xhr) {
+                HolaPms.handleAjaxError(xhr);
+                if (callback) callback();
             }
         });
     },
