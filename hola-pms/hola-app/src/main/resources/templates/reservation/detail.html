@@ -81,9 +81,8 @@
                             <div class="col-sm-4">
                                 <div class="input-group">
                                     <input type="text" class="form-control" id="rateCodeName" readonly placeholder="선택">
-                                    <button class="btn btn-outline-secondary" type="button" id="rateCodeSearchBtn">
-                                        <i class="fas fa-search"></i>
-                                    </button>
+                                    <button class="btn btn-outline-secondary" type="button" id="rateCodeSearchBtn"><i class="fas fa-search"></i></button>
+                                    <button class="btn btn-outline-danger" type="button" id="rateCodeClearBtn"><i class="fas fa-times"></i></button>
                                 </div>
                                 <input type="hidden" id="rateCodeId">
                             </div>
@@ -91,9 +90,8 @@
                             <div class="col-sm-4">
                                 <div class="input-group">
                                     <input type="text" class="form-control" id="marketCodeName" readonly placeholder="선택">
-                                    <button class="btn btn-outline-secondary" type="button" id="marketCodeSearchBtn">
-                                        <i class="fas fa-search"></i>
-                                    </button>
+                                    <button class="btn btn-outline-secondary" type="button" id="marketCodeSearchBtn"><i class="fas fa-search"></i></button>
+                                    <button class="btn btn-outline-danger" type="button" id="marketCodeClearBtn"><i class="fas fa-times"></i></button>
                                 </div>
                                 <input type="hidden" id="marketCodeId">
                             </div>
@@ -486,12 +484,9 @@
                                 <option value="">선택</option>
                             </select>
                         </div>
-                        <div class="col-md-8">
-                            <label class="form-label">호수 선택</label>
-                            <select class="form-select" id="assignRoomNumberSelect">
-                                <option value="">층을 먼저 선택하세요</option>
-                            </select>
-                        </div>
+                    </div>
+                    <div id="roomNumberList">
+                        <p class="text-muted text-center py-3">층을 먼저 선택하세요</p>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -2,6 +2,8 @@ package com.hola.reservation.repository;
 
 import com.hola.reservation.entity.SubReservation;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -12,6 +14,13 @@ import java.util.List;
 public interface SubReservationRepository extends JpaRepository<SubReservation, Long> {
 
     List<SubReservation> findByMasterReservationId(Long masterReservationId);
+
+    /**
+     * 소프트 삭제 포함 전체 서브 예약 수 (번호 채번용)
+     */
+    @Query(value = "SELECT COUNT(*) FROM rsv_sub_reservation WHERE master_reservation_id = :masterId",
+           nativeQuery = true)
+    int countAllIncludingDeleted(@Param("masterId") Long masterId);
 
     /**
      * L1 객실 가용성: 특정 객실에 대해 겹치는 기간의 예약이 있는지 조회

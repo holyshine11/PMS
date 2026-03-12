@@ -125,6 +125,10 @@ const HolaPms = {
         },
         hide: function(selector) {
             var el = typeof selector === 'string' ? document.querySelector(selector) : selector;
+            // 모달 내부 focus 해제 → aria-hidden 경고 방지
+            if (el && el.contains(document.activeElement)) {
+                document.activeElement.blur();
+            }
             var instance = bootstrap.Modal.getInstance(el);
             if (instance) instance.hide();
         }

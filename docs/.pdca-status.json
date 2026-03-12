@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-03-11T05:03:35.837Z",
+  "lastUpdated": "2026-03-12T02:17:00.641Z",
   "activeFeatures": [
     "hola",
     "entity",
@@ -44,9 +44,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T01:47:22.383Z",
-        "lastUpdated": "2026-03-08T23:24:11.843Z"
+        "lastUpdated": "2026-03-12T01:26:07.928Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-common/src/main/java/com/hola/common/auth/entity/AdminUser.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/entity/MasterReservation.java"
     },
     "config": {
       "phase": "do",
@@ -122,9 +122,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T01:52:07.687Z",
-        "lastUpdated": "2026-03-11T02:14:20.060Z"
+        "lastUpdated": "2026-03-12T01:45:15.367Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/repository/MasterReservationRepository.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/repository/SubReservationRepository.java"
     },
     "service": {
       "phase": "do",
@@ -135,7 +135,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T01:52:13.621Z",
-        "lastUpdated": "2026-03-11T05:03:35.837Z"
+        "lastUpdated": "2026-03-12T01:54:08.281Z"
       },
       "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationServiceImpl.java"
     },
@@ -148,9 +148,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T01:52:16.665Z",
-        "lastUpdated": "2026-03-11T02:18:31.904Z"
+        "lastUpdated": "2026-03-12T02:16:39.048Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/controller/ReservationViewController.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/controller/RoomAssignApiController.java"
     },
     "js": {
       "phase": "do",
@@ -161,9 +161,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T01:54:06.614Z",
-        "lastUpdated": "2026-03-11T02:19:04.558Z"
+        "lastUpdated": "2026-03-12T02:16:47.712Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/resources/static/js/reservation-daily.js"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/resources/static/js/reservation-detail.js"
     },
     "web": {
       "phase": "do",
@@ -187,9 +187,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T02:02:02.915Z",
-        "lastUpdated": "2026-03-08T10:50:03.224Z"
+        "lastUpdated": "2026-03-11T06:42:13.627Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-hotel/src/main/java/com/hola/hotel/dto/request/EarlyLateFeePolicySaveRequest.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/dto/request/SubReservationRequest.java"
     },
     "response": {
       "phase": "do",
@@ -200,9 +200,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-03T02:02:20.421Z",
-        "lastUpdated": "2026-03-11T02:13:44.260Z"
+        "lastUpdated": "2026-03-12T02:17:00.641Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/dto/response/ReservationCalendarResponse.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/dto/response/RoomNumberAvailabilityResponse.java"
     },
     "mapper": {
       "phase": "do",
@@ -252,7 +252,7 @@
   "session": {
     "startedAt": "2026-03-03T00:54:55.026Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-03-11T05:03:35.837Z"
+    "lastActivity": "2026-03-12T02:17:00.641Z"
   },
   "history": [
     {
@@ -7044,6 +7044,366 @@
     {
       "timestamp": "2026-03-11T05:03:35.837Z",
       "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:22:39.080Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:22:50.832Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:22:56.845Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:23:06.777Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:23:26.930Z",
+      "feature": "entity",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:25:07.132Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:25:31.459Z",
+      "feature": "repository",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:25:50.124Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:42:13.627Z",
+      "feature": "request",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:42:28.980Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:42:49.733Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:51:25.266Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:51:33.320Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T06:52:03.282Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T07:10:35.330Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T07:10:43.499Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T07:30:19.550Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T07:33:01.400Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T07:38:14.914Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T07:38:28.171Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T07:38:38.220Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T07:38:48.285Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-11T23:54:26.063Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T00:01:42.314Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T00:02:13.825Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T00:27:29.682Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T00:38:20.295Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T00:55:10.206Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T00:55:22.873Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:02:34.843Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:02:40.027Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:02:55.895Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:03:26.458Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:04:06.007Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:11:08.245Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:11:14.718Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:26:07.928Z",
+      "feature": "entity",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:26:26.779Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:45:15.367Z",
+      "feature": "repository",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:45:22.689Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:45:27.908Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:50:23.340Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:54:08.281Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:54:17.735Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:59:02.513Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:59:11.042Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:59:19.188Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:59:50.727Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T01:59:58.007Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:00:12.771Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:00:27.480Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:03:38.081Z",
+      "feature": "response",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:04:00.073Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:07:14.823Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:07:42.899Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:16:34.722Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:16:39.048Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:16:43.727Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:16:47.712Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-12T02:17:00.641Z",
+      "feature": "response",
       "phase": "do",
       "action": "updated"
     }

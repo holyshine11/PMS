@@ -110,6 +110,9 @@ public class ReservationServiceImpl implements ReservationService {
                 .map(reservationMapper::toReservationMemoResponse)
                 .collect(Collectors.toList());
 
+        // 결제 정보
+        PaymentSummaryResponse paymentSummary = paymentService.getPaymentSummary(id);
+
         return ReservationDetailResponse.builder()
                 .id(response.getId())
                 .propertyId(response.getPropertyId())
@@ -145,6 +148,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .customerRequest(response.getCustomerRequest())
                 .subReservations(resolvedSubs)
                 .deposits(depositResponses)
+                .payment(paymentSummary)
                 .memos(memoResponses)
                 .createdAt(response.getCreatedAt())
                 .updatedAt(response.getUpdatedAt())
@@ -261,6 +265,9 @@ public class ReservationServiceImpl implements ReservationService {
             }
         }
 
+        // 결제 금액 계산 (일별 요금 기반)
+        paymentService.recalculatePayment(master.getId());
+
         return getById(master.getId());
     }
 
@@ -316,13 +323,16 @@ public class ReservationServiceImpl implements ReservationService {
                     updateGuests(sub, subReq.getGuests());
                     recalculateDailyCharges(sub, property);
                 } else {
-                    // 신규 레그 추가
-                    int legSeq = master.getSubReservations().size() + 1;
+                    // 신규 레그 추가 (소프트삭제 포함 전체 수 기준 채번)
+                    int legSeq = subReservationRepository.countAllIncludingDeleted(master.getId()) + 1;
                     createSubReservation(master, subReq, legSeq, property);
                 }
             }
             syncMasterDates(master);
         }
+
+        // 결제 금액 재계산 (일별 요금 변경 반영)
+        paymentService.recalculatePayment(master.getId());
 
         log.info("마스터 예약 수정: {}", master.getMasterReservationNo());
         return getById(id);
@@ -398,7 +408,7 @@ public class ReservationServiceImpl implements ReservationService {
         MasterReservation master = findMasterById(reservationId);
         Property property = master.getProperty();
 
-        int legSeq = master.getSubReservations().size() + 1;
+        int legSeq = subReservationRepository.countAllIncludingDeleted(master.getId()) + 1;
         SubReservation sub = createSubReservation(master, request, legSeq, property);
 
         // 마스터 체크인/체크아웃 자동 동기화
@@ -727,7 +737,8 @@ public class ReservationServiceImpl implements ReservationService {
             LocalDate cursor = m.getMasterCheckIn().isBefore(startDate) ? startDate : m.getMasterCheckIn();
             LocalDate until = m.getMasterCheckOut().isAfter(endDate) ? endDate : m.getMasterCheckOut();
 
-            while (!cursor.isAfter(until.minusDays(1))) {
+            // 체크아웃일 포함 (Gantt 바가 체크아웃일까지 표시)
+            while (!cursor.isAfter(until)) {
                 String dateKey = cursor.toString();
                 result.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(dto);
                 cursor = cursor.plusDays(1);

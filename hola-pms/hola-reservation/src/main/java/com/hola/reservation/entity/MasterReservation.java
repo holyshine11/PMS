@@ -140,7 +140,7 @@ public class MasterReservation extends BaseEntity {
         this.promotionType = promotionType;
         this.promotionCode = promotionCode;
         this.otaReservationNo = otaReservationNo;
-        this.isOtaManaged = isOtaManaged;
+        this.isOtaManaged = isOtaManaged != null ? isOtaManaged : false;
         this.customerRequest = customerRequest;
     }
 

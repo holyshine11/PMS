@@ -1,6 +1,7 @@
 /**
  * 예약 관리 - 캘린더뷰 (2개월 표시, 월 단위 탐색)
- * 셀당 최대 10건 표시, 초과 시 "+N건 더보기" → 일별 예약 페이지 이동
+ * 예약 바가 셀 경계를 넘어 연속 표시 (Gantt 스타일 오버레이)
+ * 셀당 최대 10건 표시, 초과 시 "+N" → 일별 예약 페이지 이동
  */
 var ReservationCalendarView = {
     propertyId: null,
@@ -8,6 +9,8 @@ var ReservationCalendarView = {
     currentMonth: null,
     data: {},
     MAX_ITEMS_PER_CELL: 10,
+    LANE_HEIGHT: 22,
+    DATE_ROW_HEIGHT: 28,
 
     /**
      * 초기화
@@ -15,7 +18,6 @@ var ReservationCalendarView = {
     init: function(propertyId) {
         this.propertyId = propertyId;
 
-        // sessionStorage에 저장된 월이 있으면 복원 (뒤로가기 대응)
         var savedYear = sessionStorage.getItem('cal_year');
         var savedMonth = sessionStorage.getItem('cal_month');
         if (savedYear && savedMonth) {
@@ -79,7 +81,6 @@ var ReservationCalendarView = {
             endMonth = 1;
             endYear++;
         }
-        // 다음 달의 마지막 날
         var endDate = new Date(endYear, endMonth, 0);
 
         return {
@@ -101,13 +102,11 @@ var ReservationCalendarView = {
             'endDate=' + range.endDate
         ];
 
-        // 검색 파라미터
         if (params && params.status) queryParams.push('status=' + params.status);
         if (params && params.keyword) queryParams.push('keyword=' + encodeURIComponent(params.keyword));
 
         var url = '/api/v1/properties/' + this.propertyId + '/reservations/calendar?' + queryParams.join('&');
 
-        // 현재 월 상태를 sessionStorage에 보존 (뒤로가기 복원용)
         sessionStorage.setItem('cal_year', this.currentYear);
         sessionStorage.setItem('cal_month', this.currentMonth);
 
@@ -132,13 +131,11 @@ var ReservationCalendarView = {
         var self = this;
         if (!self.propertyId) return;
 
-        // 키워드가 없으면 현재 월에서 그냥 로드
         if (!params || !params.keyword) {
             self.load(params);
             return;
         }
 
-        // 리스트 API로 먼저 해당 예약의 체크인 월을 조회
         var listParams = 'keyword=' + encodeURIComponent(params.keyword);
         if (params.status) listParams += '&status=' + params.status;
 
@@ -148,7 +145,6 @@ var ReservationCalendarView = {
             success: function(res) {
                 var list = res.data || [];
                 if (list.length > 0 && list[0].masterCheckIn) {
-                    // 첫 번째 검색 결과의 체크인 월로 캘린더 이동
                     var parts = list[0].masterCheckIn.split('-');
                     self.currentYear = parseInt(parts[0]);
                     self.currentMonth = parseInt(parts[1]);
@@ -175,7 +171,6 @@ var ReservationCalendarView = {
         html += '<button class="btn btn-outline-secondary btn-sm ms-2" id="calNextBtn"><i class="fas fa-chevron-right"></i></button>';
         html += '<button class="btn btn-outline-primary btn-sm ms-3" id="calTodayBtn">오늘</button>';
         html += '</div>';
-        // 상태 컬러 범례
         html += '<div class="d-flex align-items-center gap-2 flex-wrap" style="font-size:0.75rem;">';
         var legendItems = [
             { label: '예약', status: 'RESERVED' },
@@ -210,7 +205,7 @@ var ReservationCalendarView = {
     },
 
     /**
-     * 단일 월 렌더링
+     * 단일 월 렌더링 (오버레이 기반 Gantt 스타일)
      */
     renderMonth: function(year, month) {
         var html = '';
@@ -238,21 +233,51 @@ var ReservationCalendarView = {
         var lastDay = new Date(year, month, 0);
         var startDow = firstDay.getDay();
         var totalDays = lastDay.getDate();
-
-        var day = 1;
         var weeks = Math.ceil((startDow + totalDays) / 7);
 
         for (var wk = 0; wk < weeks; wk++) {
+            // 주간 열 배열 (7열: null 또는 dateStr)
+            var weekColumns = [];
+            for (var wd = 0; wd < 7; wd++) {
+                var cd = wk * 7 + wd - startDow + 1;
+                if (cd >= 1 && cd <= totalDays) {
+                    weekColumns.push(year + '-' + this.padZero(month) + '-' + this.padZero(cd));
+                } else {
+                    weekColumns.push(null);
+                }
+            }
+
+            // 레이아웃 계산
+            var layout = this.calculateWeekLayout(weekColumns);
+            var visibleLanes = Math.min(layout.maxLane + 1, this.MAX_ITEMS_PER_CELL);
+            var lanesHeight = visibleLanes * this.LANE_HEIGHT;
+            var minCellHeight = this.DATE_ROW_HEIGHT + lanesHeight + 4;
+
+            // 날짜별 숨김 항목 수
+            var hiddenPerDate = {};
+            for (var bi = 0; bi < layout.bars.length; bi++) {
+                if (layout.bars[bi].lane >= visibleLanes) {
+                    for (var hc = layout.bars[bi].startCol; hc <= layout.bars[bi].endCol; hc++) {
+                        if (weekColumns[hc]) {
+                            hiddenPerDate[weekColumns[hc]] = (hiddenPerDate[weekColumns[hc]] || 0) + 1;
+                        }
+                    }
+                }
+            }
+
+            // 주간 래퍼 (position: relative → 오버레이 기준)
+            html += '<div style="position: relative;">';
+
+            // 날짜 셀 그리드 (숫자만 표시, 예약 바는 오버레이에서 렌더링)
             html += '<div class="row g-0">';
             for (var dow = 0; dow < 7; dow++) {
-                var cellDay = wk * 7 + dow - startDow + 1;
-                if (cellDay < 1 || cellDay > totalDays) {
-                    html += '<div class="col calendar-cell" style="min-height:100px; border:1px solid #eee; background:#fafafa;"></div>';
+                if (weekColumns[dow] === null) {
+                    html += '<div class="col calendar-cell" style="min-height:' + minCellHeight + 'px; border:1px solid #eee; background:#fafafa;"></div>';
                 } else {
-                    var dateStr = year + '-' + this.padZero(month) + '-' + this.padZero(cellDay);
+                    var dateStr = weekColumns[dow];
+                    var cellDay = wk * 7 + dow - startDow + 1;
                     var isToday = dateStr === todayStr;
-                    var isWeekend = dow === 0 || dow === 6;
-                    var cellStyle = 'min-height:100px; border:1px solid #eee;';
+                    var cellStyle = 'min-height:' + minCellHeight + 'px; border:1px solid #eee;';
                     if (isToday) cellStyle += ' background:#e8f4fd;';
 
                     html += '<div class="col calendar-cell" style="' + cellStyle + '" data-date="' + dateStr + '" ondblclick="ReservationCalendarView.onCellDblClick(\'' + dateStr + '\')">';
@@ -263,16 +288,50 @@ var ReservationCalendarView = {
                     else if (dow === 6) numStyle += ' color:#0582CA;';
                     if (isToday) numStyle += ' background:#0582CA; color:#fff; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center;';
 
-                    html += '<div class="px-1 pt-1"><span style="' + numStyle + '">' + cellDay + '</span></div>';
+                    html += '<div class="px-1 pt-1">';
+                    html += '<span style="' + numStyle + '">' + cellDay + '</span>';
 
-                    // 예약 데이터
-                    var cellData = this.data[dateStr] || [];
-                    html += this.renderCellItems(cellData, dateStr);
+                    // +N 더보기 (숨김 항목 있으면 날짜 옆에 표시)
+                    var hiddenCount = hiddenPerDate[dateStr] || 0;
+                    if (hiddenCount > 0) {
+                        html += ' <a href="/admin/reservations/daily?date=' + dateStr + '" ';
+                        html += 'style="font-size:0.6rem; color:#0582CA; text-decoration:none; position:relative; z-index:2;">+' + hiddenCount + '</a>';
+                    }
+                    html += '</div>';
 
                     html += '</div>';
                 }
             }
             html += '</div>';
+
+            // 레인 오버레이 (예약 바 - 셀 경계를 넘어 연속 렌더링)
+            if (visibleLanes > 0) {
+                html += '<div style="position: absolute; top: ' + this.DATE_ROW_HEIGHT + 'px; left: 0; right: 0; z-index: 1; pointer-events: none;">';
+
+                // 레인별 바 그룹화
+                var laneBars = {};
+                for (var bi = 0; bi < layout.bars.length; bi++) {
+                    var bar = layout.bars[bi];
+                    if (bar.lane >= visibleLanes) continue;
+                    if (!laneBars[bar.lane]) laneBars[bar.lane] = [];
+                    laneBars[bar.lane].push(bar);
+                }
+
+                for (var lane = 0; lane < visibleLanes; lane++) {
+                    html += '<div style="position: relative; height: ' + (this.LANE_HEIGHT - 2) + 'px; margin-bottom: 2px;">';
+
+                    var bars = laneBars[lane] || [];
+                    for (var bi = 0; bi < bars.length; bi++) {
+                        html += this.renderBar(bars[bi]);
+                    }
+
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            }
+
+            html += '</div>'; // 주간 래퍼 끝
         }
 
         html += '</div>'; // card-body
@@ -282,64 +341,51 @@ var ReservationCalendarView = {
     },
 
     /**
-     * 셀 내 예약 항목 렌더링 (연속 바 + 상태/예약번호 포함)
+     * 단일 예약 바 렌더링 (오버레이 내 절대 위치)
      */
-    renderCellItems: function(items, dateStr) {
-        if (!items || items.length === 0) return '';
+    renderBar: function(bar) {
+        var leftPct = (bar.startCol / 7 * 100).toFixed(4);
+        var widthPct = (bar.spanCols / 7 * 100).toFixed(4);
 
-        // ID 순 정렬 (일자별 일관된 순서 보장 → 연속 바 위치 유지)
-        var sorted = items.slice().sort(function(a, b) { return a.id - b.id; });
-        var showCount = Math.min(sorted.length, this.MAX_ITEMS_PER_CELL);
+        var statusColor = this.getStatusColor(bar.item.reservationStatus);
+        var statusLabel = this.getStatusLabel(bar.item.reservationStatus);
+        var name = HolaPms.escapeHtml(bar.item.guestNameMasked || '-');
+        var resNo = bar.item.masterReservationNo ? HolaPms.escapeHtml(bar.item.masterReservationNo) : '';
+        var room = bar.item.roomInfo ? HolaPms.escapeHtml(bar.item.roomInfo) : '';
 
-        var html = '<div class="pb-1">';
+        // 위치별 border-radius
+        var radius;
+        if (bar.isFirst && bar.isLast) radius = '3px';
+        else if (bar.isFirst) radius = '3px 0 0 3px';
+        else if (bar.isLast) radius = '0 3px 3px 0';
+        else radius = '0';
 
-        for (var i = 0; i < showCount; i++) {
-            var item = sorted[i];
-            var pos = this.getBarPosition(item, dateStr);
-            var statusColor = this.getStatusColor(item.reservationStatus);
-            var statusLabel = this.getStatusLabel(item.reservationStatus);
-            var name = HolaPms.escapeHtml(item.guestNameMasked || '-');
-            var room = item.roomInfo ? HolaPms.escapeHtml(item.roomInfo) : '';
-            var resNo = item.masterReservationNo ? HolaPms.escapeHtml(item.masterReservationNo) : '';
+        // 시작/끝 미세 여백 (셀 경계와 구분)
+        var leftMargin = bar.isFirst ? 2 : 0;
+        var rightMargin = bar.isLast ? 2 : 0;
 
-            // 위치별 border-radius (연속 바 효과)
-            var radius;
-            if (pos === 'single') radius = '3px';
-            else if (pos === 'start') radius = '3px 0 0 3px';
-            else if (pos === 'end') radius = '0 3px 3px 0';
-            else radius = '0';
+        var tooltip = '[' + statusLabel + '] ' + resNo + ' ' + name + (room ? ' | ' + room : '');
 
-            var tooltip = '[' + statusLabel + '] ' + resNo + ' ' + name + (room ? ' | ' + room : '');
+        var html = '<div class="calendar-bar" style="position: absolute; pointer-events: auto; cursor: pointer; ';
+        html += 'left: calc(' + leftPct + '% + ' + leftMargin + 'px); ';
+        html += 'width: calc(' + widthPct + '% - ' + (leftMargin + rightMargin) + 'px); ';
+        html += 'height: 100%; box-sizing: border-box; ';
+        html += 'background-color: ' + statusColor.bg + '; color: ' + statusColor.text + '; ';
+        html += 'border-radius: ' + radius + '; ';
+        html += 'font-size: 0.7rem; line-height: ' + (this.LANE_HEIGHT - 2) + 'px; ';
+        html += 'padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" ';
+        html += 'onclick="window.location.href=\'/admin/reservations/' + bar.item.id + '\'" ';
+        html += 'title="' + tooltip + '">';
 
-            html += '<div class="calendar-item mb-1" style="cursor:pointer; font-size:0.7rem; padding:1px 4px; ';
-            html += 'border-radius:' + radius + '; ';
-            html += 'background-color:' + statusColor.bg + '; color:' + statusColor.text + '; ';
-            html += 'white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" ';
-            html += 'onclick="window.location.href=\'/admin/reservations/' + item.id + '\'" ';
-            html += 'title="' + tooltip + '">';
-
-            if (pos === 'start' || pos === 'single') {
-                // 시작일/1박: [상태] + 이름 + 호수 (예약 상태만 예약번호 추가)
-                html += '<span style="font-weight:600;">[' + statusLabel + ']</span> ';
-                if (item.reservationStatus === 'RESERVED' && resNo) {
-                    html += '<span style="opacity:0.7;">' + resNo + '</span> ';
-                }
-                html += name;
-                if (room) html += ' <span style="opacity:0.7;">' + room + '</span>';
-            } else {
-                // 중간/끝일: [상태] + 이름 (바 연속성 유지)
-                html += '<span style="font-weight:600;">[' + statusLabel + ']</span> ';
-                html += name;
+        if (bar.isFirst) {
+            html += '<span style="font-weight:600;">[' + statusLabel + ']</span> ';
+            if (bar.item.reservationStatus === 'RESERVED' && resNo) {
+                html += '<span style="opacity:0.7;">' + resNo + '</span> ';
             }
-
-            html += '</div>';
-        }
-
-        // +N건 더보기
-        if (sorted.length > this.MAX_ITEMS_PER_CELL) {
-            var moreCount = sorted.length - this.MAX_ITEMS_PER_CELL;
-            html += '<a href="/admin/reservations/daily?date=' + dateStr + '" class="d-block text-center" ';
-            html += 'style="font-size:0.7rem; color:#0582CA; text-decoration:none; cursor:pointer;">+' + moreCount + '건 더보기</a>';
+            html += name;
+            if (room) html += ' <span style="opacity:0.7;">' + room + '</span>';
+        } else {
+            html += '&nbsp;';
         }
 
         html += '</div>';
@@ -347,22 +393,92 @@ var ReservationCalendarView = {
     },
 
     /**
-     * 예약 바 위치 판정 (start/middle/end/single)
+     * 주간 레이아웃 계산 (레인 할당 + 바 위치 정보)
+     * @param weekColumns - 7개 요소 배열, 각 요소는 dateStr 또는 null
+     * @returns { bars: [{item, lane, startCol, endCol, spanCols, isFirst, isLast}], maxLane: N }
      */
-    getBarPosition: function(item, dateStr) {
-        var checkIn = item.masterCheckIn;
-        // 체크아웃 전날이 마지막 숙박일
-        var coDate = new Date(item.masterCheckOut + 'T00:00:00');
-        coDate.setDate(coDate.getDate() - 1);
-        var lastNight = this.formatDate(coDate);
+    calculateWeekLayout: function(weekColumns) {
+        var self = this;
+        var result = { bars: [], maxLane: -1 };
 
-        var isStart = (dateStr === checkIn);
-        var isEnd = (dateStr === lastNight);
+        // 날짜→열 매핑 및 고유 예약 수집
+        var dateToCol = {};
+        var reservationMap = {};
 
-        if (isStart && isEnd) return 'single';
-        if (isStart) return 'start';
-        if (isEnd) return 'end';
-        return 'middle';
+        for (var col = 0; col < 7; col++) {
+            var dateStr = weekColumns[col];
+            if (!dateStr) continue;
+            dateToCol[dateStr] = col;
+
+            var items = this.data[dateStr] || [];
+            for (var j = 0; j < items.length; j++) {
+                var item = items[j];
+                if (!reservationMap[item.id]) {
+                    reservationMap[item.id] = {
+                        item: item,
+                        startCol: col,
+                        endCol: col
+                    };
+                } else {
+                    reservationMap[item.id].endCol = col;
+                }
+            }
+        }
+
+        // 시작 열 → 체크인일 → ID 순 정렬
+        var reservations = [];
+        for (var id in reservationMap) {
+            reservations.push(reservationMap[id]);
+        }
+        reservations.sort(function(a, b) {
+            if (a.startCol !== b.startCol) return a.startCol - b.startCol;
+            if (a.item.masterCheckIn < b.item.masterCheckIn) return -1;
+            if (a.item.masterCheckIn > b.item.masterCheckIn) return 1;
+            return a.item.id - b.item.id;
+        });
+
+        // 탐욕적 레인 할당 (1열 버퍼로 인접 예약 분리)
+        var laneEnds = [];
+
+        for (var i = 0; i < reservations.length; i++) {
+            var r = reservations[i];
+            var lane = -1;
+
+            for (var l = 0; l < laneEnds.length; l++) {
+                if (laneEnds[l] < r.startCol) {
+                    lane = l;
+                    break;
+                }
+            }
+            if (lane === -1) lane = laneEnds.length;
+
+            r.lane = lane;
+            if (lane > result.maxLane) result.maxLane = lane;
+
+            // endCol + 1 버퍼 → 인접 예약 같은 레인 방지
+            var bufferedEnd = r.endCol + 1;
+            if (lane >= laneEnds.length) {
+                laneEnds.push(bufferedEnd);
+            } else {
+                laneEnds[lane] = bufferedEnd;
+            }
+
+            // 예약의 시작/끝 판정 (이 주 기준)
+            var checkIn = r.item.masterCheckIn;
+            var checkOut = r.item.masterCheckOut;
+
+            result.bars.push({
+                item: r.item,
+                lane: lane,
+                startCol: r.startCol,
+                endCol: r.endCol,
+                spanCols: r.endCol - r.startCol + 1,
+                isFirst: dateToCol[checkIn] !== undefined,
+                isLast: dateToCol[checkOut] !== undefined
+            });
+        }
+
+        return result;
     },
 
     /**
