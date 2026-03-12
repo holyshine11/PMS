@@ -20,6 +20,7 @@ public class ReservationServiceResponse {
     private Long id;
     private String serviceType;
     private Long serviceOptionId;
+    private String serviceName;
     private LocalDate serviceDate;
     private Integer quantity;
     private BigDecimal unitPrice;

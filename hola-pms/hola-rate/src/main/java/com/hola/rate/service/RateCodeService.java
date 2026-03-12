@@ -7,6 +7,7 @@ import com.hola.rate.dto.response.RateCodeListResponse;
 import com.hola.rate.dto.response.RateCodeResponse;
 import com.hola.rate.dto.response.RatePricingResponse;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -15,6 +16,9 @@ import java.util.List;
 public interface RateCodeService {
 
     List<RateCodeListResponse> getRateCodes(Long propertyId);
+
+    /** 체크인~체크아웃 기간을 요금으로 100% 커버하는 레이트코드 목록 */
+    List<RateCodeListResponse> getAvailableRateCodes(Long propertyId, LocalDate checkIn, LocalDate checkOut);
 
     RateCodeResponse getRateCode(Long id);
 

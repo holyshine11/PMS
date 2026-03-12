@@ -11,10 +11,12 @@ import com.hola.rate.dto.response.RatePricingResponse;
 import com.hola.rate.service.RateCodeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -31,9 +33,17 @@ public class RateCodeApiController {
 
     @GetMapping
     public ResponseEntity<HolaResponse<List<RateCodeListResponse>>> getRateCodes(
-            @PathVariable Long propertyId) {
+            @PathVariable Long propertyId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkIn,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkOut) {
         accessControlService.validatePropertyAccess(propertyId);
-        List<RateCodeListResponse> list = rateCodeService.getRateCodes(propertyId);
+        List<RateCodeListResponse> list;
+        if (checkIn != null && checkOut != null) {
+            // 체크인~체크아웃 기간을 요금으로 100% 커버하는 레이트코드만 반환
+            list = rateCodeService.getAvailableRateCodes(propertyId, checkIn, checkOut);
+        } else {
+            list = rateCodeService.getRateCodes(propertyId);
+        }
         return ResponseEntity.ok(HolaResponse.success(list));
     }
 

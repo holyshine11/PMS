@@ -218,10 +218,18 @@ public class ReservationMapper {
      * 서비스 항목 → 응답 변환
      */
     public ReservationServiceResponse toReservationServiceResponse(ReservationServiceItem service) {
+        return toReservationServiceResponse(service, null);
+    }
+
+    /**
+     * 서비스 항목 → 응답 변환 (서비스명 포함)
+     */
+    public ReservationServiceResponse toReservationServiceResponse(ReservationServiceItem service, String serviceName) {
         return ReservationServiceResponse.builder()
                 .id(service.getId())
                 .serviceType(service.getServiceType())
                 .serviceOptionId(service.getServiceOptionId())
+                .serviceName(serviceName)
                 .serviceDate(service.getServiceDate())
                 .quantity(service.getQuantity())
                 .unitPrice(service.getUnitPrice())

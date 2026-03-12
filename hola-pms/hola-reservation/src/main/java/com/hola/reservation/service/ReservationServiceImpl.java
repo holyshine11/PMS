@@ -2,6 +2,7 @@ package com.hola.reservation.service;
 
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
+import com.hola.common.security.AccessControlService;
 import com.hola.common.util.NameMaskingUtil;
 import com.hola.hotel.entity.Floor;
 import com.hola.hotel.entity.Property;
@@ -11,7 +12,9 @@ import com.hola.hotel.repository.MarketCodeRepository;
 import com.hola.hotel.repository.PropertyRepository;
 import com.hola.hotel.repository.RoomNumberRepository;
 import com.hola.rate.repository.RateCodeRepository;
+import com.hola.room.entity.PaidServiceOption;
 import com.hola.room.entity.RoomType;
+import com.hola.room.repository.PaidServiceOptionRepository;
 import com.hola.room.repository.RoomTypeRepository;
 import com.hola.reservation.dto.request.*;
 import com.hola.reservation.dto.response.*;
@@ -54,12 +57,15 @@ public class ReservationServiceImpl implements ReservationService {
     private final FloorRepository floorRepository;
     private final RoomNumberRepository roomNumberRepository;
     private final RoomTypeRepository roomTypeRepository;
+    private final PaidServiceOptionRepository paidServiceOptionRepository;
+    private final ReservationServiceItemRepository serviceItemRepository;
     private final ReservationMapper reservationMapper;
     private final ReservationNumberGenerator numberGenerator;
     private final RoomAvailabilityService availabilityService;
     private final PriceCalculationService priceCalculationService;
     private final EarlyLateCheckService earlyLateCheckService;
     private final ReservationPaymentService paymentService;
+    private final AccessControlService accessControlService;
 
     // 허용되는 상태 전이 매트릭스
     private static final Map<String, Set<String>> STATUS_TRANSITIONS = Map.of(
@@ -77,13 +83,13 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     public List<ReservationListResponse> getList(Long propertyId, String status, LocalDate checkInFrom,
                                                    LocalDate checkInTo, String keyword) {
-        // 날짜/상태 필터는 DB 레벨에서 처리 (전체 메모리 로드 방지)
-        String statusParam = (status != null && !status.isEmpty()) ? status : null;
+        // 전체 조회 후 Java 필터링 (Hibernate 6 + PostgreSQL null 파라미터 타입 추론 이슈 회피)
         List<MasterReservation> reservations = masterReservationRepository
-                .findByPropertyIdWithFilters(propertyId, statusParam, checkInFrom, checkInTo);
+                .findByPropertyIdOrderByReservationDateDesc(propertyId);
 
-        // 키워드만 Java 필터링 (JPQL null LIKE 이슈 회피)
         return reservations.stream()
+                .filter(r -> filterByStatus(r, status))
+                .filter(r -> filterByDateRange(r, checkInFrom, checkInTo))
                 .filter(r -> filterByKeyword(r, keyword))
                 .map(reservationMapper::toReservationListResponse)
                 .collect(Collectors.toList());
@@ -157,7 +163,7 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     /**
-     * 서브 예약의 층/호수/객실타입 이름을 벌크 resolve
+     * 서브 예약의 층/호수/객실타입/서비스명을 벌크 resolve
      */
     private List<SubReservationResponse> resolveSubReservationNames(List<SubReservationResponse> subs) {
         if (subs == null || subs.isEmpty()) return subs;
@@ -166,10 +172,16 @@ public class ReservationServiceImpl implements ReservationService {
         Set<Long> floorIds = new HashSet<>();
         Set<Long> roomNumberIds = new HashSet<>();
         Set<Long> roomTypeIds = new HashSet<>();
+        Set<Long> serviceOptionIds = new HashSet<>();
         for (SubReservationResponse sub : subs) {
             if (sub.getFloorId() != null) floorIds.add(sub.getFloorId());
             if (sub.getRoomNumberId() != null) roomNumberIds.add(sub.getRoomNumberId());
             if (sub.getRoomTypeId() != null) roomTypeIds.add(sub.getRoomTypeId());
+            if (sub.getServices() != null) {
+                for (ReservationServiceResponse svc : sub.getServices()) {
+                    if (svc.getServiceOptionId() != null) serviceOptionIds.add(svc.getServiceOptionId());
+                }
+            }
         }
 
         // 벌크 조회
@@ -182,9 +194,28 @@ public class ReservationServiceImpl implements ReservationService {
         Map<Long, String> roomTypeMap = roomTypeIds.isEmpty() ? Map.of()
                 : roomTypeRepository.findAllById(roomTypeIds).stream()
                     .collect(Collectors.toMap(RoomType::getId, RoomType::getRoomTypeCode));
+        Map<Long, String> serviceOptionNameMap = serviceOptionIds.isEmpty() ? Map.of()
+                : paidServiceOptionRepository.findAllById(serviceOptionIds).stream()
+                    .collect(Collectors.toMap(PaidServiceOption::getId, PaidServiceOption::getServiceNameKo));
 
         // 이름이 포함된 새 SubReservationResponse 생성
-        return subs.stream().map(sub -> SubReservationResponse.builder()
+        return subs.stream().map(sub -> {
+            // 서비스 항목에 서비스명 매핑
+            List<ReservationServiceResponse> resolvedServices = sub.getServices() != null
+                    ? sub.getServices().stream().map(svc -> ReservationServiceResponse.builder()
+                        .id(svc.getId())
+                        .serviceType(svc.getServiceType())
+                        .serviceOptionId(svc.getServiceOptionId())
+                        .serviceName(svc.getServiceOptionId() != null ? serviceOptionNameMap.get(svc.getServiceOptionId()) : null)
+                        .serviceDate(svc.getServiceDate())
+                        .quantity(svc.getQuantity())
+                        .unitPrice(svc.getUnitPrice())
+                        .tax(svc.getTax())
+                        .totalPrice(svc.getTotalPrice())
+                        .build()).collect(Collectors.toList())
+                    : Collections.emptyList();
+
+            return SubReservationResponse.builder()
                 .id(sub.getId())
                 .subReservationNo(sub.getSubReservationNo())
                 .roomReservationStatus(sub.getRoomReservationStatus())
@@ -206,9 +237,9 @@ public class ReservationServiceImpl implements ReservationService {
                 .lateCheckOutFee(sub.getLateCheckOutFee())
                 .guests(sub.getGuests())
                 .dailyCharges(sub.getDailyCharges())
-                .services(sub.getServices())
-                .build()
-        ).collect(Collectors.toList());
+                .services(resolvedServices)
+                .build();
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -361,8 +392,9 @@ public class ReservationServiceImpl implements ReservationService {
     public void cancel(Long id, Long propertyId) {
         MasterReservation master = findMasterById(id, propertyId);
 
-        // RESERVED 상태만 취소 가능
-        if (!"RESERVED".equals(master.getReservationStatus())) {
+        // RESERVED 또는 CHECK_IN 상태만 취소 가능 (STATUS_TRANSITIONS 매트릭스와 일관)
+        String currentStatus = master.getReservationStatus();
+        if (!"RESERVED".equals(currentStatus) && !"CHECK_IN".equals(currentStatus)) {
             throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
         }
 
@@ -374,6 +406,32 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         log.info("예약 취소: {}", master.getMasterReservationNo());
+    }
+
+    @Override
+    @Transactional
+    public void deleteReservation(Long id, Long propertyId) {
+        // 슈퍼어드민 권한 검증
+        if (!accessControlService.getCurrentUser().isSuperAdmin()) {
+            throw new HolaException(ErrorCode.RESERVATION_DELETE_UNAUTHORIZED);
+        }
+
+        MasterReservation master = findMasterById(id, propertyId);
+
+        // CHECKED_OUT 상태만 삭제 가능
+        if (!"CHECKED_OUT".equals(master.getReservationStatus())) {
+            throw new HolaException(ErrorCode.RESERVATION_DELETE_NOT_ALLOWED);
+        }
+
+        // 서브 예약 soft delete
+        for (SubReservation sub : master.getSubReservations()) {
+            sub.softDelete();
+        }
+
+        // 마스터 예약 soft delete
+        master.softDelete();
+
+        log.info("예약 삭제(soft): {} by SUPER_ADMIN", master.getMasterReservationNo());
     }
 
     @Override
@@ -632,6 +690,9 @@ public class ReservationServiceImpl implements ReservationService {
         if (rateCode.getMaxStayDays() != null && rateCode.getMaxStayDays() > 0 && stayDays > rateCode.getMaxStayDays()) {
             throw new HolaException(ErrorCode.RESERVATION_STAY_DAYS_VIOLATION);
         }
+
+        // 요금 커버리지 검증: 모든 숙박일에 매칭되는 요금행이 있는지 확인
+        priceCalculationService.validatePricingCoverage(rateCodeId, checkIn, checkOut);
     }
 
     /**
@@ -741,6 +802,23 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     /**
+     * 상태 필터
+     */
+    private boolean filterByStatus(MasterReservation r, String status) {
+        if (status == null || status.isBlank()) return true;
+        return status.equals(r.getReservationStatus());
+    }
+
+    /**
+     * 날짜 범위 필터 (체크인일 기준)
+     */
+    private boolean filterByDateRange(MasterReservation r, LocalDate checkInFrom, LocalDate checkInTo) {
+        if (checkInFrom != null && r.getMasterCheckIn().isBefore(checkInFrom)) return false;
+        if (checkInTo != null && r.getMasterCheckIn().isAfter(checkInTo)) return false;
+        return true;
+    }
+
+    /**
      * 키워드 필터 (예약번호, 예약자명, 전화번호)
      */
     private boolean filterByKeyword(MasterReservation r, String keyword) {
@@ -750,6 +828,86 @@ public class ReservationServiceImpl implements ReservationService {
                 || (r.getGuestNameKo() != null && r.getGuestNameKo().contains(kw))
                 || (r.getPhoneNumber() != null && r.getPhoneNumber().contains(kw))
                 || (r.getConfirmationNo() != null && r.getConfirmationNo().toLowerCase().contains(kw));
+    }
+
+    // ─── 유료 서비스 추가/삭제 ──────────────────────────
+
+    @Override
+    @Transactional
+    public ReservationServiceResponse addService(Long masterReservationId, Long subReservationId,
+                                                  Long propertyId, ReservationServiceRequest request) {
+        MasterReservation master = findMasterById(masterReservationId, propertyId);
+        validateModifiable(master);
+
+        if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
+            throw new HolaException(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
+        }
+
+        SubReservation sub = findSubAndValidateOwnership(subReservationId, master);
+
+        PaidServiceOption option = paidServiceOptionRepository.findById(request.getServiceOptionId())
+                .orElseThrow(() -> new HolaException(ErrorCode.PAID_SERVICE_OPTION_NOT_FOUND));
+
+        int qty = request.getQuantity() != null ? request.getQuantity() : 1;
+        BigDecimal unitPrice = option.getSupplyPrice();
+        BigDecimal tax = option.getTaxAmount().multiply(BigDecimal.valueOf(qty));
+        BigDecimal totalPrice = option.getVatIncludedPrice().multiply(BigDecimal.valueOf(qty));
+
+        ReservationServiceItem serviceItem = ReservationServiceItem.builder()
+                .subReservation(sub)
+                .serviceType("PAID")
+                .serviceOptionId(option.getId())
+                .serviceDate(request.getServiceDate())
+                .quantity(qty)
+                .unitPrice(unitPrice)
+                .tax(tax)
+                .totalPrice(totalPrice)
+                .build();
+
+        serviceItem = serviceItemRepository.save(serviceItem);
+
+        // 결제 금액 재계산
+        paymentService.recalculatePayment(master.getId());
+
+        log.info("유료 서비스 추가: reservationId={}, legId={}, serviceOptionId={}", masterReservationId, subReservationId, option.getId());
+
+        return ReservationServiceResponse.builder()
+                .id(serviceItem.getId())
+                .serviceType(serviceItem.getServiceType())
+                .serviceOptionId(serviceItem.getServiceOptionId())
+                .serviceName(option.getServiceNameKo())
+                .serviceDate(serviceItem.getServiceDate())
+                .quantity(serviceItem.getQuantity())
+                .unitPrice(serviceItem.getUnitPrice())
+                .tax(serviceItem.getTax())
+                .totalPrice(serviceItem.getTotalPrice())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void removeService(Long masterReservationId, Long subReservationId, Long serviceId, Long propertyId) {
+        MasterReservation master = findMasterById(masterReservationId, propertyId);
+        validateModifiable(master);
+
+        if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
+            throw new HolaException(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
+        }
+
+        ReservationServiceItem serviceItem = serviceItemRepository.findById(serviceId)
+                .orElseThrow(() -> new HolaException(ErrorCode.RESERVATION_SERVICE_NOT_FOUND));
+
+        // 서브예약 소속 검증
+        if (!serviceItem.getSubReservation().getId().equals(subReservationId)) {
+            throw new HolaException(ErrorCode.RESERVATION_SERVICE_MISMATCH);
+        }
+
+        serviceItemRepository.deleteById(serviceId);
+
+        // 결제 금액 재계산
+        paymentService.recalculatePayment(master.getId());
+
+        log.info("유료 서비스 삭제: reservationId={}, legId={}, serviceId={}", masterReservationId, subReservationId, serviceId);
     }
 
     // ─── 캘린더뷰 ──────────────────────────

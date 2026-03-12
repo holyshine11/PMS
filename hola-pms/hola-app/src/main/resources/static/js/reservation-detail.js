@@ -10,6 +10,9 @@ var ReservationDetail = {
     roomLegSeq: 0,           // 객실 레그 시퀀스
     currentLegSeq: null,     // 현재 모달 대상 레그 시퀀스
 
+    // 유료 서비스 옵션 캐시
+    paidServiceOptions: null,
+
     // 모달 DataTable 인스턴스
     rateCodeTable: null,
     marketCodeTable: null,
@@ -26,7 +29,7 @@ var ReservationDetail = {
             { status: 'NO_SHOW', label: '노쇼', icon: 'fa-user-slash', cls: 'btn-warning' }
         ],
         CHECK_IN: [
-            { status: 'INHOUSE', label: '체크인', icon: 'fa-door-open', cls: 'btn-success' },
+            { status: 'INHOUSE', label: '투숙중', icon: 'fa-door-open', cls: 'btn-success' },
             { status: 'CANCELED', label: '취소', icon: 'fa-ban', cls: 'btn-danger' }
         ],
         INHOUSE: [
@@ -61,6 +64,7 @@ var ReservationDetail = {
         }
         $('#contextAlert').addClass('d-none');
         self.loadReservationChannels();
+        self.loadPaidServiceOptions();
         self.loadData();
     },
 
@@ -102,6 +106,28 @@ var ReservationDetail = {
             },
             error: function() {
                 // 예약채널 API 미구현 시 무시
+            }
+        });
+    },
+
+    /**
+     * 유료 서비스 옵션 목록 로드 (캐싱)
+     */
+    loadPaidServiceOptions: function() {
+        var self = this;
+        if (!self.propertyId) return;
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/paid-service-options',
+            type: 'GET',
+            success: function(res) {
+                var options = (res.data || res || []);
+                if (Array.isArray(options)) {
+                    self.paidServiceOptions = options.filter(function(o) { return o.useYn !== false; });
+                }
+            },
+            error: function() {
+                self.paidServiceOptions = [];
             }
         });
     },
@@ -190,7 +216,7 @@ var ReservationDetail = {
         self.bindDeposit(data.deposits || []);
 
         // ── Tab 4: 결제 정보 ──
-        ReservationPayment.load(self.propertyId, self.reservationId);
+        ReservationPayment.load(self.propertyId, self.reservationId, data);
 
         // ── Tab 5: 기타정보 ──
         $('#customerRequest').val(data.customerRequest || '');
@@ -339,10 +365,41 @@ var ReservationDetail = {
             + '        </div>'
             + '      </div>'
             + '    </div>'
+            + '    <hr class="my-2">'
+            + '    <div class="d-flex justify-content-between align-items-center mb-2">'
+            + '      <span class="text-muted small"><i class="fas fa-concierge-bell me-1"></i>유료 서비스</span>'
+            + '      <button class="btn btn-outline-primary btn-sm add-service-btn" data-leg="' + seq + '" data-leg-id="' + legId + '" type="button">'
+            + '        <i class="fas fa-plus me-1"></i>서비스 추가'
+            + '      </button>'
+            + '    </div>'
+            + '    <div class="service-list" id="serviceList_' + seq + '">'
+            + self.renderServiceItems(legData ? legData.services : [], seq, legId)
+            + '    </div>'
+            + '    <div class="service-add-form d-none" id="serviceAddForm_' + seq + '">'
+            + '      <div class="row g-2 align-items-end">'
+            + '        <div class="col-sm-5">'
+            + '          <select class="form-select form-select-sm service-option-select">'
+            + '            <option value="">서비스 선택</option>'
+            + '          </select>'
+            + '        </div>'
+            + '        <div class="col-sm-2">'
+            + '          <input type="number" class="form-control form-control-sm service-qty" value="1" min="1" max="99">'
+            + '        </div>'
+            + '        <div class="col-sm-3">'
+            + '          <input type="date" class="form-control form-control-sm service-date">'
+            + '        </div>'
+            + '        <div class="col-sm-2">'
+            + '          <button class="btn btn-primary btn-sm w-100 confirm-add-service-btn" data-leg="' + seq + '" data-leg-id="' + legId + '">추가</button>'
+            + '        </div>'
+            + '      </div>'
+            + '    </div>'
             + '  </div>'
             + '</div>';
 
         $('#roomLegsContainer').append(legHtml);
+
+        // 서비스 옵션 드롭다운 구성
+        this.populateServiceOptions(seq);
         this.updateRoomLegsEmpty();
     },
 
@@ -407,6 +464,117 @@ var ReservationDetail = {
     },
 
     /**
+     * 서비스 항목 목록 렌더링
+     */
+    renderServiceItems: function(services, seq, legId) {
+        if (!services || services.length === 0) {
+            return '<div class="text-muted small text-center py-1">등록된 서비스가 없습니다.</div>';
+        }
+
+        var self = this;
+        var html = '<table class="table table-sm table-borderless mb-0">';
+        services.forEach(function(svc) {
+            var name = svc.serviceName || ('서비스 #' + svc.serviceOptionId);
+            var qtyPrice = svc.quantity + ' x ' + Number(svc.unitPrice || 0).toLocaleString('ko-KR') + '원';
+            var taxStr = '세액 ' + Number(svc.tax || 0).toLocaleString('ko-KR') + '원';
+            var totalStr = Number(svc.totalPrice || 0).toLocaleString('ko-KR') + '원';
+            var dateStr = svc.serviceDate ? svc.serviceDate : '';
+
+            var deleteBtn = '';
+            if (!self.isReadonly && !self.isOta) {
+                deleteBtn = '<button class="btn btn-outline-danger btn-sm py-0 px-1 remove-service-btn" '
+                    + 'data-leg-id="' + legId + '" data-service-id="' + svc.id + '">'
+                    + '<i class="fas fa-times"></i></button>';
+            }
+
+            html += '<tr>'
+                + '<td class="small">' + HolaPms.escapeHtml(name) + (dateStr ? ' <span class="text-muted">(' + dateStr + ')</span>' : '') + '</td>'
+                + '<td class="small text-end text-muted">' + qtyPrice + '</td>'
+                + '<td class="small text-end text-muted">' + taxStr + '</td>'
+                + '<td class="small text-end">' + totalStr + '</td>'
+                + '<td class="text-end" style="width:30px;">' + deleteBtn + '</td>'
+                + '</tr>';
+        });
+        html += '</table>';
+        return html;
+    },
+
+    /**
+     * 서비스 옵션 드롭다운 구성
+     */
+    populateServiceOptions: function(seq) {
+        var self = this;
+        var $select = $('#serviceAddForm_' + seq + ' .service-option-select');
+        $select.find('option:not(:first)').remove();
+
+        if (self.paidServiceOptions && self.paidServiceOptions.length > 0) {
+            self.paidServiceOptions.forEach(function(opt) {
+                var price = Number(opt.vatIncludedPrice || 0).toLocaleString('ko-KR');
+                $select.append('<option value="' + opt.id + '">'
+                    + HolaPms.escapeHtml(opt.serviceNameKo) + ' (' + price + '원)'
+                    + '</option>');
+            });
+        }
+    },
+
+    /**
+     * 유료 서비스 추가 API 호출
+     */
+    addServiceToLeg: function(legSeq, legId) {
+        var self = this;
+        var $form = $('#serviceAddForm_' + legSeq);
+        var serviceOptionId = $form.find('.service-option-select').val();
+        var quantity = parseInt($form.find('.service-qty').val()) || 1;
+        var serviceDate = $form.find('.service-date').val() || null;
+
+        if (!serviceOptionId) {
+            HolaPms.alert('warning', '서비스를 선택해주세요.');
+            return;
+        }
+
+        var requestData = {
+            serviceOptionId: parseInt(serviceOptionId),
+            quantity: quantity,
+            serviceDate: serviceDate
+        };
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/legs/' + legId + '/services',
+            type: 'POST',
+            data: requestData,
+            success: function(res) {
+                if (res.success) {
+                    HolaPms.alert('success', '서비스가 추가되었습니다.');
+                    $form.addClass('d-none');
+                    // 예약 데이터 재로드 (결제 탭 갱신 포함)
+                    self.loadData();
+                }
+            }
+        });
+    },
+
+    /**
+     * 유료 서비스 삭제 API 호출
+     */
+    removeServiceFromLeg: function(legId, serviceId) {
+        var self = this;
+
+        HolaPms.confirm('이 서비스를 삭제하시겠습니까?', function() {
+            HolaPms.ajax({
+                url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/legs/' + legId + '/services/' + serviceId,
+                type: 'DELETE',
+                success: function(res) {
+                    if (res.success) {
+                        HolaPms.alert('success', '서비스가 삭제되었습니다.');
+                        // 예약 데이터 재로드 (결제 탭 갱신 포함)
+                        self.loadData();
+                    }
+                }
+            });
+        });
+    },
+
+    /**
      * 예치금 바인딩
      */
     bindDeposit: function(deposits) {
@@ -433,6 +601,14 @@ var ReservationDetail = {
     applyFieldControl: function() {
         var self = this;
 
+        // 삭제 버튼: SUPER_ADMIN + CHECKED_OUT일 때만 표시
+        var status = self.reservationData ? self.reservationData.reservationStatus : '';
+        if (status === 'CHECKED_OUT' && HolaPms.context.userRole === 'SUPER_ADMIN') {
+            $('#deleteReservationBtn').removeClass('d-none');
+        } else {
+            $('#deleteReservationBtn').addClass('d-none');
+        }
+
         if (self.isReadonly) {
             // VIEW 전용 모드: 모든 input/select/textarea disabled, 버튼 숨김
             $('#formContainer input, #formContainer select, #formContainer textarea').prop('disabled', true);
@@ -440,6 +616,7 @@ var ReservationDetail = {
             $('#statusChangeGroup').hide();
             $('.remove-leg-btn, .room-type-search-btn, .room-assign-btn, .room-type-clear-btn, .room-assign-clear-btn').hide();
             $('#rateCodeSearchBtn, #marketCodeSearchBtn, #rateCodeClearBtn, #marketCodeClearBtn').hide();
+            $('.add-service-btn, .remove-service-btn').hide();
             return;
         }
 
@@ -455,6 +632,8 @@ var ReservationDetail = {
             otaFields.forEach(function(sel) {
                 $(sel).prop('disabled', true);
             });
+            // OTA 모드: 서비스 추가/삭제 비활성화
+            $('.add-service-btn, .remove-service-btn').hide();
         }
 
         // CHECK_IN / INHOUSE: 일부 수정만 허용
@@ -462,6 +641,9 @@ var ReservationDetail = {
         if (status === 'CHECK_IN' || status === 'INHOUSE') {
             // 마스터 체크인/체크아웃 비활성화
             $('#masterCheckIn').prop('disabled', true);
+            $('#masterCheckOut').prop('disabled', true);
+            // 서브 예약 날짜도 비활성화
+            $('.leg-check-in, .leg-check-out').prop('disabled', true);
             // 예약자 기본정보 비활성화
             $('#guestNameKo').prop('disabled', true);
             $('#isOtaManaged').prop('disabled', true);
@@ -540,6 +722,20 @@ var ReservationDetail = {
             self.reload();
         });
 
+        // 마스터 날짜 변경 시 단일 레그 날짜 자동 동기화
+        $('#masterCheckIn').on('change', function() {
+            var newVal = $(this).val();
+            if (newVal && $('.room-leg-card').length === 1) {
+                $('.leg-check-in').val(newVal);
+            }
+        });
+        $('#masterCheckOut').on('change', function() {
+            var newVal = $(this).val();
+            if (newVal && $('.room-leg-card').length === 1) {
+                $('.leg-check-out').val(newVal);
+            }
+        });
+
         // 레이트코드 검색/초기화 버튼
         $('#rateCodeSearchBtn').on('click', function() { self.openRateCodeModal(); });
         $('#rateCodeClearBtn').on('click', function() {
@@ -568,6 +764,9 @@ var ReservationDetail = {
 
         // 저장 버튼
         $('#saveBtn').on('click', function() { self.save(); });
+
+        // 예약 삭제 버튼 (SUPER_ADMIN + CHECKED_OUT)
+        $('#deleteReservationBtn').on('click', function() { self.deleteReservation(); });
 
         // 메모 등록 버튼
         $('#addMemoBtn').on('click', function() { self.addMemo(); });
@@ -651,6 +850,34 @@ var ReservationDetail = {
             $leg.find('.floor-id').val('');
             $leg.find('.room-number-id').val('');
             $leg.find('.room-number-display').val('');
+        });
+
+        // 유료 서비스 추가 폼 토글 (이벤트 위임)
+        $(document).on('click', '.add-service-btn', function() {
+            var legSeq = $(this).data('leg');
+            var $form = $('#serviceAddForm_' + legSeq);
+            $form.toggleClass('d-none');
+            if (!$form.hasClass('d-none')) {
+                // 드롭다운 재구성
+                self.populateServiceOptions(legSeq);
+                $form.find('.service-option-select').val('');
+                $form.find('.service-qty').val(1);
+                $form.find('.service-date').val('');
+            }
+        });
+
+        // 유료 서비스 추가 확인 (이벤트 위임)
+        $(document).on('click', '.confirm-add-service-btn', function() {
+            var legSeq = $(this).data('leg');
+            var legId = $(this).data('leg-id');
+            self.addServiceToLeg(legSeq, legId);
+        });
+
+        // 유료 서비스 삭제 (이벤트 위임)
+        $(document).on('click', '.remove-service-btn', function() {
+            var legId = $(this).data('leg-id');
+            var serviceId = $(this).data('service-id');
+            self.removeServiceFromLeg(legId, serviceId);
         });
 
         // 결제 처리 버튼
@@ -758,14 +985,14 @@ var ReservationDetail = {
                 columns: [
                     { data: null, className: 'text-center', render: function(d, t, r, m) { return m.row + 1; } },
                     { data: 'marketCode', render: function(d) { return HolaPms.escapeHtml(d); } },
-                    { data: 'marketCodeName', render: function(d) { return HolaPms.escapeHtml(d || '-'); } },
-                    { data: 'description', render: function(d) { return HolaPms.escapeHtml(d || '-'); } },
+                    { data: 'marketName', render: function(d) { return HolaPms.escapeHtml(d || '-'); } },
+                    { data: 'descriptionKo', render: function(d) { return HolaPms.escapeHtml(d || '-'); } },
                     {
                         data: null, className: 'text-center',
                         render: function(d, t, row) {
                             return '<input type="radio" name="marketCodeSelect" value="' + row.id
                                 + '" data-code="' + HolaPms.escapeHtml(row.marketCode || '')
-                                + '" data-name="' + HolaPms.escapeHtml(row.marketCodeName || '') + '">';
+                                + '" data-name="' + HolaPms.escapeHtml(row.marketName || '') + '">';
                         }
                     }
                 ]
@@ -1192,6 +1419,27 @@ var ReservationDetail = {
                         HolaPms.alert('success', '예약이 수정되었습니다.');
                         setTimeout(function() { self.loadData(); }, 500);
                     });
+                }
+            }
+        });
+    },
+
+    /**
+     * 예약 삭제 (SUPER_ADMIN 전용)
+     */
+    deleteReservation: function() {
+        var self = this;
+
+        if (!confirm('정말 삭제하시겠습니까?')) {
+            return;
+        }
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/delete',
+            type: 'DELETE',
+            success: function(res) {
+                if (res.success) {
+                    HolaPms.alertAndRedirect('success', '예약이 삭제되었습니다.', '/admin/reservations');
                 }
             }
         });

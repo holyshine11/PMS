@@ -79,6 +79,10 @@ public enum ErrorCode {
     RATE_CODE_HAS_PRICING("HOLA-3002", "하위 요금 정보가 존재하여 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
     RATE_INVALID_STAY_DAYS("HOLA-3003", "최대 숙박일수는 최소 숙박일수보다 크거나 같아야 합니다.", HttpStatus.BAD_REQUEST),
     RATE_INVALID_SALE_PERIOD("HOLA-3004", "판매 종료일은 판매 시작일보다 같거나 이후여야 합니다.", HttpStatus.BAD_REQUEST),
+    RATE_PRICING_PERIOD_REQUIRED("HOLA-3005", "요금 설정 기간은 필수 입력 항목입니다.", HttpStatus.BAD_REQUEST),
+    RATE_INVALID_PRICING_PERIOD("HOLA-3006", "요금 설정 기간의 종료일은 시작일보다 같거나 이후여야 합니다.", HttpStatus.BAD_REQUEST),
+    RATE_PRICING_PERIOD_OUT_OF_SALE("HOLA-3007", "요금 설정 기간은 판매기간 내에 있어야 합니다.", HttpStatus.BAD_REQUEST),
+    RATE_PRICING_PERIOD_OVERLAP("HOLA-3008", "요금 설정 기간이 다른 요금과 중복됩니다.", HttpStatus.BAD_REQUEST),
 
     // 프로모션 코드 (HOLA-35xx)
     PROMOTION_CODE_NOT_FOUND("HOLA-3500", "프로모션 코드를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
@@ -115,6 +119,14 @@ public enum ErrorCode {
     RESERVATION_MODIFY_NOT_ALLOWED("HOLA-4041", "해당 상태에서는 예약을 수정할 수 없습니다.", HttpStatus.BAD_REQUEST),
     SUB_RESERVATION_MASTER_MISMATCH("HOLA-4042", "해당 예약에 속하지 않는 객실 레그입니다.", HttpStatus.BAD_REQUEST),
     DEPOSIT_NOT_FOUND("HOLA-4043", "예치금 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+
+    // 예약 삭제 (HOLA-4044~4045)
+    RESERVATION_DELETE_NOT_ALLOWED("HOLA-4044", "체크아웃 상태의 예약만 삭제할 수 있습니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_DELETE_UNAUTHORIZED("HOLA-4045", "예약 삭제는 슈퍼어드민만 가능합니다.", HttpStatus.FORBIDDEN),
+
+    // 예약 서비스 (HOLA-406x)
+    RESERVATION_SERVICE_NOT_FOUND("HOLA-4060", "예약 서비스 항목을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    RESERVATION_SERVICE_MISMATCH("HOLA-4061", "해당 객실 레그에 속하지 않는 서비스 항목입니다.", HttpStatus.BAD_REQUEST),
 
     // 얼리체크인/레이트체크아웃 (HOLA-405x)
     EARLY_LATE_POLICY_NOT_FOUND("HOLA-4050", "얼리/레이트 정책을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

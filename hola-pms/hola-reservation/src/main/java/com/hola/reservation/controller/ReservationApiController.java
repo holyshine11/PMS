@@ -85,6 +85,15 @@ public class ReservationApiController {
         return HolaResponse.success();
     }
 
+    /** 예약 삭제 (SUPER_ADMIN 전용, CHECKED_OUT 상태만) */
+    @DeleteMapping("/{id}/delete")
+    public HolaResponse<Void> deleteReservation(@PathVariable Long propertyId,
+                                                 @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
+        reservationService.deleteReservation(id, propertyId);
+        return HolaResponse.success();
+    }
+
     /** 예약 상태 변경 */
     @PutMapping("/{id}/status")
     public HolaResponse<Void> changeStatus(@PathVariable Long propertyId,
@@ -169,6 +178,28 @@ public class ReservationApiController {
                                                                 @RequestBody ReservationDepositRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
         return HolaResponse.success(reservationService.addDeposit(id, propertyId, request));
+    }
+
+    /** 유료 서비스 추가 */
+    @PostMapping("/{id}/legs/{legId}/services")
+    @ResponseStatus(HttpStatus.CREATED)
+    public HolaResponse<ReservationServiceResponse> addService(@PathVariable Long propertyId,
+                                                                @PathVariable Long id,
+                                                                @PathVariable Long legId,
+                                                                @RequestBody ReservationServiceRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(reservationService.addService(id, legId, propertyId, request));
+    }
+
+    /** 유료 서비스 삭제 */
+    @DeleteMapping("/{id}/legs/{legId}/services/{serviceId}")
+    public HolaResponse<Void> removeService(@PathVariable Long propertyId,
+                                              @PathVariable Long id,
+                                              @PathVariable Long legId,
+                                              @PathVariable Long serviceId) {
+        accessControlService.validatePropertyAccess(propertyId);
+        reservationService.removeService(id, legId, serviceId, propertyId);
+        return HolaResponse.success();
     }
 
     /** 예치금 수정 */

@@ -4,14 +4,36 @@
 var ReservationPayment = {
     propertyId: null,
     reservationId: null,
+    reservationData: null,
 
     /**
      * 결제 정보 로드
      */
-    load: function(propertyId, reservationId) {
+    load: function(propertyId, reservationId, reservationData) {
         this.propertyId = propertyId;
         this.reservationId = reservationId;
+        this.reservationData = reservationData || null;
+        this.bindToggleEvents();
         this.loadPaymentSummary();
+    },
+
+    /**
+     * 세부 내역 토글 이벤트
+     */
+    bindToggleEvents: function() {
+        $(document).off('click.chargeToggle').on('click.chargeToggle', '.charge-toggle', function() {
+            var target = $(this).data('target');
+            var $target = $(target);
+            var $icon = $(this).find('.toggle-icon');
+
+            if ($target.is(':visible')) {
+                $target.slideUp(200);
+                $icon.removeClass('fa-caret-down').addClass('fa-caret-right');
+            } else {
+                $target.slideDown(200);
+                $icon.removeClass('fa-caret-right').addClass('fa-caret-down');
+            }
+        });
     },
 
     /**
@@ -25,27 +47,191 @@ var ReservationPayment = {
             success: function(res) {
                 if (res.success && res.data) {
                     self.bindSummary(res.data);
+                    self.renderChargeBreakdown();
                     self.renderAdjustments(res.data.adjustments || []);
                 }
             },
             error: function() {
-                // 결제 정보 미존재 시 기본값 유지
+                // 결제 정보 미존재 시 세부 내역만 렌더링
+                self.renderChargeBreakdown();
             }
         });
     },
 
     /**
-     * 결제 요약 테이블 바인딩
+     * 결제 요약 바인딩
      */
     bindSummary: function(data) {
         $('#totalRoomAmount').text(this.formatCurrency(data.totalRoomAmount));
         $('#totalServiceAmount').text(this.formatCurrency(data.totalServiceAmount));
         $('#totalServiceChargeAmount').text(this.formatCurrency(data.totalServiceChargeAmount));
+        $('#totalEarlyLateFee').text(this.formatCurrency(data.totalEarlyLateFee));
         $('#totalAdjustmentAmount').text(this.formatCurrency(data.totalAdjustmentAmount));
         $('#grandTotal').text(this.formatCurrency(data.grandTotal));
 
         // 결제 상태 배지
         this.renderPaymentStatus(data.paymentStatus);
+    },
+
+    /**
+     * 요금 세부 내역 렌더링 (reservationData 기반)
+     */
+    renderChargeBreakdown: function() {
+        var self = this;
+        var data = self.reservationData;
+        if (!data || !data.subReservations) return;
+
+        var subs = data.subReservations;
+        var totalSupply = 0, totalTax = 0, totalSvcChg = 0;
+
+        // ── 1. 객실 요금 세부 (일별 공급가 + 세액) ──
+        var roomHtml = '';
+        subs.forEach(function(sub, idx) {
+            if (sub.roomReservationStatus === 'CANCELED') return;
+            var charges = sub.dailyCharges || [];
+            if (charges.length === 0) return;
+
+            var label = sub.roomTypeName || ('객실 #' + (idx + 1));
+            if (subs.length > 1) label = 'Leg #' + (idx + 1) + ' - ' + label;
+
+            roomHtml += '<div class="charge-detail-wrap">';
+            if (subs.length > 1) {
+                roomHtml += '<div class="text-muted small mb-1">' + HolaPms.escapeHtml(label) + '</div>';
+            }
+            roomHtml += '<table class="table table-sm charge-detail-table">';
+            roomHtml += '<thead><tr>'
+                + '<th class="col-date">날짜</th>'
+                + '<th class="col-amount">공급가</th>'
+                + '<th class="col-amount">세액</th>'
+                + '<th class="col-amount">소계</th>'
+                + '</tr></thead><tbody>';
+
+            var subSupply = 0, subTax = 0;
+            charges.forEach(function(c) {
+                var sp = Number(c.supplyPrice) || 0;
+                var tx = Number(c.tax) || 0;
+                var sc = Number(c.serviceCharge) || 0;
+                subSupply += sp;
+                subTax += tx;
+                totalSvcChg += sc;
+
+                roomHtml += '<tr>'
+                    + '<td class="col-date">' + c.chargeDate + '</td>'
+                    + '<td class="col-amount">' + self.formatCurrency(sp) + '</td>'
+                    + '<td class="col-amount">' + self.formatCurrency(tx) + '</td>'
+                    + '<td class="col-amount">' + self.formatCurrency(sp + tx) + '</td>'
+                    + '</tr>';
+            });
+
+            // 멀티 레그: 소계
+            if (subs.length > 1) {
+                roomHtml += '<tr class="row-subtotal">'
+                    + '<td class="col-date">소계</td>'
+                    + '<td class="col-amount">' + self.formatCurrency(subSupply) + '</td>'
+                    + '<td class="col-amount">' + self.formatCurrency(subTax) + '</td>'
+                    + '<td class="col-amount">' + self.formatCurrency(subSupply + subTax) + '</td>'
+                    + '</tr>';
+            }
+
+            roomHtml += '</tbody></table></div>';
+            totalSupply += subSupply;
+            totalTax += subTax;
+        });
+
+        $('#roomDetailContent').html(roomHtml || '<div class="charge-empty">객실 요금 내역이 없습니다.</div>');
+
+        // ── 2. 유료 서비스 요금 세부 ──
+        var svcHtml = '';
+        var paidServices = [];
+        subs.forEach(function(sub) {
+            if (sub.roomReservationStatus === 'CANCELED') return;
+            (sub.services || []).forEach(function(svc) {
+                if (Number(svc.totalPrice) > 0) {
+                    paidServices.push(svc);
+                }
+            });
+        });
+
+        if (paidServices.length > 0) {
+            svcHtml += '<div class="charge-detail-wrap">';
+            svcHtml += '<table class="table table-sm charge-detail-table">';
+            svcHtml += '<thead><tr>'
+                + '<th class="col-label">항목</th>'
+                + '<th class="col-qty">수량</th>'
+                + '<th class="col-amount">단가</th>'
+                + '<th class="col-amount">세액</th>'
+                + '<th class="col-amount">합계</th>'
+                + '</tr></thead><tbody>';
+
+            paidServices.forEach(function(s) {
+                var typeLabel = s.serviceName || (s.serviceType === 'PAID' ? '유료 서비스' : '서비스');
+                if (s.serviceDate) typeLabel += ' (' + s.serviceDate + ')';
+
+                var unitP = Number(s.unitPrice) || 0;
+                var qty = s.quantity || 1;
+                var sTax = Number(s.tax) || 0;
+                var sTotal = Number(s.totalPrice) || 0;
+                var sSupply = unitP * qty;
+
+                totalSupply += sSupply;
+                totalTax += sTax;
+
+                svcHtml += '<tr>'
+                    + '<td class="col-label">' + HolaPms.escapeHtml(typeLabel) + '</td>'
+                    + '<td class="col-qty">' + qty + '</td>'
+                    + '<td class="col-amount">' + self.formatCurrency(unitP) + '</td>'
+                    + '<td class="col-amount">' + self.formatCurrency(sTax) + '</td>'
+                    + '<td class="col-amount">' + self.formatCurrency(sTotal) + '</td>'
+                    + '</tr>';
+            });
+
+            svcHtml += '</tbody></table></div>';
+        }
+
+        $('#serviceDetailContent').html(svcHtml || '<div class="charge-empty">유료 서비스 내역이 없습니다.</div>');
+
+        // ── 3. 봉사료 세부 (일별) ──
+        var chgHtml = '';
+        subs.forEach(function(sub, idx) {
+            if (sub.roomReservationStatus === 'CANCELED') return;
+            var charges = sub.dailyCharges || [];
+            var hasChg = charges.some(function(c) { return Number(c.serviceCharge) > 0; });
+            if (!hasChg) return;
+
+            var label = sub.roomTypeName || ('객실 #' + (idx + 1));
+            if (subs.length > 1) label = 'Leg #' + (idx + 1) + ' - ' + label;
+
+            chgHtml += '<div class="charge-detail-wrap">';
+            if (subs.length > 1) {
+                chgHtml += '<div class="text-muted small mb-1">' + HolaPms.escapeHtml(label) + '</div>';
+            }
+            chgHtml += '<table class="table table-sm charge-detail-table">';
+            chgHtml += '<thead><tr><th class="col-date">날짜</th><th class="col-amount">봉사료</th></tr></thead><tbody>';
+
+            var subSvcChg = 0;
+            charges.forEach(function(c) {
+                var sc = Number(c.serviceCharge) || 0;
+                if (sc > 0) {
+                    subSvcChg += sc;
+                    chgHtml += '<tr><td class="col-date">' + c.chargeDate + '</td>'
+                        + '<td class="col-amount">' + self.formatCurrency(sc) + '</td></tr>';
+                }
+            });
+
+            if (subs.length > 1) {
+                chgHtml += '<tr class="row-subtotal"><td class="col-date">소계</td>'
+                    + '<td class="col-amount">' + self.formatCurrency(subSvcChg) + '</td></tr>';
+            }
+
+            chgHtml += '</tbody></table></div>';
+        });
+
+        $('#svcChgDetailContent').html(chgHtml || '<div class="charge-empty">봉사료 내역이 없습니다.</div>');
+
+        // ── 공급가/세액/봉사료 소계 바인딩 ──
+        $('#totalSupplyPrice').text(self.formatCurrency(totalSupply));
+        $('#totalTaxAmount').text(self.formatCurrency(totalTax));
+        $('#totalSvcChgSubtotal').text(self.formatCurrency(totalSvcChg));
     },
 
     /**

@@ -28,6 +28,9 @@ public interface ReservationService {
     /** 예약 취소 (soft delete) */
     void cancel(Long id, Long propertyId);
 
+    /** 예약 삭제 - SUPER_ADMIN 전용, CHECKED_OUT 상태만 */
+    void deleteReservation(Long id, Long propertyId);
+
     /** 예약 상태 변경 */
     void changeStatus(Long id, Long propertyId, ReservationStatusRequest request);
 
@@ -54,6 +57,12 @@ public interface ReservationService {
 
     /** 예치금 수정 */
     ReservationDepositResponse updateDeposit(Long reservationId, Long propertyId, Long depositId, ReservationDepositRequest request);
+
+    /** 유료 서비스 추가 */
+    ReservationServiceResponse addService(Long masterReservationId, Long subReservationId, Long propertyId, ReservationServiceRequest request);
+
+    /** 유료 서비스 삭제 */
+    void removeService(Long masterReservationId, Long subReservationId, Long serviceId, Long propertyId);
 
     /** 캘린더뷰: 기간 내 예약을 날짜별로 그룹핑하여 반환 (이름 마스킹) */
     Map<String, List<ReservationCalendarResponse>> getCalendarData(

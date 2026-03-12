@@ -360,11 +360,19 @@ var ReservationForm = {
             return;
         }
 
+        // 체크인/체크아웃 날짜 기반 필터링 URL 구성
+        var checkIn = $('#masterCheckIn').val();
+        var checkOut = $('#masterCheckOut').val();
+        var url = '/api/v1/properties/' + self.propertyId + '/rate-codes';
+        if (checkIn && checkOut) {
+            url += '?checkIn=' + checkIn + '&checkOut=' + checkOut;
+        }
+
         $('#rateCodeSearchKeyword').val('');
 
         // DataTable 초기화 또는 리로드
         if (self.rateCodeTable) {
-            self.rateCodeTable.ajax.url('/api/v1/properties/' + self.propertyId + '/rate-codes').load();
+            self.rateCodeTable.ajax.url(url).load();
         } else {
             self.rateCodeTable = $('#rateCodeSelectTable').DataTable({
                 processing: true,
@@ -377,9 +385,9 @@ var ReservationForm = {
                 info: false,
                 language: HolaPms.dataTableLanguage,
                 ajax: {
-                    url: '/api/v1/properties/' + self.propertyId + '/rate-codes',
+                    url: url,
                     dataSrc: function(json) {
-                        // useYn=true만 필터링
+                        // checkIn/checkOut 파라미터가 있으면 서버에서 이미 필터링됨
                         return (json.data || []).filter(function(item) {
                             return item.useYn === true;
                         });
@@ -469,14 +477,14 @@ var ReservationForm = {
                 columns: [
                     { data: null, className: 'text-center', render: function(d, t, r, m) { return m.row + 1; } },
                     { data: 'marketCode', render: function(d) { return HolaPms.escapeHtml(d); } },
-                    { data: 'marketCodeName', render: function(d) { return HolaPms.escapeHtml(d || '-'); } },
-                    { data: 'description', render: function(d) { return HolaPms.escapeHtml(d || '-'); } },
+                    { data: 'marketName', render: function(d) { return HolaPms.escapeHtml(d || '-'); } },
+                    { data: 'descriptionKo', render: function(d) { return HolaPms.escapeHtml(d || '-'); } },
                     {
                         data: null, className: 'text-center',
                         render: function(d, t, row) {
                             return '<input type="radio" name="marketCodeSelect" value="' + row.id
                                 + '" data-code="' + HolaPms.escapeHtml(row.marketCode || '')
-                                + '" data-name="' + HolaPms.escapeHtml(row.marketCodeName || '') + '">';
+                                + '" data-name="' + HolaPms.escapeHtml(row.marketName || '') + '">';
                         }
                     }
                 ]

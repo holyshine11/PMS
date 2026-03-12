@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -26,6 +27,8 @@ public class RatePricingResponse {
     @AllArgsConstructor
     public static class PricingRowResponse {
         private Long id;
+        private LocalDate startDate;
+        private LocalDate endDate;
         private Boolean dayMon;
         private Boolean dayTue;
         private Boolean dayWed;

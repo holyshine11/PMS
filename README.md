@@ -593,3 +593,16 @@ hola-pms/
 | `/admin/hotels` | 호텔 목록 |
 | `/admin/hotels/{id}` | 호텔 상세 (프로퍼티 목록 포함) |
 | `/admin/hotels/{hotelId}/properties/{id}` | 프로퍼티 상세 (층/호수/마켓코드 탭) |
+
+### 관리자 테스트 계정
+
+[Hoal PMS 테스트 계정]
+
+아이디	이름	권한	소속호텔
+admin	시스템관리자	SUPER_ADMIN	
+hotel1admin	김서울	HOTEL_ADMIN	올라서울호텔
+hotel2admin	박부산	HOTEL_ADMIN	올라비치해운대
+prop1admin	이명동	PROPERTY_ADMIN	명동
+prop2admin	최서초	PROPERTY_ADMIN	서초
+prop3admin	정해운	PROPERTY_ADMIN	해운대
+PW : holapms1!

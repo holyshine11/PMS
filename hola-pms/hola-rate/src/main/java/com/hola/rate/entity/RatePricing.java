@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,12 @@ public class RatePricing {
 
     @Column(name = "rate_code_id", nullable = false)
     private Long rateCodeId;
+
+    @Column(name = "start_date", nullable = false)
+    private LocalDate startDate;
+
+    @Column(name = "end_date", nullable = false)
+    private LocalDate endDate;
 
     @Column(name = "day_mon", nullable = false)
     @Builder.Default
@@ -118,9 +125,12 @@ public class RatePricing {
     /**
      * 요금 정보 수정
      */
-    public void update(Boolean dayMon, Boolean dayTue, Boolean dayWed, Boolean dayThu,
+    public void update(LocalDate startDate, LocalDate endDate,
+                       Boolean dayMon, Boolean dayTue, Boolean dayWed, Boolean dayThu,
                        Boolean dayFri, Boolean daySat, Boolean daySun,
                        String currency, BigDecimal baseSupplyPrice, BigDecimal baseTax, BigDecimal baseTotal) {
+        this.startDate = startDate;
+        this.endDate = endDate;
         this.dayMon = dayMon;
         this.dayTue = dayTue;
         this.dayWed = dayWed;

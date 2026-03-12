@@ -36,6 +36,11 @@ var RateCodeForm = {
         // 판매기간 날짜 범위 제한
         HolaPms.bindDateRange('#saleStartDate', '#saleEndDate');
 
+        // 판매기간 변경 시 모든 요금행의 기간 캘린더 min/max 갱신
+        $('#saleStartDate, #saleEndDate').on('change', function() {
+            self.updatePricingDateLimits();
+        });
+
         // 코드 입력 시 중복확인 리셋
         $('#rateCode').on('input', function() {
             self.duplicateChecked = false;
@@ -599,6 +604,12 @@ var RateCodeForm = {
         var idx = self.pricingRowIndex++;
         var currency = data ? data.currency : ($('#currency').val() || 'KRW');
 
+        // 요금 설정 기간 기본값: 판매기간 또는 데이터값
+        var saleStart = $('#saleStartDate').val() || '';
+        var saleEnd = $('#saleEndDate').val() || '';
+        var pricingStartDate = data ? (data.startDate || saleStart) : saleStart;
+        var pricingEndDate = data ? (data.endDate || saleEnd) : saleEnd;
+
         var dayChecks = '';
         var days = [
             {key: 'Mon', label: 'MON'},
@@ -680,6 +691,24 @@ var RateCodeForm = {
             '<i class="fas fa-times"></i></button></div>' +
 
             '<div class="collapse show" id="' + collapseId + '">' +
+
+            // 요금 설정 기간
+            '<div class="row mb-3">' +
+            '<label class="col-sm-2 col-form-label required">요금 설정 기간</label>' +
+            '<div class="col-sm-10">' +
+            '<div class="d-flex align-items-center">' +
+            '<input type="date" class="form-control pricing-start-date" id="pricingStartDate_' + idx + '" ' +
+            'data-idx="' + idx + '" value="' + pricingStartDate + '"' +
+            (saleStart ? ' min="' + saleStart + '"' : '') +
+            (saleEnd ? ' max="' + saleEnd + '"' : '') +
+            ' style="max-width:200px;">' +
+            '<span class="mx-2">~</span>' +
+            '<input type="date" class="form-control pricing-end-date" id="pricingEndDate_' + idx + '" ' +
+            'data-idx="' + idx + '" value="' + pricingEndDate + '"' +
+            (saleStart ? ' min="' + saleStart + '"' : '') +
+            (saleEnd ? ' max="' + saleEnd + '"' : '') +
+            ' style="max-width:200px;">' +
+            '</div></div></div>' +
 
             // 요일
             '<div class="row mb-3">' +
@@ -777,6 +806,75 @@ var RateCodeForm = {
         var $toggle = $collapse.closest('.pricing-row').find('.card-section-toggle');
         $collapse.on('hide.bs.collapse', function() { $toggle.addClass('collapsed'); });
         $collapse.on('show.bs.collapse', function() { $toggle.removeClass('collapsed'); });
+
+        // 기간-요일 연동: 기간 변경 시 해당 기간 내 존재하는 요일만 활성화
+        $('#pricingStartDate_' + idx + ', #pricingEndDate_' + idx).on('change', function() {
+            self.updateDayCheckboxes(idx);
+        });
+
+        // 초기 로드 시 요일 상태 갱신
+        if (pricingStartDate && pricingEndDate) {
+            self.updateDayCheckboxes(idx);
+        }
+    },
+
+    /**
+     * 선택한 기간 내 존재하는 요일만 체크박스 활성화
+     */
+    updateDayCheckboxes: function(idx) {
+        var startStr = $('#pricingStartDate_' + idx).val();
+        var endStr = $('#pricingEndDate_' + idx).val();
+
+        if (!startStr || !endStr) return;
+
+        var start = new Date(startStr);
+        var end = new Date(endStr);
+        if (start > end) return;
+
+        // 기간 내 존재하는 요일 수집 (0=Sun, 1=Mon, ... 6=Sat)
+        var existingDays = new Set();
+        var current = new Date(start);
+        // 최대 7일만 확인하면 모든 요일 커버
+        var maxDays = Math.min(Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1, 7);
+        for (var i = 0; i < maxDays; i++) {
+            existingDays.add(current.getDay());
+            current.setDate(current.getDate() + 1);
+        }
+        // 7일 이상이면 모든 요일 존재
+        if (Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1 >= 7) {
+            for (var d = 0; d < 7; d++) existingDays.add(d);
+        }
+
+        var dayMap = {Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 0};
+        var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+        days.forEach(function(key) {
+            var $cb = $('#day' + key + '_' + idx);
+            if (existingDays.has(dayMap[key])) {
+                $cb.prop('disabled', false);
+            } else {
+                $cb.prop('disabled', true).prop('checked', false);
+            }
+        });
+
+        // 전체 체크박스 상태 갱신
+        var allChecked = true;
+        days.forEach(function(key) {
+            var $cb = $('#day' + key + '_' + idx);
+            if (!$cb.prop('disabled') && !$cb.prop('checked')) allChecked = false;
+        });
+        $('#dayAll_' + idx).prop('checked', allChecked);
+    },
+
+    /**
+     * 판매기간 변경 시 모든 요금행의 기간 캘린더 min/max 갱신
+     */
+    updatePricingDateLimits: function() {
+        var saleStart = $('#saleStartDate').val() || '';
+        var saleEnd = $('#saleEndDate').val() || '';
+
+        $('.pricing-start-date').attr('min', saleStart).attr('max', saleEnd);
+        $('.pricing-end-date').attr('min', saleStart).attr('max', saleEnd);
     },
 
     buildPersonRow: function(idx, type, seq, label, data) {
@@ -839,6 +937,8 @@ var RateCodeForm = {
             var idx = $(this).data('idx');
             var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
             var row = {
+                startDate: $('#pricingStartDate_' + idx).val() || null,
+                endDate: $('#pricingEndDate_' + idx).val() || null,
                 currency: $('#pricingCurrency_' + idx).val(),
                 baseSupplyPrice: parseFloat($('#baseSupply_' + idx).val()) || 0,
                 baseTax: self.parseFormattedNumber($('#baseTax_' + idx).val()),
@@ -887,32 +987,81 @@ var RateCodeForm = {
     },
 
     /**
-     * 요금 행 간 요일 중복 검증
-     * @returns {string|null} 중복 시 에러 메시지, 없으면 null
+     * 요금 설정 기간 필수/범위 검증
+     * @returns {string|null} 에러 메시지
      */
-    checkDayOverlap: function() {
-        var dayLabels = {Mon: '월', Tue: '화', Wed: '수', Thu: '목', Fri: '금', Sat: '토', Sun: '일'};
-        var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        // {dayKey: 요금행 번호} - 이미 선택된 요일 추적
-        var usedDays = {};
-
+    checkPricingPeriod: function() {
+        var saleStart = $('#saleStartDate').val();
+        var saleEnd = $('#saleEndDate').val();
         var error = null;
+
         $('.pricing-row').each(function(rowIndex) {
             var idx = $(this).data('idx');
             var rowNum = rowIndex + 1;
-            days.forEach(function(d) {
-                if ($('#day' + d + '_' + idx).is(':checked')) {
-                    if (usedDays[d] !== undefined) {
-                        error = '요금 #' + usedDays[d] + '과(와) 요금 #' + rowNum +
-                            '에 "' + dayLabels[d] + '요일"이 중복됩니다. 요일이 겹치지 않도록 설정해주세요.';
-                        return false; // forEach break
-                    }
-                    usedDays[d] = rowNum;
+            var start = $('#pricingStartDate_' + idx).val();
+            var end = $('#pricingEndDate_' + idx).val();
+
+            // 필수 검증
+            if (!start || !end) {
+                error = '요금 #' + rowNum + '의 요금 설정 기간을 입력해주세요.';
+                return false;
+            }
+            // 역전 검증
+            if (start > end) {
+                error = '요금 #' + rowNum + '의 종료일은 시작일보다 같거나 이후여야 합니다.';
+                return false;
+            }
+            // 판매기간 종속 검증
+            if (saleStart && saleEnd) {
+                if (start < saleStart || end > saleEnd) {
+                    error = '요금 #' + rowNum + '의 기간이 판매기간(' + saleStart + ' ~ ' + saleEnd + ')을 벗어납니다.';
+                    return false;
                 }
-            });
-            if (error) return false; // each break
+            }
         });
         return error;
+    },
+
+    /**
+     * 기간+요일 중복 검증 (기간이 겹치는 행 쌍에서만 요일 중복 검사)
+     * @returns {string|null} 에러 메시지
+     */
+    checkPeriodOverlap: function() {
+        var dayLabels = {Mon: '월', Tue: '화', Wed: '수', Thu: '목', Fri: '금', Sat: '토', Sun: '일'};
+        var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        var rows = [];
+
+        $('.pricing-row').each(function(rowIndex) {
+            var idx = $(this).data('idx');
+            var start = $('#pricingStartDate_' + idx).val();
+            var end = $('#pricingEndDate_' + idx).val();
+            var checkedDays = [];
+            days.forEach(function(d) {
+                if ($('#day' + d + '_' + idx).is(':checked')) {
+                    checkedDays.push(d);
+                }
+            });
+            rows.push({num: rowIndex + 1, start: start, end: end, days: checkedDays});
+        });
+
+        // 모든 행 쌍 비교
+        for (var i = 0; i < rows.length; i++) {
+            for (var j = i + 1; j < rows.length; j++) {
+                var a = rows[i];
+                var b = rows[j];
+                // 기간 중첩 확인
+                if (a.start <= b.end && b.start <= a.end) {
+                    // 기간이 겹치면 요일 중복 확인
+                    for (var k = 0; k < a.days.length; k++) {
+                        if (b.days.indexOf(a.days[k]) >= 0) {
+                            return '요금 #' + a.num + '과(와) 요금 #' + b.num +
+                                '의 기간이 겹치고 "' + dayLabels[a.days[k]] + '요일"이 중복됩니다.';
+                        }
+                    }
+                }
+            }
+        }
+        return null;
     },
 
     parseFormattedNumber: function(str) {
@@ -933,10 +1082,17 @@ var RateCodeForm = {
             return;
         }
 
-        // 요일 중복 검증
-        var dayOverlap = self.checkDayOverlap();
-        if (dayOverlap) {
-            HolaPms.alert('warning', dayOverlap);
+        // 요금 설정 기간 검증
+        var periodError = self.checkPricingPeriod();
+        if (periodError) {
+            HolaPms.alert('warning', periodError);
+            return;
+        }
+
+        // 기간+요일 중복 검증
+        var overlapError = self.checkPeriodOverlap();
+        if (overlapError) {
+            HolaPms.alert('warning', overlapError);
             return;
         }
 

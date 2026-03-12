@@ -88,8 +88,8 @@ public class PriceCalculationService {
                                           SubReservation subReservation) {
         DayOfWeek dayOfWeek = date.getDayOfWeek();
 
-        // 해당 요일에 적용되는 요금표 찾기
-        RatePricing pricing = findPricingForDay(pricingList, dayOfWeek);
+        // 해당 날짜(기간+요일)에 적용되는 요금표 찾기
+        RatePricing pricing = findPricingForDate(pricingList, date);
 
         BigDecimal supplyPrice;
         if (pricing != null) {
@@ -132,10 +132,43 @@ public class PriceCalculationService {
     }
 
     /**
-     * 요일에 맞는 요금표 찾기
+     * 요금 커버리지 검증: 체크인~체크아웃 전일까지 모든 날짜에 매칭되는 요금행이 있는지 확인
+     * 커버되지 않는 날짜가 있으면 HolaException 발생
      */
-    private RatePricing findPricingForDay(List<RatePricing> pricingList, DayOfWeek dayOfWeek) {
+    public void validatePricingCoverage(Long rateCodeId, LocalDate checkIn, LocalDate checkOut) {
+        List<RatePricing> pricingList = ratePricingRepository.findAllByRateCodeIdOrderByIdAsc(rateCodeId);
+
+        if (pricingList.isEmpty()) {
+            throw new HolaException(ErrorCode.RESERVATION_RATE_NOT_APPLICABLE,
+                    "레이트코드에 설정된 요금 정보가 없습니다.");
+        }
+
+        LocalDate date = checkIn;
+        while (date.isBefore(checkOut)) {
+            RatePricing pricing = findPricingForDate(pricingList, date);
+            if (pricing == null) {
+                String dayName = switch (date.getDayOfWeek()) {
+                    case MONDAY -> "월"; case TUESDAY -> "화"; case WEDNESDAY -> "수";
+                    case THURSDAY -> "목"; case FRIDAY -> "금"; case SATURDAY -> "토"; case SUNDAY -> "일";
+                };
+                throw new HolaException(ErrorCode.RESERVATION_RATE_NOT_APPLICABLE,
+                        date + "(" + dayName + ")에 적용 가능한 요금 설정이 없습니다. 레이트코드의 요금정보를 확인해주세요.");
+            }
+            date = date.plusDays(1);
+        }
+    }
+
+    /**
+     * 날짜(기간+요일)에 맞는 요금표 찾기
+     */
+    private RatePricing findPricingForDate(List<RatePricing> pricingList, LocalDate date) {
+        DayOfWeek dayOfWeek = date.getDayOfWeek();
         for (RatePricing pricing : pricingList) {
+            // 기간 매칭
+            if (date.isBefore(pricing.getStartDate()) || date.isAfter(pricing.getEndDate())) {
+                continue;
+            }
+            // 요일 매칭
             boolean matches = switch (dayOfWeek) {
                 case MONDAY -> pricing.getDayMon();
                 case TUESDAY -> pricing.getDayTue();

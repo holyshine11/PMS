@@ -132,11 +132,11 @@
                         <div class="row mb-3">
                             <label class="col-sm-2 col-form-label">영문 성</label>
                             <div class="col-sm-4">
-                                <input type="text" class="form-control" id="guestLastNameEn" placeholder="Last Name">
+                                <input type="text" class="form-control" id="guestLastNameEn" placeholder="Surname">
                             </div>
                             <label class="col-sm-2 col-form-label">영문 이름</label>
                             <div class="col-sm-4">
-                                <input type="text" class="form-control" id="guestFirstNameEn" placeholder="First Name">
+                                <input type="text" class="form-control" id="guestFirstNameEn" placeholder="Given Name">
                             </div>
                         </div>
                         <div class="row mb-3">
@@ -259,40 +259,91 @@
             <div class="tab-pane fade" id="tabPayment" role="tabpanel">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
-                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 결제 요약</h6>
-                        <table class="table">
-                            <tbody>
-                            <tr>
-                                <td>객실 요금</td>
-                                <td class="text-end" id="totalRoomAmount">0원</td>
-                            </tr>
-                            <tr>
-                                <td>서비스 요금</td>
-                                <td class="text-end" id="totalServiceAmount">0원</td>
-                            </tr>
-                            <tr>
-                                <td>봉사료</td>
-                                <td class="text-end" id="totalServiceChargeAmount">0원</td>
-                            </tr>
-                            <tr>
-                                <td>조정 금액</td>
-                                <td class="text-end" id="totalAdjustmentAmount">0원</td>
-                            </tr>
-                            <tr class="table-dark">
-                                <td>최종 합계</td>
-                                <td class="text-end" id="grandTotal">0원</td>
-                            </tr>
-                            </tbody>
-                        </table>
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 요금 명세</h6>
 
-                        <div class="d-flex justify-content-between align-items-center mt-3">
+                        <!-- 요금 항목별 명세 (토글형) -->
+                        <div id="chargeBreakdown">
+                            <!-- 1. 객실 요금 -->
+                            <div class="border-bottom py-2">
+                                <div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#roomDetail" style="cursor:pointer">
+                                    <span><i class="fas fa-caret-right me-1 toggle-icon"></i>객실 요금</span>
+                                    <span id="totalRoomAmount">0원</span>
+                                </div>
+                                <div id="roomDetail" style="display:none" class="mt-2">
+                                    <div id="roomDetailContent"></div>
+                                </div>
+                            </div>
+
+                            <!-- 2. 유료 서비스 요금 -->
+                            <div class="border-bottom py-2">
+                                <div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#serviceDetail" style="cursor:pointer">
+                                    <span><i class="fas fa-caret-right me-1 toggle-icon"></i>유료 서비스 요금</span>
+                                    <span id="totalServiceAmount">0원</span>
+                                </div>
+                                <div id="serviceDetail" style="display:none" class="mt-2">
+                                    <div id="serviceDetailContent"></div>
+                                </div>
+                            </div>
+
+                            <!-- 3. 봉사료 -->
+                            <div class="border-bottom py-2">
+                                <div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#svcChgDetail" style="cursor:pointer">
+                                    <span><i class="fas fa-caret-right me-1 toggle-icon"></i>봉사료</span>
+                                    <span id="totalServiceChargeAmount">0원</span>
+                                </div>
+                                <div id="svcChgDetail" style="display:none" class="mt-2">
+                                    <div id="svcChgDetailContent"></div>
+                                </div>
+                            </div>
+
+                            <!-- 4. 얼리체크인/레이트체크아웃 -->
+                            <div class="border-bottom py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="ps-3">얼리체크인/레이트체크아웃</span>
+                                    <span id="totalEarlyLateFee">0원</span>
+                                </div>
+                            </div>
+
+                            <!-- 5. 조정 금액 -->
+                            <div class="border-bottom py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="ps-3">조정 금액</span>
+                                    <span id="totalAdjustmentAmount">0원</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 공급가/세액/봉사료 소계 -->
+                        <div class="bg-light rounded p-3 mt-3 mb-2">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted small">공급가 합계</span>
+                                <span class="small" id="totalSupplyPrice">0원</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted small">세액 합계</span>
+                                <span class="small" id="totalTaxAmount">0원</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted small">봉사료 합계</span>
+                                <span class="small" id="totalSvcChgSubtotal">0원</span>
+                            </div>
+                        </div>
+
+                        <!-- 최종 합계 -->
+                        <div class="d-flex justify-content-between align-items-center bg-dark text-white rounded p-3 mb-3">
+                            <span>최종 합계</span>
+                            <span id="grandTotal">0원</span>
+                        </div>
+
+                        <!-- 결제 상태/버튼 -->
+                        <div class="d-flex justify-content-between align-items-center">
                             <span id="paymentStatusBadge"></span>
                             <button class="btn btn-success" id="processPaymentBtn">
                                 <i class="fas fa-credit-card me-1"></i>결제 처리
                             </button>
                         </div>
 
-                        <!-- 금액 조정 목록 -->
+                        <!-- 금액 조정 -->
                         <h6 class="fw-bold mb-3 mt-4"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 금액 조정</h6>
                         <div id="adjustmentList"><!-- 동적 생성 --></div>
                         <button class="btn btn-outline-primary btn-sm mt-2" id="addAdjustmentBtn">
@@ -337,6 +388,10 @@
                         <!-- JS에서 동적 생성 -->
                     </ul>
                 </div>
+                <!-- 예약 삭제 버튼 (SUPER_ADMIN + CHECKED_OUT만 JS에서 show) -->
+                <button type="button" class="btn btn-danger ms-2 d-none" id="deleteReservationBtn">
+                    <i class="fas fa-trash me-1"></i>예약 삭제
+                </button>
             </div>
             <div>
                 <a href="/admin/reservations" class="btn btn-secondary me-2">

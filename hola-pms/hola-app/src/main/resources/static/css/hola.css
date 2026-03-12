@@ -380,6 +380,66 @@ textarea[readonly].form-control {
     font-weight: 600;
 }
 
+/* ── 결제 요금 명세 ── */
+.charge-detail-table {
+    width: 100%;
+    font-size: 0.82rem;
+    margin-bottom: 0;
+    border: none;
+}
+.charge-detail-table th,
+.charge-detail-table td {
+    border: none;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.charge-detail-table thead th {
+    font-weight: 500;
+    font-size: 0.78rem;
+    color: #868e96;
+    padding: 4px 14px 6px;
+    border-bottom: 1px solid #dee2e6;
+    background: none;
+}
+.charge-detail-table tbody td {
+    padding: 7px 14px;
+    color: #343a40;
+}
+.charge-detail-table tbody tr:not(:last-child) td {
+    border-bottom: 1px solid #f1f3f5;
+}
+.charge-detail-table .col-date { width: 100px; }
+.charge-detail-table .col-amount { width: 90px; text-align: right; }
+.charge-detail-table .col-label { min-width: 110px; }
+.charge-detail-table .col-qty { width: 44px; text-align: right; }
+.charge-detail-table tr.row-subtotal td {
+    font-weight: 600;
+    color: #212529;
+    border-top: 1px solid #ced4da;
+}
+.charge-toggle {
+    transition: background-color 0.15s ease;
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+.charge-toggle:hover {
+    background-color: rgba(5, 130, 202, 0.06);
+}
+.charge-toggle .toggle-icon {
+    color: #868e96;
+    font-size: 0.7rem;
+    width: 14px;
+    display: inline-block;
+}
+.charge-detail-wrap {
+    padding: 8px 0 4px 20px;
+}
+.charge-empty {
+    color: #adb5bd;
+    font-size: 0.82rem;
+    padding: 4px 0 4px 20px;
+}
+
 /* ── 예약 캘린더뷰 ── */
 .calendar-cell {
     transition: background-color 0.15s ease;

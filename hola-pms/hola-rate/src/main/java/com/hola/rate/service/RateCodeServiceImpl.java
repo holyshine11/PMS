@@ -26,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,6 +58,53 @@ public class RateCodeServiceImpl implements RateCodeService {
                     return rateCodeMapper.toListResponse(rc, marketCodeName, roomTypeCount);
                 })
                 .toList();
+    }
+
+    @Override
+    public List<RateCodeListResponse> getAvailableRateCodes(Long propertyId, LocalDate checkIn, LocalDate checkOut) {
+        List<RateCode> rateCodes = rateCodeRepository.findAllByPropertyIdOrderBySortOrderAscRateCodeAsc(propertyId);
+        return rateCodes.stream()
+                .filter(rc -> Boolean.TRUE.equals(rc.getUseYn()))
+                .filter(rc -> rc.getSaleStartDate() != null && rc.getSaleEndDate() != null)
+                .filter(rc -> !checkIn.isBefore(rc.getSaleStartDate()) && !checkIn.isAfter(rc.getSaleEndDate()))
+                .filter(rc -> {
+                    // 요금행이 체크인~체크아웃 전일까지 모든 날짜를 커버하는지 확인
+                    List<RatePricing> pricings = ratePricingRepository.findAllByRateCodeIdOrderByIdAsc(rc.getId());
+                    if (pricings.isEmpty()) return false;
+                    LocalDate date = checkIn;
+                    while (date.isBefore(checkOut)) {
+                        if (!hasPricingForDate(pricings, date)) return false;
+                        date = date.plusDays(1);
+                    }
+                    return true;
+                })
+                .map(rc -> {
+                    String marketCodeName = getMarketCodeName(rc.getMarketCodeId());
+                    long roomTypeCount = rateCodeRoomTypeRepository.countByRateCodeId(rc.getId());
+                    return rateCodeMapper.toListResponse(rc, marketCodeName, roomTypeCount);
+                })
+                .toList();
+    }
+
+    /**
+     * 특정 날짜에 매칭되는 요금행이 있는지 확인 (기간+요일)
+     */
+    private boolean hasPricingForDate(List<RatePricing> pricings, LocalDate date) {
+        DayOfWeek dayOfWeek = date.getDayOfWeek();
+        for (RatePricing p : pricings) {
+            if (date.isBefore(p.getStartDate()) || date.isAfter(p.getEndDate())) continue;
+            boolean matches = switch (dayOfWeek) {
+                case MONDAY -> Boolean.TRUE.equals(p.getDayMon());
+                case TUESDAY -> Boolean.TRUE.equals(p.getDayTue());
+                case WEDNESDAY -> Boolean.TRUE.equals(p.getDayWed());
+                case THURSDAY -> Boolean.TRUE.equals(p.getDayThu());
+                case FRIDAY -> Boolean.TRUE.equals(p.getDayFri());
+                case SATURDAY -> Boolean.TRUE.equals(p.getDaySat());
+                case SUNDAY -> Boolean.TRUE.equals(p.getDaySun());
+            };
+            if (matches) return true;
+        }
+        return false;
     }
 
     @Override
@@ -217,7 +266,12 @@ public class RateCodeServiceImpl implements RateCodeService {
     @Override
     @Transactional
     public RatePricingResponse saveRatePricing(Long rateCodeId, RatePricingRequest request) {
-        findById(rateCodeId);
+        RateCode rateCode = findById(rateCodeId);
+
+        // 요금 설정 기간 검증
+        if (request.getPricingRows() != null) {
+            validatePricingPeriods(request.getPricingRows(), rateCode.getSaleStartDate(), rateCode.getSaleEndDate());
+        }
 
         // 기존 요금 행 전체 삭제 후 재생성
         List<RatePricing> existingPricings = ratePricingRepository.findAllByRateCodeIdOrderByIdAsc(rateCodeId);
@@ -233,6 +287,8 @@ public class RateCodeServiceImpl implements RateCodeService {
             for (RatePricingRequest.PricingRow row : request.getPricingRows()) {
                 RatePricing pricing = RatePricing.builder()
                         .rateCodeId(rateCodeId)
+                        .startDate(row.getStartDate())
+                        .endDate(row.getEndDate())
                         .dayMon(row.getDayMon() != null ? row.getDayMon() : true)
                         .dayTue(row.getDayTue() != null ? row.getDayTue() : true)
                         .dayWed(row.getDayWed() != null ? row.getDayWed() : true)
@@ -303,6 +359,8 @@ public class RateCodeServiceImpl implements RateCodeService {
                             .toList();
                     return RatePricingResponse.PricingRowResponse.builder()
                             .id(p.getId())
+                            .startDate(p.getStartDate())
+                            .endDate(p.getEndDate())
                             .dayMon(p.getDayMon())
                             .dayTue(p.getDayTue())
                             .dayWed(p.getDayWed())
@@ -365,6 +423,60 @@ public class RateCodeServiceImpl implements RateCodeService {
         return rateCodePaidServiceRepository.findAllByRateCodeId(rateCodeId).stream()
                 .map(RateCodePaidService::getPaidServiceOptionId)
                 .toList();
+    }
+
+    /**
+     * 요금 설정 기간 검증 (필수/역전/판매기간 종속/기간 중첩)
+     */
+    private void validatePricingPeriods(List<RatePricingRequest.PricingRow> rows,
+                                         LocalDate saleStartDate, LocalDate saleEndDate) {
+        for (RatePricingRequest.PricingRow row : rows) {
+            // 필수 검증
+            if (row.getStartDate() == null || row.getEndDate() == null) {
+                throw new HolaException(ErrorCode.RATE_PRICING_PERIOD_REQUIRED);
+            }
+            // 역전 검증
+            if (row.getEndDate().isBefore(row.getStartDate())) {
+                throw new HolaException(ErrorCode.RATE_INVALID_PRICING_PERIOD);
+            }
+            // 판매기간 종속 검증
+            if (saleStartDate != null && saleEndDate != null) {
+                if (row.getStartDate().isBefore(saleStartDate) || row.getEndDate().isAfter(saleEndDate)) {
+                    throw new HolaException(ErrorCode.RATE_PRICING_PERIOD_OUT_OF_SALE);
+                }
+            }
+        }
+
+        // 기간 중첩 검증 (모든 행 쌍 비교)
+        for (int i = 0; i < rows.size(); i++) {
+            for (int j = i + 1; j < rows.size(); j++) {
+                RatePricingRequest.PricingRow a = rows.get(i);
+                RatePricingRequest.PricingRow b = rows.get(j);
+                // 기간이 겹치는지 확인: !(a.end < b.start || b.end < a.start)
+                boolean overlaps = !a.getEndDate().isBefore(b.getStartDate())
+                        && !b.getEndDate().isBefore(a.getStartDate());
+                if (overlaps) {
+                    // 기간이 겹치는 경우, 요일도 겹치는지 확인
+                    if (hasDayOverlap(a, b)) {
+                        throw new HolaException(ErrorCode.RATE_PRICING_PERIOD_OVERLAP);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 두 요금행의 요일 중복 여부 확인
+     */
+    private boolean hasDayOverlap(RatePricingRequest.PricingRow a, RatePricingRequest.PricingRow b) {
+        if (Boolean.TRUE.equals(a.getDayMon()) && Boolean.TRUE.equals(b.getDayMon())) return true;
+        if (Boolean.TRUE.equals(a.getDayTue()) && Boolean.TRUE.equals(b.getDayTue())) return true;
+        if (Boolean.TRUE.equals(a.getDayWed()) && Boolean.TRUE.equals(b.getDayWed())) return true;
+        if (Boolean.TRUE.equals(a.getDayThu()) && Boolean.TRUE.equals(b.getDayThu())) return true;
+        if (Boolean.TRUE.equals(a.getDayFri()) && Boolean.TRUE.equals(b.getDayFri())) return true;
+        if (Boolean.TRUE.equals(a.getDaySat()) && Boolean.TRUE.equals(b.getDaySat())) return true;
+        if (Boolean.TRUE.equals(a.getDaySun()) && Boolean.TRUE.equals(b.getDaySun())) return true;
+        return false;
     }
 
     /**
