@@ -5,6 +5,7 @@ import com.hola.common.security.AccessControlService;
 import com.hola.reservation.dto.request.*;
 import com.hola.reservation.dto.response.*;
 import com.hola.reservation.service.ReservationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -54,14 +55,14 @@ public class ReservationApiController {
     public HolaResponse<ReservationDetailResponse> getById(@PathVariable Long propertyId,
                                                             @PathVariable Long id) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.getById(id));
+        return HolaResponse.success(reservationService.getById(id, propertyId));
     }
 
     /** 예약 등록 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public HolaResponse<ReservationDetailResponse> create(@PathVariable Long propertyId,
-                                                           @RequestBody ReservationCreateRequest request) {
+                                                           @Valid @RequestBody ReservationCreateRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
         return HolaResponse.success(reservationService.create(propertyId, request));
     }
@@ -70,9 +71,9 @@ public class ReservationApiController {
     @PutMapping("/{id}")
     public HolaResponse<ReservationDetailResponse> update(@PathVariable Long propertyId,
                                                            @PathVariable Long id,
-                                                           @RequestBody ReservationUpdateRequest request) {
+                                                           @Valid @RequestBody ReservationUpdateRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.update(id, request));
+        return HolaResponse.success(reservationService.update(id, propertyId, request));
     }
 
     /** 예약 취소 */
@@ -80,7 +81,7 @@ public class ReservationApiController {
     public HolaResponse<Void> cancel(@PathVariable Long propertyId,
                                       @PathVariable Long id) {
         accessControlService.validatePropertyAccess(propertyId);
-        reservationService.cancel(id);
+        reservationService.cancel(id, propertyId);
         return HolaResponse.success();
     }
 
@@ -88,9 +89,9 @@ public class ReservationApiController {
     @PutMapping("/{id}/status")
     public HolaResponse<Void> changeStatus(@PathVariable Long propertyId,
                                             @PathVariable Long id,
-                                            @RequestBody ReservationStatusRequest request) {
+                                            @Valid @RequestBody ReservationStatusRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        reservationService.changeStatus(id, request);
+        reservationService.changeStatus(id, propertyId, request);
         return HolaResponse.success();
     }
 
@@ -99,9 +100,9 @@ public class ReservationApiController {
     @ResponseStatus(HttpStatus.CREATED)
     public HolaResponse<SubReservationResponse> addLeg(@PathVariable Long propertyId,
                                                         @PathVariable Long id,
-                                                        @RequestBody SubReservationRequest request) {
+                                                        @Valid @RequestBody SubReservationRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.addLeg(id, request));
+        return HolaResponse.success(reservationService.addLeg(id, propertyId, request));
     }
 
     /** 서브 예약 수정 */
@@ -109,9 +110,9 @@ public class ReservationApiController {
     public HolaResponse<SubReservationResponse> updateLeg(@PathVariable Long propertyId,
                                                            @PathVariable Long id,
                                                            @PathVariable Long legId,
-                                                           @RequestBody SubReservationRequest request) {
+                                                           @Valid @RequestBody SubReservationRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.updateLeg(id, legId, request));
+        return HolaResponse.success(reservationService.updateLeg(id, propertyId, legId, request));
     }
 
     /** 서브 예약 삭제 */
@@ -120,7 +121,7 @@ public class ReservationApiController {
                                          @PathVariable Long id,
                                          @PathVariable Long legId) {
         accessControlService.validatePropertyAccess(propertyId);
-        reservationService.deleteLeg(id, legId);
+        reservationService.deleteLeg(id, propertyId, legId);
         return HolaResponse.success();
     }
 
@@ -147,7 +148,7 @@ public class ReservationApiController {
     public HolaResponse<List<ReservationMemoResponse>> getMemos(@PathVariable Long propertyId,
                                                                  @PathVariable Long id) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.getMemos(id));
+        return HolaResponse.success(reservationService.getMemos(id, propertyId));
     }
 
     /** 예약 메모 등록 */
@@ -157,7 +158,7 @@ public class ReservationApiController {
                                                           @PathVariable Long id,
                                                           @RequestBody Map<String, String> body) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.addMemo(id, body.get("content")));
+        return HolaResponse.success(reservationService.addMemo(id, propertyId, body.get("content")));
     }
 
     /** 예치금 등록 */
@@ -167,7 +168,7 @@ public class ReservationApiController {
                                                                 @PathVariable Long id,
                                                                 @RequestBody ReservationDepositRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.addDeposit(id, request));
+        return HolaResponse.success(reservationService.addDeposit(id, propertyId, request));
     }
 
     /** 예치금 수정 */
@@ -177,6 +178,6 @@ public class ReservationApiController {
                                                                    @PathVariable Long depositId,
                                                                    @RequestBody ReservationDepositRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.updateDeposit(id, depositId, request));
+        return HolaResponse.success(reservationService.updateDeposit(id, propertyId, depositId, request));
     }
 }

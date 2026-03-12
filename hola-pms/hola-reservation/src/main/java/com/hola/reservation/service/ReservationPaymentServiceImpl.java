@@ -90,7 +90,20 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
     @Override
     @Transactional
     public PaymentAdjustmentResponse addAdjustment(Long reservationId, PaymentAdjustmentRequest request) {
-        findMasterById(reservationId);
+        MasterReservation master = findMasterById(reservationId);
+
+        // 완료/취소 상태 예약은 금액 조정 불가
+        String status = master.getReservationStatus();
+        if ("CHECKED_OUT".equals(status) || "CANCELED".equals(status) || "NO_SHOW".equals(status)) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_MODIFY_NOT_ALLOWED);
+        }
+
+        // COMPLETED 결제는 조정 불가
+        ReservationPayment existingPayment = paymentRepository
+                .findByMasterReservationId(reservationId).orElse(null);
+        if (existingPayment != null && "COMPLETED".equals(existingPayment.getPaymentStatus())) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED);
+        }
 
         // 시퀀스 번호 자동 부여
         List<PaymentAdjustment> existing = adjustmentRepository
@@ -123,6 +136,13 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
     public void recalculatePayment(Long reservationId) {
         MasterReservation master = findMasterById(reservationId);
         ReservationPayment payment = getOrCreatePayment(master);
+
+        // 완료된 결제는 재계산하지 않음
+        if ("COMPLETED".equals(payment.getPaymentStatus())) {
+            log.info("결제 완료 상태 — 재계산 스킵: reservationId={}", reservationId);
+            return;
+        }
+
         recalculateAmounts(payment, reservationId);
     }
 

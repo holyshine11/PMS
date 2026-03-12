@@ -1,5 +1,7 @@
 package com.hola.reservation.service;
 
+import com.hola.common.exception.ErrorCode;
+import com.hola.common.exception.HolaException;
 import com.hola.hotel.entity.Property;
 import com.hola.rate.entity.RatePricing;
 import com.hola.rate.entity.RatePricingPerson;
@@ -99,9 +101,9 @@ public class PriceCalculationService {
 
             supplyPrice = basePrice.add(personExtra);
         } else {
-            // 적용 가능한 요금이 없으면 0원
-            supplyPrice = BigDecimal.ZERO;
-            log.warn("{}({})에 적용 가능한 요금표 없음", date, dayOfWeek);
+            // 적용 가능한 요금표가 없으면 예외 발생 (0원 요금 방지)
+            log.error("{}({})에 적용 가능한 요금표 없음 — 예약 생성 차단", date, dayOfWeek);
+            throw new HolaException(ErrorCode.RESERVATION_RATE_NOT_APPLICABLE);
         }
 
         // 세금 계산 (프로퍼티 세율 기반)

@@ -23,9 +23,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.hola.rate.entity.RateCode;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -68,29 +71,27 @@ public class ReservationServiceImpl implements ReservationService {
             "NO_SHOW", Set.of()
     );
 
+    // 수정 불가 상태
+    private static final Set<String> IMMUTABLE_STATUSES = Set.of("CHECKED_OUT", "CANCELED", "NO_SHOW");
+
     @Override
     public List<ReservationListResponse> getList(Long propertyId, String status, LocalDate checkInFrom,
                                                    LocalDate checkInTo, String keyword) {
-        List<MasterReservation> reservations;
+        // 날짜/상태 필터는 DB 레벨에서 처리 (전체 메모리 로드 방지)
+        String statusParam = (status != null && !status.isEmpty()) ? status : null;
+        List<MasterReservation> reservations = masterReservationRepository
+                .findByPropertyIdWithFilters(propertyId, statusParam, checkInFrom, checkInTo);
 
-        if (status != null && !status.isEmpty()) {
-            reservations = masterReservationRepository
-                    .findByPropertyIdAndReservationStatus(propertyId, status);
-        } else {
-            reservations = masterReservationRepository.findByPropertyIdOrderByReservationDateDesc(propertyId);
-        }
-
-        // Java 필터링 (JPQL null LIKE 이슈 회피)
+        // 키워드만 Java 필터링 (JPQL null LIKE 이슈 회피)
         return reservations.stream()
-                .filter(r -> filterByDateRange(r, checkInFrom, checkInTo))
                 .filter(r -> filterByKeyword(r, keyword))
                 .map(reservationMapper::toReservationListResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public ReservationDetailResponse getById(Long id) {
-        MasterReservation master = findMasterById(id);
+    public ReservationDetailResponse getById(Long id, Long propertyId) {
+        MasterReservation master = findMasterById(id, propertyId);
         ReservationDetailResponse response = reservationMapper.toReservationDetailResponse(master);
 
         // 서브 예약의 층/호수/객실타입 이름 벌크 resolve
@@ -219,15 +220,25 @@ public class ReservationServiceImpl implements ReservationService {
         // 체크인/체크아웃 유효성
         validateDates(request.getMasterCheckIn(), request.getMasterCheckOut());
 
-        // 마스터 예약 생성
-        MasterReservation master = reservationMapper.toMasterReservationEntity(request, property);
+        // 신규 예약은 과거 날짜 체크인 불가
+        if (request.getMasterCheckIn().isBefore(LocalDate.now())) {
+            throw new HolaException(ErrorCode.RESERVATION_CHECKIN_PAST_DATE);
+        }
+
+        // 레이트코드 필수 검증
+        if (request.getRateCodeId() == null) {
+            throw new HolaException(ErrorCode.RESERVATION_RATE_REQUIRED);
+        }
+
+        // 레이트코드 판매기간/숙박일수 검증
+        validateRateCode(request.getRateCodeId(), request.getMasterCheckIn(), request.getMasterCheckOut());
 
         // 예약번호 + 확인번호 생성
         String reservationNo = numberGenerator.generateMasterReservationNo(property);
         String confirmationNo = numberGenerator.generateConfirmationNo();
-        master.updateStatus("RESERVED"); // 초기 상태
-        // Builder로 생성된 엔티티에 번호를 직접 세팅할 수 없으므로, 별도 처리
-        master = MasterReservation.builder()
+
+        // 마스터 예약 생성
+        MasterReservation master = MasterReservation.builder()
                 .property(property)
                 .masterReservationNo(reservationNo)
                 .confirmationNo(confirmationNo)
@@ -268,13 +279,16 @@ public class ReservationServiceImpl implements ReservationService {
         // 결제 금액 계산 (일별 요금 기반)
         paymentService.recalculatePayment(master.getId());
 
-        return getById(master.getId());
+        return getById(master.getId(), propertyId);
     }
 
     @Override
     @Transactional
-    public ReservationDetailResponse update(Long id, ReservationUpdateRequest request) {
-        MasterReservation master = findMasterById(id);
+    public ReservationDetailResponse update(Long id, Long propertyId, ReservationUpdateRequest request) {
+        MasterReservation master = findMasterById(id, propertyId);
+
+        // 수정 불가 상태 검사
+        validateModifiable(master);
 
         // OTA 수정 제한 검사
         if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
@@ -282,6 +296,11 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         validateDates(request.getMasterCheckIn(), request.getMasterCheckOut());
+
+        // 레이트코드 변경 시 유효성 재검증
+        if (request.getRateCodeId() != null) {
+            validateRateCode(request.getRateCodeId(), request.getMasterCheckIn(), request.getMasterCheckOut());
+        }
 
         master.update(
                 request.getMasterCheckIn(), request.getMasterCheckOut(),
@@ -302,8 +321,7 @@ public class ReservationServiceImpl implements ReservationService {
             for (SubReservationRequest subReq : request.getSubReservations()) {
                 if (subReq.getId() != null) {
                     // 기존 레그 수정
-                    SubReservation sub = subReservationRepository.findById(subReq.getId())
-                            .orElseThrow(() -> new HolaException(ErrorCode.SUB_RESERVATION_NOT_FOUND));
+                    SubReservation sub = findSubAndValidateOwnership(subReq.getId(), master);
                     validateDates(subReq.getCheckIn(), subReq.getCheckOut());
 
                     if (subReq.getRoomNumberId() != null) {
@@ -335,13 +353,13 @@ public class ReservationServiceImpl implements ReservationService {
         paymentService.recalculatePayment(master.getId());
 
         log.info("마스터 예약 수정: {}", master.getMasterReservationNo());
-        return getById(id);
+        return getById(id, propertyId);
     }
 
     @Override
     @Transactional
-    public void cancel(Long id) {
-        MasterReservation master = findMasterById(id);
+    public void cancel(Long id, Long propertyId) {
+        MasterReservation master = findMasterById(id, propertyId);
 
         // RESERVED 상태만 취소 가능
         if (!"RESERVED".equals(master.getReservationStatus())) {
@@ -360,8 +378,8 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional
-    public void changeStatus(Long id, ReservationStatusRequest request) {
-        MasterReservation master = findMasterById(id);
+    public void changeStatus(Long id, Long propertyId, ReservationStatusRequest request) {
+        MasterReservation master = findMasterById(id, propertyId);
         String currentStatus = master.getReservationStatus();
         String newStatus = request.getNewStatus();
 
@@ -404,8 +422,12 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional
-    public SubReservationResponse addLeg(Long reservationId, SubReservationRequest request) {
-        MasterReservation master = findMasterById(reservationId);
+    public SubReservationResponse addLeg(Long reservationId, Long propertyId, SubReservationRequest request) {
+        MasterReservation master = findMasterById(reservationId, propertyId);
+
+        // 수정 불가 상태 검사
+        validateModifiable(master);
+
         Property property = master.getProperty();
 
         int legSeq = subReservationRepository.countAllIncludingDeleted(master.getId()) + 1;
@@ -414,15 +436,22 @@ public class ReservationServiceImpl implements ReservationService {
         // 마스터 체크인/체크아웃 자동 동기화
         syncMasterDates(master);
 
+        // 결제 금액 재계산
+        paymentService.recalculatePayment(master.getId());
+
         return reservationMapper.toSubReservationResponse(sub);
     }
 
     @Override
     @Transactional
-    public SubReservationResponse updateLeg(Long reservationId, Long legId, SubReservationRequest request) {
-        findMasterById(reservationId);
-        SubReservation sub = subReservationRepository.findById(legId)
-                .orElseThrow(() -> new HolaException(ErrorCode.SUB_RESERVATION_NOT_FOUND));
+    public SubReservationResponse updateLeg(Long reservationId, Long propertyId, Long legId, SubReservationRequest request) {
+        MasterReservation master = findMasterById(reservationId, propertyId);
+
+        // 수정 불가 상태 검사
+        validateModifiable(master);
+
+        // 서브예약 소속 마스터 검증
+        SubReservation sub = findSubAndValidateOwnership(legId, master);
 
         validateDates(request.getCheckIn(), request.getCheckOut());
 
@@ -456,10 +485,14 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional
-    public void deleteLeg(Long reservationId, Long legId) {
-        MasterReservation master = findMasterById(reservationId);
-        SubReservation sub = subReservationRepository.findById(legId)
-                .orElseThrow(() -> new HolaException(ErrorCode.SUB_RESERVATION_NOT_FOUND));
+    public void deleteLeg(Long reservationId, Long propertyId, Long legId) {
+        MasterReservation master = findMasterById(reservationId, propertyId);
+
+        // 수정 불가 상태 검사
+        validateModifiable(master);
+
+        // 서브예약 소속 마스터 검증
+        SubReservation sub = findSubAndValidateOwnership(legId, master);
 
         // RESERVED 상태만 개별 삭제 가능
         if (!"RESERVED".equals(sub.getRoomReservationStatus())) {
@@ -470,6 +503,10 @@ public class ReservationServiceImpl implements ReservationService {
         sub.softDelete();
 
         syncMasterDates(master);
+
+        // 결제 금액 재계산
+        paymentService.recalculatePayment(master.getId());
+
         log.info("서브 예약 삭제(취소): {}", sub.getSubReservationNo());
     }
 
@@ -479,8 +516,8 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public List<ReservationMemoResponse> getMemos(Long reservationId) {
-        findMasterById(reservationId);
+    public List<ReservationMemoResponse> getMemos(Long reservationId, Long propertyId) {
+        findMasterById(reservationId, propertyId);
         return reservationMemoRepository.findByMasterReservationIdOrderByCreatedAtDesc(reservationId)
                 .stream()
                 .map(reservationMapper::toReservationMemoResponse)
@@ -489,8 +526,8 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional
-    public ReservationMemoResponse addMemo(Long reservationId, String content) {
-        findMasterById(reservationId);
+    public ReservationMemoResponse addMemo(Long reservationId, Long propertyId, String content) {
+        findMasterById(reservationId, propertyId);
         ReservationMemo memo = ReservationMemo.builder()
                 .masterReservationId(reservationId)
                 .content(content)
@@ -502,8 +539,8 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional
-    public ReservationDepositResponse addDeposit(Long reservationId, ReservationDepositRequest request) {
-        MasterReservation master = findMasterById(reservationId);
+    public ReservationDepositResponse addDeposit(Long reservationId, Long propertyId, ReservationDepositRequest request) {
+        MasterReservation master = findMasterById(reservationId, propertyId);
         ReservationDeposit deposit = ReservationDeposit.builder()
                 .masterReservation(master)
                 .depositMethod(request.getDepositMethod())
@@ -522,10 +559,10 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional
-    public ReservationDepositResponse updateDeposit(Long reservationId, Long depositId, ReservationDepositRequest request) {
-        findMasterById(reservationId);
+    public ReservationDepositResponse updateDeposit(Long reservationId, Long propertyId, Long depositId, ReservationDepositRequest request) {
+        findMasterById(reservationId, propertyId);
         ReservationDeposit deposit = reservationDepositRepository.findById(depositId)
-                .orElseThrow(() -> new HolaException(ErrorCode.RESERVATION_NOT_FOUND));
+                .orElseThrow(() -> new HolaException(ErrorCode.DEPOSIT_NOT_FOUND));
         deposit.update(request.getDepositMethod(), request.getCardCompany(),
                 request.getCardNumberEncrypted(), request.getCardCvcEncrypted(),
                 request.getCardExpiryDate(), request.getCardPasswordEncrypted(),
@@ -536,14 +573,64 @@ public class ReservationServiceImpl implements ReservationService {
 
     // ─── 내부 헬퍼 메서드 ──────────────────────────
 
-    private MasterReservation findMasterById(Long id) {
-        return masterReservationRepository.findById(id)
+    /**
+     * 마스터 예약 조회 + 프로퍼티 소속 검증
+     */
+    private MasterReservation findMasterById(Long id, Long propertyId) {
+        MasterReservation master = masterReservationRepository.findById(id)
                 .orElseThrow(() -> new HolaException(ErrorCode.RESERVATION_NOT_FOUND));
+        if (!master.getProperty().getId().equals(propertyId)) {
+            throw new HolaException(ErrorCode.RESERVATION_NOT_FOUND);
+        }
+        return master;
+    }
+
+    /**
+     * 서브예약 조회 + 마스터 소속 검증
+     */
+    private SubReservation findSubAndValidateOwnership(Long subId, MasterReservation master) {
+        SubReservation sub = subReservationRepository.findById(subId)
+                .orElseThrow(() -> new HolaException(ErrorCode.SUB_RESERVATION_NOT_FOUND));
+        if (!sub.getMasterReservation().getId().equals(master.getId())) {
+            throw new HolaException(ErrorCode.SUB_RESERVATION_MASTER_MISMATCH);
+        }
+        return sub;
+    }
+
+    /**
+     * 수정 불가 상태 검증 (CHECKED_OUT, CANCELED, NO_SHOW)
+     */
+    private void validateModifiable(MasterReservation master) {
+        if (IMMUTABLE_STATUSES.contains(master.getReservationStatus())) {
+            throw new HolaException(ErrorCode.RESERVATION_MODIFY_NOT_ALLOWED);
+        }
     }
 
     private void validateDates(LocalDate checkIn, LocalDate checkOut) {
         if (checkIn != null && checkOut != null && !checkOut.isAfter(checkIn)) {
             throw new HolaException(ErrorCode.SUB_RESERVATION_DATE_INVALID);
+        }
+    }
+
+    /**
+     * 레이트코드 판매기간 + 숙박일수 검증
+     */
+    private void validateRateCode(Long rateCodeId, LocalDate checkIn, LocalDate checkOut) {
+        RateCode rateCode = rateCodeRepository.findById(rateCodeId)
+                .orElseThrow(() -> new HolaException(ErrorCode.RATE_CODE_NOT_FOUND));
+
+        // 판매기간 검증: 체크인이 판매기간 내에 있어야 함
+        if (checkIn.isBefore(rateCode.getSaleStartDate()) || checkIn.isAfter(rateCode.getSaleEndDate())) {
+            throw new HolaException(ErrorCode.RESERVATION_RATE_EXPIRED);
+        }
+
+        // 숙박일수 검증
+        long stayDays = ChronoUnit.DAYS.between(checkIn, checkOut);
+        if (rateCode.getMinStayDays() != null && stayDays < rateCode.getMinStayDays()) {
+            throw new HolaException(ErrorCode.RESERVATION_STAY_DAYS_VIOLATION);
+        }
+        if (rateCode.getMaxStayDays() != null && rateCode.getMaxStayDays() > 0 && stayDays > rateCode.getMaxStayDays()) {
+            throw new HolaException(ErrorCode.RESERVATION_STAY_DAYS_VIOLATION);
         }
     }
 
@@ -564,8 +651,7 @@ public class ReservationServiceImpl implements ReservationService {
 
         // 서브 예약 생성
         String subNo = numberGenerator.generateSubReservationNo(master.getMasterReservationNo(), legSeq);
-        SubReservation sub = reservationMapper.toSubReservationEntity(request, master);
-        sub = SubReservation.builder()
+        SubReservation sub = SubReservation.builder()
                 .masterReservation(master)
                 .subReservationNo(subNo)
                 .roomReservationStatus("RESERVED")
@@ -651,27 +737,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .max(LocalDate::compareTo)
                 .orElse(master.getMasterCheckOut());
 
-        master.update(earliestCheckIn, latestCheckOut,
-                master.getGuestNameKo(), master.getGuestFirstNameEn(),
-                master.getGuestMiddleNameEn(), master.getGuestLastNameEn(),
-                master.getPhoneCountryCode(), master.getPhoneNumber(),
-                master.getEmail(), master.getBirthDate(), master.getGender(),
-                master.getNationality(), master.getRateCodeId(),
-                master.getMarketCodeId(), master.getReservationChannelId(),
-                master.getPromotionType(), master.getPromotionCode(),
-                master.getOtaReservationNo(), master.getIsOtaManaged(),
-                master.getCustomerRequest());
-    }
-
-    /**
-     * 날짜 범위 필터
-     */
-    private boolean filterByDateRange(MasterReservation r, LocalDate from, LocalDate to) {
-        if (from == null && to == null) return true;
-        LocalDate checkIn = r.getMasterCheckIn();
-        if (from != null && checkIn.isBefore(from)) return false;
-        if (to != null && checkIn.isAfter(to)) return false;
-        return true;
+        master.syncDates(earliestCheckIn, latestCheckOut);
     }
 
     /**

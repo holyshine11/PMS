@@ -145,6 +145,14 @@ public class MasterReservation extends BaseEntity {
     }
 
     /**
+     * 마스터 체크인/체크아웃 날짜 동기화 (서브 예약 기준)
+     */
+    public void syncDates(LocalDate masterCheckIn, LocalDate masterCheckOut) {
+        this.masterCheckIn = masterCheckIn;
+        this.masterCheckOut = masterCheckOut;
+    }
+
+    /**
      * 예약 상태 변경
      */
     public void updateStatus(String newStatus) {

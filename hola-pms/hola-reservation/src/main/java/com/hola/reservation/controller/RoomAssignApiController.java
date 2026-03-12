@@ -73,19 +73,19 @@ public class RoomAssignApiController {
 
         List<RoomNumber> rooms = roomNumberRepository.findAllById(roomNumberIds);
 
-        // 각 호수에 대해 충돌 예약 조회
+        // 벌크 충돌 조회 (N+1 방지: 1회 쿼리로 모든 호수의 충돌 예약 조회)
+        List<SubReservation> allConflicts = subReservationRepository
+                .findConflictsByRoomNumberIds(roomNumberIds, checkIn, checkOut, RELEASED_STATUSES);
+
+        // 자기 자신 제외 + roomNumberId별 그룹핑
+        Map<Long, List<SubReservation>> conflictMap = allConflicts.stream()
+                .filter(sub -> excludeSubId == null || !sub.getId().equals(excludeSubId))
+                .collect(Collectors.groupingBy(SubReservation::getRoomNumberId));
+
+        // 응답 생성
         List<RoomNumberAvailabilityResponse> responses = new ArrayList<>();
         for (RoomNumber room : rooms) {
-            List<SubReservation> conflicts = subReservationRepository
-                    .findByRoomNumberIdAndCheckInLessThanAndCheckOutGreaterThanAndRoomReservationStatusNotIn(
-                            room.getId(), checkOut, checkIn, RELEASED_STATUSES);
-
-            // 자기 자신 제외
-            if (excludeSubId != null) {
-                conflicts = conflicts.stream()
-                        .filter(sub -> !sub.getId().equals(excludeSubId))
-                        .toList();
-            }
+            List<SubReservation> conflicts = conflictMap.getOrDefault(room.getId(), List.of());
 
             if (conflicts.isEmpty()) {
                 responses.add(RoomNumberAvailabilityResponse.builder()

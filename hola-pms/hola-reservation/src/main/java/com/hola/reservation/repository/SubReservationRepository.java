@@ -34,4 +34,17 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
      */
     long countByRoomTypeIdAndCheckInLessThanAndCheckOutGreaterThanAndRoomReservationStatusNotIn(
             Long roomTypeId, LocalDate checkOut, LocalDate checkIn, List<String> excludeStatuses);
+
+    /**
+     * 벌크 가용성 조회: 여러 호수에 대해 겹치는 기간의 충돌 예약 한 번에 조회 (N+1 방지)
+     */
+    @Query("SELECT s FROM SubReservation s JOIN FETCH s.masterReservation " +
+           "WHERE s.roomNumberId IN :roomNumberIds " +
+           "AND s.checkIn < :checkOut AND s.checkOut > :checkIn " +
+           "AND s.roomReservationStatus NOT IN :excludeStatuses")
+    List<SubReservation> findConflictsByRoomNumberIds(
+            @Param("roomNumberIds") List<Long> roomNumberIds,
+            @Param("checkIn") LocalDate checkIn,
+            @Param("checkOut") LocalDate checkOut,
+            @Param("excludeStatuses") List<String> excludeStatuses);
 }

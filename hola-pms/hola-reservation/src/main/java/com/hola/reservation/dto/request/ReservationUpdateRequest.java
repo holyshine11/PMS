@@ -1,5 +1,7 @@
 package com.hola.reservation.dto.request;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,7 +19,10 @@ import java.util.List;
 @Builder
 public class ReservationUpdateRequest {
 
+    @NotNull(message = "체크인 날짜는 필수입니다.")
     private LocalDate masterCheckIn;
+
+    @NotNull(message = "체크아웃 날짜는 필수입니다.")
     private LocalDate masterCheckOut;
 
     // 게스트 정보
@@ -46,5 +51,6 @@ public class ReservationUpdateRequest {
     private String customerRequest;
 
     // 서브 예약 목록
+    @Valid
     private List<SubReservationRequest> subReservations;
 }

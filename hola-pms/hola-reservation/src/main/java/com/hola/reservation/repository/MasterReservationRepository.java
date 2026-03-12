@@ -20,7 +20,25 @@ public interface MasterReservationRepository extends JpaRepository<MasterReserva
 
     Optional<MasterReservation> findByConfirmationNo(String confirmationNo);
 
+    boolean existsByConfirmationNo(String confirmationNo);
+
     List<MasterReservation> findByPropertyIdOrderByReservationDateDesc(Long propertyId);
+
+    /**
+     * 예약 리스트: 날짜 범위 + 상태 필터 (DB 레벨)
+     * 날짜/상태 조건은 모두 선택적 (null이면 필터 안 함)
+     */
+    @Query("SELECT m FROM MasterReservation m " +
+           "WHERE m.property.id = :propertyId " +
+           "AND (:status IS NULL OR m.reservationStatus = :status) " +
+           "AND (:checkInFrom IS NULL OR m.masterCheckIn >= :checkInFrom) " +
+           "AND (:checkInTo IS NULL OR m.masterCheckIn <= :checkInTo) " +
+           "ORDER BY m.reservationDate DESC")
+    List<MasterReservation> findByPropertyIdWithFilters(
+            @Param("propertyId") Long propertyId,
+            @Param("status") String status,
+            @Param("checkInFrom") LocalDate checkInFrom,
+            @Param("checkInTo") LocalDate checkInTo);
 
     /**
      * 캘린더뷰: 기간 내 체류 기간이 겹치는 예약 조회

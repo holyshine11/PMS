@@ -96,17 +96,25 @@ public enum ErrorCode {
     SUB_RESERVATION_ROOM_CONFLICT("HOLA-4011", "해당 기간에 이미 예약된 객실입니다.", HttpStatus.CONFLICT),
     SUB_RESERVATION_NO_AVAILABILITY("HOLA-4012", "해당 객실 타입의 가용 객실이 없습니다.", HttpStatus.BAD_REQUEST),
     SUB_RESERVATION_DATE_INVALID("HOLA-4013", "체크아웃은 체크인 이후여야 합니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_CHECKIN_PAST_DATE("HOLA-4014", "체크인 날짜는 오늘 이후여야 합니다.", HttpStatus.BAD_REQUEST),
 
     // 가격/결제 (HOLA-402x)
     RESERVATION_RATE_NOT_APPLICABLE("HOLA-4020", "해당 기간에 적용 가능한 요금이 없습니다.", HttpStatus.BAD_REQUEST),
     RESERVATION_PAYMENT_ALREADY_COMPLETED("HOLA-4021", "이미 결제 완료된 예약입니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_RATE_EXPIRED("HOLA-4022", "레이트코드의 판매 기간이 예약 기간과 맞지 않습니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_STAY_DAYS_VIOLATION("HOLA-4023", "숙박 일수가 레이트코드의 최소/최대 범위를 벗어납니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_RATE_REQUIRED("HOLA-4024", "레이트코드를 선택해야 예약을 생성할 수 있습니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_PAYMENT_MODIFY_NOT_ALLOWED("HOLA-4025", "완료된 결제는 수정할 수 없습니다.", HttpStatus.BAD_REQUEST),
 
     // 예약채널 (HOLA-403x)
     RESERVATION_CHANNEL_NOT_FOUND("HOLA-4030", "예약채널을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     RESERVATION_CHANNEL_CODE_DUPLICATE("HOLA-4031", "이미 존재하는 채널 코드입니다.", HttpStatus.CONFLICT),
 
-    // OTA (HOLA-404x)
+    // 예약 수정 제한 (HOLA-404x)
     RESERVATION_OTA_EDIT_RESTRICTED("HOLA-4040", "OTA 예약은 수정이 제한됩니다.", HttpStatus.FORBIDDEN),
+    RESERVATION_MODIFY_NOT_ALLOWED("HOLA-4041", "해당 상태에서는 예약을 수정할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    SUB_RESERVATION_MASTER_MISMATCH("HOLA-4042", "해당 예약에 속하지 않는 객실 레그입니다.", HttpStatus.BAD_REQUEST),
+    DEPOSIT_NOT_FOUND("HOLA-4043", "예치금 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
     // 얼리체크인/레이트체크아웃 (HOLA-405x)
     EARLY_LATE_POLICY_NOT_FOUND("HOLA-4050", "얼리/레이트 정책을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

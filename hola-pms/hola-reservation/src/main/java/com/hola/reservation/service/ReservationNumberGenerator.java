@@ -2,6 +2,7 @@ package com.hola.reservation.service;
 
 import com.hola.hotel.entity.Property;
 import com.hola.reservation.entity.ReservationNoSeq;
+import com.hola.reservation.repository.MasterReservationRepository;
 import com.hola.reservation.repository.ReservationNoSeqRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +25,10 @@ import java.util.UUID;
 public class ReservationNumberGenerator {
 
     private final ReservationNoSeqRepository reservationNoSeqRepository;
+    private final MasterReservationRepository masterReservationRepository;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyMMdd");
+    private static final int CONFIRMATION_NO_RETRY = 3;
 
     /**
      * 마스터 예약번호 생성
@@ -65,10 +68,19 @@ public class ReservationNumberGenerator {
     }
 
     /**
-     * 확인번호 생성 (8자리 영숫자)
+     * 확인번호 생성 (8자리 영숫자, 중복 시 재시도)
      */
     public String generateConfirmationNo() {
+        for (int i = 0; i < CONFIRMATION_NO_RETRY; i++) {
+            String uuid = UUID.randomUUID().toString().replace("-", "").toUpperCase();
+            String confirmationNo = uuid.substring(0, 8);
+            if (!masterReservationRepository.existsByConfirmationNo(confirmationNo)) {
+                return confirmationNo;
+            }
+            log.warn("확인번호 충돌 발생, 재시도 {}/{}: {}", i + 1, CONFIRMATION_NO_RETRY, confirmationNo);
+        }
+        // 최종 폴백: 12자리로 확장
         String uuid = UUID.randomUUID().toString().replace("-", "").toUpperCase();
-        return uuid.substring(0, 8);
+        return uuid.substring(0, 12);
     }
 }
