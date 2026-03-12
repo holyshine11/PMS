@@ -127,9 +127,9 @@ var ReservationForm = {
         var self = this;
         if (!self.propertyId) return;
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservation-channels',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 var $select = $('#reservationChannelId');
                 $select.find('option:not(:first)').remove();
@@ -613,9 +613,9 @@ var ReservationForm = {
         $('#roomNumberList').html('<p class="text-muted text-center py-3">층을 먼저 선택하세요</p>');
 
         // 층 목록 로드
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/floors',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 var floors = res.data || [];
                 floors.forEach(function(f) {
@@ -623,8 +623,7 @@ var ReservationForm = {
                         + HolaPms.escapeHtml(f.floorNumber + (f.floorName ? ' | ' + f.floorName : ''))
                         + '</option>');
                 });
-            },
-            error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+            }
         });
 
         HolaPms.modal.show('#roomAssignModal');
@@ -649,9 +648,9 @@ var ReservationForm = {
             url += '/availability?checkIn=' + self.assignCheckIn + '&checkOut=' + self.assignCheckOut;
         }
 
-        $.ajax({
+        HolaPms.ajax({
             url: url,
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 var rooms = res.data || [];
                 if (rooms.length === 0) {
@@ -705,8 +704,7 @@ var ReservationForm = {
 
                 html += '</tbody></table>';
                 $list.html(html);
-            },
-            error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+            }
         });
     },
 
@@ -879,11 +877,10 @@ var ReservationForm = {
         var data = self.collectFormData();
         if (!self.validate(data)) return;
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(data),
+            type: 'POST',
+            data: data,
             success: function(res) {
                 if (res.success) {
                     var reservationId = res.data ? (res.data.id || '') : '';
@@ -892,9 +889,6 @@ var ReservationForm = {
                         : '/admin/reservations';
                     HolaPms.alertAndRedirect('success', '예약이 등록되었습니다.', redirectUrl);
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     }

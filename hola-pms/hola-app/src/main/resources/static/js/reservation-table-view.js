@@ -26,15 +26,13 @@ var ReservationTableView = {
                     url += '?' + params;
                 }
 
-                $.ajax({
+                HolaPms.ajax({
                     url: url,
                     type: 'GET',
-                    dataType: 'json',
                     success: function(res) {
                         callback({ data: res.data || [] });
                     },
-                    error: function(xhr) {
-                        // API 미구현 시 빈 데이터
+                    error: function() {
                         callback({ data: [] });
                     }
                 });

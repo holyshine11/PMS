@@ -397,6 +397,33 @@ const HolaPms = {
     },
 
     /**
+     * 예약 상태 매핑 (공통 정의 - 모든 예약 관련 JS에서 참조)
+     */
+    reservationStatus: {
+        RESERVED:    { label: '예약',     cls: 'bg-primary',          bg: '#0582CA', color: '#fff' },
+        CHECK_IN:    { label: '체크인',   cls: 'bg-info',             bg: '#17a2b8', color: '#fff' },
+        INHOUSE:     { label: '투숙중',   cls: 'bg-success',          bg: '#003554', color: '#fff' },
+        CHECKED_OUT: { label: '체크아웃', cls: 'bg-secondary',        bg: '#6c757d', color: '#fff' },
+        CANCELED:    { label: '취소',     cls: 'bg-danger',           bg: '#EF476F', color: '#fff' },
+        NO_SHOW:     { label: '노쇼',     cls: 'bg-warning text-dark', bg: '#ffc107', color: '#000' },
+
+        /** Bootstrap 배지 HTML 반환 */
+        badge: function(status) {
+            var info = this[status] || { label: status || '-', cls: 'bg-secondary' };
+            return '<span class="badge ' + info.cls + '">' + info.label + '</span>';
+        },
+        /** 인라인 스타일 배지 HTML 반환 (캘린더/일별 뷰용) */
+        styledBadge: function(status) {
+            var info = this[status] || { label: status || '-', bg: '#6c757d', color: '#fff' };
+            return '<span class="badge" style="background-color:' + info.bg + '; color:' + (info.color || '#fff') + '">' + info.label + '</span>';
+        },
+        /** 상태 정보 객체 반환 */
+        get: function(status) {
+            return this[status] || { label: status || '-', cls: 'bg-secondary', bg: '#6c757d', color: '#fff' };
+        }
+    },
+
+    /**
      * DataTables 기본 설정
      */
     dataTableDefaults: {

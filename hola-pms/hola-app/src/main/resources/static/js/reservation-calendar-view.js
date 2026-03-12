@@ -139,9 +139,9 @@ var ReservationCalendarView = {
         var listParams = 'keyword=' + encodeURIComponent(params.keyword);
         if (params.status) listParams += '&status=' + params.status;
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations?' + listParams,
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 var list = res.data || [];
                 if (list.length > 0 && list[0].masterCheckIn) {

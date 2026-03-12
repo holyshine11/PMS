@@ -15,15 +15,8 @@ var ReservationDetail = {
     marketCodeTable: null,
     roomTypeTable: null,
 
-    // 상태 배지 매핑
-    STATUS_BADGE: {
-        RESERVED: { label: '예약', cls: 'bg-primary' },
-        CHECK_IN: { label: '체크인', cls: 'bg-info' },
-        INHOUSE: { label: '투숙중', cls: 'bg-success' },
-        CHECKED_OUT: { label: '체크아웃', cls: 'bg-secondary' },
-        CANCELED: { label: '취소', cls: 'bg-danger' },
-        NO_SHOW: { label: '노쇼', cls: 'bg-warning text-dark' }
-    },
+    // 상태 배지 매핑 (HolaPms.reservationStatus 공통 참조)
+    STATUS_BADGE: HolaPms.reservationStatus,
 
     // 상태 전이 매트릭스
     STATUS_TRANSITIONS: {
@@ -76,16 +69,13 @@ var ReservationDetail = {
      */
     loadData: function() {
         var self = this;
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId,
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 if (res.success && res.data) {
                     self.bindData(res.data);
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -97,9 +87,9 @@ var ReservationDetail = {
         var self = this;
         if (!self.propertyId) return;
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservation-channels',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 var $select = $('#reservationChannelId');
                 $select.find('option:not(:first)').remove();
@@ -526,20 +516,15 @@ var ReservationDetail = {
      */
     changeStatus: function(newStatus) {
         var self = this;
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/status',
-            method: 'PUT',
-            contentType: 'application/json',
-            data: JSON.stringify({ newStatus: newStatus }),
+            type: 'PUT',
+            data: { newStatus: newStatus },
             success: function(res) {
                 if (res.success) {
                     HolaPms.alert('success', '상태가 변경되었습니다.');
-                    // 페이지 새로고침
                     setTimeout(function() { location.reload(); }, 500);
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -618,9 +603,9 @@ var ReservationDetail = {
             if (legId) {
                 // 서버에 존재하는 레그 → API 삭제
                 HolaPms.confirm('이 객실을 삭제하시겠습니까?', function() {
-                    $.ajax({
+                    HolaPms.ajax({
                         url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/legs/' + legId,
-                        method: 'DELETE',
+                        type: 'DELETE',
                         success: function(res) {
                             if (res.success) {
                                 $('#roomLeg_' + legSeq).fadeOut(200, function() {
@@ -629,8 +614,7 @@ var ReservationDetail = {
                                 });
                                 HolaPms.alert('success', '객실이 삭제되었습니다.');
                             }
-                        },
-                        error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+                        }
                     });
                 });
             } else {
@@ -884,9 +868,9 @@ var ReservationDetail = {
         $select.find('option:not(:first)').remove();
         $('#roomNumberList').html('<p class="text-muted text-center py-3">층을 먼저 선택하세요</p>');
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/floors',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 var floors = res.data || [];
                 floors.forEach(function(f) {
@@ -894,8 +878,7 @@ var ReservationDetail = {
                         + HolaPms.escapeHtml(f.floorNumber + (f.floorName ? ' | ' + f.floorName : ''))
                         + '</option>');
                 });
-            },
-            error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+            }
         });
 
         HolaPms.modal.show('#roomAssignModal');
@@ -918,9 +901,9 @@ var ReservationDetail = {
             if (self.assignExcludeSubId) url += '&excludeSubId=' + self.assignExcludeSubId;
         }
 
-        $.ajax({
+        HolaPms.ajax({
             url: url,
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 var rooms = res.data || [];
                 if (rooms.length === 0) {
@@ -973,8 +956,7 @@ var ReservationDetail = {
 
                 html += '</tbody></table>';
                 $list.html(html);
-            },
-            error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+            }
         });
     },
 
@@ -1007,6 +989,7 @@ var ReservationDetail = {
      * 전체 폼 데이터 수집
      */
     collectFormData: function() {
+        var self = this;
         // 서브 예약 (객실 레그) 수집
         var subReservations = [];
         $('.room-leg-card').each(function() {
@@ -1166,9 +1149,9 @@ var ReservationDetail = {
      * 코드 ID로 이름 조회 (레이트코드, 마켓코드)
      */
     resolveCodeName: function(baseUrl, id, targetSelector, nameField) {
-        $.ajax({
+        HolaPms.ajax({
             url: baseUrl,
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 var items = res.data || res || [];
                 if (Array.isArray(items)) {
@@ -1198,11 +1181,10 @@ var ReservationDetail = {
         if (!self.validate(data)) return;
 
         // 1단계: 예약 정보 저장
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId,
-            method: 'PUT',
-            contentType: 'application/json',
-            data: JSON.stringify(data),
+            type: 'PUT',
+            data: data,
             success: function(res) {
                 if (res.success) {
                     // 2단계: 예치금 저장
@@ -1211,9 +1193,6 @@ var ReservationDetail = {
                         setTimeout(function() { self.loadData(); }, 500);
                     });
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -1258,11 +1237,10 @@ var ReservationDetail = {
             method = 'POST';
         }
 
-        $.ajax({
+        HolaPms.ajax({
             url: url,
-            method: method,
-            contentType: 'application/json',
-            data: JSON.stringify(depositData),
+            type: method,
+            data: depositData,
             success: function(res) {
                 if (res.success && res.data) {
                     // 반환된 depositId 업데이트 (신규 등록 시)
@@ -1292,20 +1270,17 @@ var ReservationDetail = {
             return;
         }
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/memos',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ content: content }),
+            type: 'POST',
+            data: { content: content },
             success: function(res) {
                 if (res.success) {
                     $('#newMemoContent').val('');
                     HolaPms.alert('success', '메모가 등록되었습니다.');
-                    // 메모 목록 다시 로드
                     self.loadMemos();
                 }
-            },
-            error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+            }
         });
     },
 
@@ -1314,15 +1289,14 @@ var ReservationDetail = {
      */
     loadMemos: function() {
         var self = this;
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/memos',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 if (res.success) {
                     self.renderMemos(res.data || []);
                 }
-            },
-            error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+            }
         });
     },
 

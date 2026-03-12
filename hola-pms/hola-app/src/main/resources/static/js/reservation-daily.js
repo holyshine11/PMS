@@ -26,10 +26,9 @@ var ReservationDaily = {
                 var url = '/api/v1/properties/' + pid + '/reservations/calendar'
                     + '?startDate=' + self.date + '&endDate=' + self.date;
 
-                $.ajax({
+                HolaPms.ajax({
                     url: url,
                     type: 'GET',
-                    dataType: 'json',
                     success: function(res) {
                         var dayData = (res.data && res.data[self.date]) || [];
                         callback({ data: dayData });
@@ -112,20 +111,9 @@ var ReservationDaily = {
     },
 
     /**
-     * 상태별 배지
+     * 상태별 배지 (공통 참조)
      */
     getStatusBadge: function(status) {
-        var map = {
-            'RESERVED':    { label: '예약',       bg: '#0582CA' },
-            'CHECK_IN':    { label: '체크인',     bg: '#17a2b8' },
-            'INHOUSE':     { label: '투숙중',     bg: '#003554' },
-            'CHECKED_OUT': { label: '체크아웃',   bg: '#6c757d' },
-            'CANCELED':    { label: '취소',       bg: '#EF476F' },
-            'NO_SHOW':     { label: '노쇼',       bg: '#ffc107', color: '#000' }
-        };
-
-        var info = map[status] || { label: status || '-', bg: '#6c757d' };
-        var textColor = info.color || '#fff';
-        return '<span class="badge" style="background-color:' + info.bg + '; color:' + textColor + '">' + info.label + '</span>';
+        return HolaPms.reservationStatus.styledBadge(status);
     }
 };

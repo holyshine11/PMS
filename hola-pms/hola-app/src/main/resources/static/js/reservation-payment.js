@@ -19,9 +19,9 @@ var ReservationPayment = {
      */
     loadPaymentSummary: function() {
         var self = this;
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/payment',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 if (res.success && res.data) {
                     self.bindSummary(res.data);
@@ -76,10 +76,9 @@ var ReservationPayment = {
      */
     processPayment: function() {
         var self = this;
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/payment/process',
-            method: 'PUT',
-            contentType: 'application/json',
+            type: 'PUT',
             success: function(res) {
                 if (res.success) {
                     HolaPms.alert('success', '결제가 처리되었습니다.');
@@ -88,9 +87,6 @@ var ReservationPayment = {
                         self.renderAdjustments(res.data.adjustments || []);
                     }
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -220,21 +216,16 @@ var ReservationPayment = {
             comment: comment
         };
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/payment/adjustments',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(data),
+            type: 'POST',
+            data: data,
             success: function(res) {
                 if (res.success) {
                     HolaPms.alert('success', '금액 조정이 등록되었습니다.');
                     $('#adjustmentFormInline').remove();
-                    // 결제 요약 갱신
                     self.loadPaymentSummary();
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
