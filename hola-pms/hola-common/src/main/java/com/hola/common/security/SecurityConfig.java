@@ -41,7 +41,11 @@ public class SecurityConfig {
             // NEVER: 세션 생성 안 함, 기존 세션은 허용 (웹 UI AJAX 호출 지원)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER))
             .authorizeHttpRequests(auth -> auth
+                // Swagger UI / OpenAPI 문서
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                // 부킹엔진 공개 API: 인증 없이 접근 허용
+                .requestMatchers("/api/v1/booking/**").permitAll()
                 // 내 프로필 API: 모든 인증 사용자
                 .requestMatchers("/api/v1/my-profile/**").authenticated()
                 // selector API: 모든 인증 사용자 허용 (헤더 드롭다운)
@@ -103,8 +107,11 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/css/**", "/js/**", "/images/**", "/webjars/**", "/uploads/**").permitAll()
+                .requestMatchers("/login", "/css/**", "/js/**", "/images/**", "/webjars/**", "/uploads/**",
+                    "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                // 부킹엔진 게스트 화면: 인증 없이 접근 허용
+                .requestMatchers("/booking/**").permitAll()
                 // 내 프로필: 모든 인증 사용자
                 .requestMatchers("/admin/my-profile/**").authenticated()
                 // 호텔관리 전체: SUPER_ADMIN 전용

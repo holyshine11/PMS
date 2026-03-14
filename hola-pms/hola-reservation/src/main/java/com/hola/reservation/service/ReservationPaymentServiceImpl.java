@@ -3,6 +3,7 @@ package com.hola.reservation.service;
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
 import com.hola.reservation.dto.request.PaymentAdjustmentRequest;
+import com.hola.reservation.dto.request.PaymentProcessRequest;
 import com.hola.reservation.dto.response.PaymentAdjustmentResponse;
 import com.hola.reservation.dto.response.PaymentSummaryResponse;
 import com.hola.reservation.entity.*;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -28,6 +30,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
     private final MasterReservationRepository masterReservationRepository;
     private final ReservationPaymentRepository paymentRepository;
     private final PaymentAdjustmentRepository adjustmentRepository;
+    private final PaymentTransactionRepository transactionRepository;
     private final SubReservationRepository subReservationRepository;
     private final DailyChargeRepository dailyChargeRepository;
     private final ReservationServiceItemRepository serviceItemRepository;
@@ -35,7 +38,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
 
     @Override
     public PaymentSummaryResponse getPaymentSummary(Long reservationId) {
-        MasterReservation master = findMasterById(reservationId);
+        findMasterById(reservationId);
 
         ReservationPayment payment = paymentRepository
                 .findByMasterReservationId(reservationId)
@@ -44,25 +47,30 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         // 결제 정보가 없으면 빈 응답
         if (payment == null) {
             return PaymentSummaryResponse.builder()
-                    .paymentStatus("PENDING")
+                    .paymentStatus("UNPAID")
                     .totalRoomAmount(BigDecimal.ZERO)
                     .totalServiceAmount(BigDecimal.ZERO)
                     .totalServiceChargeAmount(BigDecimal.ZERO)
                     .totalAdjustmentAmount(BigDecimal.ZERO)
                     .totalEarlyLateFee(BigDecimal.ZERO)
                     .grandTotal(BigDecimal.ZERO)
+                    .totalPaidAmount(BigDecimal.ZERO)
+                    .remainingAmount(BigDecimal.ZERO)
+                    .transactions(Collections.emptyList())
                     .build();
         }
 
         List<PaymentAdjustment> adjustments = adjustmentRepository
                 .findByMasterReservationIdOrderByAdjustmentSeqAsc(reservationId);
+        List<PaymentTransaction> transactions = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
 
-        return reservationMapper.toPaymentSummaryResponse(payment, adjustments);
+        return reservationMapper.toPaymentSummaryResponse(payment, adjustments, transactions);
     }
 
     @Override
     @Transactional
-    public PaymentSummaryResponse processPayment(Long reservationId) {
+    public PaymentSummaryResponse processPayment(Long reservationId, PaymentProcessRequest request) {
         MasterReservation master = findMasterById(reservationId);
 
         // OTA 결제 불가
@@ -70,21 +78,75 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             throw new HolaException(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
         }
 
+        // 예약 상태 체크
+        String reservationStatus = master.getReservationStatus();
+        if ("CHECKED_OUT".equals(reservationStatus) || "CANCELED".equals(reservationStatus) || "NO_SHOW".equals(reservationStatus)) {
+            throw new HolaException(ErrorCode.RESERVATION_MODIFY_NOT_ALLOWED);
+        }
+
         ReservationPayment payment = getOrCreatePayment(master);
 
-        if ("COMPLETED".equals(payment.getPaymentStatus())) {
+        // 이미 전액 결제 완료 또는 초과결제
+        String paymentStatus = payment.getPaymentStatus();
+        if ("PAID".equals(paymentStatus) || "OVERPAID".equals(paymentStatus)) {
             throw new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED);
         }
 
-        // 금액 재계산 후 더미 결제 처리
+        // 금액 재계산 (grandTotal 최신화)
         recalculateAmounts(payment, reservationId);
-        payment.processPayment("CREDIT_CARD"); // 더미: 카드결제
 
-        log.info("결제 처리 (더미): reservationId={}, 금액={}", reservationId, payment.getGrandTotal());
+        // 잔액 계산
+        BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
+        BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+        BigDecimal remaining = grandTotal.subtract(totalPaid);
+
+        // 잔액이 0 이하면 결제 불필요
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED);
+        }
+
+        // 결제 금액 결정
+        BigDecimal payAmount;
+        if (request.getAmount() == null) {
+            payAmount = remaining; // 잔액 전액
+        } else {
+            payAmount = request.getAmount();
+        }
+
+        // 금액 검증
+        if (payAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_AMOUNT_INVALID);
+        }
+        if (payAmount.compareTo(remaining) > 0) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_AMOUNT_EXCEEDED);
+        }
+
+        // 거래 시퀀스 번호 부여
+        List<PaymentTransaction> existingTxns = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
+        int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
+
+        // PaymentTransaction 생성
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .masterReservationId(reservationId)
+                .transactionSeq(nextSeq)
+                .paymentMethod(request.getPaymentMethod())
+                .amount(payAmount)
+                .memo(request.getMemo())
+                .build();
+        transactionRepository.save(transaction);
+
+        // 결제 누적 + 상태 자동 판단
+        payment.addPaidAmount(payAmount);
+
+        log.info("결제 처리: reservationId={}, method={}, amount={}, totalPaid={}",
+                reservationId, request.getPaymentMethod(), payAmount, payment.getTotalPaidAmount());
 
         List<PaymentAdjustment> adjustments = adjustmentRepository
                 .findByMasterReservationIdOrderByAdjustmentSeqAsc(reservationId);
-        return reservationMapper.toPaymentSummaryResponse(payment, adjustments);
+        List<PaymentTransaction> transactions = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
+        return reservationMapper.toPaymentSummaryResponse(payment, adjustments, transactions);
     }
 
     @Override
@@ -98,12 +160,9 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             throw new HolaException(ErrorCode.RESERVATION_PAYMENT_MODIFY_NOT_ALLOWED);
         }
 
-        // COMPLETED 결제는 조정 불가
+        // PAID 결제도 조정 가능 (grandTotal 재계산 후 상태 재판단)
         ReservationPayment existingPayment = paymentRepository
                 .findByMasterReservationId(reservationId).orElse(null);
-        if (existingPayment != null && "COMPLETED".equals(existingPayment.getPaymentStatus())) {
-            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED);
-        }
 
         // 시퀀스 번호 자동 부여
         List<PaymentAdjustment> existing = adjustmentRepository
@@ -137,13 +196,11 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         MasterReservation master = findMasterById(reservationId);
         ReservationPayment payment = getOrCreatePayment(master);
 
-        // 완료된 결제는 재계산하지 않음
-        if ("COMPLETED".equals(payment.getPaymentStatus())) {
-            log.info("결제 완료 상태 — 재계산 스킵: reservationId={}", reservationId);
-            return;
-        }
-
+        // grandTotal 재계산 (PAID 상태에서도 재계산하되 totalPaidAmount 유지)
         recalculateAmounts(payment, reservationId);
+
+        // 결제 상태 재판단
+        payment.updatePaymentStatus();
     }
 
     // ─── 내부 헬퍼 ──────────────────────────
@@ -161,12 +218,13 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
                 .orElseGet(() -> paymentRepository.save(
                         ReservationPayment.builder()
                                 .masterReservation(master)
-                                .paymentStatus("PENDING")
+                                .paymentStatus("UNPAID")
                                 .totalRoomAmount(BigDecimal.ZERO)
                                 .totalServiceAmount(BigDecimal.ZERO)
                                 .totalServiceChargeAmount(BigDecimal.ZERO)
                                 .totalAdjustmentAmount(BigDecimal.ZERO)
                                 .grandTotal(BigDecimal.ZERO)
+                                .totalPaidAmount(BigDecimal.ZERO)
                                 .build()
                 ));
     }

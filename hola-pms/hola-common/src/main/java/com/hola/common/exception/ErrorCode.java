@@ -130,7 +130,23 @@ public enum ErrorCode {
 
     // 얼리체크인/레이트체크아웃 (HOLA-405x)
     EARLY_LATE_POLICY_NOT_FOUND("HOLA-4050", "얼리/레이트 정책을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    EARLY_LATE_INVALID_TIME_RANGE("HOLA-4051", "시작 시간이 종료 시간보다 이후일 수 없습니다.", HttpStatus.BAD_REQUEST);
+    EARLY_LATE_INVALID_TIME_RANGE("HOLA-4051", "시작 시간이 종료 시간보다 이후일 수 없습니다.", HttpStatus.BAD_REQUEST),
+
+    // 결제 처리 (HOLA-402x 확장)
+    RESERVATION_PAYMENT_AMOUNT_EXCEEDED("HOLA-4026", "결제 금액이 잔액을 초과합니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_PAYMENT_AMOUNT_INVALID("HOLA-4028", "결제 금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
+
+    // 부킹엔진 (HOLA-407x)
+    BOOKING_PROPERTY_NOT_FOUND("HOLA-4070", "예약 가능한 프로퍼티를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    BOOKING_NO_AVAILABILITY("HOLA-4071", "선택한 기간에 예약 가능한 객실이 없습니다.", HttpStatus.CONFLICT),
+    BOOKING_RATE_NOT_AVAILABLE("HOLA-4072", "선택한 기간에 적용 가능한 요금이 없습니다.", HttpStatus.BAD_REQUEST),
+    BOOKING_PAYMENT_FAILED("HOLA-4073", "결제 처리에 실패했습니다.", HttpStatus.BAD_REQUEST),
+    BOOKING_DUPLICATE_REQUEST("HOLA-4074", "이미 처리된 예약 요청입니다.", HttpStatus.CONFLICT),
+    BOOKING_TERMS_NOT_AGREED("HOLA-4075", "이용약관에 동의해야 합니다.", HttpStatus.BAD_REQUEST),
+    BOOKING_INVALID_DATE_RANGE("HOLA-4076", "체크인/체크아웃 날짜가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+    BOOKING_MAX_STAY_EXCEEDED("HOLA-4077", "최대 숙박 가능 일수(30일)를 초과했습니다.", HttpStatus.BAD_REQUEST),
+    BOOKING_CONFIRMATION_NOT_FOUND("HOLA-4078", "예약 확인 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    BOOKING_GUEST_VERIFICATION_FAILED("HOLA-4079", "예약자 정보가 일치하지 않습니다.", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final String message;

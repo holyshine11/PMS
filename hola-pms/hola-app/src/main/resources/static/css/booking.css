@@ -1,0 +1,629 @@
+/* ========================================
+   Hola Booking Engine - 게스트 전용 스타일
+   컬러: #051923, #003554, #0582CA, #EF476F
+   폰트: Pretendard
+   ======================================== */
+
+:root {
+    --bk-navy-deep: #051923;
+    --bk-navy: #003554;
+    --bk-blue: #0582CA;
+    --bk-pink: #EF476F;
+    --bk-white: #FFFFFF;
+    --bk-gray-50: #F8F9FA;
+    --bk-gray-100: #F1F3F5;
+    --bk-gray-200: #E9ECEF;
+    --bk-gray-500: #ADB5BD;
+    --bk-gray-700: #495057;
+    --bk-gray-900: #212529;
+    --bk-font: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+body {
+    font-family: var(--bk-font);
+    color: var(--bk-gray-900);
+    background: var(--bk-white);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* ── 네비게이션 ── */
+.booking-navbar {
+    background: var(--bk-navy-deep);
+    padding: 0.75rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+}
+
+.brand-text {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--bk-white);
+    letter-spacing: 3px;
+}
+
+.booking-navbar .btn-outline-light {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-color: rgba(255,255,255,0.3);
+}
+
+.booking-navbar .btn-outline-light:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+/* ── 히어로 섹션 ── */
+.booking-hero {
+    background: linear-gradient(135deg, var(--bk-navy-deep) 0%, var(--bk-navy) 100%);
+    padding: 3.5rem 0 5rem;
+    position: relative;
+}
+
+.booking-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: var(--bk-white);
+    clip-path: ellipse(55% 100% at 50% 100%);
+}
+
+.hero-subtitle {
+    font-size: 0.875rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+.hero-title {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.hero-desc {
+    font-size: 0.9375rem;
+    opacity: 0.8;
+}
+
+/* ── 검색 카드 ── */
+.booking-search-section {
+    margin-top: -2rem;
+    position: relative;
+    z-index: 10;
+    padding-bottom: 2rem;
+}
+
+.search-card {
+    background: var(--bk-white);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+}
+
+.search-card .form-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--bk-gray-700);
+    margin-bottom: 0.375rem;
+}
+
+.search-card .input-group-text {
+    background: var(--bk-gray-50);
+    border-color: var(--bk-gray-200);
+    color: var(--bk-blue);
+}
+
+.search-card .form-control,
+.search-card .form-select {
+    border-color: var(--bk-gray-200);
+    font-size: 0.9375rem;
+}
+
+.search-card .form-control:focus,
+.search-card .form-select:focus {
+    border-color: var(--bk-blue);
+    box-shadow: 0 0 0 0.2rem rgba(5, 130, 202, 0.15);
+}
+
+/* 검색 버튼 */
+.btn-booking {
+    background: var(--bk-blue);
+    color: var(--bk-white);
+    font-weight: 600;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    border: none;
+    transition: all 0.2s;
+}
+
+.btn-booking:hover {
+    background: var(--bk-navy);
+    color: var(--bk-white);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,53,84,0.3);
+}
+
+.btn-booking:active {
+    transform: translateY(0);
+}
+
+.btn-booking-outline {
+    background: transparent;
+    color: var(--bk-blue);
+    font-weight: 600;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    border: 2px solid var(--bk-blue);
+    transition: all 0.2s;
+}
+
+.btn-booking-outline:hover {
+    background: var(--bk-blue);
+    color: var(--bk-white);
+}
+
+/* ── 프로퍼티 정보 ── */
+.property-info-section {
+    padding: 2rem 0 3rem;
+    background: var(--bk-gray-50);
+}
+
+.info-card {
+    background: var(--bk-white);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    border: 1px solid var(--bk-gray-200);
+    transition: box-shadow 0.2s;
+}
+
+.info-card:hover {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.info-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(5, 130, 202, 0.1);
+    color: var(--bk-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.75rem;
+    font-size: 1.125rem;
+}
+
+.info-card h6 {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--bk-gray-700);
+    margin-bottom: 0.5rem;
+}
+
+.info-card p {
+    font-size: 0.9375rem;
+    color: var(--bk-gray-900);
+}
+
+/* ── 푸터 ── */
+.booking-footer {
+    background: var(--bk-gray-50);
+    border-top: 1px solid var(--bk-gray-200);
+    padding: 1.5rem 0;
+    margin-top: auto;
+}
+
+/* ── 객실 카드 (rooms 페이지용) ── */
+.room-card {
+    background: var(--bk-white);
+    border-radius: 12px;
+    border: 1px solid var(--bk-gray-200);
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.room-card:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+
+.room-card-body {
+    padding: 1.5rem;
+}
+
+.room-card-header {
+    padding: 1rem 1.5rem;
+    background: var(--bk-gray-50);
+    border-bottom: 1px solid var(--bk-gray-200);
+}
+
+.room-name {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--bk-navy-deep);
+}
+
+.room-size {
+    font-size: 0.8125rem;
+    color: var(--bk-gray-500);
+}
+
+.room-feature {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    background: var(--bk-gray-100);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--bk-gray-700);
+    margin: 0.125rem;
+}
+
+.room-availability {
+    font-size: 0.8125rem;
+    color: var(--bk-blue);
+    font-weight: 600;
+}
+
+.room-availability.low {
+    color: var(--bk-pink);
+}
+
+/* 요금 옵션 */
+.rate-option {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--bk-gray-200);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.rate-option:hover,
+.rate-option.selected {
+    border-color: var(--bk-blue);
+    background: rgba(5, 130, 202, 0.04);
+}
+
+.rate-option.selected {
+    box-shadow: 0 0 0 2px var(--bk-blue);
+}
+
+.rate-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--bk-gray-900);
+}
+
+.rate-price {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--bk-navy-deep);
+}
+
+.rate-price-unit {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--bk-gray-500);
+}
+
+/* ── 스텝 인디케이터 ── */
+.step-indicator-section {
+    background: var(--bk-gray-50);
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--bk-gray-200);
+}
+
+.step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--bk-gray-500);
+    font-weight: 500;
+}
+
+.step.active {
+    color: var(--bk-blue);
+    font-weight: 700;
+}
+
+.step.completed {
+    color: var(--bk-navy);
+}
+
+.step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--bk-gray-200);
+    color: var(--bk-gray-500);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.step.active .step-num {
+    background: var(--bk-blue);
+    color: var(--bk-white);
+}
+
+.step.completed .step-num {
+    background: var(--bk-navy);
+    color: var(--bk-white);
+}
+
+.step-line {
+    width: 40px;
+    height: 2px;
+    background: var(--bk-gray-200);
+    margin: 0 0.5rem;
+}
+
+.step-line.completed {
+    background: var(--bk-navy);
+}
+
+/* ── 결제 수단 선택 ── */
+.payment-method-option {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.625rem 1.25rem;
+    border: 2px solid var(--bk-gray-200);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.payment-method-option:hover {
+    border-color: var(--bk-blue);
+}
+
+.payment-method-option.selected {
+    border-color: var(--bk-blue);
+    background: rgba(5, 130, 202, 0.05);
+    color: var(--bk-blue);
+    font-weight: 600;
+}
+
+/* ── 필수 라벨 ── */
+.checkout-card .form-label.required::after {
+    content: ' *';
+    color: var(--bk-pink);
+}
+
+/* ── 체크아웃 섹션 ── */
+.checkout-section {
+    padding: 2rem 0 3rem;
+}
+
+.checkout-card {
+    background: var(--bk-white);
+    border-radius: 12px;
+    border: 1px solid var(--bk-gray-200);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.checkout-card h5 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--bk-navy-deep);
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--bk-gray-100);
+}
+
+/* 요약 사이드바 */
+.summary-card {
+    background: var(--bk-gray-50);
+    border-radius: 12px;
+    border: 1px solid var(--bk-gray-200);
+    padding: 1.5rem;
+    position: sticky;
+    top: 80px;
+}
+
+.summary-card h5 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--bk-navy-deep);
+    margin-bottom: 1rem;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.375rem 0;
+    font-size: 0.875rem;
+}
+
+.summary-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0 0;
+    margin-top: 0.5rem;
+    border-top: 2px solid var(--bk-gray-200);
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--bk-navy-deep);
+}
+
+/* ── 확인 페이지 ── */
+.confirmation-section {
+    padding: 3rem 0;
+}
+
+.confirmation-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.confirmation-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(5, 130, 202, 0.1);
+    color: var(--bk-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 2rem;
+}
+
+.confirmation-no {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--bk-navy-deep);
+    letter-spacing: 1px;
+}
+
+/* 확인 상세 행 */
+.confirm-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--bk-gray-100);
+    font-size: 0.875rem;
+}
+
+.confirm-detail-row:last-child {
+    border-bottom: none;
+}
+
+.confirm-label {
+    color: var(--bk-gray-700);
+    font-weight: 500;
+}
+
+.confirm-value {
+    color: var(--bk-gray-900);
+    text-align: right;
+}
+
+/* ── 스피너 ── */
+.booking-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 3rem;
+}
+
+.booking-spinner .spinner-border {
+    color: var(--bk-blue);
+}
+
+/* ── 검색 조건 요약 바 ── */
+.search-summary-bar {
+    background: var(--bk-navy);
+    padding: 0.75rem 0;
+    color: var(--bk-white);
+    font-size: 0.875rem;
+}
+
+.summary-label {
+    font-weight: 700;
+    font-size: 0.9375rem;
+}
+
+.summary-item {
+    opacity: 0.9;
+}
+
+.summary-divider {
+    opacity: 0.3;
+}
+
+/* ── 객실 섹션 ── */
+.rooms-section {
+    padding: 2rem 0 6rem;
+}
+
+.section-title {
+    font-weight: 700;
+    color: var(--bk-navy-deep);
+}
+
+/* ── 하단 고정 바 ── */
+.booking-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bk-white);
+    border-top: 1px solid var(--bk-gray-200);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+    padding: 0.875rem 0;
+    z-index: 1020;
+}
+
+.selected-total {
+    font-size: 0.875rem;
+    color: var(--bk-gray-700);
+}
+
+.total-amount {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--bk-navy-deep);
+    margin-left: 0.25rem;
+}
+
+/* ── 반응형 ── */
+@media (max-width: 768px) {
+    .booking-hero {
+        padding: 2.5rem 0 4rem;
+    }
+
+    .hero-title {
+        font-size: 1.5rem;
+    }
+
+    .search-card {
+        padding: 1.25rem;
+    }
+
+    .search-card .row > div {
+        margin-bottom: 0.25rem;
+    }
+
+    .summary-card {
+        position: static;
+    }
+}
+
+@media (max-width: 576px) {
+    .booking-hero {
+        padding: 2rem 0 3.5rem;
+    }
+
+    .hero-title {
+        font-size: 1.25rem;
+    }
+
+    .search-card {
+        padding: 1rem;
+    }
+}

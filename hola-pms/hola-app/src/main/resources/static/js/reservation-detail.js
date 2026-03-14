@@ -612,7 +612,7 @@ var ReservationDetail = {
         if (self.isReadonly) {
             // VIEW 전용 모드: 모든 input/select/textarea disabled, 버튼 숨김
             $('#formContainer input, #formContainer select, #formContainer textarea').prop('disabled', true);
-            $('#saveBtn, #addRoomBtn, #addMemoBtn, #processPaymentBtn, #addAdjustmentBtn').hide();
+            $('#saveBtn, #addRoomBtn, #addMemoBtn, #cardPaymentBtn, #cashPaymentBtn, #addAdjustmentBtn').hide();
             $('#statusChangeGroup').hide();
             $('.remove-leg-btn, .room-type-search-btn, .room-assign-btn, .room-type-clear-btn, .room-assign-clear-btn').hide();
             $('#rateCodeSearchBtn, #marketCodeSearchBtn, #rateCodeClearBtn, #marketCodeClearBtn').hide();
@@ -880,13 +880,19 @@ var ReservationDetail = {
             self.removeServiceFromLeg(legId, serviceId);
         });
 
-        // 결제 처리 버튼
-        $('#processPaymentBtn').on('click', function() {
-            HolaPms.modal.show('#paymentConfirmModal');
+        // 카드결제 버튼: VAN 모듈 연동 전 안내
+        $('#cardPaymentBtn').on('click', function() {
+            HolaPms.alert('info', '카드결제는 VAN 모듈 연동 후 사용 가능합니다.');
         });
-        $('#paymentConfirmBtn').on('click', function() {
-            HolaPms.modal.hide('#paymentConfirmModal');
-            ReservationPayment.processPayment();
+
+        // 현금결제 버튼
+        $('#cashPaymentBtn').on('click', function() {
+            ReservationPayment.openCashPaymentModal();
+        });
+
+        // 현금결제 확인 버튼
+        $('#cashPaymentConfirmBtn').on('click', function() {
+            ReservationPayment.processCashPayment();
         });
 
         // 금액 조정 추가

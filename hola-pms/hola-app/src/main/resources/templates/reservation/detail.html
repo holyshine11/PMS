@@ -336,11 +336,31 @@
                         </div>
 
                         <!-- 결제 상태/버튼 -->
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span id="paymentStatusBadge"></span>
-                            <button class="btn btn-success" id="processPaymentBtn">
-                                <i class="fas fa-credit-card me-1"></i>결제 처리
-                            </button>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex align-items-center">
+                                <span id="paymentStatusBadge"></span>
+                                <span class="ms-3 small" id="paidAmountDisplay"></span>
+                            </div>
+                            <div id="paymentButtonGroup">
+                                <button class="btn btn-primary btn-sm me-1" id="cardPaymentBtn">
+                                    <i class="fas fa-credit-card me-1"></i>카드결제
+                                </button>
+                                <button class="btn btn-success btn-sm" id="cashPaymentBtn">
+                                    <i class="fas fa-money-bill-wave me-1"></i>현금결제
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 결제 이력 -->
+                        <h6 class="fw-bold mb-2 mt-4" style="cursor:pointer" id="paymentHistoryToggle">
+                            <i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i>
+                            결제 이력
+                            <i class="fas fa-caret-down ms-1" id="paymentHistoryToggleIcon"></i>
+                        </h6>
+                        <div class="collapse" id="paymentHistoryCollapse">
+                            <div id="paymentHistoryContent">
+                                <p class="text-center text-muted py-3">결제 이력이 없습니다.</p>
+                            </div>
                         </div>
 
                         <!-- 금액 조정 -->
@@ -571,20 +591,53 @@
         </div>
     </div>
 
-    <!-- ═══ 결제 확인 모달 ═══ -->
-    <div class="modal fade" id="paymentConfirmModal" tabindex="-1">
+    <!-- ═══ 현금결제 모달 ═══ -->
+    <div class="modal fade" id="cashPaymentModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title">결제 처리 확인</h5>
+                    <h5 class="modal-title">현금 결제</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p>결제를 처리하시겠습니까?</p>
+                    <div class="row mb-3">
+                        <label class="col-sm-4 col-form-label">최종 합계</label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control-plaintext" id="cashGrandTotalDisplay" readonly>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label class="col-sm-4 col-form-label">기결제액</label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control-plaintext" id="cashPaidDisplay" readonly>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label class="col-sm-4 col-form-label">잔여금액</label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control-plaintext text-danger" id="cashRemainingDisplay" readonly>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row mb-3">
+                        <label class="col-sm-4 col-form-label required">결제 금액</label>
+                        <div class="col-sm-8">
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="cashPaymentAmount" min="1">
+                                <span class="input-group-text">원</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label class="col-sm-4 col-form-label">메모</label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control" id="cashPaymentMemo" placeholder="메모 (선택)">
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-                    <button type="button" class="btn btn-success" id="paymentConfirmBtn">결제 처리</button>
+                    <button type="button" class="btn btn-success" id="cashPaymentConfirmBtn">결제처리</button>
                 </div>
             </div>
         </div>

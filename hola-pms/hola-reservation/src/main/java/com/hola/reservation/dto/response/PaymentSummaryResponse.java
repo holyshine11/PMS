@@ -26,9 +26,14 @@ public class PaymentSummaryResponse {
     private BigDecimal totalAdjustmentAmount;
     private BigDecimal totalEarlyLateFee;
     private BigDecimal grandTotal;
+    private BigDecimal totalPaidAmount;
+    private BigDecimal remainingAmount;
     private LocalDateTime paymentDate;
     private String paymentMethod;
 
     // 결제 조정 내역
     private List<PaymentAdjustmentResponse> adjustments;
+
+    // 결제 거래 이력
+    private List<PaymentTransactionResponse> transactions;
 }

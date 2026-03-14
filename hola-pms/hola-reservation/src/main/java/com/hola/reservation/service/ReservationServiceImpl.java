@@ -328,9 +328,14 @@ public class ReservationServiceImpl implements ReservationService {
 
         validateDates(request.getMasterCheckIn(), request.getMasterCheckOut());
 
-        // 레이트코드 변경 시 유효성 재검증
+        // 레이트코드 또는 날짜가 실제 변경된 경우에만 재검증
         if (request.getRateCodeId() != null) {
-            validateRateCode(request.getRateCodeId(), request.getMasterCheckIn(), request.getMasterCheckOut());
+            boolean rateChanged = !request.getRateCodeId().equals(master.getRateCodeId());
+            boolean datesChanged = !request.getMasterCheckIn().equals(master.getMasterCheckIn())
+                    || !request.getMasterCheckOut().equals(master.getMasterCheckOut());
+            if (rateChanged || datesChanged) {
+                validateRateCode(request.getRateCodeId(), request.getMasterCheckIn(), request.getMasterCheckOut());
+            }
         }
 
         master.update(

@@ -34,4 +34,7 @@ dependencies {
 
     // Jackson (날짜 처리)
     api 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+    // SpringDoc OpenAPI (Swagger UI)
+    api 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
 }

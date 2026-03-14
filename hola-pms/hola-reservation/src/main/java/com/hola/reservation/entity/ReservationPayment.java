@@ -26,7 +26,7 @@ public class ReservationPayment extends BaseEntity {
 
     @Column(name = "payment_status", nullable = false, length = 20)
     @Builder.Default
-    private String paymentStatus = "PENDING";
+    private String paymentStatus = "UNPAID";
 
     @Column(name = "total_room_amount", precision = 15, scale = 2)
     private BigDecimal totalRoomAmount;
@@ -46,6 +46,10 @@ public class ReservationPayment extends BaseEntity {
 
     @Column(name = "grand_total", precision = 15, scale = 2)
     private BigDecimal grandTotal;
+
+    @Column(name = "total_paid_amount", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal totalPaidAmount = BigDecimal.ZERO;
 
     @Column(name = "payment_date")
     private LocalDateTime paymentDate;
@@ -74,11 +78,42 @@ public class ReservationPayment extends BaseEntity {
     }
 
     /**
-     * 결제 처리 (상태 → COMPLETED, 결제일시 기록)
+     * 결제 금액 누적 + 상태 자동 판단
      */
-    public void processPayment(String method) {
-        this.paymentStatus = "COMPLETED";
-        this.paymentMethod = method;
+    public void addPaidAmount(BigDecimal amount) {
+        this.totalPaidAmount = this.totalPaidAmount.add(amount);
         this.paymentDate = LocalDateTime.now();
+        updatePaymentStatus();
+    }
+
+    /**
+     * 결제 상태 자동 판단: totalPaidAmount vs grandTotal 비교
+     * - grandTotal <= 0: 결제 불필요 (조정으로 0 이하)
+     * - totalPaid > grandTotal: 초과결제 (환불 필요)
+     * - totalPaid == grandTotal: 결제완료
+     * - totalPaid > 0: 부분결제
+     * - 그 외: 미결제
+     */
+    public void updatePaymentStatus() {
+        BigDecimal gt = this.grandTotal != null ? this.grandTotal : BigDecimal.ZERO;
+        BigDecimal paid = this.totalPaidAmount != null ? this.totalPaidAmount : BigDecimal.ZERO;
+
+        // 최종 합계가 0 이하 → 결제 불필요
+        if (gt.compareTo(BigDecimal.ZERO) <= 0) {
+            this.paymentStatus = "PAID";
+            return;
+        }
+
+        int cmp = paid.compareTo(gt);
+        if (cmp > 0) {
+            // 초과결제 (조정으로 grandTotal 감소) → 환불 필요
+            this.paymentStatus = "OVERPAID";
+        } else if (cmp == 0) {
+            this.paymentStatus = "PAID";
+        } else if (paid.compareTo(BigDecimal.ZERO) > 0) {
+            this.paymentStatus = "PARTIAL";
+        } else {
+            this.paymentStatus = "UNPAID";
+        }
     }
 }

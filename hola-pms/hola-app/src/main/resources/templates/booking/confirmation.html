@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/booking}">
+<head>
+    <title>예약 완료</title>
+</head>
+<body>
+<main layout:fragment="content">
+
+    <!-- 스텝 인디케이터 -->
+    <section class="step-indicator-section">
+        <div class="container">
+            <div class="step-indicator">
+                <div class="step completed"><span class="step-num">1</span> 객실 선택</div>
+                <div class="step-line completed"></div>
+                <div class="step completed"><span class="step-num">2</span> 정보 입력</div>
+                <div class="step-line completed"></div>
+                <div class="step active"><span class="step-num">3</span> 예약 완료</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 확인 페이지 -->
+    <section class="confirmation-section">
+        <div class="container">
+
+            <!-- 로딩 -->
+            <div id="confirmLoading" class="booking-spinner" style="display:none;">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+
+            <!-- 예약 조회 인증 폼 (sessionStorage에 데이터 없을 때 표시) -->
+            <div id="verifySection" style="display:none;">
+                <div class="confirmation-header">
+                    <div class="confirmation-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>예약 확인</h3>
+                    <p class="text-muted">예약 시 사용한 이메일을 입력해주세요.</p>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-md-5">
+                        <div class="checkout-card">
+                            <div class="mb-3">
+                                <label for="verifyEmail" class="form-label">이메일</label>
+                                <input type="email" class="form-control" id="verifyEmail" placeholder="guest@example.com" required>
+                            </div>
+                            <button type="button" class="btn btn-booking w-100" id="btnVerify">
+                                <i class="fas fa-search me-1"></i> 예약 조회
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 예약 확인 콘텐츠 -->
+            <div id="confirmContent" style="display:none;">
+                <!-- 성공 헤더 -->
+                <div class="confirmation-header">
+                    <div class="confirmation-icon">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <h3>예약이 완료되었습니다</h3>
+                    <p class="text-muted mb-2">확인 이메일이 발송되었습니다.</p>
+                    <div class="confirmation-no" id="confirmNo"></div>
+                </div>
+
+                <div class="row g-4 justify-content-center">
+                    <!-- 예약 정보 -->
+                    <div class="col-lg-6">
+                        <div class="checkout-card">
+                            <h5><i class="fas fa-calendar-check me-2"></i>예약 정보</h5>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">예약번호</span>
+                                <span class="confirm-value" id="cfmReservationNo">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">예약상태</span>
+                                <span id="cfmStatus"></span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">투숙객</span>
+                                <span class="confirm-value" id="cfmGuestName">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">호텔</span>
+                                <span class="confirm-value" id="cfmPropertyName">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">주소</span>
+                                <span class="confirm-value" id="cfmPropertyAddress">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">전화</span>
+                                <span class="confirm-value" id="cfmPropertyPhone">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 객실 + 결제 정보 -->
+                    <div class="col-lg-6">
+                        <!-- 객실 상세 -->
+                        <div class="checkout-card">
+                            <h5><i class="fas fa-bed me-2"></i>객실 정보</h5>
+                            <div id="cfmRooms"></div>
+                        </div>
+
+                        <!-- 결제 정보 -->
+                        <div class="checkout-card">
+                            <h5><i class="fas fa-credit-card me-2"></i>결제 정보</h5>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">결제 금액</span>
+                                <span class="confirm-value fw-bold" id="cfmTotalAmount">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">결제 상태</span>
+                                <span id="cfmPaymentStatus"></span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">결제 수단</span>
+                                <span class="confirm-value" id="cfmPaymentMethod">-</span>
+                            </div>
+                            <div class="confirm-detail-row" id="cfmApprovalRow" style="display:none;">
+                                <span class="confirm-label">승인번호</span>
+                                <span class="confirm-value" id="cfmApprovalNo">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 안내 메시지 -->
+                <div class="text-center mt-4">
+                    <div class="alert alert-light border" style="display:inline-block;">
+                        <i class="fas fa-info-circle text-primary me-1"></i>
+                        체크인 시간: <span id="cfmCheckInTime">-</span> |
+                        체크아웃 시간: <span id="cfmCheckOutTime">-</span>
+                    </div>
+                </div>
+
+                <!-- 버튼 -->
+                <div class="text-center mt-3 mb-4">
+                    <button type="button" class="btn btn-booking-outline me-2" onclick="window.print();">
+                        <i class="fas fa-print me-1"></i> 인쇄
+                    </button>
+                    <a th:href="@{/booking/{code}(code=${propertyCode})}" class="btn btn-booking">
+                        <i class="fas fa-search me-1"></i> 새 예약
+                    </a>
+                </div>
+            </div>
+
+            <!-- 에러 표시 -->
+            <div class="alert alert-danger d-none" id="errorAlert" role="alert">
+                <i class="fas fa-exclamation-circle me-1"></i>
+                <span id="errorMessage"></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hidden 데이터 -->
+    <input type="hidden" id="propertyCode" th:value="${propertyCode}">
+    <input type="hidden" id="confirmationNo" th:value="${confirmationNo}">
+
+</main>
+
+<th:block layout:fragment="scripts">
+<script>
+    $(function() {
+        HolaBooking.ConfirmationPage.init();
+    });
+</script>
+</th:block>
+</body>
+</html>

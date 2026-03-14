@@ -3,6 +3,7 @@ package com.hola.reservation.controller;
 import com.hola.common.dto.HolaResponse;
 import com.hola.common.security.AccessControlService;
 import com.hola.reservation.dto.request.PaymentAdjustmentRequest;
+import com.hola.reservation.dto.request.PaymentProcessRequest;
 import com.hola.reservation.dto.response.PaymentAdjustmentResponse;
 import com.hola.reservation.dto.response.PaymentSummaryResponse;
 import com.hola.reservation.service.ReservationPaymentService;
@@ -29,12 +30,14 @@ public class ReservationPaymentApiController {
         return HolaResponse.success(paymentService.getPaymentSummary(reservationId));
     }
 
-    /** 결제 처리 (더미) */
-    @PutMapping("/process")
+    /** 결제 처리 (카드/현금, 부분결제 지원) */
+    @PostMapping("/transactions")
+    @ResponseStatus(HttpStatus.CREATED)
     public HolaResponse<PaymentSummaryResponse> processPayment(@PathVariable Long propertyId,
-                                                                 @PathVariable Long reservationId) {
+                                                                 @PathVariable Long reservationId,
+                                                                 @RequestBody PaymentProcessRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(paymentService.processPayment(reservationId));
+        return HolaResponse.success(paymentService.processPayment(reservationId, request));
     }
 
     /** 금액 조정 추가 */

@@ -8,6 +8,7 @@ import com.hola.reservation.dto.response.*;
 import com.hola.reservation.entity.*;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -257,12 +258,22 @@ public class ReservationMapper {
      * 결제 요약 → 응답 변환
      */
     public PaymentSummaryResponse toPaymentSummaryResponse(ReservationPayment payment,
-                                                            List<PaymentAdjustment> adjustments) {
+                                                            List<PaymentAdjustment> adjustments,
+                                                            List<PaymentTransaction> transactions) {
         List<PaymentAdjustmentResponse> adjustmentResponses = adjustments != null
                 ? adjustments.stream()
                     .map(this::toPaymentAdjustmentResponse)
                     .collect(Collectors.toList())
                 : Collections.emptyList();
+
+        List<PaymentTransactionResponse> transactionResponses = transactions != null
+                ? transactions.stream()
+                    .map(this::toPaymentTransactionResponse)
+                    .collect(Collectors.toList())
+                : Collections.emptyList();
+
+        BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
+        BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
 
         return PaymentSummaryResponse.builder()
                 .id(payment.getId())
@@ -272,10 +283,31 @@ public class ReservationMapper {
                 .totalServiceChargeAmount(payment.getTotalServiceChargeAmount())
                 .totalAdjustmentAmount(payment.getTotalAdjustmentAmount())
                 .totalEarlyLateFee(payment.getTotalEarlyLateFee())
-                .grandTotal(payment.getGrandTotal())
+                .grandTotal(grandTotal)
+                .totalPaidAmount(totalPaid)
+                .remainingAmount(grandTotal.subtract(totalPaid))
                 .paymentDate(payment.getPaymentDate())
                 .paymentMethod(payment.getPaymentMethod())
                 .adjustments(adjustmentResponses)
+                .transactions(transactionResponses)
+                .build();
+    }
+
+    /**
+     * 결제 거래 이력 → 응답 변환
+     */
+    public PaymentTransactionResponse toPaymentTransactionResponse(PaymentTransaction transaction) {
+        return PaymentTransactionResponse.builder()
+                .id(transaction.getId())
+                .transactionSeq(transaction.getTransactionSeq())
+                .paymentMethod(transaction.getPaymentMethod())
+                .amount(transaction.getAmount())
+                .currency(transaction.getCurrency())
+                .transactionStatus(transaction.getTransactionStatus())
+                .approvalNo(transaction.getApprovalNo())
+                .memo(transaction.getMemo())
+                .createdAt(transaction.getCreatedAt())
+                .createdBy(transaction.getCreatedBy())
                 .build();
     }
 

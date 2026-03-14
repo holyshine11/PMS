@@ -7,8 +7,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PropertyRepository extends JpaRepository<Property, Long> {
+
+    /**
+     * 프로퍼티 코드로 활성 프로퍼티 조회 (부킹엔진 공개 API용)
+     */
+    Optional<Property> findByPropertyCodeAndUseYnTrue(String propertyCode);
 
     List<Property> findAllByHotelId(Long hotelId);
 

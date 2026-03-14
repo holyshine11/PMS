@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/booking}">
+<head>
+    <title>예약 정보 입력</title>
+</head>
+<body>
+<main layout:fragment="content">
+
+    <!-- 스텝 인디케이터 -->
+    <section class="step-indicator-section">
+        <div class="container">
+            <div class="step-indicator">
+                <div class="step completed"><span class="step-num">1</span> 객실 선택</div>
+                <div class="step-line completed"></div>
+                <div class="step active"><span class="step-num">2</span> 정보 입력</div>
+                <div class="step-line"></div>
+                <div class="step"><span class="step-num">3</span> 예약 완료</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 메인 콘텐츠 -->
+    <section class="checkout-section">
+        <div class="container">
+            <!-- 예약 데이터 없음 안내 -->
+            <div class="alert alert-warning d-none" id="noDataAlert">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                선택된 객실 정보가 없습니다. 객실 검색부터 다시 진행해주세요.
+                <a th:href="@{/booking/{code}(code=${propertyCode})}" class="alert-link ms-2">검색 페이지로 이동</a>
+            </div>
+
+            <div class="row" id="checkoutContent" style="display:none;">
+                <!-- 좌측: 입력 폼 -->
+                <div class="col-lg-8">
+                    <!-- 투숙객 정보 -->
+                    <div class="checkout-card">
+                        <h5><i class="fas fa-user-edit me-2"></i>투숙객 정보</h5>
+                        <form id="guestForm">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="guestNameKo" class="form-label required">성명 (한글)</label>
+                                    <input type="text" class="form-control" id="guestNameKo" placeholder="홍길동" required maxlength="50">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">성명 (영문)</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="text" class="form-control" id="guestFirstNameEn" placeholder="First Name" maxlength="50">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="text" class="form-control" id="guestLastNameEn" placeholder="Last Name" maxlength="50">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="phoneNumber" class="form-label required">휴대전화</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="phoneCountryCode" style="max-width:100px;">
+                                            <option value="+82" selected>+82</option>
+                                            <option value="+1">+1</option>
+                                            <option value="+81">+81</option>
+                                            <option value="+86">+86</option>
+                                        </select>
+                                        <input type="tel" class="form-control" id="phoneNumber" placeholder="010-1234-5678" required maxlength="20">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="email" class="form-label required">이메일</label>
+                                    <input type="email" class="form-control" id="email" placeholder="guest@example.com" required maxlength="100">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="nationality" class="form-label">국적</label>
+                                    <select class="form-select" id="nationality">
+                                        <option value="KR" selected>대한민국</option>
+                                        <option value="US">미국</option>
+                                        <option value="JP">일본</option>
+                                        <option value="CN">중국</option>
+                                        <option value="OTHER">기타</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 결제 정보 (Mock) -->
+                    <div class="checkout-card">
+                        <h5><i class="fas fa-credit-card me-2"></i>결제 정보</h5>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">결제 수단</label>
+                                <div class="d-flex gap-2">
+                                    <div class="form-check payment-method-option selected" data-method="CARD">
+                                        <i class="fas fa-credit-card me-1"></i> 신용카드
+                                    </div>
+                                    <div class="form-check payment-method-option" data-method="CASH">
+                                        <i class="fas fa-money-bill me-1"></i> 현장결제
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 카드 정보 (Mock) -->
+                            <div id="cardFields">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="cardNumber" class="form-label">카드번호</label>
+                                        <input type="text" class="form-control" id="cardNumber" placeholder="0000-0000-0000-0000" maxlength="19">
+                                        <div class="form-text text-muted">테스트: 아무 번호나 입력 가능</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="expiryDate" class="form-label">유효기간</label>
+                                        <input type="text" class="form-control" id="expiryDate" placeholder="MM/YY" maxlength="5">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="cvv" class="form-label">CVV</label>
+                                        <input type="text" class="form-control" id="cvv" placeholder="000" maxlength="4">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 이용약관 -->
+                    <div class="checkout-card">
+                        <h5><i class="fas fa-file-contract me-2"></i>약관 동의</h5>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="agreeAll">
+                            <label class="form-check-label fw-bold" for="agreeAll">전체 동의</label>
+                        </div>
+                        <hr>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input agree-item" type="checkbox" id="agreeTerms" required>
+                            <label class="form-check-label" for="agreeTerms">[필수] 이용약관 동의</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input agree-item" type="checkbox" id="agreePrivacy" required>
+                            <label class="form-check-label" for="agreePrivacy">[필수] 개인정보 수집 및 이용 동의</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input agree-item" type="checkbox" id="agreeCancel">
+                            <label class="form-check-label" for="agreeCancel">[선택] 취소/환불 규정 안내 확인</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 우측: 예약 요약 -->
+                <div class="col-lg-4">
+                    <div class="summary-card">
+                        <h5><i class="fas fa-receipt me-2"></i>예약 요약</h5>
+                        <div class="mb-3" id="summaryRoomInfo"></div>
+                        <div class="summary-row">
+                            <span>체크인</span>
+                            <span id="summaryCheckIn">-</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>체크아웃</span>
+                            <span id="summaryCheckOut">-</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>숙박</span>
+                            <span id="summaryNights">-</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>인원</span>
+                            <span id="summaryGuests">-</span>
+                        </div>
+                        <div class="summary-total">
+                            <span>결제 금액</span>
+                            <span id="summaryTotal">-</span>
+                        </div>
+
+                        <!-- 예약 버튼 -->
+                        <button type="button" class="btn btn-booking w-100 mt-3" id="btnSubmitBooking" disabled>
+                            <i class="fas fa-lock me-1"></i> 예약 완료
+                        </button>
+                        <p class="text-muted text-center small mt-2 mb-0">
+                            <i class="fas fa-shield-alt me-1"></i> 안전한 결제가 보장됩니다
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 에러 표시 -->
+            <div class="alert alert-danger d-none mt-3" id="errorAlert" role="alert">
+                <i class="fas fa-exclamation-circle me-1"></i>
+                <span id="errorMessage"></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hidden 데이터 -->
+    <input type="hidden" id="propertyCode" th:value="${propertyCode}">
+
+</main>
+
+<th:block layout:fragment="scripts">
+<script>
+    $(function() {
+        HolaBooking.CheckoutPage.init();
+    });
+</script>
+</th:block>
+</body>
+</html>

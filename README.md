@@ -16,6 +16,7 @@
 - [8. 트러블슈팅](#8-트러블슈팅)
 - [9. 프로젝트 구조](#9-프로젝트-구조)
 - [10. API 엔드포인트 전체 목록](#10-api-엔드포인트-전체-목록)
+- [11. 부킹엔진 게스트 UI 테스트](#11-부킹엔진-게스트-ui-테스트)
 
 ---
 
@@ -585,7 +586,16 @@ hola-pms/
 | PUT | `/api/v1/properties/{propertyId}/market-codes/{id}` | 마켓코드 수정 |
 | DELETE | `/api/v1/properties/{propertyId}/market-codes/{id}` | 마켓코드 삭제 |
 
-### 웹 페이지 (Thymeleaf)
+### 부킹엔진 API (인증 불필요 - 게스트용)
+| Method | URL | 설명 |
+|--------|-----|------|
+| GET | `/api/v1/booking/properties/{propertyCode}` | 프로퍼티 정보 |
+| GET | `/api/v1/booking/properties/{propertyCode}/availability` | 가용 객실 검색 |
+| POST | `/api/v1/booking/properties/{propertyCode}/price-check` | 요금 상세 조회 |
+| POST | `/api/v1/booking/properties/{propertyCode}/reservations` | 예약 생성 |
+| GET | `/api/v1/booking/confirmation/{confirmationNo}` | 예약 확인 |
+
+### 웹 페이지 (Admin - Thymeleaf)
 | URL | 설명 |
 |-----|------|
 | `/login` | 로그인 페이지 |
@@ -594,15 +604,68 @@ hola-pms/
 | `/admin/hotels/{id}` | 호텔 상세 (프로퍼티 목록 포함) |
 | `/admin/hotels/{hotelId}/properties/{id}` | 프로퍼티 상세 (층/호수/마켓코드 탭) |
 
+### 웹 페이지 (게스트 - 부킹엔진, 로그인 불필요)
+| URL | 설명 |
+|-----|------|
+| `/booking/{propertyCode}` | 예약 검색 (체크인/아웃, 인원) |
+| `/booking/{propertyCode}/rooms` | 객실 선택 (가용 객실 + 요금) |
+| `/booking/{propertyCode}/checkout` | 투숙객 정보 입력 + 결제 |
+| `/booking/{propertyCode}/confirmation/{no}` | 예약 완료 확인 |
+
+### Swagger UI (API 문서)
+
+http://localhost:8080/swagger-ui.html
+
+> 인증 필요 API는 Swagger UI 상단 Authorize 버튼에 JWT 토큰을 입력해야 합니다.
+> 부킹엔진 API (`/api/v1/booking/**`)는 인증 없이 바로 테스트 가능합니다.
+
+---
+
+## 11. 부킹엔진 게스트 UI 테스트
+
+### 접속 URL
+
+| 프로퍼티 | URL | 비고 |
+|----------|-----|------|
+| 올라 그랜드 명동 | http://localhost:8080/booking/GMP | 5성급, 테스트 데이터 포함 |
+| 올라 그랜드 서초 | http://localhost:8080/booking/GMS | 4성급 |
+
+### 테스트 플로우
+
+```
+Step 1. 검색 페이지 (/booking/GMP)
+  - 호텔명/주소/체크인·아웃 시간 자동 표시 확인
+  - 날짜 선택 → 숙박일수 자동 계산
+  - "객실 검색" 클릭
+
+Step 2. 객실 선택 (/booking/GMP/rooms?...)
+  - 가용 객실 목록 + 요금 옵션 표시
+  - 요금 클릭 → 일자별 상세 요금 펼침
+  - 하단 바 "예약하기" 클릭
+
+Step 3. 체크아웃 (/booking/GMP/checkout)
+  - 투숙객 정보 입력 (성명: 테스트, 전화: 010-1234-5678, 이메일: test@test.com)
+  - 결제 수단: 신용카드 또는 현장결제 (Mock 결제 - 아무 값 입력 가능)
+  - 필수 약관 체크 → "예약 완료" 클릭
+
+Step 4. 예약 확인 (/booking/GMP/confirmation/{no})
+  - 확인번호, 객실, 결제 정보 표시
+  - 새로고침 시 이메일 입력으로 재조회 가능
+```
+
+### PMS 예약 적재 확인
+
+예약 완료 후 Admin 로그인 → 프로퍼티 선택 → 예약 목록에서 생성된 예약 확인
+
 ### 관리자 테스트 계정
 
-[Hoal PMS 테스트 계정]
+| 아이디 | 이름 | 권한 | 소속호텔 |
+|--------|------|------|----------|
+| admin | 시스템관리자 | SUPER_ADMIN | - |
+| hotel1admin | 김서울 | HOTEL_ADMIN | 올라서울호텔 |
+| hotel2admin | 박부산 | HOTEL_ADMIN | 올라비치해운대 |
+| prop1admin | 이명동 | PROPERTY_ADMIN | 명동 |
+| prop2admin | 최서초 | PROPERTY_ADMIN | 서초 |
+| prop3admin | 정해운 | PROPERTY_ADMIN | 해운대 |
 
-아이디	이름	권한	소속호텔
-admin	시스템관리자	SUPER_ADMIN	
-hotel1admin	김서울	HOTEL_ADMIN	올라서울호텔
-hotel2admin	박부산	HOTEL_ADMIN	올라비치해운대
-prop1admin	이명동	PROPERTY_ADMIN	명동
-prop2admin	최서초	PROPERTY_ADMIN	서초
-prop3admin	정해운	PROPERTY_ADMIN	해운대
-PW : holapms1!
+> 전체 계정 비밀번호: `holapms1!`

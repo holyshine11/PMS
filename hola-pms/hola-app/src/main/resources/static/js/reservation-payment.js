@@ -5,6 +5,8 @@ var ReservationPayment = {
     propertyId: null,
     reservationId: null,
     reservationData: null,
+    paymentData: null,
+    isOta: false,
 
     /**
      * 결제 정보 로드
@@ -13,6 +15,7 @@ var ReservationPayment = {
         this.propertyId = propertyId;
         this.reservationId = reservationId;
         this.reservationData = reservationData || null;
+        this.isOta = reservationData && reservationData.isOtaManaged === true;
         this.bindToggleEvents();
         this.loadPaymentSummary();
     },
@@ -34,6 +37,20 @@ var ReservationPayment = {
                 $icon.removeClass('fa-caret-right').addClass('fa-caret-down');
             }
         });
+
+        // 결제 이력 토글
+        $(document).off('click.historyToggle').on('click.historyToggle', '#paymentHistoryToggle', function() {
+            var $collapse = $('#paymentHistoryCollapse');
+            var $icon = $('#paymentHistoryToggleIcon');
+
+            if ($collapse.hasClass('show')) {
+                $collapse.removeClass('show');
+                $icon.removeClass('fa-caret-up').addClass('fa-caret-down');
+            } else {
+                $collapse.addClass('show');
+                $icon.removeClass('fa-caret-down').addClass('fa-caret-up');
+            }
+        });
     },
 
     /**
@@ -46,9 +63,11 @@ var ReservationPayment = {
             type: 'GET',
             success: function(res) {
                 if (res.success && res.data) {
+                    self.paymentData = res.data;
                     self.bindSummary(res.data);
                     self.renderChargeBreakdown();
                     self.renderAdjustments(res.data.adjustments || []);
+                    self.renderPaymentTransactions(res.data.transactions || []);
                 }
             },
             error: function() {
@@ -68,6 +87,22 @@ var ReservationPayment = {
         $('#totalEarlyLateFee').text(this.formatCurrency(data.totalEarlyLateFee));
         $('#totalAdjustmentAmount').text(this.formatCurrency(data.totalAdjustmentAmount));
         $('#grandTotal').text(this.formatCurrency(data.grandTotal));
+
+        // 결제 누적액/잔액 표시
+        var grandTotal = Number(data.grandTotal) || 0;
+        var totalPaid = Number(data.totalPaidAmount) || 0;
+        var remaining = Number(data.remainingAmount) || 0;
+
+        var displayHtml = '총액 <strong>' + this.formatCurrency(grandTotal) + '</strong>';
+        if (totalPaid > 0) {
+            displayHtml += ' &nbsp;|&nbsp; 결제 <strong>' + this.formatCurrency(totalPaid) + '</strong>';
+            if (remaining < 0) {
+                displayHtml += ' &nbsp;|&nbsp; <strong class="text-warning">환불필요 ' + this.formatCurrency(Math.abs(remaining)) + '</strong>';
+            } else {
+                displayHtml += ' &nbsp;|&nbsp; 잔액 <strong class="text-danger">' + this.formatCurrency(remaining) + '</strong>';
+            }
+        }
+        $('#paidAmountDisplay').html(displayHtml);
 
         // 결제 상태 배지
         this.renderPaymentStatus(data.paymentStatus);
@@ -242,39 +277,149 @@ var ReservationPayment = {
         $badge.empty();
 
         var statusMap = {
-            UNPAID: { label: '미결제', cls: 'bg-warning text-dark' },
+            UNPAID: { label: '미결제', cls: 'bg-danger' },
             PARTIAL: { label: '부분결제', cls: 'bg-info' },
             PAID: { label: '결제완료', cls: 'bg-success' },
-            REFUNDED: { label: '환불', cls: 'bg-danger' }
+            OVERPAID: { label: '초과결제(환불필요)', cls: 'bg-warning text-dark' },
+            REFUNDED: { label: '환불완료', cls: 'bg-secondary' }
         };
 
         var info = statusMap[status] || { label: status || '미결제', cls: 'bg-secondary' };
         $badge.html('<span class="badge ' + info.cls + '">' + HolaPms.escapeHtml(info.label) + '</span>');
 
-        // 결제완료 시 결제 버튼 숨김
-        if (status === 'PAID') {
-            $('#processPaymentBtn').hide();
+        // 잔액이 0 이하이면 결제 버튼 숨김 (PAID, OVERPAID, grandTotal<=0)
+        var remaining = this.paymentData ? Number(this.paymentData.remainingAmount) || 0 : 0;
+        if (status === 'PAID' || status === 'OVERPAID' || remaining <= 0) {
+            $('#paymentButtonGroup').hide();
+        } else {
+            $('#paymentButtonGroup').show();
         }
     },
 
     /**
-     * 결제 처리 (더미)
+     * 현금결제 모달 열기
      */
-    processPayment: function() {
+    openCashPaymentModal: function() {
         var self = this;
+
+        // 모달 열기 전 최신 결제 정보 재조회
         HolaPms.ajax({
-            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/payment/process',
-            type: 'PUT',
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/payment',
+            type: 'GET',
+            success: function(res) {
+                if (res.success && res.data) {
+                    self.paymentData = res.data;
+                    self.bindSummary(res.data);
+                    self.renderAdjustments(res.data.adjustments || []);
+                    self.renderPaymentTransactions(res.data.transactions || []);
+
+                    var grandTotal = Number(res.data.grandTotal) || 0;
+                    var totalPaid = Number(res.data.totalPaidAmount) || 0;
+                    var remaining = Number(res.data.remainingAmount) || 0;
+
+                    $('#cashGrandTotalDisplay').val(self.formatCurrency(grandTotal));
+                    $('#cashPaidDisplay').val(self.formatCurrency(totalPaid));
+                    $('#cashRemainingDisplay').val(self.formatCurrency(remaining));
+                    $('#cashPaymentAmount').val(remaining > 0 ? Math.floor(remaining) : '');
+                    $('#cashPaymentMemo').val('');
+
+                    HolaPms.modal.show('#cashPaymentModal');
+                }
+            }
+        });
+    },
+
+    /**
+     * 현금 결제 처리
+     */
+    processCashPayment: function() {
+        var self = this;
+        var amount = parseInt($('#cashPaymentAmount').val());
+        var memo = $.trim($('#cashPaymentMemo').val());
+
+        if (!amount || amount <= 0) {
+            HolaPms.alert('warning', '결제 금액을 입력해주세요.');
+            return;
+        }
+
+        var requestData = {
+            paymentMethod: 'CASH',
+            amount: amount,
+            memo: memo || null
+        };
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/payment/transactions',
+            type: 'POST',
+            data: requestData,
             success: function(res) {
                 if (res.success) {
-                    HolaPms.alert('success', '결제가 처리되었습니다.');
+                    HolaPms.alert('success', '현금 결제가 처리되었습니다.');
+                    HolaPms.modal.hide('#cashPaymentModal');
                     if (res.data) {
+                        self.paymentData = res.data;
                         self.bindSummary(res.data);
                         self.renderAdjustments(res.data.adjustments || []);
+                        self.renderPaymentTransactions(res.data.transactions || []);
                     }
                 }
             }
         });
+    },
+
+    /**
+     * 결제 거래 이력 렌더링
+     */
+    renderPaymentTransactions: function(transactions) {
+        var self = this;
+        var $content = $('#paymentHistoryContent');
+        var $collapse = $('#paymentHistoryCollapse');
+        var $icon = $('#paymentHistoryToggleIcon');
+
+        if (!transactions || transactions.length === 0) {
+            $content.html('<p class="text-center text-muted py-3">결제 이력이 없습니다.</p>');
+            $collapse.removeClass('show');
+            $icon.removeClass('fa-caret-up').addClass('fa-caret-down');
+            return;
+        }
+
+        // 이력 있으면 기본 펼침
+        $collapse.addClass('show');
+        $icon.removeClass('fa-caret-down').addClass('fa-caret-up');
+
+        var methodLabels = {
+            CARD: '카드',
+            CASH: '현금'
+        };
+
+        var html = '<table class="table table-bordered table-sm mb-0 align-middle">'
+            + '<thead class="table-light">'
+            + '<tr>'
+            + '  <th style="width:50px" class="text-center">NO</th>'
+            + '  <th style="width:80px" class="text-center">결제수단</th>'
+            + '  <th style="width:120px" class="text-end">금액</th>'
+            + '  <th class="text-center">메모</th>'
+            + '  <th style="width:80px" class="text-center">처리자</th>'
+            + '  <th style="width:180px" class="text-center">처리일시</th>'
+            + '</tr>'
+            + '</thead><tbody>';
+
+        transactions.forEach(function(txn, idx) {
+            var methodLabel = methodLabels[txn.paymentMethod] || HolaPms.escapeHtml(txn.paymentMethod);
+            var createdAt = txn.createdAt ? txn.createdAt.replace('T', ' ').substring(0, 19) : '-';
+
+            html += '<tr>'
+                + '<td class="text-center">' + (idx + 1) + '</td>'
+                + '<td class="text-center">' + methodLabel + '</td>'
+                + '<td class="text-end">' + self.formatCurrency(txn.amount) + '</td>'
+                + '<td class="text-center">' + HolaPms.escapeHtml(txn.memo || '-') + '</td>'
+                + '<td class="text-center">' + HolaPms.escapeHtml(txn.createdBy || '-') + '</td>'
+                + '<td class="text-center text-nowrap">' + HolaPms.escapeHtml(createdAt) + '</td>'
+                + '</tr>';
+        });
+
+        html += '</tbody></table>';
+        $content.html(html);
     },
 
     /**
@@ -290,17 +435,17 @@ var ReservationPayment = {
             return;
         }
 
-        var html = '<table class="table table-bordered table-sm">'
+        var html = '<table class="table table-bordered table-sm align-middle">'
             + '<thead class="table-light">'
             + '<tr>'
             + '  <th style="width:50px" class="text-center">NO</th>'
             + '  <th style="width:60px" class="text-center">구분</th>'
-            + '  <th class="text-end">공급가</th>'
-            + '  <th class="text-end">세금</th>'
-            + '  <th class="text-end">합계</th>'
-            + '  <th>사유</th>'
-            + '  <th>작성자</th>'
-            + '  <th>일시</th>'
+            + '  <th style="width:120px" class="text-end">공급가</th>'
+            + '  <th style="width:120px" class="text-end">세금</th>'
+            + '  <th style="width:120px" class="text-end">합계</th>'
+            + '  <th class="text-center">사유</th>'
+            + '  <th style="width:80px" class="text-center">작성자</th>'
+            + '  <th style="width:180px" class="text-center">일시</th>'
             + '</tr>'
             + '</thead><tbody>';
 
@@ -314,9 +459,9 @@ var ReservationPayment = {
                 + '<td class="text-end">' + self.formatCurrency(adj.supplyPrice) + '</td>'
                 + '<td class="text-end">' + self.formatCurrency(adj.tax) + '</td>'
                 + '<td class="text-end">' + self.formatCurrency(adj.totalAmount) + '</td>'
-                + '<td>' + HolaPms.escapeHtml(adj.comment || '-') + '</td>'
-                + '<td>' + HolaPms.escapeHtml(adj.createdBy || '-') + '</td>'
-                + '<td>' + HolaPms.escapeHtml(createdAt) + '</td>'
+                + '<td class="text-center">' + HolaPms.escapeHtml(adj.comment || '-') + '</td>'
+                + '<td class="text-center">' + HolaPms.escapeHtml(adj.createdBy || '-') + '</td>'
+                + '<td class="text-center text-nowrap">' + HolaPms.escapeHtml(createdAt) + '</td>'
                 + '</tr>';
         });
 

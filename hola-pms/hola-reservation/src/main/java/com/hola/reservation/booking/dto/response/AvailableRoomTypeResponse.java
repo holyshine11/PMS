@@ -1,0 +1,60 @@
+package com.hola.reservation.booking.dto.response;
+
+import lombok.Builder;
+import lombok.Getter;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+/**
+ * 가용 객실타입 응답 (요금 포함)
+ */
+@Getter
+@Builder
+public class AvailableRoomTypeResponse {
+
+    private final Long roomTypeId;
+    private final String roomTypeCode;
+    private final String roomClassName;
+    private final String description;
+    private final BigDecimal roomSize;
+    private final String features;
+    private final int maxAdults;
+    private final int maxChildren;
+    private final int availableCount;
+
+    /** 적용 가능 레이트 옵션 목록 */
+    private final List<RateOption> rateOptions;
+
+    /** 무료 서비스 목록 */
+    private final List<ServiceInfo> freeServices;
+
+    @Getter
+    @Builder
+    public static class RateOption {
+        private final Long rateCodeId;
+        private final String rateCode;
+        private final String rateNameKo;
+        private final String currency;
+        private final BigDecimal totalAmount;
+        private final List<DailyPrice> dailyPrices;
+    }
+
+    @Getter
+    @Builder
+    public static class DailyPrice {
+        private final String date;
+        private final BigDecimal supplyPrice;
+        private final BigDecimal tax;
+        private final BigDecimal serviceCharge;
+        private final BigDecimal total;
+    }
+
+    @Getter
+    @Builder
+    public static class ServiceInfo {
+        private final String nameKo;
+        private final String type;
+        private final int quantity;
+    }
+}

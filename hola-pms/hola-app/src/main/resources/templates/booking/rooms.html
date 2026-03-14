@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/booking}">
+<head>
+    <title>객실 선택</title>
+</head>
+<body>
+<main layout:fragment="content">
+
+    <!-- 검색 조건 요약 바 -->
+    <section class="search-summary-bar">
+        <div class="container">
+            <div class="d-flex flex-wrap align-items-center justify-content-between">
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                    <span class="summary-label" id="summaryPropertyName"></span>
+                    <span class="summary-divider d-none d-md-inline">|</span>
+                    <span class="summary-item">
+                        <i class="fas fa-calendar me-1"></i>
+                        <span th:text="${checkIn}"></span> ~ <span th:text="${checkOut}"></span>
+                        <span class="badge bg-white text-dark ms-1" id="summaryNights"></span>
+                    </span>
+                    <span class="summary-divider d-none d-md-inline">|</span>
+                    <span class="summary-item">
+                        <i class="fas fa-user me-1"></i>
+                        성인 <span th:text="${adults}"></span>명
+                        <span th:if="${children > 0}">
+                            , 아동 <span th:text="${children}"></span>명
+                        </span>
+                    </span>
+                </div>
+                <a th:href="@{/booking/{code}(code=${propertyCode})}" class="btn btn-sm btn-outline-light mt-2 mt-md-0">
+                    <i class="fas fa-search me-1"></i> 재검색
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 객실 목록 -->
+    <section class="rooms-section">
+        <div class="container">
+            <h4 class="section-title mb-4">예약 가능 객실</h4>
+
+            <!-- 로딩 스피너 -->
+            <div id="roomsLoading" class="booking-spinner">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+
+            <!-- 객실 없음 -->
+            <div id="noRoomsMessage" class="text-center py-5" style="display:none;">
+                <div class="mb-3">
+                    <i class="fas fa-bed fa-3x text-muted"></i>
+                </div>
+                <h5 class="text-muted">선택하신 조건에 맞는 객실이 없습니다</h5>
+                <p class="text-muted mb-3">날짜나 인원을 변경하여 다시 검색해주세요.</p>
+                <a th:href="@{/booking/{code}(code=${propertyCode})}" class="btn btn-booking">
+                    <i class="fas fa-search me-1"></i> 다시 검색
+                </a>
+            </div>
+
+            <!-- 객실 카드 목록 -->
+            <div id="roomsList"></div>
+        </div>
+    </section>
+
+    <!-- 선택 요약 + 예약 진행 (하단 고정) -->
+    <div class="booking-bottom-bar" id="bottomBar" style="display:none;">
+        <div class="container">
+            <div class="d-flex flex-wrap align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted me-2">선택 객실:</span>
+                    <span class="fw-bold" id="selectedRoomSummary"></span>
+                </div>
+                <div class="d-flex align-items-center gap-3 mt-2 mt-md-0">
+                    <span class="selected-total">
+                        합계 <span class="total-amount" id="selectedTotalAmount"></span>
+                    </span>
+                    <button type="button" class="btn btn-booking" id="btnProceedCheckout">
+                        예약하기 <i class="fas fa-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 에러 표시 -->
+    <div class="container mt-4">
+        <div class="alert alert-danger d-none" id="errorAlert" role="alert">
+            <i class="fas fa-exclamation-circle me-1"></i>
+            <span id="errorMessage"></span>
+        </div>
+    </div>
+
+    <!-- Hidden 데이터 -->
+    <input type="hidden" id="propertyCode" th:value="${propertyCode}">
+    <input type="hidden" id="checkIn" th:value="${checkIn}">
+    <input type="hidden" id="checkOut" th:value="${checkOut}">
+    <input type="hidden" id="adults" th:value="${adults}">
+    <input type="hidden" id="children" th:value="${children}">
+
+</main>
+
+<th:block layout:fragment="scripts">
+<script>
+    $(function() {
+        HolaBooking.RoomsPage.init();
+    });
+</script>
+</th:block>
+</body>
+</html>
