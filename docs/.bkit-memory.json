@@ -1,8 +1,10 @@
 {
-  "sessionCount": 171,
+  "sessionCount": 174,
   "lastSession": {
-    "startedAt": "2026-03-14T06:53:13.364Z",
+    "startedAt": "2026-03-14T09:00:00.000Z",
     "platform": "claude",
-    "level": "Starter"
-  }
+    "level": "Dynamic"
+  },
+  "currentFeature": "cancellation-policy",
+  "currentPhase": "plan"
 }
