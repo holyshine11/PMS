@@ -899,4 +899,88 @@ public class BookingServiceImpl implements BookingService {
             log.warn("부킹 감사 로그 JSON 직렬화 실패: {}", e.getMessage());
         }
     }
+
+    // ─── 캘린더 API (산하 2.2 + 2.3 통합) ───
+
+    @Override
+    public CalendarResponse getCalendar(String propertyCode, LocalDate startDate, LocalDate endDate, String type) {
+        Property property = findPropertyByCode(propertyCode);
+        Long propertyId = property.getId();
+
+        // 기본값: 오늘부터 90일
+        if (startDate == null) startDate = LocalDate.now();
+        if (endDate == null) endDate = startDate.plusDays(90);
+
+        // 프로퍼티의 활성 객실타입 조회
+        List<RoomType> roomTypes = roomTypeRepository.findAllByPropertyIdOrderBySortOrderAscRoomTypeCodeAsc(propertyId)
+                .stream()
+                .filter(rt -> Boolean.TRUE.equals(rt.getUseYn()))
+                .toList();
+
+        // 해당 기간에 적용 가능한 레이트코드 조회
+        List<RateCodeListResponse> availableRateCodes = rateCodeService.getAvailableRateCodes(
+                propertyId, startDate, endDate);
+
+        List<CalendarResponse.DateAvailability> dates = new ArrayList<>();
+
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            int availableRoomTypeCount = 0;
+            Long minPrice = null;
+
+            for (RoomType roomType : roomTypes) {
+                // 1박 기준 가용성 확인
+                int available = roomAvailabilityService.getAvailableRoomCount(
+                        roomType.getId(), date, date.plusDays(1));
+                if (available <= 0) continue;
+
+                availableRoomTypeCount++;
+
+                // 해당 객실타입의 최저 요금 계산
+                for (RateCodeListResponse rc : availableRateCodes) {
+                    // 레이트코드-객실타입 매핑 확인
+                    boolean mapped = rateCodeRoomTypeRepository.findAllByRateCodeId(rc.getId())
+                            .stream()
+                            .anyMatch(m -> m.getRoomTypeId().equals(roomType.getId()));
+                    if (!mapped) continue;
+
+                    try {
+                        List<com.hola.reservation.entity.DailyCharge> charges =
+                                priceCalculationService.calculateDailyCharges(
+                                        rc.getId(), property, date, date.plusDays(1), 2, 0, null);
+                        if (!charges.isEmpty()) {
+                            long priceVal = charges.get(0).getTotal().longValue();
+                            if (minPrice == null || priceVal < minPrice) {
+                                minPrice = priceVal;
+                            }
+                        }
+                    } catch (Exception e) {
+                        // 요금 계산 실패 시 무시 (해당 날짜 요금표 없을 수 있음)
+                    }
+                }
+            }
+
+            boolean checkInAvailable = availableRoomTypeCount > 0;
+            // 체크아웃 가능 = 전날 체크인 가능 (첫날은 false)
+            boolean checkOutAvailable = !date.equals(startDate) && availableRoomTypeCount > 0;
+
+            // type 필터링
+            if ("checkin".equalsIgnoreCase(type) && !checkInAvailable) continue;
+            if ("checkout".equalsIgnoreCase(type) && !checkOutAvailable) continue;
+
+            dates.add(CalendarResponse.DateAvailability.builder()
+                    .date(date)
+                    .checkInAvailable(checkInAvailable)
+                    .checkOutAvailable(checkOutAvailable)
+                    .availableRoomTypes(availableRoomTypeCount)
+                    .minPrice(minPrice)
+                    .build());
+        }
+
+        return CalendarResponse.builder()
+                .propertyCode(propertyCode)
+                .startDate(startDate)
+                .endDate(endDate)
+                .dates(dates)
+                .build();
+    }
 }

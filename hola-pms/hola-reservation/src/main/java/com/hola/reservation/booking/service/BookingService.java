@@ -5,6 +5,7 @@ import com.hola.reservation.booking.dto.request.BookingSearchRequest;
 import com.hola.reservation.booking.dto.request.PriceCheckRequest;
 import com.hola.reservation.booking.dto.response.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -17,6 +18,12 @@ public interface BookingService {
      * 프로퍼티 기본정보 조회 (호텔명, 주소, 체크인/아웃 시간 등)
      */
     PropertyInfoResponse getPropertyInfo(String propertyCode);
+
+    /**
+     * 캘린더 조회 (판매 가능 날짜, 체크인/아웃 분리)
+     * @param type checkin, checkout, all
+     */
+    CalendarResponse getCalendar(String propertyCode, LocalDate startDate, LocalDate endDate, String type);
 
     /**
      * 가용 객실 검색 (날짜/인원 기반 객실타입 + 요금 조회)

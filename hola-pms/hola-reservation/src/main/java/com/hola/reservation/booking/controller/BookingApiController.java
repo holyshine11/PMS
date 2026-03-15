@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -40,6 +41,19 @@ public class BookingApiController {
     public BookingResponse<PropertyInfoResponse> getPropertyInfo(
             @PathVariable String propertyCode) {
         return BookingResponse.success(bookingService.getPropertyInfo(propertyCode));
+    }
+
+    /**
+     * 캘린더 조회 (판매 가능 날짜 목록)
+     */
+    @Operation(summary = "캘린더 조회", description = "판매 가능 날짜 목록 (체크인/체크아웃 분리 모드 지원)")
+    @GetMapping("/properties/{propertyCode}/calendar")
+    public BookingResponse<CalendarResponse> getCalendar(
+            @PathVariable String propertyCode,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(defaultValue = "all") String type) {
+        return BookingResponse.success(bookingService.getCalendar(propertyCode, startDate, endDate, type));
     }
 
     /**
