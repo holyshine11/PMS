@@ -1005,6 +1005,70 @@ public class BookingServiceImpl implements BookingService {
         return result;
     }
 
+    // ─── 객실 상세 API (산하 2.8 대응) ───
+
+    @Override
+    public RoomDetailResponse getRoomDetail(String propertyCode, Long roomTypeId) {
+        Property property = findPropertyByCode(propertyCode);
+
+        RoomType roomType = roomTypeRepository.findById(roomTypeId)
+                .orElseThrow(() -> new HolaException(ErrorCode.ROOM_TYPE_NOT_FOUND));
+
+        // 프로퍼티 소속 검증
+        if (!roomType.getPropertyId().equals(property.getId())) {
+            throw new HolaException(ErrorCode.ROOM_TYPE_NOT_FOUND);
+        }
+
+        // 객실 클래스 정보
+        RoomClass roomClass = roomClassRepository.findById(roomType.getRoomClassId()).orElse(null);
+
+        // 무료 서비스(어메니티) 조회
+        List<RoomTypeFreeService> freeServiceMappings =
+                roomTypeFreeServiceRepository.findAllByRoomTypeId(roomTypeId);
+        List<Long> freeServiceIds = freeServiceMappings.stream()
+                .map(RoomTypeFreeService::getFreeServiceOptionId)
+                .toList();
+        List<FreeServiceOption> freeServices = freeServiceIds.isEmpty()
+                ? List.of()
+                : freeServiceOptionRepository.findAllById(freeServiceIds);
+
+        List<RoomDetailResponse.AmenityInfo> amenities = freeServices.stream()
+                .map(fs -> RoomDetailResponse.AmenityInfo.builder()
+                        .serviceId(fs.getId())
+                        .serviceName(fs.getServiceNameKo())
+                        .serviceCategory(fs.getServiceType())
+                        .build())
+                .toList();
+
+        // 시설 목록 분리
+        List<String> featureList = roomType.getFeatures() != null
+                ? java.util.Arrays.stream(roomType.getFeatures().split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList()
+                : List.of();
+
+        // 현재 가용 객실 수
+        int totalRoomCount = roomAvailabilityService.getAvailableRoomCount(
+                roomTypeId, LocalDate.now(), LocalDate.now().plusDays(1));
+
+        return RoomDetailResponse.builder()
+                .roomTypeId(roomType.getId())
+                .roomTypeCode(roomType.getRoomTypeCode())
+                .roomClassName(roomClass != null ? roomClass.getRoomClassName() : null)
+                .roomClassDescription(roomClass != null ? roomClass.getDescription() : null)
+                .description(roomType.getDescription())
+                .roomSize(roomType.getRoomSize())
+                .features(roomType.getFeatures())
+                .featureList(featureList)
+                .maxAdults(roomType.getMaxAdults())
+                .maxChildren(roomType.getMaxChildren())
+                .extraBedYn(roomType.getExtraBedYn())
+                .totalRoomCount((int) totalRoomCount)
+                .amenities(amenities)
+                .build();
+    }
+
     // ─── 패키지(레이트플랜) 상세 API (산하 2.5 대응) ───
 
     @Override

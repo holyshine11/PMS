@@ -57,6 +57,17 @@ public class BookingApiController {
     }
 
     /**
+     * 객실 상세 조회
+     */
+    @Operation(summary = "객실 상세", description = "객실 시설, 최대인원, 어메니티 등 상세 정보")
+    @GetMapping("/properties/{propertyCode}/rooms/{roomTypeId}")
+    public BookingResponse<RoomDetailResponse> getRoomDetail(
+            @PathVariable String propertyCode,
+            @PathVariable Long roomTypeId) {
+        return BookingResponse.success(bookingService.getRoomDetail(propertyCode, roomTypeId));
+    }
+
+    /**
      * 패키지(레이트플랜) 목록 조회
      */
     @Operation(summary = "패키지 목록", description = "조건별 예약 가능 레이트플랜 목록 (최저가 순)")
