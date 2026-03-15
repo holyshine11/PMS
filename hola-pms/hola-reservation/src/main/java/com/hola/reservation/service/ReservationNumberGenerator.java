@@ -6,7 +6,9 @@ import com.hola.reservation.repository.MasterReservationRepository;
 import com.hola.reservation.repository.ReservationNoSeqRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -32,6 +34,7 @@ public class ReservationNumberGenerator {
 
     /**
      * 마스터 예약번호 생성
+     * 동시성 보호: PESSIMISTIC_WRITE 락 + INSERT 충돌 시 재조회
      */
     @Transactional
     public String generateMasterReservationNo(Property property) {
@@ -39,16 +42,10 @@ public class ReservationNumberGenerator {
         LocalDate today = LocalDate.now();
         String dateStr = today.format(DATE_FMT);
 
-        // 일별 시퀀스 조회 또는 생성
+        // 비관적 락으로 시퀀스 조회 (행이 있으면 FOR UPDATE 락 획득)
         ReservationNoSeq seq = reservationNoSeqRepository
                 .findByPropertyIdAndSeqDate(property.getId(), today)
-                .orElseGet(() -> reservationNoSeqRepository.save(
-                        ReservationNoSeq.builder()
-                                .propertyId(property.getId())
-                                .seqDate(today)
-                                .lastSeq(0)
-                                .build()
-                ));
+                .orElseGet(() -> getOrCreateSeq(property.getId(), today));
 
         int nextSeq = seq.incrementAndGet();
         reservationNoSeqRepository.save(seq);
@@ -56,6 +53,27 @@ public class ReservationNumberGenerator {
         String reservationNo = propCode + dateStr + "-" + String.format("%04d", nextSeq);
         log.debug("마스터 예약번호 생성: {}", reservationNo);
         return reservationNo;
+    }
+
+    /**
+     * 시퀀스 행 생성 (INSERT 충돌 시 재조회로 폴백)
+     * 두 트랜잭션이 동시에 새 행 INSERT를 시도하면 UniqueConstraint 위반 발생 → 재조회
+     */
+    private ReservationNoSeq getOrCreateSeq(Long propertyId, LocalDate seqDate) {
+        try {
+            return reservationNoSeqRepository.save(
+                    ReservationNoSeq.builder()
+                            .propertyId(propertyId)
+                            .seqDate(seqDate)
+                            .lastSeq(0)
+                            .build()
+            );
+        } catch (DataIntegrityViolationException e) {
+            // 다른 트랜잭션이 먼저 INSERT → 재조회 (비관적 락 적용)
+            log.debug("시퀀스 INSERT 충돌, 재조회: propertyId={}, date={}", propertyId, seqDate);
+            return reservationNoSeqRepository.findByPropertyIdAndSeqDate(propertyId, seqDate)
+                    .orElseThrow(() -> new IllegalStateException("시퀀스 조회 실패"));
+        }
     }
 
     /**

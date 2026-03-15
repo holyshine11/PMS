@@ -416,8 +416,8 @@ class ReservationServiceImplTest {
             when(numberGenerator.generateConfirmationNo()).thenReturn("HK4F29XP");
             MasterReservation savedMaster = createMaster("RESERVED");
             when(masterReservationRepository.save(any(MasterReservation.class))).thenReturn(savedMaster);
-            // 객실 충돌 발생
-            when(availabilityService.hasRoomConflict(eq(1L), eq(CHECK_IN), eq(CHECK_OUT), isNull()))
+            // 객실 충돌 발생 (비관적 락 사용)
+            when(availabilityService.hasRoomConflictWithLock(eq(1L), eq(CHECK_IN), eq(CHECK_OUT), isNull()))
                     .thenReturn(true);
 
             // when & then
@@ -1113,7 +1113,7 @@ class ReservationServiceImplTest {
             when(subReservationRepository.countAllIncludingDeleted(MASTER_ID)).thenReturn(0);
             when(numberGenerator.generateSubReservationNo("GMP260601-0001", 1))
                     .thenReturn("GMP260601-0001-02");
-            when(availabilityService.hasRoomConflict(eq(2L), any(), any(), isNull())).thenReturn(false);
+            when(availabilityService.hasRoomConflictWithLock(eq(2L), any(), any(), isNull())).thenReturn(false);
             when(subReservationRepository.save(any(SubReservation.class))).thenReturn(newSub);
             when(reservationMapper.toSubReservationResponse(any(SubReservation.class))).thenReturn(subResponse);
 

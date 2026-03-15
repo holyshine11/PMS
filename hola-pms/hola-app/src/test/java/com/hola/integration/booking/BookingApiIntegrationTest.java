@@ -38,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - 부킹엔진 공개 API (permitAll)
  * - Flyway 테스트 데이터 기반 (V5_0_0 ~ V5_14_0)
  * - 프로퍼티 코드: GMP (올라 그랜드 명동), GMS, OBH
+ * - 응답 형식: BookingResponse ($.result.RESULT_YN / $.result.data)
  */
 @DisplayName("부킹엔진 API 통합 테스트")
 class BookingApiIntegrationTest extends BaseIntegrationTest {
@@ -75,12 +76,12 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
     void getPropertyInfo_existingCode_200() throws Exception {
         mockMvc.perform(get(BASE_URL + "/properties/{code}", VALID_PROPERTY_CODE))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.propertyCode").value(VALID_PROPERTY_CODE))
-                .andExpect(jsonPath("$.data.propertyName").value("올라 그랜드 명동"))
-                .andExpect(jsonPath("$.data.checkInTime").value("15:00"))
-                .andExpect(jsonPath("$.data.checkOutTime").value("11:00"))
-                .andExpect(jsonPath("$.data.hotelName").value("올라 서울 호텔"));
+                .andExpect(jsonPath("$.result.RESULT_YN").value("Y"))
+                .andExpect(jsonPath("$.result.data.propertyCode").value(VALID_PROPERTY_CODE))
+                .andExpect(jsonPath("$.result.data.propertyName").value("올라 그랜드 명동"))
+                .andExpect(jsonPath("$.result.data.checkInTime").value("15:00"))
+                .andExpect(jsonPath("$.result.data.checkOutTime").value("11:00"))
+                .andExpect(jsonPath("$.result.data.hotelName").value("올라 서울 호텔"));
     }
 
     @Test
@@ -88,8 +89,8 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
     void getPropertyInfo_nonExistentCode_404() throws Exception {
         mockMvc.perform(get(BASE_URL + "/properties/{code}", NON_EXISTENT_CODE))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("HOLA-4070"));
+                .andExpect(jsonPath("$.result.RESULT_YN").value("N"))
+                .andExpect(jsonPath("$.result.RESULT_CODE").value("HOLA-4070"));
     }
 
     // ========== 2. 가용 객실 검색 ==========
@@ -106,8 +107,8 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
                         .param("checkOut", checkOut.toString())
                         .param("adults", "2"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").isArray());
+                .andExpect(jsonPath("$.result.RESULT_YN").value("Y"))
+                .andExpect(jsonPath("$.result.data").isArray());
     }
 
     @Test
@@ -121,8 +122,8 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
                         .param("checkOut", checkOut.toString())
                         .param("adults", "2"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("HOLA-4076"));
+                .andExpect(jsonPath("$.result.RESULT_YN").value("N"))
+                .andExpect(jsonPath("$.result.RESULT_CODE").value("HOLA-4076"));
     }
 
     @Test
@@ -136,8 +137,8 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
                         .param("checkOut", checkOut.toString())
                         .param("adults", "1"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("HOLA-4076"));
+                .andExpect(jsonPath("$.result.RESULT_YN").value("N"))
+                .andExpect(jsonPath("$.result.RESULT_CODE").value("HOLA-4076"));
     }
 
     @Test
@@ -151,8 +152,8 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
                         .param("checkOut", checkOut.toString())
                         .param("adults", "1"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("HOLA-4077"));
+                .andExpect(jsonPath("$.result.RESULT_YN").value("N"))
+                .andExpect(jsonPath("$.result.RESULT_CODE").value("HOLA-4077"));
     }
 
     // ========== 3. 예약 생성 ==========
@@ -207,9 +208,9 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        // 검색 결과에서 rateCodeId 추출
+        // 검색 결과에서 rateCodeId 추출 (BookingResponse 형식)
         var searchNode = objectMapper.readTree(searchResult);
-        var dataArray = searchNode.get("data");
+        var dataArray = searchNode.get("result").get("data");
         if (dataArray == null || !dataArray.isArray() || dataArray.isEmpty()) {
             // 가용 객실이 없으면 테스트 스킵 (테스트 데이터 의존)
             return;
@@ -241,12 +242,12 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.confirmationNo").isNotEmpty())
-                .andExpect(jsonPath("$.data.masterReservationNo").isNotEmpty())
-                .andExpect(jsonPath("$.data.reservationStatus").value("RESERVED"))
-                .andExpect(jsonPath("$.data.guestNameKo").value("테스트게스트"))
-                .andExpect(jsonPath("$.data.propertyName").value("올라 그랜드 명동"));
+                .andExpect(jsonPath("$.result.RESULT_YN").value("Y"))
+                .andExpect(jsonPath("$.result.data.confirmationNo").isNotEmpty())
+                .andExpect(jsonPath("$.result.data.masterReservationNo").isNotEmpty())
+                .andExpect(jsonPath("$.result.data.reservationStatus").value("RESERVED"))
+                .andExpect(jsonPath("$.result.data.guestNameKo").value("테스트게스트"))
+                .andExpect(jsonPath("$.result.data.propertyName").value("올라 그랜드 명동"));
     }
 
     // ========== 4. 예약 확인 조회 ==========
@@ -261,9 +262,9 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get(BASE_URL + "/confirmation/{confirmNo}", master.getConfirmationNo())
                         .param("email", master.getEmail()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.confirmationNo").value(master.getConfirmationNo()))
-                .andExpect(jsonPath("$.data.guestNameKo").value(master.getGuestNameKo()));
+                .andExpect(jsonPath("$.result.RESULT_YN").value("Y"))
+                .andExpect(jsonPath("$.result.data.confirmationNo").value(master.getConfirmationNo()))
+                .andExpect(jsonPath("$.result.data.guestNameKo").value(master.getGuestNameKo()));
     }
 
     // ========== 5. 취소 수수료 미리보기 ==========
@@ -274,8 +275,8 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get(BASE_URL + "/reservations/{confirmNo}/cancel-fee", "NONEXIST999")
                         .param("email", "test@test.com"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("HOLA-4078"));
+                .andExpect(jsonPath("$.result.RESULT_YN").value("N"))
+                .andExpect(jsonPath("$.result.RESULT_CODE").value("HOLA-4078"));
     }
 
     @Test
@@ -286,10 +287,10 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get(BASE_URL + "/reservations/{confirmNo}/cancel-fee", master.getConfirmationNo())
                         .param("email", master.getEmail()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.confirmationNo").value(master.getConfirmationNo()))
-                .andExpect(jsonPath("$.data.cancelFeeAmount").isNumber())
-                .andExpect(jsonPath("$.data.refundAmount").isNumber());
+                .andExpect(jsonPath("$.result.RESULT_YN").value("Y"))
+                .andExpect(jsonPath("$.result.data.confirmationNo").value(master.getConfirmationNo()))
+                .andExpect(jsonPath("$.result.data.cancelFeeAmount").isNumber())
+                .andExpect(jsonPath("$.result.data.refundAmount").isNumber());
     }
 
     // ========== 6. 게스트 자가 취소 ==========
@@ -312,8 +313,8 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(cancelRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("HOLA-4081"));
+                .andExpect(jsonPath("$.result.RESULT_YN").value("N"))
+                .andExpect(jsonPath("$.result.RESULT_CODE").value("HOLA-4081"));
     }
 
     @Test
@@ -327,11 +328,11 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(cancelRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.confirmationNo").value(master.getConfirmationNo()))
-                .andExpect(jsonPath("$.data.status").value("CANCELED"))
-                .andExpect(jsonPath("$.data.cancelFeeAmount").isNumber())
-                .andExpect(jsonPath("$.data.refundAmount").isNumber());
+                .andExpect(jsonPath("$.result.RESULT_YN").value("Y"))
+                .andExpect(jsonPath("$.result.data.confirmationNo").value(master.getConfirmationNo()))
+                .andExpect(jsonPath("$.result.data.status").value("CANCELED"))
+                .andExpect(jsonPath("$.result.data.cancelFeeAmount").isNumber())
+                .andExpect(jsonPath("$.result.data.refundAmount").isNumber());
     }
 
     // ========== 7. 인증 관련 ==========

@@ -9,6 +9,8 @@ import com.hola.rate.dto.response.RateCodeListResponse;
 import com.hola.rate.dto.response.RateCodeResponse;
 import com.hola.rate.dto.response.RatePricingResponse;
 import com.hola.rate.service.RateCodeService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -23,6 +25,7 @@ import java.util.Map;
 /**
  * 레이트 코드 REST API 컨트롤러
  */
+@Tag(name = "레이트 코드", description = "레이트 코드(요금제) 관리 및 요금정보 API")
 @RestController
 @RequestMapping("/api/v1/properties/{propertyId}/rate-codes")
 @RequiredArgsConstructor
@@ -31,6 +34,7 @@ public class RateCodeApiController {
     private final AccessControlService accessControlService;
     private final RateCodeService rateCodeService;
 
+    @Operation(summary = "레이트코드 목록 조회", description = "프로퍼티 레이트코드 전체 목록 (체크인/아웃 기간 필터 가능)")
     @GetMapping
     public ResponseEntity<HolaResponse<List<RateCodeListResponse>>> getRateCodes(
             @PathVariable Long propertyId,
@@ -47,6 +51,7 @@ public class RateCodeApiController {
         return ResponseEntity.ok(HolaResponse.success(list));
     }
 
+    @Operation(summary = "레이트코드 상세 조회", description = "레이트코드 상세 정보")
     @GetMapping("/{id}")
     public ResponseEntity<HolaResponse<RateCodeResponse>> getRateCode(
             @PathVariable Long propertyId,
@@ -55,6 +60,7 @@ public class RateCodeApiController {
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.getRateCode(id)));
     }
 
+    @Operation(summary = "레이트코드 등록", description = "새 레이트코드 생성")
     @PostMapping
     public ResponseEntity<HolaResponse<RateCodeResponse>> createRateCode(
             @PathVariable Long propertyId,
@@ -64,6 +70,7 @@ public class RateCodeApiController {
         return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(response));
     }
 
+    @Operation(summary = "레이트코드 수정", description = "레이트코드 정보 수정")
     @PutMapping("/{id}")
     public ResponseEntity<HolaResponse<RateCodeResponse>> updateRateCode(
             @PathVariable Long propertyId,
@@ -73,6 +80,7 @@ public class RateCodeApiController {
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.updateRateCode(id, request)));
     }
 
+    @Operation(summary = "레이트코드 삭제", description = "레이트코드 소프트 삭제")
     @DeleteMapping("/{id}")
     public ResponseEntity<HolaResponse<Void>> deleteRateCode(
             @PathVariable Long propertyId,
@@ -82,6 +90,7 @@ public class RateCodeApiController {
         return ResponseEntity.ok(HolaResponse.success());
     }
 
+    @Operation(summary = "레이트코드 중복 확인", description = "프로퍼티 내 레이트코드 중복 여부 조회")
     @GetMapping("/check-code")
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkCode(
             @PathVariable Long propertyId,
@@ -93,6 +102,7 @@ public class RateCodeApiController {
 
     // ===== 요금정보 API =====
 
+    @Operation(summary = "요금정보 조회", description = "레이트코드의 날짜별/객실타입별 요금 매트릭스 조회")
     @GetMapping("/{id}/pricing")
     public ResponseEntity<HolaResponse<RatePricingResponse>> getRatePricing(
             @PathVariable Long propertyId,
@@ -101,6 +111,7 @@ public class RateCodeApiController {
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.getRatePricing(id)));
     }
 
+    @Operation(summary = "요금정보 저장", description = "레이트코드 요금 매트릭스 저장")
     @PostMapping("/{id}/pricing")
     public ResponseEntity<HolaResponse<RatePricingResponse>> saveRatePricing(
             @PathVariable Long propertyId,
@@ -110,6 +121,7 @@ public class RateCodeApiController {
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.saveRatePricing(id, request)));
     }
 
+    @Operation(summary = "요금정보 행 삭제", description = "요금 매트릭스 특정 행 삭제")
     @DeleteMapping("/{id}/pricing/{pricingId}")
     public ResponseEntity<HolaResponse<Void>> deleteRatePricingRow(
             @PathVariable Long propertyId,
@@ -122,6 +134,7 @@ public class RateCodeApiController {
 
     // ===== 옵션요금 API =====
 
+    @Operation(summary = "옵션요금 조회", description = "레이트코드에 연결된 유료 서비스 옵션 ID 목록 조회")
     @GetMapping("/{id}/option-pricing")
     public ResponseEntity<HolaResponse<List<Long>>> getOptionPricing(
             @PathVariable Long propertyId,
@@ -130,6 +143,7 @@ public class RateCodeApiController {
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.getOptionPricing(id)));
     }
 
+    @Operation(summary = "옵션요금 저장", description = "레이트코드에 유료 서비스 옵션 연결 저장")
     @PostMapping("/{id}/option-pricing")
     public ResponseEntity<HolaResponse<List<Long>>> saveOptionPricing(
             @PathVariable Long propertyId,

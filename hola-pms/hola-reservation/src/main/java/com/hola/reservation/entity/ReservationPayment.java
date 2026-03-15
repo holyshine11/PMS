@@ -20,6 +20,11 @@ import java.time.LocalDateTime;
 @Builder
 public class ReservationPayment extends BaseEntity {
 
+    /** 낙관적 락 (동시 결제 방지) */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "master_reservation_id", nullable = false, unique = true)
     private MasterReservation masterReservation;
@@ -116,9 +121,15 @@ public class ReservationPayment extends BaseEntity {
         BigDecimal gt = this.grandTotal != null ? this.grandTotal : BigDecimal.ZERO;
         BigDecimal paid = this.totalPaidAmount != null ? this.totalPaidAmount : BigDecimal.ZERO;
 
-        // 최종 합계가 0 이하 → 결제 불필요
+        // grandTotal이 0 이하인 경우
         if (gt.compareTo(BigDecimal.ZERO) <= 0) {
-            this.paymentStatus = "PAID";
+            if (paid.compareTo(BigDecimal.ZERO) > 0) {
+                // 이미 결제한 금액이 있으면 환불 필요 (조정으로 grandTotal이 0 이하로 내려간 경우)
+                this.paymentStatus = "OVERPAID";
+            } else {
+                // 결제한 금액이 없으면 결제 불필요
+                this.paymentStatus = "PAID";
+            }
             return;
         }
 

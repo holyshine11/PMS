@@ -1,6 +1,7 @@
 package com.hola.reservation.booking.service;
 
 import com.hola.reservation.booking.dto.request.BookingCreateRequest;
+import com.hola.reservation.booking.dto.request.BookingModifyRequest;
 import com.hola.reservation.booking.dto.request.BookingSearchRequest;
 import com.hola.reservation.booking.dto.request.PriceCheckRequest;
 import com.hola.reservation.booking.dto.response.*;
@@ -71,4 +72,40 @@ public interface BookingService {
      * 게스트 자가 취소 (확인번호 + 이메일 검증)
      */
     CancelBookingResponse cancelBooking(String confirmationNo, String email, String clientIp, String userAgent);
+
+    /**
+     * 내 예약 조회 (이메일 + 성 기반 검색)
+     */
+    List<BookingLookupResponse> lookupReservations(String email, String lastName);
+
+    /**
+     * 게스트 자가 예약 수정 (날짜/인원 변경 + 차액 계산)
+     */
+    BookingModifyResponse modifyBooking(String confirmationNo, BookingModifyRequest request);
+
+    /**
+     * 프로모션 코드 유효성 검증
+     */
+    PromotionValidationResponse validatePromotionCode(String propertyCode, String code,
+                                                       LocalDate checkIn, LocalDate checkOut);
+
+    /**
+     * 유료 서비스 목록 조회 (부킹엔진용)
+     */
+    List<AddOnServiceResponse> getAddOnServices(String propertyCode);
+
+    /**
+     * 숙소 이미지 목록 조회
+     */
+    List<PropertyImageResponse> getPropertyImages(String propertyCode);
+
+    /**
+     * 객실타입 이미지 목록 조회
+     */
+    List<PropertyImageResponse> getRoomTypeImages(String propertyCode, Long roomTypeId);
+
+    /**
+     * 이용약관 목록 조회
+     */
+    List<PropertyTermsResponse> getTerms(String propertyCode);
 }

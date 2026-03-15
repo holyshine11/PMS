@@ -14,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 /**
  * Spring Security 설정
  */
@@ -89,6 +91,18 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/hotel-admin-roles/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/api/v1/property-admin-roles/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN")
                 .anyRequest().authenticated()
+            )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"success\":false,\"code\":\"HOLA-0002\",\"message\":\"인증이 필요합니다.\"}");
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"success\":false,\"code\":\"HOLA-0003\",\"message\":\"접근 권한이 없습니다.\"}");
+                })
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

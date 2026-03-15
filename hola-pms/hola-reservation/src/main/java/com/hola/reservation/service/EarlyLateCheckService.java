@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -93,7 +94,7 @@ public class EarlyLateCheckService {
         }
 
         // 마지막 투숙일 DailyCharge 기준 요금 계산
-        BigDecimal baseAmount = getBaseRoomRate(sub);
+        BigDecimal baseAmount = getLastNightRoomRate(sub);
         return calculateFee(matchedPolicy, baseAmount);
     }
 
@@ -127,14 +128,28 @@ public class EarlyLateCheckService {
     }
 
     /**
-     * 서브 예약의 기본 객실료 (DailyCharge 첫째 날 공급가 기준)
+     * 서브 예약의 기본 객실료 - 얼리 체크인용 (첫째 날 공급가 기준)
      */
     private BigDecimal getBaseRoomRate(SubReservation sub) {
         List<DailyCharge> charges = dailyChargeRepository.findBySubReservationId(sub.getId());
         if (charges.isEmpty()) {
             return BigDecimal.ZERO;
         }
-        // 첫째 날 공급가 기준
+        // chargeDate 기준 정렬하여 첫째 날 요금 반환
+        charges.sort(Comparator.comparing(DailyCharge::getChargeDate));
         return charges.get(0).getSupplyPrice();
+    }
+
+    /**
+     * 서브 예약의 기본 객실료 - 레이트 체크아웃용 (마지막 투숙일 공급가 기준)
+     */
+    private BigDecimal getLastNightRoomRate(SubReservation sub) {
+        List<DailyCharge> charges = dailyChargeRepository.findBySubReservationId(sub.getId());
+        if (charges.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        // chargeDate 기준 정렬하여 마지막 날 요금 반환
+        charges.sort(Comparator.comparing(DailyCharge::getChargeDate));
+        return charges.get(charges.size() - 1).getSupplyPrice();
     }
 }

@@ -75,15 +75,34 @@ public class RoomAvailabilityService {
      * @return 잔여 객실 수 (음수이면 오버부킹 상태)
      */
     public int getAvailableRoomCount(Long roomTypeId, LocalDate checkIn, LocalDate checkOut) {
+        return getAvailableRoomCount(roomTypeId, checkIn, checkOut, null);
+    }
+
+    /**
+     * L2: 객실 타입별 잔여 객실 수 계산 (특정 서브예약 제외)
+     *
+     * @param roomTypeId    객실 타입 ID
+     * @param checkIn       체크인 일자
+     * @param checkOut      체크아웃 일자
+     * @param excludeSubIds 제외할 서브예약 ID 목록 (수정 시 자기 자신 제외, null이면 미적용)
+     * @return 잔여 객실 수 (음수이면 오버부킹 상태)
+     */
+    public int getAvailableRoomCount(Long roomTypeId, LocalDate checkIn, LocalDate checkOut, List<Long> excludeSubIds) {
         // 총 등록 객실 수 (rm_room_type_floor 기준)
         long totalRooms = roomTypeFloorRepository.countByRoomTypeId(roomTypeId);
 
         // 활성 예약 수 (해당 기간 + 해당 타입)
         long activeReservations = countActiveReservationsByRoomType(roomTypeId, checkIn, checkOut);
 
+        // 제외 대상 차감
+        if (excludeSubIds != null && !excludeSubIds.isEmpty()) {
+            activeReservations = Math.max(0, activeReservations - excludeSubIds.size());
+        }
+
         int available = (int) (totalRooms - activeReservations);
-        log.debug("L2 가용성: roomTypeId={}, 총객실={}, 활성예약={}, 잔여={}",
-                roomTypeId, totalRooms, activeReservations, available);
+        log.debug("L2 가용성: roomTypeId={}, 총객실={}, 활성예약={}, 제외={}, 잔여={}",
+                roomTypeId, totalRooms, activeReservations,
+                excludeSubIds != null ? excludeSubIds.size() : 0, available);
         return available;
     }
 
@@ -95,6 +114,66 @@ public class RoomAvailabilityService {
     public boolean isOverbookingWarning(Long roomTypeId, LocalDate checkIn, LocalDate checkOut) {
         return getAvailableRoomCount(roomTypeId, checkIn, checkOut) <= 0;
     }
+
+    // ─── 동시성 보호 메서드 (비관적 락) ──────────────────────────
+
+    /**
+     * L1 비관적 락: 특정 호수에 대해 FOR UPDATE 락을 걸고 충돌 검사
+     * SubReservation save 직전에 호출하여 TOCTOU 레이스 컨디션 방지
+     *
+     * @param roomNumberId 호수 ID (null이면 검사 생략)
+     * @param checkIn      체크인 일자
+     * @param checkOut     체크아웃 일자
+     * @param excludeSubId 제외할 서브예약 ID (수정 시, null이면 미적용)
+     * @return 충돌 여부 (true = 충돌 있음)
+     */
+    @Transactional
+    public boolean hasRoomConflictWithLock(Long roomNumberId, LocalDate checkIn, LocalDate checkOut, Long excludeSubId) {
+        if (roomNumberId == null) {
+            return false;
+        }
+
+        List<SubReservation> conflicts = subReservationRepository
+                .findConflictsWithLock(roomNumberId, checkIn, checkOut, RELEASED_STATUSES);
+
+        if (excludeSubId != null) {
+            conflicts = conflicts.stream()
+                    .filter(sub -> !sub.getId().equals(excludeSubId))
+                    .toList();
+        }
+
+        if (!conflicts.isEmpty()) {
+            log.warn("L1 비관적 락 충돌 감지: roomNumberId={}, checkIn={}, checkOut={}, 충돌건수={}",
+                    roomNumberId, checkIn, checkOut, conflicts.size());
+        }
+        return !conflicts.isEmpty();
+    }
+
+    /**
+     * L2 비관적 락: 객실 타입별 잔여 수를 FOR UPDATE 락으로 확인
+     * SubReservation save 직전에 호출하여 동시 예약 시 오버부킹 방지
+     *
+     * @param roomTypeId 객실 타입 ID
+     * @param checkIn    체크인 일자
+     * @param checkOut   체크아웃 일자
+     * @return 잔여 객실 수
+     */
+    @Transactional
+    public int getAvailableRoomCountWithLock(Long roomTypeId, LocalDate checkIn, LocalDate checkOut) {
+        long totalRooms = roomTypeFloorRepository.countByRoomTypeId(roomTypeId);
+
+        // 비관적 락으로 활성 예약 조회 (다른 트랜잭션의 INSERT 완료 대기)
+        long activeReservations = subReservationRepository
+                .findActiveByRoomTypeWithLock(roomTypeId, checkIn, checkOut, RELEASED_STATUSES)
+                .size();
+
+        int available = (int) (totalRooms - activeReservations);
+        log.debug("L2 비관적 락 가용성: roomTypeId={}, 총객실={}, 활성예약={}, 잔여={}",
+                roomTypeId, totalRooms, activeReservations, available);
+        return available;
+    }
+
+    // ─── 내부 헬퍼 ──────────────────────────
 
     /**
      * 해당 객실타입 + 기간에 활성 예약(서브) 수 계산

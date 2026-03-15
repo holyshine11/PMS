@@ -86,7 +86,8 @@ class EarlyLateCheckServiceTest {
                 .supplyPrice(supplyPrice)
                 .tax(BigDecimal.ZERO).serviceCharge(BigDecimal.ZERO).total(supplyPrice)
                 .build();
-        when(dailyChargeRepository.findBySubReservationId(any())).thenReturn(List.of(charge));
+        // 가변 리스트 반환 (sort() 호출 대응)
+        when(dailyChargeRepository.findBySubReservationId(any())).thenReturn(new ArrayList<>(List.of(charge)));
     }
 
     @Nested

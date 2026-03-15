@@ -481,7 +481,7 @@ var ReservationDetail = {
             var dateStr = svc.serviceDate ? svc.serviceDate : '';
 
             var deleteBtn = '';
-            if (!self.isReadonly && !self.isOta) {
+            if (!self.isReadonly) {
                 deleteBtn = '<button class="btn btn-outline-danger btn-sm py-0 px-1 remove-service-btn" '
                     + 'data-leg-id="' + legId + '" data-service-id="' + svc.id + '">'
                     + '<i class="fas fa-times"></i></button>';
@@ -632,8 +632,7 @@ var ReservationDetail = {
             otaFields.forEach(function(sel) {
                 $(sel).prop('disabled', true);
             });
-            // OTA 모드: 서비스 추가/삭제 비활성화
-            $('.add-service-btn, .remove-service-btn').hide();
+            // OTA 모드: 서비스 추가/삭제는 허용 (호텔 부대시설 요금)
         }
 
         // CHECK_IN / INHOUSE: 일부 수정만 허용

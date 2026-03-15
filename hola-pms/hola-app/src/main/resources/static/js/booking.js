@@ -16,24 +16,21 @@ var HolaBooking = (function() {
             dataType: 'json'
         };
         var settings = $.extend({}, defaults, options);
-        var originalSuccess = settings.success;
 
-        // BookingResponse {result: {RESULT_YN, data}} → {RESULT_YN, data} 로 해제
-        if (originalSuccess) {
-            settings.success = function(res) {
-                var unwrapped = (res && res.result) ? res.result : res;
-                originalSuccess(unwrapped);
-            };
-        }
-
-        return $.ajax(settings).fail(function(xhr) {
-            var msg = '요청 처리 중 오류가 발생했습니다.';
-            if (xhr.responseJSON) {
-                var result = xhr.responseJSON.result || xhr.responseJSON;
-                msg = result.RESULT_MESSAGE || result.message || msg;
-            }
-            showError(msg);
-        });
+        // .then()으로 unwrap하여 .done() 체인에서도 해제된 데이터 수신
+        // BookingResponse {result: {RESULT_YN, data}} → {RESULT_YN, data}
+        return $.ajax(settings)
+            .then(function(res) {
+                return (res && res.result) ? res.result : res;
+            })
+            .fail(function(xhr) {
+                var msg = '요청 처리 중 오류가 발생했습니다.';
+                if (xhr.responseJSON) {
+                    var result = xhr.responseJSON.result || xhr.responseJSON;
+                    msg = result.RESULT_MESSAGE || result.message || msg;
+                }
+                showError(msg);
+            });
     }
 
     /** 에러 표시 */

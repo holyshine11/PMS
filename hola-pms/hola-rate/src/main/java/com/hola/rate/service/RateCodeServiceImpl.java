@@ -67,6 +67,13 @@ public class RateCodeServiceImpl implements RateCodeService {
                 .filter(rc -> Boolean.TRUE.equals(rc.getUseYn()))
                 .filter(rc -> rc.getSaleStartDate() != null && rc.getSaleEndDate() != null)
                 .filter(rc -> !checkIn.isBefore(rc.getSaleStartDate()) && !checkIn.isAfter(rc.getSaleEndDate()))
+                // 숙박일수(min/max) 범위 필터링
+                .filter(rc -> {
+                    long stayDays = java.time.temporal.ChronoUnit.DAYS.between(checkIn, checkOut);
+                    if (rc.getMinStayDays() != null && stayDays < rc.getMinStayDays()) return false;
+                    if (rc.getMaxStayDays() != null && rc.getMaxStayDays() > 0 && stayDays > rc.getMaxStayDays()) return false;
+                    return true;
+                })
                 .filter(rc -> {
                     // 요금행이 체크인~체크아웃 전일까지 모든 날짜를 커버하는지 확인
                     List<RatePricing> pricings = ratePricingRepository.findAllByRateCodeIdOrderByIdAsc(rc.getId());

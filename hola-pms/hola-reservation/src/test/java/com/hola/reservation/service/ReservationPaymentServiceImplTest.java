@@ -417,9 +417,9 @@ class ReservationPaymentServiceImplTest {
         }
 
         @Test
-        @DisplayName("OTA 예약 결제 시도 - RESERVATION_OTA_EDIT_RESTRICTED 예외")
-        void otaReservation_throwsOtaRestricted() {
-            // given
+        @DisplayName("OTA 예약도 정상 결제 가능")
+        void otaReservation_processesNormally() {
+            // given - OTA 예약이어도 결제 차단 없음
             MasterReservation otaMaster = MasterReservation.builder()
                     .property(property)
                     .masterReservationNo("GMP260310-0002")
@@ -430,13 +430,49 @@ class ReservationPaymentServiceImplTest {
             setId(otaMaster, 2L);
             when(masterReservationRepository.findById(2L)).thenReturn(Optional.of(otaMaster));
 
-            PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("100000"));
+            ReservationPayment payment = ReservationPayment.builder()
+                    .masterReservation(otaMaster)
+                    .paymentStatus("UNPAID")
+                    .totalRoomAmount(new BigDecimal("300000"))
+                    .totalServiceAmount(BigDecimal.ZERO)
+                    .totalServiceChargeAmount(BigDecimal.ZERO)
+                    .totalAdjustmentAmount(BigDecimal.ZERO)
+                    .grandTotal(new BigDecimal("300000"))
+                    .totalPaidAmount(BigDecimal.ZERO)
+                    .build();
+            setId(payment, 20L);
+            when(paymentRepository.findByMasterReservationId(2L))
+                    .thenReturn(Optional.of(payment));
 
-            // when & then
-            assertThatThrownBy(() -> service.processPayment(2L, request))
-                    .isInstanceOf(HolaException.class)
-                    .extracting(e -> ((HolaException) e).getErrorCode())
-                    .isEqualTo(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
+            // recalculateAmounts 스텁 - grandTotal이 300000이 되도록 설정
+            SubReservation otaSub = createSub(300L, "RESERVED");
+            when(subReservationRepository.findByMasterReservationId(2L))
+                    .thenReturn(List.of(otaSub));
+            when(dailyChargeRepository.findBySubReservationId(300L))
+                    .thenReturn(List.of(createDailyCharge(otaSub, 300000, 0, 0)));
+            when(serviceItemRepository.findBySubReservationId(300L))
+                    .thenReturn(Collections.emptyList());
+            when(adjustmentRepository.findByMasterReservationIdOrderByAdjustmentSeqAsc(2L))
+                    .thenReturn(Collections.emptyList());
+
+            when(transactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(2L))
+                    .thenReturn(Collections.emptyList());
+            when(transactionRepository.save(any(PaymentTransaction.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+
+            PaymentSummaryResponse expected = PaymentSummaryResponse.builder()
+                    .paymentStatus("PAID").build();
+            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any()))
+                    .thenReturn(expected);
+
+            PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("300000"));
+
+            // when - OTA 예약도 정상 결제 처리
+            PaymentSummaryResponse result = service.processPayment(2L, request);
+
+            // then
+            assertThat(result.getPaymentStatus()).isEqualTo("PAID");
+            verify(transactionRepository).save(any(PaymentTransaction.class));
         }
 
         @Test
@@ -808,8 +844,8 @@ class ReservationPaymentServiceImplTest {
             service.recalculatePayment(RESERVATION_ID);
 
             // then
-            // grandTotal = 110000 + 0 + 5000 + (-200000) + 0 = -85000
-            assertThat(payment.getGrandTotal()).isEqualByComparingTo(new BigDecimal("-85000"));
+            // grandTotal = 110000 + 0 + 5000 + (-200000) + 0 = -85000 → 음수 하한 적용으로 0
+            assertThat(payment.getGrandTotal()).isEqualByComparingTo(BigDecimal.ZERO);
             assertThat(payment.getPaymentStatus()).isEqualTo("PAID");
         }
 

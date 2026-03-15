@@ -9,6 +9,8 @@ import com.hola.common.dto.HolaResponse;
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
 import com.hola.common.security.AccessControlService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * 내 프로필 REST API
  */
+@Tag(name = "내 프로필", description = "로그인 사용자 프로필 조회/수정/비밀번호 변경 API")
 @RestController
 @RequestMapping("/api/v1/my-profile")
 @RequiredArgsConstructor
@@ -33,7 +36,7 @@ public class MyProfileApiController {
     /** 비밀번호 규칙: 영문+숫자+특수문자 */
     private static final String PASSWORD_PATTERN = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]).{10,20}$";
 
-    /** 내 프로필 조회 */
+    @Operation(summary = "내 프로필 조회", description = "로그인한 사용자의 프로필 정보 조회")
     @GetMapping
     public ResponseEntity<HolaResponse<MyProfileResponse>> getMyProfile() {
         AdminUser user = accessControlService.getCurrentUser();
@@ -41,7 +44,7 @@ public class MyProfileApiController {
         return ResponseEntity.ok(HolaResponse.success(response));
     }
 
-    /** 내 프로필 수정 */
+    @Operation(summary = "내 프로필 수정", description = "이름, 이메일, 전화번호, 부서, 직위 등 수정")
     @PutMapping
     public ResponseEntity<HolaResponse<MyProfileResponse>> updateMyProfile(
             @Valid @RequestBody MyProfileUpdateRequest request) {
@@ -60,7 +63,7 @@ public class MyProfileApiController {
         return ResponseEntity.ok(HolaResponse.success(toResponse(user)));
     }
 
-    /** 비밀번호 변경 */
+    @Operation(summary = "비밀번호 변경", description = "현재 비밀번호 확인 후 새 비밀번호로 변경 (영문+숫자+특수문자 10~20자)")
     @PutMapping("/password")
     public ResponseEntity<HolaResponse<Void>> changePassword(
             @Valid @RequestBody PasswordChangeRequest request) {

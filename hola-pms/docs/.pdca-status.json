@@ -1,9 +1,19 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-03-07T12:41:28.098Z",
-  "activeFeatures": [],
-  "primaryFeature": null,
-  "features": {},
+  "lastUpdated": "2026-02-28T18:00:00.000Z",
+  "activeFeatures": ["hola"],
+  "primaryFeature": "hola",
+  "features": {
+    "hola": {
+      "phase": "completed",
+      "matchRate": 93,
+      "iterationCount": 1,
+      "startedAt": "2026-02-28T15:00:00.000Z",
+      "lastActivity": "2026-02-28T19:30:00.000Z",
+      "analysisPath": "docs/03-analysis/hola.analysis.md",
+      "reportPath": "docs/04-report/hola.report.md"
+    }
+  },
   "pipeline": {
     "currentPhase": 1,
     "level": "Dynamic",
@@ -11,8 +21,8 @@
   },
   "session": {
     "startedAt": "2026-03-07T12:41:28.098Z",
-    "onboardingCompleted": false,
-    "lastActivity": "2026-03-07T12:41:28.098Z"
+    "onboardingCompleted": true,
+    "lastActivity": "2026-02-28T18:00:00.000Z"
   },
   "history": []
 }

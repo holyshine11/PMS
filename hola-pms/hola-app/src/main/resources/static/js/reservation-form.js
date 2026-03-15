@@ -18,6 +18,8 @@ var ReservationForm = {
         if (self.propertyId) {
             self.showForm();
             self.loadReservationChannels();
+        } else {
+            self.hideForm();
         }
 
         self.bindEvents();

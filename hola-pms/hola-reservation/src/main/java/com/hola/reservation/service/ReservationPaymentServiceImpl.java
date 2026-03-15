@@ -9,8 +9,10 @@ import com.hola.reservation.dto.response.PaymentSummaryResponse;
 import com.hola.reservation.entity.*;
 import com.hola.reservation.mapper.ReservationMapper;
 import com.hola.reservation.repository.*;
+import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,11 +74,6 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
     @Transactional
     public PaymentSummaryResponse processPayment(Long reservationId, PaymentProcessRequest request) {
         MasterReservation master = findMasterById(reservationId);
-
-        // OTA 결제 불가
-        if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
-            throw new HolaException(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
-        }
 
         // 예약 상태 체크
         String reservationStatus = master.getReservationStatus();
@@ -280,6 +277,11 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         // 4. 최종 합계 (얼리/레이트 요금 포함)
         BigDecimal grandTotal = totalRoom.add(totalService).add(totalServiceCharge)
                 .add(totalAdjustment).add(totalEarlyLateFee);
+
+        // 음수 하한 적용
+        if (grandTotal.compareTo(BigDecimal.ZERO) < 0) {
+            grandTotal = BigDecimal.ZERO;
+        }
 
         payment.updateAmounts(totalRoom, totalService, totalServiceCharge, totalAdjustment, grandTotal);
         payment.updateEarlyLateFee(totalEarlyLateFee);

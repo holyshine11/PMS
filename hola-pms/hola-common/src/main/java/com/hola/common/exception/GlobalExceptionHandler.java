@@ -2,7 +2,9 @@ package com.hola.common.exception;
 
 import com.hola.common.dto.HolaResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -36,6 +38,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .badRequest()
                 .body(HolaResponse.error(ErrorCode.INVALID_INPUT.getCode(), message));
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<HolaResponse<Void>> handleOptimisticLockException(ObjectOptimisticLockingFailureException e) {
+        log.warn("동시성 충돌 발생: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(HolaResponse.error("HOLA-4027", "다른 요청이 진행 중입니다. 잠시 후 다시 시도해주세요."));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

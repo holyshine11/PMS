@@ -11,6 +11,8 @@ import com.hola.reservation.dto.response.RoomNumberAvailabilityResponse;
 import com.hola.reservation.entity.SubReservation;
 import com.hola.reservation.repository.SubReservationRepository;
 import com.hola.room.repository.RoomTypeFloorRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 /**
  * 층/호수 배정용 API (예약 상세 페이지에서 사용)
  */
+@Tag(name = "객실 배정", description = "층/호수 기반 객실 배정용 API")
 @RestController
 @RequestMapping("/api/v1/properties/{propertyId}/floors")
 @RequiredArgsConstructor
@@ -37,6 +40,7 @@ public class RoomAssignApiController {
     private static final List<String> RELEASED_STATUSES = List.of("CANCELED", "NO_SHOW", "CHECKED_OUT");
 
     /** 특정 층에 매핑된 호수 목록 조회 (기본) */
+    @Operation(summary = "층별 호수 목록 조회", description = "특정 층에 매핑된 호수(객실번호) 목록")
     @GetMapping("/{floorId}/room-numbers")
     public HolaResponse<List<RoomNumberResponse>> getRoomNumbersByFloor(
             @PathVariable Long propertyId,
@@ -56,6 +60,7 @@ public class RoomAssignApiController {
     }
 
     /** 특정 층에 매핑된 호수 목록 + 가용성 조회 */
+    @Operation(summary = "층별 호수 가용성 조회", description = "호수별 가용성 + 충돌 예약 정보 포함")
     @Transactional(readOnly = true)
     @GetMapping("/{floorId}/room-numbers/availability")
     public HolaResponse<List<RoomNumberAvailabilityResponse>> getRoomNumbersWithAvailability(

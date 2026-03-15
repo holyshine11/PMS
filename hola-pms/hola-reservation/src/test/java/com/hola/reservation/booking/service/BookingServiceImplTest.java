@@ -636,6 +636,8 @@ class BookingServiceImplTest {
                     .thenReturn(Optional.of(rateCode));
             when(roomAvailabilityService.getAvailableRoomCount(eq(ROOM_TYPE_ID), any(), any()))
                     .thenReturn(5);
+            when(roomAvailabilityService.getAvailableRoomCountWithLock(eq(ROOM_TYPE_ID), any(), any()))
+                    .thenReturn(5);
             when(priceCalculationService.calculateDailyCharges(eq(RATE_CODE_ID), eq(property),
                     any(), any(), anyInt(), anyInt(), isNull()))
                     .thenReturn(List.of(dc1, dc2));

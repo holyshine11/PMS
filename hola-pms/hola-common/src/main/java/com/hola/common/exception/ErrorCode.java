@@ -134,6 +134,7 @@ public enum ErrorCode {
 
     // 결제 처리 (HOLA-402x 확장)
     RESERVATION_PAYMENT_AMOUNT_EXCEEDED("HOLA-4026", "결제 금액이 잔액을 초과합니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_PAYMENT_CONCURRENT_CONFLICT("HOLA-4027", "다른 결제가 진행 중입니다. 잠시 후 다시 시도해주세요.", HttpStatus.CONFLICT),
     RESERVATION_PAYMENT_AMOUNT_INVALID("HOLA-4028", "결제 금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
 
     // 부킹엔진 (HOLA-407x)

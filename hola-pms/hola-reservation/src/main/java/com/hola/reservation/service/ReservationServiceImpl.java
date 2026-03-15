@@ -73,7 +73,7 @@ public class ReservationServiceImpl implements ReservationService {
     // 허용되는 상태 전이 매트릭스
     private static final Map<String, Set<String>> STATUS_TRANSITIONS = Map.of(
             "RESERVED", Set.of("CHECK_IN", "CANCELED", "NO_SHOW"),
-            "CHECK_IN", Set.of("INHOUSE", "CANCELED"),
+            "CHECK_IN", Set.of("INHOUSE", "CHECKED_OUT", "CANCELED"),
             "INHOUSE", Set.of("CHECKED_OUT"),
             "CHECKED_OUT", Set.of(),
             "CANCELED", Set.of(),
@@ -330,6 +330,12 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         validateDates(request.getMasterCheckIn(), request.getMasterCheckOut());
+
+        // 수정 시에도 체크인 날짜가 과거인지 검증 (기존 체크인이 미래였다면 과거로 변경 불가)
+        if (request.getMasterCheckIn().isBefore(LocalDate.now())
+                && !request.getMasterCheckIn().equals(master.getMasterCheckIn())) {
+            throw new HolaException(ErrorCode.RESERVATION_CHECKIN_PAST_DATE);
+        }
 
         // 레이트코드 또는 날짜가 실제 변경된 경우에만 재검증
         if (request.getRateCodeId() != null) {
@@ -624,6 +630,11 @@ public class ReservationServiceImpl implements ReservationService {
         // 수정 불가 상태 검사
         validateModifiable(master);
 
+        // OTA 예약은 객실 추가 불가 (OTA 시스템과 불일치 방지)
+        if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
+            throw new HolaException(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
+        }
+
         Property property = master.getProperty();
 
         int legSeq = subReservationRepository.countAllIncludingDeleted(master.getId()) + 1;
@@ -645,6 +656,11 @@ public class ReservationServiceImpl implements ReservationService {
 
         // 수정 불가 상태 검사
         validateModifiable(master);
+
+        // OTA 예약은 객실 수정 불가 (OTA 시스템과 불일치 방지)
+        if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
+            throw new HolaException(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
+        }
 
         // 서브예약 소속 마스터 검증
         SubReservation sub = findSubAndValidateOwnership(legId, master);
@@ -686,6 +702,11 @@ public class ReservationServiceImpl implements ReservationService {
 
         // 수정 불가 상태 검사
         validateModifiable(master);
+
+        // OTA 예약은 객실 삭제 불가 (OTA 시스템과 불일치 방지)
+        if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
+            throw new HolaException(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
+        }
 
         // 서브예약 소속 마스터 검증
         SubReservation sub = findSubAndValidateOwnership(legId, master);
@@ -759,6 +780,10 @@ public class ReservationServiceImpl implements ReservationService {
         findMasterById(reservationId, propertyId);
         ReservationDeposit deposit = reservationDepositRepository.findById(depositId)
                 .orElseThrow(() -> new HolaException(ErrorCode.DEPOSIT_NOT_FOUND));
+        // 예치금이 해당 예약에 속하는지 검증
+        if (!deposit.getMasterReservation().getId().equals(reservationId)) {
+            throw new HolaException(ErrorCode.DEPOSIT_NOT_FOUND);
+        }
         deposit.update(request.getDepositMethod(), request.getCardCompany(),
                 request.getCardNumberEncrypted(), request.getCardCvcEncrypted(),
                 request.getCardExpiryDate(), request.getCardPasswordEncrypted(),
@@ -840,11 +865,20 @@ public class ReservationServiceImpl implements ReservationService {
                                                  int legSeq, Property property) {
         validateDates(request.getCheckIn(), request.getCheckOut());
 
-        // L1 객실 충돌 검사
+        // L1 객실 충돌 검사 (비관적 락으로 동시 예약 시 오버부킹 방지)
         if (request.getRoomNumberId() != null) {
-            if (availabilityService.hasRoomConflict(request.getRoomNumberId(),
+            if (availabilityService.hasRoomConflictWithLock(request.getRoomNumberId(),
                     request.getCheckIn(), request.getCheckOut(), null)) {
                 throw new HolaException(ErrorCode.SUB_RESERVATION_ROOM_CONFLICT);
+            }
+        }
+
+        // L2 타입별 가용성 비관적 락 검증 (호수 미배정 시)
+        if (request.getRoomNumberId() == null && request.getRoomTypeId() != null) {
+            int available = availabilityService.getAvailableRoomCountWithLock(
+                    request.getRoomTypeId(), request.getCheckIn(), request.getCheckOut());
+            if (available <= 0) {
+                log.warn("L2 타입별 가용 객실 부족: roomTypeId={}, 잔여={}", request.getRoomTypeId(), available);
             }
         }
 
@@ -977,19 +1011,15 @@ public class ReservationServiceImpl implements ReservationService {
         MasterReservation master = findMasterById(masterReservationId, propertyId);
         validateModifiable(master);
 
-        if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
-            throw new HolaException(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
-        }
-
         SubReservation sub = findSubAndValidateOwnership(subReservationId, master);
 
         PaidServiceOption option = paidServiceOptionRepository.findById(request.getServiceOptionId())
                 .orElseThrow(() -> new HolaException(ErrorCode.PAID_SERVICE_OPTION_NOT_FOUND));
 
         int qty = request.getQuantity() != null ? request.getQuantity() : 1;
-        BigDecimal unitPrice = option.getSupplyPrice();
+        BigDecimal unitPrice = option.getVatIncludedPrice();
         BigDecimal tax = option.getTaxAmount().multiply(BigDecimal.valueOf(qty));
-        BigDecimal totalPrice = option.getVatIncludedPrice().multiply(BigDecimal.valueOf(qty));
+        BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(qty));
 
         ReservationServiceItem serviceItem = ReservationServiceItem.builder()
                 .subReservation(sub)
@@ -1027,10 +1057,6 @@ public class ReservationServiceImpl implements ReservationService {
     public void removeService(Long masterReservationId, Long subReservationId, Long serviceId, Long propertyId) {
         MasterReservation master = findMasterById(masterReservationId, propertyId);
         validateModifiable(master);
-
-        if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
-            throw new HolaException(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
-        }
 
         ReservationServiceItem serviceItem = serviceItemRepository.findById(serviceId)
                 .orElseThrow(() -> new HolaException(ErrorCode.RESERVATION_SERVICE_NOT_FOUND));

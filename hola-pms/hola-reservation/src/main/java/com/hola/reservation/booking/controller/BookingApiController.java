@@ -2,6 +2,7 @@ package com.hola.reservation.booking.controller;
 
 import com.hola.reservation.booking.dto.BookingResponse;
 import com.hola.reservation.booking.dto.request.BookingCreateRequest;
+import com.hola.reservation.booking.dto.request.BookingModifyRequest;
 import com.hola.reservation.booking.dto.request.BookingSearchRequest;
 import com.hola.reservation.booking.dto.request.CancelBookingRequest;
 import com.hola.reservation.booking.dto.request.PriceCheckRequest;
@@ -95,6 +96,60 @@ public class BookingApiController {
     }
 
     /**
+     * 이용약관 조회
+     */
+    @Operation(summary = "이용약관 조회", description = "예약 약관, 개인정보 처리방침 등")
+    @GetMapping("/properties/{propertyCode}/terms")
+    public BookingResponse<List<PropertyTermsResponse>> getTerms(
+            @PathVariable String propertyCode) {
+        return BookingResponse.success(bookingService.getTerms(propertyCode));
+    }
+
+    /**
+     * 숙소 이미지 목록 조회
+     */
+    @Operation(summary = "숙소 이미지", description = "프로퍼티 전체 이미지 (숙소/시설/외관)")
+    @GetMapping("/properties/{propertyCode}/images")
+    public BookingResponse<List<PropertyImageResponse>> getPropertyImages(
+            @PathVariable String propertyCode) {
+        return BookingResponse.success(bookingService.getPropertyImages(propertyCode));
+    }
+
+    /**
+     * 객실타입 이미지 목록 조회
+     */
+    @Operation(summary = "객실타입 이미지", description = "특정 객실타입의 이미지 목록")
+    @GetMapping("/properties/{propertyCode}/rooms/{roomTypeId}/images")
+    public BookingResponse<List<PropertyImageResponse>> getRoomTypeImages(
+            @PathVariable String propertyCode,
+            @PathVariable Long roomTypeId) {
+        return BookingResponse.success(bookingService.getRoomTypeImages(propertyCode, roomTypeId));
+    }
+
+    /**
+     * 유료 서비스 목록 조회
+     */
+    @Operation(summary = "유료 서비스 목록", description = "예약 시 선택 가능한 유료 서비스(조식, 스파 등) 목록")
+    @GetMapping("/properties/{propertyCode}/add-on-services")
+    public BookingResponse<List<AddOnServiceResponse>> getAddOnServices(
+            @PathVariable String propertyCode) {
+        return BookingResponse.success(bookingService.getAddOnServices(propertyCode));
+    }
+
+    /**
+     * 프로모션 코드 검증
+     */
+    @Operation(summary = "프로모션 코드 검증", description = "프로모션 코드 유효성 + 할인 정보 미리보기")
+    @GetMapping("/properties/{propertyCode}/promotions/validate")
+    public BookingResponse<PromotionValidationResponse> validatePromotionCode(
+            @PathVariable String propertyCode,
+            @RequestParam String code,
+            @RequestParam(required = false) LocalDate checkIn,
+            @RequestParam(required = false) LocalDate checkOut) {
+        return BookingResponse.success(bookingService.validatePromotionCode(propertyCode, code, checkIn, checkOut));
+    }
+
+    /**
      * 가용 객실 검색 (날짜/인원 기반)
      */
     @Operation(summary = "가용 객실 검색", description = "날짜/인원 기반 예약 가능 객실타입 + 요금 조회")
@@ -132,6 +187,17 @@ public class BookingApiController {
     }
 
     /**
+     * 내 예약 조회 (이메일 + 영문 성으로 검색)
+     */
+    @Operation(summary = "내 예약 조회", description = "이메일 + 영문 성(Last Name)으로 예약 목록 검색")
+    @GetMapping("/reservations/lookup")
+    public BookingResponse<List<BookingLookupResponse>> lookupReservations(
+            @RequestParam String email,
+            @RequestParam String lastName) {
+        return BookingResponse.success(bookingService.lookupReservations(email, lastName));
+    }
+
+    /**
      * 예약 확인 조회
      */
     @Operation(summary = "예약 확인 조회", description = "확인번호 + 이메일/전화로 예약 내역 조회")
@@ -142,6 +208,17 @@ public class BookingApiController {
             @RequestParam(required = false) String phone) {
         String verificationValue = email != null ? email : phone;
         return BookingResponse.success(bookingService.getConfirmation(confirmationNo, verificationValue));
+    }
+
+    /**
+     * 예약 수정 (날짜/인원 변경)
+     */
+    @Operation(summary = "예약 수정", description = "날짜/인원 변경 + 차액 계산 (이메일 본인인증)")
+    @PutMapping("/reservations/{confirmationNo}/modify")
+    public BookingResponse<BookingModifyResponse> modifyBooking(
+            @PathVariable String confirmationNo,
+            @Valid @RequestBody BookingModifyRequest request) {
+        return BookingResponse.success(bookingService.modifyBooking(confirmationNo, request));
     }
 
     /**
