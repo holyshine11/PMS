@@ -3,11 +3,9 @@ package com.hola.reservation.booking.controller;
 import com.hola.common.dto.HolaResponse;
 import com.hola.reservation.booking.dto.request.BookingCreateRequest;
 import com.hola.reservation.booking.dto.request.BookingSearchRequest;
+import com.hola.reservation.booking.dto.request.CancelBookingRequest;
 import com.hola.reservation.booking.dto.request.PriceCheckRequest;
-import com.hola.reservation.booking.dto.response.AvailableRoomTypeResponse;
-import com.hola.reservation.booking.dto.response.BookingConfirmationResponse;
-import com.hola.reservation.booking.dto.response.PriceCheckResponse;
-import com.hola.reservation.booking.dto.response.PropertyInfoResponse;
+import com.hola.reservation.booking.dto.response.*;
 import com.hola.reservation.booking.service.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -90,5 +89,31 @@ public class BookingApiController {
             @RequestParam(required = false) String phone) {
         String verificationValue = email != null ? email : phone;
         return HolaResponse.success(bookingService.getConfirmation(confirmationNo, verificationValue));
+    }
+
+    /**
+     * 취소 수수료 미리보기
+     */
+    @Operation(summary = "취소 수수료 미리보기", description = "확인번호 + 이메일로 취소 시 수수료 확인")
+    @GetMapping("/reservations/{confirmationNo}/cancel-fee")
+    public HolaResponse<CancelFeePreviewResponse> getCancelFeePreview(
+            @PathVariable String confirmationNo,
+            @RequestParam String email) {
+        return HolaResponse.success(bookingService.getCancelFeePreview(confirmationNo, email));
+    }
+
+    /**
+     * 게스트 자가 취소
+     */
+    @Operation(summary = "게스트 자가 취소", description = "확인번호 + 이메일 검증 후 예약 취소")
+    @PostMapping("/reservations/{confirmationNo}/cancel")
+    public ResponseEntity<HolaResponse<CancelBookingResponse>> cancelBooking(
+            @PathVariable String confirmationNo,
+            @Valid @RequestBody CancelBookingRequest request,
+            HttpServletRequest httpRequest) {
+        String clientIp = httpRequest.getRemoteAddr();
+        String userAgent = httpRequest.getHeader("User-Agent");
+        return ResponseEntity.ok(HolaResponse.success(
+                bookingService.cancelBooking(confirmationNo, request.getEmail(), clientIp, userAgent)));
     }
 }

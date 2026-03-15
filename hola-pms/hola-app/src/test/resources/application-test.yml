@@ -1,0 +1,59 @@
+spring:
+  # TestContainers PostgreSQL
+  datasource:
+    url: jdbc:tc:postgresql:16-alpine:///hola_pms_test
+    username: test
+    password: test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: false
+        default_batch_fetch_size: 100
+
+  # Flyway - 스키마 + 기본 테스트 데이터만 (V5_9_0+ 테스트 데이터 배치 제외)
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    out-of-order: true
+    target: 5.8.0
+
+  # Thymeleaf
+  thymeleaf:
+    cache: false
+
+  # Redis 비활성화
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+  # Jackson
+  jackson:
+    time-zone: Asia/Seoul
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: 0
+
+# JWT 설정
+jwt:
+  secret: holapms-test-secret-key-must-be-at-least-256-bits-long-for-hs256
+  access-token-expiry: 3600000
+  refresh-token-expiry: 604800000
+
+hola:
+  upload:
+    path: /tmp/hola-test-uploads
+
+logging:
+  level:
+    root: WARN
+    com.hola: INFO
+    org.testcontainers: INFO

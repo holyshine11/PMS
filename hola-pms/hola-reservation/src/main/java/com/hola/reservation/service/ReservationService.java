@@ -25,6 +25,9 @@ public interface ReservationService {
     /** 예약 수정 */
     ReservationDetailResponse update(Long id, Long propertyId, ReservationUpdateRequest request);
 
+    /** 예약 취소/노쇼 수수료 미리보기 (상태 변경 없음) */
+    AdminCancelPreviewResponse getCancelPreview(Long id, Long propertyId, boolean noShow);
+
     /** 예약 취소 (soft delete) */
     void cancel(Long id, Long propertyId);
 

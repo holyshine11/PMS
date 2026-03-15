@@ -19,6 +19,7 @@ public class PaymentTransactionResponse {
 
     private Long id;
     private Integer transactionSeq;
+    private String transactionType;
     private String paymentMethod;
     private BigDecimal amount;
     private String currency;

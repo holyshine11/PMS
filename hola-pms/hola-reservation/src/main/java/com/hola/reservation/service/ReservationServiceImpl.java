@@ -66,6 +66,9 @@ public class ReservationServiceImpl implements ReservationService {
     private final EarlyLateCheckService earlyLateCheckService;
     private final ReservationPaymentService paymentService;
     private final AccessControlService accessControlService;
+    private final com.hola.reservation.booking.service.CancellationPolicyService cancellationPolicyService;
+    private final ReservationPaymentRepository reservationPaymentRepository;
+    private final PaymentTransactionRepository paymentTransactionRepository;
 
     // 허용되는 상태 전이 매트릭스
     private static final Map<String, Set<String>> STATUS_TRANSITIONS = Map.of(
@@ -393,6 +396,51 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public AdminCancelPreviewResponse getCancelPreview(Long id, Long propertyId, boolean noShow) {
+        MasterReservation master = findMasterById(id, propertyId);
+
+        // 취소/노쇼 가능 상태 확인
+        String currentStatus = master.getReservationStatus();
+        if (!"RESERVED".equals(currentStatus) && !"CHECK_IN".equals(currentStatus)) {
+            throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
+        }
+
+        // 1박 공급가 조회
+        BigDecimal firstNightSupply = getFirstNightSupplyPrice(master.getId());
+
+        // 취소 수수료 계산 (노쇼 여부 전달)
+        var cancelResult = cancellationPolicyService.calculateCancelFee(
+                propertyId, master.getMasterCheckIn(), firstNightSupply, noShow);
+
+        // 결제 정보 조회
+        BigDecimal totalPaid = BigDecimal.ZERO;
+        ReservationPayment payment = reservationPaymentRepository
+                .findByMasterReservationId(master.getId()).orElse(null);
+        if (payment != null && payment.getTotalPaidAmount() != null) {
+            totalPaid = payment.getTotalPaidAmount();
+        }
+
+        BigDecimal cancelFee = cancelResult.feeAmount();
+        BigDecimal refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
+
+        return AdminCancelPreviewResponse.builder()
+                .reservationId(master.getId())
+                .masterReservationNo(master.getMasterReservationNo())
+                .guestNameKo(master.getGuestNameKo())
+                .checkIn(master.getMasterCheckIn().toString())
+                .checkOut(master.getMasterCheckOut().toString())
+                .reservationStatus(currentStatus)
+                .firstNightSupplyPrice(firstNightSupply)
+                .cancelFeeAmount(cancelFee)
+                .cancelFeePercent(cancelResult.feePercent())
+                .totalPaidAmount(totalPaid)
+                .refundAmount(refundAmt)
+                .policyDescription(cancelResult.policyDescription())
+                .build();
+    }
+
+    @Override
     @Transactional
     public void cancel(Long id, Long propertyId) {
         MasterReservation master = findMasterById(id, propertyId);
@@ -403,14 +451,62 @@ public class ReservationServiceImpl implements ReservationService {
             throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
         }
 
-        master.updateStatus("CANCELED");
+        // 취소 수수료 계산
+        BigDecimal firstNightSupply = getFirstNightSupplyPrice(master.getId());
+        var cancelResult = cancellationPolicyService.calculateCancelFee(
+                propertyId, master.getMasterCheckIn(), firstNightSupply);
 
-        // 모든 서브 예약도 취소
+        // 결제 정보 업데이트 (취소 수수료 + 환불 금액)
+        ReservationPayment payment = reservationPaymentRepository
+                .findByMasterReservationId(master.getId()).orElse(null);
+        if (payment != null) {
+            BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+            BigDecimal cancelFee = cancelResult.feeAmount();
+            BigDecimal refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
+
+            payment.updateCancelRefund(cancelFee, refundAmt);
+
+            // REFUND 거래 기록 (환불 금액이 있는 경우)
+            if (refundAmt.compareTo(BigDecimal.ZERO) > 0) {
+                List<PaymentTransaction> existingTxns = paymentTransactionRepository
+                        .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
+                int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
+
+                PaymentTransaction refundTxn = PaymentTransaction.builder()
+                        .masterReservationId(master.getId())
+                        .transactionSeq(nextSeq)
+                        .transactionType("REFUND")
+                        .paymentMethod(payment.getPaymentMethod() != null ? payment.getPaymentMethod() : "CARD")
+                        .amount(refundAmt)
+                        .transactionStatus("COMPLETED")
+                        .memo("취소 환불 (수수료: " + cancelFee + "원)")
+                        .build();
+                paymentTransactionRepository.save(refundTxn);
+            }
+        }
+
+        // 상태 변경
+        master.updateStatus("CANCELED");
         for (SubReservation sub : master.getSubReservations()) {
             sub.updateStatus("CANCELED");
         }
 
-        log.info("예약 취소: {}", master.getMasterReservationNo());
+        log.info("예약 취소: {}, 취소수수료: {}, 정책: {}",
+                master.getMasterReservationNo(), cancelResult.feeAmount(), cancelResult.policyDescription());
+    }
+
+    /**
+     * 첫 번째 서브예약의 1박 공급가 조회
+     */
+    private BigDecimal getFirstNightSupplyPrice(Long masterReservationId) {
+        List<SubReservation> subs = subReservationRepository.findByMasterReservationId(masterReservationId);
+        if (subs.isEmpty()) return BigDecimal.ZERO;
+
+        SubReservation firstSub = subs.get(0);
+        List<DailyCharge> charges = dailyChargeRepository.findBySubReservationId(firstSub.getId());
+        if (charges.isEmpty()) return BigDecimal.ZERO;
+
+        return charges.get(0).getSupplyPrice();
     }
 
     @Override
@@ -478,6 +574,43 @@ public class ReservationServiceImpl implements ReservationService {
         // 얼리/레이트 요금 발생 시 결제 재계산
         if ("CHECK_IN".equals(newStatus) || "CHECKED_OUT".equals(newStatus)) {
             paymentService.recalculatePayment(master.getId());
+        }
+
+        // 노쇼 처리 시 수수료 계산 + REFUND 거래 기록
+        if ("NO_SHOW".equals(newStatus)) {
+            BigDecimal firstNightSupply = getFirstNightSupplyPrice(master.getId());
+            var cancelResult = cancellationPolicyService.calculateCancelFee(
+                    propertyId, master.getMasterCheckIn(), firstNightSupply, true);
+
+            ReservationPayment payment = reservationPaymentRepository
+                    .findByMasterReservationId(master.getId()).orElse(null);
+            if (payment != null) {
+                BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+                BigDecimal cancelFee = cancelResult.feeAmount();
+                BigDecimal refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
+
+                payment.updateCancelRefund(cancelFee, refundAmt);
+
+                if (refundAmt.compareTo(BigDecimal.ZERO) > 0) {
+                    List<PaymentTransaction> existingTxns = paymentTransactionRepository
+                            .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
+                    int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
+
+                    PaymentTransaction refundTxn = PaymentTransaction.builder()
+                            .masterReservationId(master.getId())
+                            .transactionSeq(nextSeq)
+                            .transactionType("REFUND")
+                            .paymentMethod(payment.getPaymentMethod() != null ? payment.getPaymentMethod() : "CARD")
+                            .amount(refundAmt)
+                            .transactionStatus("COMPLETED")
+                            .memo("노쇼 환불 (수수료: " + cancelFee + "원)")
+                            .build();
+                    paymentTransactionRepository.save(refundTxn);
+                }
+            }
+
+            log.info("노쇼 처리: {}, 수수료: {}, 정책: {}",
+                    master.getMasterReservationNo(), cancelResult.feeAmount(), cancelResult.policyDescription());
         }
 
         log.info("예약 상태 변경: {} → {} (예약번호: {})", currentStatus, newStatus, master.getMasterReservationNo());

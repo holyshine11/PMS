@@ -18,10 +18,7 @@ import com.hola.rate.service.RateCodeService;
 import com.hola.reservation.booking.dto.request.BookingCreateRequest;
 import com.hola.reservation.booking.dto.request.BookingSearchRequest;
 import com.hola.reservation.booking.dto.request.PriceCheckRequest;
-import com.hola.reservation.booking.dto.response.AvailableRoomTypeResponse;
-import com.hola.reservation.booking.dto.response.BookingConfirmationResponse;
-import com.hola.reservation.booking.dto.response.PriceCheckResponse;
-import com.hola.reservation.booking.dto.response.PropertyInfoResponse;
+import com.hola.reservation.booking.dto.response.*;
 import com.hola.reservation.booking.entity.BookingAuditLog;
 import com.hola.reservation.booking.gateway.PaymentGateway;
 import com.hola.reservation.booking.gateway.PaymentRequest;
@@ -88,6 +85,10 @@ public class BookingServiceImpl implements BookingService {
     private final PaymentGateway paymentGateway;
     private final BookingAuditLogRepository bookingAuditLogRepository;
     private final ObjectMapper objectMapper;
+    private final CancellationPolicyService cancellationPolicyService;
+    private final com.hola.hotel.repository.CancellationFeeRepository cancellationFeeRepository;
+    private final com.hola.reservation.repository.ReservationPaymentRepository reservationPaymentRepository;
+    private final com.hola.reservation.repository.PaymentTransactionRepository paymentTransactionRepository;
 
     /** 최대 숙박 가능 일수 */
     private static final int MAX_STAY_NIGHTS = 30;
@@ -683,6 +684,15 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
+        // 취소 정책 조회
+        List<BookingConfirmationResponse.CancellationPolicyInfo> policyInfos =
+                cancellationFeeRepository.findAllByPropertyIdOrderBySortOrder(property.getId())
+                        .stream()
+                        .map(fee -> BookingConfirmationResponse.CancellationPolicyInfo.builder()
+                                .description(buildPolicyDescription(fee))
+                                .build())
+                        .toList();
+
         return BookingConfirmationResponse.builder()
                 .confirmationNo(master.getConfirmationNo())
                 .masterReservationNo(master.getMasterReservationNo())
@@ -695,6 +705,7 @@ public class BookingServiceImpl implements BookingService {
                         ? paymentSummary.getTransactions().get(0).getPaymentMethod() : null)
                 .approvalNo(approvalNo)
                 .rooms(roomDetails)
+                .cancellationPolicies(policyInfos)
                 .propertyName(property.getPropertyName())
                 .propertyAddress(property.getAddress())
                 .checkInTime(property.getCheckInTime())
@@ -705,8 +716,168 @@ public class BookingServiceImpl implements BookingService {
     }
 
     /**
+     * 취소 정책 자연어 설명 생성
+     */
+    private String buildPolicyDescription(com.hola.hotel.entity.CancellationFee fee) {
+        String unit = "PERCENTAGE".equals(fee.getFeeType()) ? "%" :
+                "FIXED_KRW".equals(fee.getFeeType()) ? "원" : "USD";
+        String amountStr = fee.getFeeAmount().stripTrailingZeros().toPlainString();
+
+        if ("NOSHOW".equals(fee.getCheckinBasis())) {
+            return "노쇼 시: 1박 요금의 " + amountStr + unit + " 부과";
+        }
+        if (fee.getFeeAmount().compareTo(BigDecimal.ZERO) == 0) {
+            return "체크인 " + fee.getDaysBefore() + "일 이내: 무료 취소";
+        }
+        return "체크인 " + fee.getDaysBefore() + "일 이내: 1박 요금의 " + amountStr + unit + " 부과";
+    }
+
+    /**
      * 부킹 감사 로그 저장
      */
+    @Override
+    public CancelFeePreviewResponse getCancelFeePreview(String confirmationNo, String email) {
+        MasterReservation master = findAndVerifyReservation(confirmationNo, email);
+
+        // 취소 가능 상태 확인
+        String status = master.getReservationStatus();
+        if ("CANCELED".equals(status)) {
+            throw new HolaException(ErrorCode.BOOKING_ALREADY_CANCELED);
+        }
+        if (!"RESERVED".equals(status) && !"CHECK_IN".equals(status)) {
+            throw new HolaException(ErrorCode.BOOKING_CANCEL_NOT_ALLOWED);
+        }
+
+        // 1박 요금 조회
+        BigDecimal firstNightAmount = getFirstNightSupplyPrice(master.getId());
+
+        // 취소 수수료 계산
+        Long propertyId = master.getProperty().getId();
+        var cancelResult = cancellationPolicyService.calculateCancelFee(
+                propertyId, master.getMasterCheckIn(), firstNightAmount);
+
+        // 총 결제액 조회
+        BigDecimal totalPaid = BigDecimal.ZERO;
+        var payment = reservationPaymentRepository.findByMasterReservationId(master.getId()).orElse(null);
+        if (payment != null) {
+            totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+        }
+        BigDecimal refundAmt = totalPaid.subtract(cancelResult.feeAmount()).max(BigDecimal.ZERO);
+
+        return CancelFeePreviewResponse.builder()
+                .confirmationNo(confirmationNo)
+                .reservationStatus(status)
+                .guestNameKo(master.getGuestNameKo())
+                .checkIn(master.getMasterCheckIn().toString())
+                .checkOut(master.getMasterCheckOut().toString())
+                .firstNightAmount(firstNightAmount)
+                .cancelFeeAmount(cancelResult.feeAmount())
+                .cancelFeePercent(cancelResult.feePercent())
+                .totalPaidAmount(totalPaid)
+                .refundAmount(refundAmt)
+                .policyDescription(cancelResult.policyDescription())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public CancelBookingResponse cancelBooking(String confirmationNo, String email,
+                                                String clientIp, String userAgent) {
+        MasterReservation master = findAndVerifyReservation(confirmationNo, email);
+
+        // 취소 가능 상태 확인
+        String status = master.getReservationStatus();
+        if ("CANCELED".equals(status)) {
+            throw new HolaException(ErrorCode.BOOKING_ALREADY_CANCELED);
+        }
+        if (!"RESERVED".equals(status) && !"CHECK_IN".equals(status)) {
+            throw new HolaException(ErrorCode.BOOKING_CANCEL_NOT_ALLOWED);
+        }
+
+        // 취소 수수료 계산
+        BigDecimal firstNightAmount = getFirstNightSupplyPrice(master.getId());
+        Long propertyId = master.getProperty().getId();
+        var cancelResult = cancellationPolicyService.calculateCancelFee(
+                propertyId, master.getMasterCheckIn(), firstNightAmount);
+
+        // 결제 정보 업데이트
+        BigDecimal cancelFee = cancelResult.feeAmount();
+        BigDecimal refundAmt = BigDecimal.ZERO;
+        var payment = reservationPaymentRepository.findByMasterReservationId(master.getId()).orElse(null);
+        if (payment != null) {
+            BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+            refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
+            payment.updateCancelRefund(cancelFee, refundAmt);
+
+            // REFUND 거래 기록
+            if (refundAmt.compareTo(BigDecimal.ZERO) > 0) {
+                var existingTxns = paymentTransactionRepository
+                        .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
+                int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
+
+                var refundTxn = com.hola.reservation.entity.PaymentTransaction.builder()
+                        .masterReservationId(master.getId())
+                        .transactionSeq(nextSeq)
+                        .transactionType("REFUND")
+                        .paymentMethod(payment.getPaymentMethod() != null ? payment.getPaymentMethod() : "CARD")
+                        .amount(refundAmt)
+                        .transactionStatus("COMPLETED")
+                        .memo("게스트 자가 취소 환불 (수수료: " + cancelFee + "원)")
+                        .build();
+                paymentTransactionRepository.save(refundTxn);
+            }
+        }
+
+        // 상태 변경
+        master.updateStatus("CANCELED");
+        for (SubReservation sub : master.getSubReservations()) {
+            sub.updateStatus("CANCELED");
+        }
+
+        // 감사 로그 기록 (STEP 6)
+        saveAuditLog(master.getId(), confirmationNo, "BOOKING_CANCELED", "WEBSITE",
+                java.util.Map.of("email", email, "cancelFee", cancelFee, "refund", refundAmt),
+                null, clientIp, userAgent, null);
+
+        log.info("게스트 자가 취소: confirmationNo={}, cancelFee={}, refund={}",
+                confirmationNo, cancelFee, refundAmt);
+
+        return CancelBookingResponse.builder()
+                .confirmationNo(confirmationNo)
+                .status("CANCELED")
+                .cancelFeeAmount(cancelFee)
+                .refundAmount(refundAmt)
+                .build();
+    }
+
+    /**
+     * 확인번호 + 이메일로 예약 조회 및 검증
+     */
+    private MasterReservation findAndVerifyReservation(String confirmationNo, String email) {
+        MasterReservation master = masterReservationRepository.findByConfirmationNo(confirmationNo)
+                .orElseThrow(() -> new HolaException(ErrorCode.BOOKING_CONFIRMATION_NOT_FOUND));
+
+        // 이메일 검증
+        if (master.getEmail() == null || !master.getEmail().equalsIgnoreCase(email)) {
+            throw new HolaException(ErrorCode.BOOKING_GUEST_VERIFICATION_FAILED);
+        }
+
+        return master;
+    }
+
+    /**
+     * 첫 번째 서브예약의 1박 공급가 조회
+     */
+    private BigDecimal getFirstNightSupplyPrice(Long masterReservationId) {
+        List<SubReservation> subs = subReservationRepository.findByMasterReservationId(masterReservationId);
+        if (subs.isEmpty()) return BigDecimal.ZERO;
+
+        List<DailyCharge> charges = dailyChargeRepository.findBySubReservationId(subs.get(0).getId());
+        if (charges.isEmpty()) return BigDecimal.ZERO;
+
+        return charges.get(0).getSupplyPrice();
+    }
+
     private void saveAuditLog(Long masterReservationId, String confirmationNo,
                                String eventType, String channel,
                                Object requestPayload, Object responsePayload,

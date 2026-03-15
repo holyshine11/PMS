@@ -51,6 +51,16 @@ public class ReservationPayment extends BaseEntity {
     @Builder.Default
     private BigDecimal totalPaidAmount = BigDecimal.ZERO;
 
+    /** 취소 수수료 금액 */
+    @Column(name = "cancel_fee_amount", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal cancelFeeAmount = BigDecimal.ZERO;
+
+    /** 환불 금액 */
+    @Column(name = "refund_amount", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal refundAmount = BigDecimal.ZERO;
+
     @Column(name = "payment_date")
     private LocalDateTime paymentDate;
 
@@ -84,6 +94,14 @@ public class ReservationPayment extends BaseEntity {
         this.totalPaidAmount = this.totalPaidAmount.add(amount);
         this.paymentDate = LocalDateTime.now();
         updatePaymentStatus();
+    }
+
+    /**
+     * 취소 수수료 및 환불 금액 업데이트
+     */
+    public void updateCancelRefund(BigDecimal cancelFeeAmount, BigDecimal refundAmount) {
+        this.cancelFeeAmount = cancelFeeAmount;
+        this.refundAmount = refundAmount;
     }
 
     /**

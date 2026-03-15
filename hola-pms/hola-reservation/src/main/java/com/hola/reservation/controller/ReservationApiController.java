@@ -76,6 +76,16 @@ public class ReservationApiController {
         return HolaResponse.success(reservationService.update(id, propertyId, request));
     }
 
+    /** 예약 취소/노쇼 수수료 미리보기 */
+    @GetMapping("/{id}/cancel-preview")
+    public HolaResponse<AdminCancelPreviewResponse> getCancelPreview(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean noShow) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(reservationService.getCancelPreview(id, propertyId, noShow));
+    }
+
     /** 예약 취소 */
     @DeleteMapping("/{id}")
     public HolaResponse<Void> cancel(@PathVariable Long propertyId,

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/booking}">
+<head>
+    <title>예약 취소</title>
+</head>
+<body>
+<main layout:fragment="content">
+
+    <!-- 취소 페이지 -->
+    <section class="confirmation-section">
+        <div class="container">
+
+            <!-- 로딩 -->
+            <div id="confirmLoading" class="booking-spinner" style="display:none;">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+
+            <!-- STEP 1: 이메일 인증 -->
+            <div id="verifySection">
+                <div class="confirmation-header">
+                    <div class="confirmation-icon" style="background-color:#EF476F;">
+                        <i class="fas fa-times"></i>
+                    </div>
+                    <h3>예약 취소</h3>
+                    <p class="text-muted">예약 시 사용한 이메일을 입력하여 본인 확인 후 취소를 진행합니다.</p>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-md-5">
+                        <div class="checkout-card">
+                            <div class="mb-3">
+                                <label for="verifyEmail" class="form-label">이메일</label>
+                                <input type="email" class="form-control" id="verifyEmail" placeholder="guest@example.com" required>
+                            </div>
+                            <button type="button" class="btn btn-booking w-100" id="btnVerify">
+                                <i class="fas fa-search me-1"></i> 예약 조회
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 2: 취소 수수료 미리보기 -->
+            <div id="previewSection" style="display:none;">
+                <div class="confirmation-header">
+                    <div class="confirmation-icon" style="background-color:#EF476F;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h3>취소 수수료 안내</h3>
+                    <p class="text-muted">취소 진행 전 아래 내용을 확인해주세요.</p>
+                </div>
+
+                <div class="row g-4 justify-content-center">
+                    <!-- 예약 정보 -->
+                    <div class="col-lg-5">
+                        <div class="checkout-card">
+                            <h5><i class="fas fa-calendar-check me-2"></i>예약 정보</h5>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">확인번호</span>
+                                <span class="confirm-value" id="pvConfirmNo">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">투숙객</span>
+                                <span class="confirm-value" id="pvGuestName">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">체크인</span>
+                                <span class="confirm-value" id="pvCheckIn">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">체크아웃</span>
+                                <span class="confirm-value" id="pvCheckOut">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">예약 상태</span>
+                                <span id="pvStatus"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 수수료 정보 -->
+                    <div class="col-lg-5">
+                        <div class="checkout-card">
+                            <h5><i class="fas fa-calculator me-2"></i>취소 수수료</h5>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">1박 객실 요금</span>
+                                <span class="confirm-value" id="pvFirstNight">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">취소 수수료율</span>
+                                <span class="confirm-value" id="pvFeePercent">-</span>
+                            </div>
+                            <div class="confirm-detail-row" style="border-top:2px solid #dee2e6; padding-top:12px; margin-top:8px;">
+                                <span class="confirm-label" style="color:#EF476F;">취소 수수료</span>
+                                <span class="confirm-value" style="color:#EF476F; font-size:1.1rem;" id="pvCancelFee">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">총 결제 금액</span>
+                                <span class="confirm-value" id="pvTotalPaid">-</span>
+                            </div>
+                            <div class="confirm-detail-row" style="border-top:2px solid #dee2e6; padding-top:12px; margin-top:8px;">
+                                <span class="confirm-label" style="color:#0582CA;">환불 예정 금액</span>
+                                <span class="confirm-value" style="color:#0582CA; font-size:1.1rem;" id="pvRefund">-</span>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted" id="pvPolicyDesc"></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 취소 확인 버튼 -->
+                <div class="text-center mt-4 mb-4">
+                    <button type="button" class="btn btn-booking-outline me-2" id="btnBack">
+                        <i class="fas fa-arrow-left me-1"></i> 돌아가기
+                    </button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmCancel">
+                        <i class="fas fa-times me-1"></i> 예약 취소 확인
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 3: 취소 완료 -->
+            <div id="completeSection" style="display:none;">
+                <div class="confirmation-header">
+                    <div class="confirmation-icon" style="background-color:#6c757d;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <h3>예약이 취소되었습니다</h3>
+                    <p class="text-muted">아래 내용을 확인해주세요.</p>
+                </div>
+
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="checkout-card">
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">확인번호</span>
+                                <span class="confirm-value" id="cpConfirmNo">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">예약 상태</span>
+                                <span class="badge bg-secondary">취소됨</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">취소 수수료</span>
+                                <span class="confirm-value" style="color:#EF476F;" id="cpCancelFee">-</span>
+                            </div>
+                            <div class="confirm-detail-row">
+                                <span class="confirm-label">환불 금액</span>
+                                <span class="confirm-value" style="color:#0582CA;" id="cpRefund">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-3 mb-4">
+                    <a th:href="@{/booking/{code}(code=${propertyCode})}" class="btn btn-booking">
+                        <i class="fas fa-search me-1"></i> 새 예약
+                    </a>
+                </div>
+            </div>
+
+            <!-- 에러 표시 -->
+            <div class="alert alert-danger d-none" id="errorAlert" role="alert">
+                <i class="fas fa-exclamation-circle me-1"></i>
+                <span id="errorMessage"></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hidden 데이터 -->
+    <input type="hidden" id="propertyCode" th:value="${propertyCode}">
+    <input type="hidden" id="confirmationNo" th:value="${confirmationNo}">
+
+</main>
+
+<th:block layout:fragment="scripts">
+<script>
+    $(function() {
+        HolaBooking.CancellationPage.init();
+    });
+</script>
+</th:block>
+</body>
+</html>

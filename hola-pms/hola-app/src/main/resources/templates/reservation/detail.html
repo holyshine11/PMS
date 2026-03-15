@@ -351,6 +351,31 @@
                             </div>
                         </div>
 
+                        <!-- 취소/환불 정보 (CANCELED/NO_SHOW 상태일 때만 표시) -->
+                        <div id="cancelInfoSection" style="display:none;">
+                            <h6 class="fw-bold mb-3 mt-4">
+                                <i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 취소/환불 정보
+                            </h6>
+                            <div class="bg-light rounded p-3">
+                                <div class="row mb-2">
+                                    <div class="col-sm-3 text-muted">적용 정책</div>
+                                    <div class="col-sm-9" id="cancelPolicyDesc">-</div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-sm-3 text-muted">취소 수수료</div>
+                                    <div class="col-sm-9" id="cancelFeeDisplay" style="color:#EF476F;">-</div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-sm-3 text-muted">총 결제액</div>
+                                    <div class="col-sm-9" id="cancelTotalPaid">-</div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-sm-3 text-muted">환불 금액</div>
+                                    <div class="col-sm-9" id="cancelRefundAmt" style="color:#0582CA;">-</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 결제 이력 -->
                         <h6 class="fw-bold mb-2 mt-4" style="cursor:pointer" id="paymentHistoryToggle">
                             <i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i>
@@ -586,6 +611,59 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
                     <button type="button" class="btn btn-primary" id="statusConfirmBtn">확인</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 취소 수수료 미리보기 모달 ═══ -->
+    <div class="modal fade" id="cancelPreviewModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="cancelPreviewTitle">예약 취소 확인</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-2">
+                        <label class="col-sm-5 col-form-label">예약번호</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpReservationNo">-</span></div>
+                    </div>
+                    <div class="row mb-2">
+                        <label class="col-sm-5 col-form-label">투숙객</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpGuestName">-</span></div>
+                    </div>
+                    <div class="row mb-2">
+                        <label class="col-sm-5 col-form-label">체크인 / 체크아웃</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpCheckInOut">-</span></div>
+                    </div>
+                    <hr>
+                    <div class="row mb-2">
+                        <label class="col-sm-5 col-form-label">1박 객실요금(공급가)</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpFirstNight">-</span></div>
+                    </div>
+                    <div class="row mb-2">
+                        <label class="col-sm-5 col-form-label">적용 정책</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpPolicyDesc" class="text-muted small">-</span></div>
+                    </div>
+                    <div class="row mb-2">
+                        <label class="col-sm-5 col-form-label" style="color:#EF476F;">취소 수수료</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpCancelFeeAmt" style="color:#EF476F;">-</span></div>
+                    </div>
+                    <div class="row mb-2">
+                        <label class="col-sm-5 col-form-label">총 결제액</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpTotalPaid">-</span></div>
+                    </div>
+                    <div class="row mb-2">
+                        <label class="col-sm-5 col-form-label" style="color:#0582CA;">환불 예정액</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpRefundAmt" style="color:#0582CA;">-</span></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="button" class="btn btn-danger" id="cancelConfirmBtn">
+                        <i class="fas fa-ban me-1"></i>취소 확인
+                    </button>
                 </div>
             </div>
         </div>

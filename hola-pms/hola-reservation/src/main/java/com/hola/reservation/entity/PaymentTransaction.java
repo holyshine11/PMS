@@ -32,6 +32,11 @@ public class PaymentTransaction {
     @Column(name = "transaction_seq", nullable = false)
     private Integer transactionSeq;
 
+    /** 거래 유형: PAYMENT, REFUND, CANCEL_FEE */
+    @Column(name = "transaction_type", nullable = false, length = 20)
+    @Builder.Default
+    private String transactionType = "PAYMENT";
+
     /** 결제 수단: CARD, CASH */
     @Column(name = "payment_method", nullable = false, length = 20)
     private String paymentMethod;

@@ -37,6 +37,15 @@ public class BookingConfirmationResponse {
 
     private final LocalDateTime createdAt;
 
+    /** 취소 정책 정보 */
+    private final List<CancellationPolicyInfo> cancellationPolicies;
+
+    @Getter
+    @Builder
+    public static class CancellationPolicyInfo {
+        private final String description;
+    }
+
     @Getter
     @Builder
     public static class RoomDetail {

@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-03-14T06:07:32.424Z",
+  "timestamp": "2026-03-14T11:40:09.098Z",
   "reason": "compaction",
   "status": {
     "version": "2.0",
-    "lastUpdated": "2026-03-14T06:00:42.374Z",
+    "lastUpdated": "2026-03-14T11:20:35.448Z",
     "activeFeatures": [
       "hola",
       "entity",
@@ -48,9 +48,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-03-03T01:47:22.383Z",
-          "lastUpdated": "2026-03-14T05:52:39.891Z"
+          "lastUpdated": "2026-03-14T10:11:48.221Z"
         },
-        "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/entity/BookingAuditLog.java"
+        "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/entity/ReservationPayment.java"
       },
       "config": {
         "phase": "do",
@@ -87,7 +87,7 @@
         "documents": {},
         "timestamps": {
           "started": "2026-03-03T01:48:13.580Z",
-          "lastUpdated": "2026-03-14T05:54:07.471Z"
+          "lastUpdated": "2026-03-14T10:11:56.135Z"
         },
         "lastFile": "/Users/Dev/PMS/hola-pms/hola-common/src/main/java/com/hola/common/exception/ErrorCode.java"
       },
@@ -139,9 +139,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-03-03T01:52:13.621Z",
-          "lastUpdated": "2026-03-14T05:59:39.043Z"
+          "lastUpdated": "2026-03-14T10:56:13.999Z"
         },
-        "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/service/BookingServiceImpl.java"
+        "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationServiceImpl.java"
       },
       "controller": {
         "phase": "do",
@@ -152,9 +152,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-03-03T01:52:16.665Z",
-          "lastUpdated": "2026-03-14T06:00:42.374Z"
+          "lastUpdated": "2026-03-14T11:18:54.918Z"
         },
-        "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/controller/BookingApiController.java"
+        "lastFile": "/Users/Dev/PMS/hola-pms/hola-hotel/src/main/java/com/hola/hotel/controller/CancellationPolicyViewController.java"
       },
       "js": {
         "phase": "do",
@@ -165,7 +165,7 @@
         "documents": {},
         "timestamps": {
           "started": "2026-03-03T01:54:06.614Z",
-          "lastUpdated": "2026-03-13T09:11:55.022Z"
+          "lastUpdated": "2026-03-14T11:20:35.448Z"
         },
         "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/resources/static/js/reservation-payment.js"
       },
@@ -191,9 +191,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-03-03T02:02:02.915Z",
-          "lastUpdated": "2026-03-14T05:53:35.726Z"
+          "lastUpdated": "2026-03-14T10:12:03.301Z"
         },
-        "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/dto/request/BookingCreateRequest.java"
+        "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/dto/request/CancelBookingRequest.java"
       },
       "response": {
         "phase": "do",
@@ -204,7 +204,7 @@
         "documents": {},
         "timestamps": {
           "started": "2026-03-03T02:02:20.421Z",
-          "lastUpdated": "2026-03-14T05:53:54.517Z"
+          "lastUpdated": "2026-03-14T10:53:14.876Z"
         },
         "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/dto/response/BookingConfirmationResponse.java"
       },
@@ -217,7 +217,7 @@
         "documents": {},
         "timestamps": {
           "started": "2026-03-03T02:02:43.307Z",
-          "lastUpdated": "2026-03-13T08:00:04.074Z"
+          "lastUpdated": "2026-03-14T10:12:49.423Z"
         },
         "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/mapper/ReservationMapper.java"
       },
@@ -269,7 +269,7 @@
     "session": {
       "startedAt": "2026-03-03T00:54:55.026Z",
       "onboardingCompleted": false,
-      "lastActivity": "2026-03-14T06:00:42.374Z"
+      "lastActivity": "2026-03-14T11:20:35.448Z"
     },
     "history": [
       {
@@ -8573,6 +8573,438 @@
       {
         "timestamp": "2026-03-14T06:00:42.374Z",
         "feature": "controller",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:10:53.145Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:10:59.626Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:11:42.054Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:12:05.686Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:21:38.562Z",
+        "feature": "controller",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:23:51.775Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:26:14.048Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:28:10.009Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:28:14.278Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:29:46.377Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:29:52.218Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:37:58.534Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:38:14.702Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:57:41.204Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:58:07.912Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:58:15.480Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:58:22.731Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T06:58:29.946Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:11:36.653Z",
+        "feature": "entity",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:11:38.549Z",
+        "feature": "entity",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:11:48.221Z",
+        "feature": "entity",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:11:56.135Z",
+        "feature": "exception",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:12:00.999Z",
+        "feature": "response",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:12:03.301Z",
+        "feature": "request",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:12:05.487Z",
+        "feature": "response",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:12:12.634Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:12:30.772Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:12:39.971Z",
+        "feature": "response",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:12:40.881Z",
+        "feature": "response",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:12:48.378Z",
+        "feature": "mapper",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:12:49.423Z",
+        "feature": "mapper",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:13:00.477Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:13:19.936Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:13:40.715Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:13:44.291Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:13:49.880Z",
+        "feature": "controller",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:13:51.809Z",
+        "feature": "controller",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:13:58.463Z",
+        "feature": "controller",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:14:31.508Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:14:57.861Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:15:02.822Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:15:20.109Z",
+        "feature": "controller",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:16:25.428Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:50:41.220Z",
+        "feature": "response",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:50:46.501Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:51:09.840Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:51:11.522Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:51:16.015Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:51:21.355Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:51:26.049Z",
+        "feature": "controller",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:51:26.564Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:52:34.971Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:53:06.966Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:53:14.876Z",
+        "feature": "response",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:53:24.148Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:53:37.363Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:54:20.572Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:54:37.320Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:55:27.068Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:55:58.605Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:56:03.666Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:56:13.999Z",
+        "feature": "service",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:56:21.284Z",
+        "feature": "controller",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:56:27.039Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T10:56:41.830Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T11:08:07.358Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T11:08:13.095Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T11:18:54.918Z",
+        "feature": "controller",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T11:19:51.849Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T11:20:10.219Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T11:20:26.658Z",
+        "feature": "js",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-14T11:20:35.448Z",
+        "feature": "js",
         "phase": "do",
         "action": "updated"
       }

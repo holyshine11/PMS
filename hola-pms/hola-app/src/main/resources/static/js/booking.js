@@ -892,6 +892,15 @@ var HolaBooking = (function() {
             $('#cfmCheckInTime').text(data.checkInTime || '-');
             $('#cfmCheckOutTime').text(data.checkOutTime || '-');
 
+            // 취소 정책
+            if (data.cancellationPolicies && data.cancellationPolicies.length > 0) {
+                var $list = $('#cfmPolicyList').empty();
+                data.cancellationPolicies.forEach(function(p) {
+                    $list.append('<li class="mb-1">' + escapeHtml(p.description) + '</li>');
+                });
+                $('#cfmPolicySection').show();
+            }
+
             // 페이지 타이틀
             document.title = '예약 완료 - ' + (data.confirmationNo || 'Hola');
 
@@ -934,6 +943,123 @@ var HolaBooking = (function() {
         return html;
     }
 
+    // ─── 예약 취소 페이지 ───
+
+    var CancellationPage = {
+        propertyCode: null,
+        confirmationNo: null,
+        email: null,
+
+        init: function() {
+            this.propertyCode = $('#propertyCode').val();
+            this.confirmationNo = $('#confirmationNo').val();
+
+            if (!this.confirmationNo) {
+                showError('예약 확인번호가 없습니다.');
+                return;
+            }
+
+            this.bindEvents();
+        },
+
+        bindEvents: function() {
+            var self = this;
+
+            $('#btnVerify').on('click', function() {
+                self.loadPreview();
+            });
+
+            $('#verifyEmail').on('keypress', function(e) {
+                if (e.which === 13) self.loadPreview();
+            });
+
+            $('#btnBack').on('click', function() {
+                history.back();
+            });
+
+            $('#btnConfirmCancel').on('click', function() {
+                self.confirmCancel();
+            });
+        },
+
+        /** 취소 수수료 미리보기 로드 */
+        loadPreview: function() {
+            var email = $('#verifyEmail').val().trim();
+            if (!email) {
+                showError('이메일을 입력해주세요.');
+                return;
+            }
+            this.email = email;
+            hideError();
+
+            var self = this;
+            $('#confirmLoading').show();
+
+            api({
+                url: API_BASE + '/reservations/' + this.confirmationNo + '/cancel-fee?email=' + encodeURIComponent(email),
+                method: 'GET'
+            }).done(function(res) {
+                $('#confirmLoading').hide();
+                var data = res.data;
+                self.renderPreview(data);
+            }).fail(function() {
+                $('#confirmLoading').hide();
+            });
+        },
+
+        /** 미리보기 렌더링 */
+        renderPreview: function(data) {
+            $('#verifySection').hide();
+            $('#previewSection').show();
+
+            $('#pvConfirmNo').text(escapeHtml(data.confirmationNo));
+            $('#pvGuestName').text(escapeHtml(data.guestNameKo));
+            $('#pvCheckIn').text(formatDate(data.checkIn));
+            $('#pvCheckOut').text(formatDate(data.checkOut));
+            $('#pvStatus').html('<span class="badge bg-primary">' + escapeHtml(data.reservationStatus) + '</span>');
+            $('#pvFirstNight').text(formatCurrency(data.firstNightAmount));
+            $('#pvFeePercent').text(data.cancelFeePercent + '%');
+            $('#pvCancelFee').text(formatCurrency(data.cancelFeeAmount));
+            $('#pvTotalPaid').text(formatCurrency(data.totalPaidAmount));
+            $('#pvRefund').text(formatCurrency(data.refundAmount));
+            $('#pvPolicyDesc').text(data.policyDescription || '');
+        },
+
+        /** 취소 확인 */
+        confirmCancel: function() {
+            if (!confirm('정말 예약을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.')) {
+                return;
+            }
+
+            var self = this;
+            $('#confirmLoading').show();
+            $('#btnConfirmCancel').prop('disabled', true);
+
+            api({
+                url: API_BASE + '/reservations/' + this.confirmationNo + '/cancel',
+                method: 'POST',
+                data: JSON.stringify({ email: this.email })
+            }).done(function(res) {
+                $('#confirmLoading').hide();
+                var data = res.data;
+                self.renderComplete(data);
+            }).fail(function() {
+                $('#confirmLoading').hide();
+                $('#btnConfirmCancel').prop('disabled', false);
+            });
+        },
+
+        /** 취소 완료 렌더링 */
+        renderComplete: function(data) {
+            $('#previewSection').hide();
+            $('#completeSection').show();
+
+            $('#cpConfirmNo').text(escapeHtml(data.confirmationNo));
+            $('#cpCancelFee').text(formatCurrency(data.cancelFeeAmount));
+            $('#cpRefund').text(formatCurrency(data.refundAmount));
+        }
+    };
+
     // ─── 공개 API ───
 
     return {
@@ -941,6 +1067,7 @@ var HolaBooking = (function() {
         RoomsPage: RoomsPage,
         CheckoutPage: CheckoutPage,
         ConfirmationPage: ConfirmationPage,
+        CancellationPage: CancellationPage,
         api: api,
         showError: showError,
         hideError: hideError,

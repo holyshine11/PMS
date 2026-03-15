@@ -9,6 +9,10 @@ dependencies {
     implementation project(':hola-rate')
     implementation project(':hola-reservation')
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+
+    // 통합 테스트
+    testImplementation 'org.testcontainers:postgresql:1.19.7'
+    testImplementation 'org.testcontainers:junit-jupiter:1.19.7'
 }
 
 bootJar {

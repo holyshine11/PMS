@@ -27,6 +27,8 @@ public class PaymentSummaryResponse {
     private BigDecimal totalEarlyLateFee;
     private BigDecimal grandTotal;
     private BigDecimal totalPaidAmount;
+    private BigDecimal cancelFeeAmount;
+    private BigDecimal refundAmount;
     private BigDecimal remainingAmount;
     private LocalDateTime paymentDate;
     private String paymentMethod;

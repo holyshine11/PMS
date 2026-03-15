@@ -398,6 +398,19 @@
 
                     <!-- ========== 취소 수수료 탭 ========== -->
                     <div class="tab-pane fade" id="pane-cancel" role="tabpanel">
+                        <!-- 프리셋 버튼 (수정 모드에서만 표시) -->
+                        <div class="mb-3" id="cancelFeePresetArea" style="display:none;">
+                            <span class="text-muted small me-2">프리셋:</span>
+                            <button type="button" class="btn btn-outline-primary btn-sm me-1" onclick="PropertyForm.applyPreset('standard')">
+                                <i class="fas fa-hotel me-1"></i>표준
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm me-1" onclick="PropertyForm.applyPreset('strict')">
+                                <i class="fas fa-lock me-1"></i>엄격
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="PropertyForm.applyPreset('flexible')">
+                                <i class="fas fa-unlock me-1"></i>유연
+                            </button>
+                        </div>
                         <div class="table-responsive">
                             <table class="table table-bordered align-middle mb-0" id="cancelFeeTable">
                                 <thead class="table-light">
@@ -420,6 +433,11 @@
                                     onclick="PropertyForm.addCancelFeeRow()">
                                 <i class="fas fa-plus me-1"></i>행 추가
                             </button>
+                        </div>
+                        <!-- 정책 요약 -->
+                        <div id="policySummary" class="mt-3 p-3 bg-light rounded" style="display:none;">
+                            <h6 class="mb-2"><i class="fas fa-info-circle text-primary me-1"></i>정책 요약</h6>
+                            <ul id="policySummaryList" class="mb-0 small text-muted"></ul>
                         </div>
                         <!-- 취소 수수료 저장 버튼 (수정 모드에서만 표시) -->
                         <div id="cancelFeeSaveArea" class="text-end mt-3" style="display:none;">

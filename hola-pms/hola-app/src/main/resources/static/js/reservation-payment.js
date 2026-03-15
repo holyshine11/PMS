@@ -106,6 +106,9 @@ var ReservationPayment = {
 
         // 결제 상태 배지
         this.renderPaymentStatus(data.paymentStatus);
+
+        // 취소/환불 정보 섹션
+        this.renderCancelInfo(data);
     },
 
     /**
@@ -392,10 +395,22 @@ var ReservationPayment = {
             CASH: '현금'
         };
 
+        var typeLabels = {
+            PAYMENT: '결제',
+            REFUND: '환불',
+            CANCEL_FEE: '취소수수료'
+        };
+
+        var typeStyles = {
+            REFUND: 'text-primary',
+            CANCEL_FEE: 'text-danger'
+        };
+
         var html = '<table class="table table-bordered table-sm mb-0 align-middle">'
             + '<thead class="table-light">'
             + '<tr>'
             + '  <th style="width:50px" class="text-center">NO</th>'
+            + '  <th style="width:80px" class="text-center">유형</th>'
             + '  <th style="width:80px" class="text-center">결제수단</th>'
             + '  <th style="width:120px" class="text-end">금액</th>'
             + '  <th class="text-center">메모</th>'
@@ -407,9 +422,12 @@ var ReservationPayment = {
         transactions.forEach(function(txn, idx) {
             var methodLabel = methodLabels[txn.paymentMethod] || HolaPms.escapeHtml(txn.paymentMethod);
             var createdAt = txn.createdAt ? txn.createdAt.replace('T', ' ').substring(0, 19) : '-';
+            var typeLabel = typeLabels[txn.transactionType] || HolaPms.escapeHtml(txn.transactionType || '결제');
+            var typeStyle = typeStyles[txn.transactionType] || '';
 
             html += '<tr>'
                 + '<td class="text-center">' + (idx + 1) + '</td>'
+                + '<td class="text-center ' + typeStyle + '">' + typeLabel + '</td>'
                 + '<td class="text-center">' + methodLabel + '</td>'
                 + '<td class="text-end">' + self.formatCurrency(txn.amount) + '</td>'
                 + '<td class="text-center">' + HolaPms.escapeHtml(txn.memo || '-') + '</td>'
@@ -559,6 +577,38 @@ var ReservationPayment = {
                 }
             }
         });
+    },
+
+    /**
+     * 취소/환불 정보 섹션 렌더링
+     */
+    renderCancelInfo: function(data) {
+        var cancelFee = Number(data.cancelFeeAmount) || 0;
+        var refund = Number(data.refundAmount) || 0;
+
+        if (cancelFee <= 0 && refund <= 0) {
+            $('#cancelInfoSection').hide();
+            return;
+        }
+
+        var totalPaid = Number(data.totalPaidAmount) || 0;
+
+        // REFUND 거래의 memo에서 정책 설명 추출
+        var policyDesc = '-';
+        var transactions = data.transactions || [];
+        for (var i = 0; i < transactions.length; i++) {
+            var txn = transactions[i];
+            if (txn.transactionType === 'REFUND' && txn.memo) {
+                policyDesc = txn.memo;
+                break;
+            }
+        }
+
+        $('#cancelPolicyDesc').text(policyDesc);
+        $('#cancelFeeDisplay').text(this.formatCurrency(cancelFee));
+        $('#cancelTotalPaid').text(this.formatCurrency(totalPaid));
+        $('#cancelRefundAmt').text(this.formatCurrency(refund));
+        $('#cancelInfoSection').show();
     },
 
     /**

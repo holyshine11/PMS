@@ -678,9 +678,22 @@ var ReservationDetail = {
 
     /**
      * 상태 변경 확인 모달
+     * - CANCELED: 취소 수수료 미리보기 모달 표시 후 DELETE 엔드포인트 호출
+     * - 기타 상태: 기존 확인 모달 → PUT /status 호출
      */
     confirmStatusChange: function(newStatus, label) {
         var self = this;
+
+        // 취소/노쇼는 수수료 미리보기 모달로 분기
+        if (newStatus === 'CANCELED') {
+            self.showCancelPreview(false);
+            return;
+        }
+        if (newStatus === 'NO_SHOW') {
+            self.showCancelPreview(true);
+            return;
+        }
+
         var statusInfo = self.STATUS_BADGE[newStatus] || { label: newStatus };
         $('#statusConfirmMessage').text('예약 상태를 "' + label + '"(으)로 변경하시겠습니까?');
 
@@ -691,6 +704,67 @@ var ReservationDetail = {
         });
 
         HolaPms.modal.show('#statusConfirmModal');
+    },
+
+    /**
+     * 취소/노쇼 수수료 미리보기 모달
+     * @param isNoShow true이면 노쇼 정책 적용
+     */
+    showCancelPreview: function(isNoShow) {
+        var self = this;
+        var url = '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/cancel-preview';
+        if (isNoShow) url += '?noShow=true';
+
+        HolaPms.ajax({
+            url: url,
+            type: 'GET',
+            success: function(res) {
+                if (res.success && res.data) {
+                    var d = res.data;
+                    var fmt = function(v) { return Number(v || 0).toLocaleString('ko-KR') + '원'; };
+
+                    $('#cancelPreviewTitle').text(isNoShow ? '노쇼 처리 확인' : '예약 취소 확인');
+                    $('#cpReservationNo').text(d.masterReservationNo);
+                    $('#cpGuestName').text(d.guestNameKo);
+                    $('#cpCheckInOut').text(d.checkIn + ' ~ ' + d.checkOut);
+                    $('#cpFirstNight').text(fmt(d.firstNightSupplyPrice));
+                    $('#cpPolicyDesc').text(d.policyDescription || '정책 미설정');
+                    $('#cpCancelFeeAmt').text(fmt(d.cancelFeeAmount) + ' (' + (d.cancelFeePercent || 0) + '%)');
+                    $('#cpTotalPaid').text(fmt(d.totalPaidAmount));
+                    $('#cpRefundAmt').text(fmt(d.refundAmount));
+
+                    var btnLabel = isNoShow ? '노쇼 확인' : '취소 확인';
+                    $('#cancelConfirmBtn').html('<i class="fas fa-ban me-1"></i>' + btnLabel)
+                        .off('click').on('click', function() {
+                            HolaPms.modal.hide('#cancelPreviewModal');
+                            if (isNoShow) {
+                                self.changeStatus('NO_SHOW');
+                            } else {
+                                self.executeCancel();
+                            }
+                        });
+
+                    HolaPms.modal.show('#cancelPreviewModal');
+                }
+            }
+        });
+    },
+
+    /**
+     * 예약 취소 실행 (DELETE 엔드포인트 - 수수료 계산 + REFUND 처리)
+     */
+    executeCancel: function() {
+        var self = this;
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId,
+            type: 'DELETE',
+            success: function(res) {
+                if (res.success) {
+                    HolaPms.alert('success', '예약이 취소되었습니다.');
+                    setTimeout(function() { location.reload(); }, 500);
+                }
+            }
+        });
     },
 
     /**

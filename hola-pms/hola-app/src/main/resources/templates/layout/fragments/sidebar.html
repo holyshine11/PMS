@@ -172,6 +172,12 @@
                         <i class="fas fa-clock me-2"></i>얼리/레이트 정책
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/cancellation-policies}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/cancellation-policies')} ? 'active' : ''">
+                        <i class="fas fa-ban me-2"></i>취소 정책
+                    </a>
+                </li>
             </div>
 
             <!-- 예약관리 -->

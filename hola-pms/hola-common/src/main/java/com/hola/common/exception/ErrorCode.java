@@ -146,7 +146,11 @@ public enum ErrorCode {
     BOOKING_INVALID_DATE_RANGE("HOLA-4076", "체크인/체크아웃 날짜가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     BOOKING_MAX_STAY_EXCEEDED("HOLA-4077", "최대 숙박 가능 일수(30일)를 초과했습니다.", HttpStatus.BAD_REQUEST),
     BOOKING_CONFIRMATION_NOT_FOUND("HOLA-4078", "예약 확인 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    BOOKING_GUEST_VERIFICATION_FAILED("HOLA-4079", "예약자 정보가 일치하지 않습니다.", HttpStatus.FORBIDDEN);
+    BOOKING_GUEST_VERIFICATION_FAILED("HOLA-4079", "예약자 정보가 일치하지 않습니다.", HttpStatus.FORBIDDEN),
+
+    // 취소 정책 (HOLA-408x)
+    BOOKING_CANCEL_NOT_ALLOWED("HOLA-4080", "해당 상태에서는 취소할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    BOOKING_ALREADY_CANCELED("HOLA-4081", "이미 취소된 예약입니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

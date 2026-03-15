@@ -1,10 +1,11 @@
 {
-  "sessionCount": 174,
+  "sessionCount": 187,
   "lastSession": {
-    "startedAt": "2026-03-14T09:00:00.000Z",
+    "startedAt": "2026-03-15T00:34:06.627Z",
     "platform": "claude",
-    "level": "Dynamic"
+    "level": "Starter"
   },
   "currentFeature": "cancellation-policy",
-  "currentPhase": "plan"
+  "currentPhase": "check",
+  "matchRate": 96
 }

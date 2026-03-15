@@ -3,10 +3,7 @@ package com.hola.reservation.booking.service;
 import com.hola.reservation.booking.dto.request.BookingCreateRequest;
 import com.hola.reservation.booking.dto.request.BookingSearchRequest;
 import com.hola.reservation.booking.dto.request.PriceCheckRequest;
-import com.hola.reservation.booking.dto.response.AvailableRoomTypeResponse;
-import com.hola.reservation.booking.dto.response.BookingConfirmationResponse;
-import com.hola.reservation.booking.dto.response.PriceCheckResponse;
-import com.hola.reservation.booking.dto.response.PropertyInfoResponse;
+import com.hola.reservation.booking.dto.response.*;
 
 import java.util.List;
 
@@ -41,4 +38,14 @@ public interface BookingService {
      * 예약 확인 조회 (확인번호 + 2차 검증)
      */
     BookingConfirmationResponse getConfirmation(String confirmationNo, String verificationValue);
+
+    /**
+     * 취소 수수료 미리보기 (확인번호 + 이메일 검증)
+     */
+    CancelFeePreviewResponse getCancelFeePreview(String confirmationNo, String email);
+
+    /**
+     * 게스트 자가 취소 (확인번호 + 이메일 검증)
+     */
+    CancelBookingResponse cancelBooking(String confirmationNo, String email, String clientIp, String userAgent);
 }

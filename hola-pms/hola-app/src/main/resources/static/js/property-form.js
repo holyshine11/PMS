@@ -657,6 +657,73 @@ const PropertyForm = {
 
     // ─── 취소 수수료 ────────────────────────────
 
+    /** 취소 수수료 프리셋 정의 */
+    CANCEL_PRESETS: {
+        standard: [
+            { checkinBasis: 'DATE', daysBefore: 1, feeAmount: 80, feeType: 'PERCENTAGE' },
+            { checkinBasis: 'DATE', daysBefore: 3, feeAmount: 50, feeType: 'PERCENTAGE' },
+            { checkinBasis: 'DATE', daysBefore: 7, feeAmount: 0, feeType: 'PERCENTAGE' },
+            { checkinBasis: 'NOSHOW', daysBefore: null, feeAmount: 100, feeType: 'PERCENTAGE' }
+        ],
+        strict: [
+            { checkinBasis: 'DATE', daysBefore: 3, feeAmount: 100, feeType: 'PERCENTAGE' },
+            { checkinBasis: 'DATE', daysBefore: 7, feeAmount: 80, feeType: 'PERCENTAGE' },
+            { checkinBasis: 'DATE', daysBefore: 14, feeAmount: 50, feeType: 'PERCENTAGE' },
+            { checkinBasis: 'NOSHOW', daysBefore: null, feeAmount: 100, feeType: 'PERCENTAGE' }
+        ],
+        flexible: [
+            { checkinBasis: 'DATE', daysBefore: 1, feeAmount: 50, feeType: 'PERCENTAGE' },
+            { checkinBasis: 'DATE', daysBefore: 3, feeAmount: 0, feeType: 'PERCENTAGE' },
+            { checkinBasis: 'NOSHOW', daysBefore: null, feeAmount: 100, feeType: 'PERCENTAGE' }
+        ]
+    },
+
+    /** 프리셋 적용 */
+    applyPreset: function(presetName) {
+        var preset = this.CANCEL_PRESETS[presetName];
+        if (!preset) return;
+
+        $('#cancelFeeBody').empty();
+        for (var i = 0; i < preset.length; i++) {
+            this.addCancelFeeRow(preset[i]);
+        }
+        this.updatePolicySummary();
+        HolaPms.alert('info', '프리셋이 적용되었습니다. 저장 버튼을 눌러 반영하세요.');
+    },
+
+    /** 정책 요약 갱신 */
+    updatePolicySummary: function() {
+        var rows = [];
+        $('#cancelFeeBody tr').each(function() {
+            var basis = $(this).find('select:first').val();
+            var days = $(this).find('.cancel-days').val();
+            var amount = $(this).find('.cancel-amount').val();
+            var type = $(this).find('.cancel-type').val();
+            if (!basis || amount === '') return;
+            rows.push({ basis: basis, days: days ? parseInt(days) : null, amount: parseFloat(amount), type: type });
+        });
+
+        if (rows.length === 0) {
+            $('#policySummary').hide();
+            return;
+        }
+
+        var $list = $('#policySummaryList').empty();
+        rows.forEach(function(r) {
+            var text;
+            var unit = r.type === 'PERCENTAGE' ? '%' : (r.type === 'FIXED_KRW' ? '원' : 'USD');
+            if (r.basis === 'NOSHOW') {
+                text = '노쇼 시: 1박 요금의 ' + r.amount + unit + ' 부과';
+            } else if (r.amount === 0) {
+                text = '체크인 ' + r.days + '일 이내: 무료 취소';
+            } else {
+                text = '체크인 ' + r.days + '일 이내: 1박 요금의 ' + r.amount + unit + ' 부과';
+            }
+            $list.append('<li>' + text + '</li>');
+        });
+        $('#policySummary').show();
+    },
+
     /** 취소 수수료 초기화 */
     initCancelFee: function() {
         var self = this;
@@ -673,10 +740,16 @@ const PropertyForm = {
             }
         });
 
-        // 수정 모드에서만 저장 버튼 표시
+        // 수정 모드에서만 저장/프리셋 버튼 표시
         if (this.isEdit) {
             $('#cancelFeeSaveArea').show();
+            $('#cancelFeePresetArea').show();
         }
+
+        // 취소 수수료 행 내 입력 변경 시 정책 요약 갱신
+        $('#cancelFeeBody').on('change', 'select, input', function() {
+            PropertyForm.updatePolicySummary();
+        });
     },
 
     /** 취소 수수료 행 추가 */
@@ -727,6 +800,7 @@ const PropertyForm = {
             return;
         }
         $(btn).closest('tr').remove();
+        PropertyForm.updatePolicySummary();
     },
 
     /** 체크인 기준 변경 이벤트 */
@@ -764,6 +838,7 @@ const PropertyForm = {
                     });
                 }
                 PropertyForm.cancelFeeLoaded = true;
+                PropertyForm.updatePolicySummary();
             }
         });
     },
