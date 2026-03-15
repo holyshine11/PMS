@@ -9,18 +9,28 @@ var HolaBooking = (function() {
 
     // ─── 공통 유틸 ───
 
-    /** API 호출 래퍼 */
+    /** API 호출 래퍼 (BookingResponse 래핑 해제) */
     function api(options) {
         var defaults = {
             contentType: 'application/json',
             dataType: 'json'
         };
         var settings = $.extend({}, defaults, options);
+        var originalSuccess = settings.success;
+
+        // BookingResponse {result: {RESULT_YN, data}} → {RESULT_YN, data} 로 해제
+        if (originalSuccess) {
+            settings.success = function(res) {
+                var unwrapped = (res && res.result) ? res.result : res;
+                originalSuccess(unwrapped);
+            };
+        }
 
         return $.ajax(settings).fail(function(xhr) {
             var msg = '요청 처리 중 오류가 발생했습니다.';
-            if (xhr.responseJSON && xhr.responseJSON.message) {
-                msg = xhr.responseJSON.message;
+            if (xhr.responseJSON) {
+                var result = xhr.responseJSON.result || xhr.responseJSON;
+                msg = result.RESULT_MESSAGE || result.message || msg;
             }
             showError(msg);
         });
