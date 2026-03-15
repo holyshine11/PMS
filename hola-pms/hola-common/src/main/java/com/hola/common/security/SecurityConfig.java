@@ -44,8 +44,7 @@ public class SecurityConfig {
                 // Swagger UI / OpenAPI 문서
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/api/v1/auth/**").permitAll()
-                // 부킹엔진 공개 API: 인증 없이 접근 허용
-                .requestMatchers("/api/v1/booking/**").permitAll()
+                // 부킹엔진 API: BookingSecurityConfig(@Order(0))에서 별도 처리
                 // 내 프로필 API: 모든 인증 사용자
                 .requestMatchers("/api/v1/my-profile/**").authenticated()
                 // selector API: 모든 인증 사용자 허용 (헤더 드롭다운)

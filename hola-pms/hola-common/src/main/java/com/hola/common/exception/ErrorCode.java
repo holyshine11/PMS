@@ -150,7 +150,13 @@ public enum ErrorCode {
 
     // 취소 정책 (HOLA-408x)
     BOOKING_CANCEL_NOT_ALLOWED("HOLA-4080", "해당 상태에서는 취소할 수 없습니다.", HttpStatus.BAD_REQUEST),
-    BOOKING_ALREADY_CANCELED("HOLA-4081", "이미 취소된 예약입니다.", HttpStatus.BAD_REQUEST);
+    BOOKING_ALREADY_CANCELED("HOLA-4081", "이미 취소된 예약입니다.", HttpStatus.BAD_REQUEST),
+
+    // 부킹 인증 (HOLA-409x)
+    BOOKING_AUTH_REQUIRED("HOLA-4090", "API-KEY와 VENDOR-ID 헤더가 필요합니다.", HttpStatus.UNAUTHORIZED),
+    BOOKING_AUTH_INVALID("HOLA-4091", "유효하지 않은 API Key입니다.", HttpStatus.UNAUTHORIZED),
+    BOOKING_AUTH_EXPIRED("HOLA-4092", "만료된 API Key입니다.", HttpStatus.UNAUTHORIZED),
+    BOOKING_AUTH_IP_DENIED("HOLA-4093", "허용되지 않은 IP입니다.", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final String message;
