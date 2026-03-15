@@ -32,6 +32,11 @@ public interface BookingService {
                                             Integer adults, Integer children, String promotionCode);
 
     /**
+     * 패키지(레이트플랜) 상세 조회 (산하 2.5 대응)
+     */
+    RatePlanDetailResponse getRatePlanDetail(String propertyCode, Long ratePlanId);
+
+    /**
      * 가용 객실 검색 (날짜/인원 기반 객실타입 + 요금 조회)
      */
     List<AvailableRoomTypeResponse> searchAvailability(String propertyCode, BookingSearchRequest request);

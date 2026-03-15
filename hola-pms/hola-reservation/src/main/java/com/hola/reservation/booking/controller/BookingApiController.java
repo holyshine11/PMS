@@ -73,6 +73,17 @@ public class BookingApiController {
     }
 
     /**
+     * 패키지(레이트플랜) 상세 조회
+     */
+    @Operation(summary = "패키지 상세", description = "취소정책, 노쇼정책, 요금 상세 등")
+    @GetMapping("/properties/{propertyCode}/rate-plans/{ratePlanId}")
+    public BookingResponse<RatePlanDetailResponse> getRatePlanDetail(
+            @PathVariable String propertyCode,
+            @PathVariable Long ratePlanId) {
+        return BookingResponse.success(bookingService.getRatePlanDetail(propertyCode, ratePlanId));
+    }
+
+    /**
      * 가용 객실 검색 (날짜/인원 기반)
      */
     @Operation(summary = "가용 객실 검색", description = "날짜/인원 기반 예약 가능 객실타입 + 요금 조회")

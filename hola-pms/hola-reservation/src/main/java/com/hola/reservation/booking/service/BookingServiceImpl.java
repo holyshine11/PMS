@@ -1005,6 +1005,60 @@ public class BookingServiceImpl implements BookingService {
         return result;
     }
 
+    // ─── 패키지(레이트플랜) 상세 API (산하 2.5 대응) ───
+
+    @Override
+    public RatePlanDetailResponse getRatePlanDetail(String propertyCode, Long ratePlanId) {
+        Property property = findPropertyByCode(propertyCode);
+
+        RateCode rateCode = rateCodeRepository.findById(ratePlanId)
+                .orElseThrow(() -> new HolaException(ErrorCode.RATE_CODE_NOT_FOUND));
+
+        // 프로퍼티 소속 검증
+        if (!rateCode.getPropertyId().equals(property.getId())) {
+            throw new HolaException(ErrorCode.RATE_CODE_NOT_FOUND);
+        }
+
+        // 취소 정책 조회
+        List<com.hola.hotel.entity.CancellationFee> fees =
+                cancellationFeeRepository.findAllByPropertyIdOrderBySortOrder(property.getId());
+
+        List<RatePlanDetailResponse.CancellationPolicyInfo> cancellationPolicies = fees.stream()
+                .filter(f -> !"NO_SHOW".equals(f.getCheckinBasis()))
+                .map(f -> RatePlanDetailResponse.CancellationPolicyInfo.builder()
+                        .basis(f.getCheckinBasis())
+                        .daysBefore(f.getDaysBefore())
+                        .feeAmount(f.getFeeAmount())
+                        .feeType(f.getFeeType())
+                        .build())
+                .toList();
+
+        // 노쇼 정책 조회
+        RatePlanDetailResponse.NoShowPolicyInfo noShowPolicy = fees.stream()
+                .filter(f -> "NO_SHOW".equals(f.getCheckinBasis()))
+                .findFirst()
+                .map(f -> RatePlanDetailResponse.NoShowPolicyInfo.builder()
+                        .feeAmount(f.getFeeAmount())
+                        .feeType(f.getFeeType())
+                        .build())
+                .orElse(null);
+
+        return RatePlanDetailResponse.builder()
+                .ratePlanId(rateCode.getId())
+                .rateCode(rateCode.getRateCode())
+                .ratePlanName(rateCode.getRateNameKo())
+                .ratePlanNameEn(rateCode.getRateNameEn())
+                .category(rateCode.getRateCategory())
+                .currency(rateCode.getCurrency())
+                .saleStartDate(rateCode.getSaleStartDate())
+                .saleEndDate(rateCode.getSaleEndDate())
+                .minStayDays(rateCode.getMinStayDays())
+                .maxStayDays(rateCode.getMaxStayDays())
+                .cancellationPolicies(cancellationPolicies)
+                .noShowPolicy(noShowPolicy)
+                .build();
+    }
+
     // ─── 캘린더 API (산하 2.2 + 2.3 통합) ───
 
     @Override
