@@ -26,6 +26,12 @@ public interface BookingService {
     CalendarResponse getCalendar(String propertyCode, LocalDate startDate, LocalDate endDate, String type);
 
     /**
+     * 패키지(레이트플랜) 목록 조회 (산하 2.4 대응)
+     */
+    List<RatePlanListResponse> getRatePlans(String propertyCode, LocalDate checkIn, LocalDate checkOut,
+                                            Integer adults, Integer children, String promotionCode);
+
+    /**
      * 가용 객실 검색 (날짜/인원 기반 객실타입 + 요금 조회)
      */
     List<AvailableRoomTypeResponse> searchAvailability(String propertyCode, BookingSearchRequest request);

@@ -900,6 +900,111 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
+    // ─── 패키지(레이트플랜) 목록 API (산하 2.4 대응) ───
+
+    @Override
+    public List<RatePlanListResponse> getRatePlans(String propertyCode, LocalDate checkIn, LocalDate checkOut,
+                                                    Integer adults, Integer children, String promotionCode) {
+        Property property = findPropertyByCode(propertyCode);
+        Long propertyId = property.getId();
+
+        // 기본값 설정
+        final int adultsCount = (adults != null) ? adults : 2;
+        final int childrenCount = (children != null) ? children : 0;
+
+        // 해당 기간 적용 가능 레이트코드 조회
+        List<RateCodeListResponse> availableRateCodes = rateCodeService.getAvailableRateCodes(
+                propertyId, checkIn, checkOut);
+
+        // 프로모션 코드 필터링 (있으면)
+        if (promotionCode != null && !promotionCode.isBlank()) {
+            availableRateCodes = availableRateCodes.stream()
+                    .filter(rc -> promotionCode.equalsIgnoreCase(rc.getRateCode()))
+                    .toList();
+        }
+
+        // 활성 객실타입 조회
+        List<RoomType> roomTypes = roomTypeRepository.findAllByPropertyIdOrderBySortOrderAscRoomTypeCodeAsc(propertyId)
+                .stream()
+                .filter(rt -> Boolean.TRUE.equals(rt.getUseYn()))
+                .filter(rt -> adultsCount <= rt.getMaxAdults())
+                .toList();
+
+        List<RatePlanListResponse> result = new ArrayList<>();
+
+        for (RateCodeListResponse rc : availableRateCodes) {
+            // 레이트코드에 매핑된 객실타입 목록
+            List<RateCodeRoomType> mappings = rateCodeRoomTypeRepository.findAllByRateCodeId(rc.getId());
+            Set<Long> mappedRoomTypeIds = mappings.stream()
+                    .map(RateCodeRoomType::getRoomTypeId)
+                    .collect(Collectors.toSet());
+
+            List<RatePlanListResponse.RoomTypeInfo> roomTypeInfos = new ArrayList<>();
+            Long minPrice = null;
+
+            for (RoomType roomType : roomTypes) {
+                if (!mappedRoomTypeIds.contains(roomType.getId())) continue;
+
+                // 가용성 확인
+                int available = roomAvailabilityService.getAvailableRoomCount(
+                        roomType.getId(), checkIn, checkOut);
+                if (available <= 0) continue;
+
+                // 1박 요금 계산
+                Long pricePerNight = null;
+                try {
+                    List<DailyCharge> charges = priceCalculationService.calculateDailyCharges(
+                            rc.getId(), property, checkIn, checkOut, adultsCount, childrenCount, null);
+                    if (!charges.isEmpty()) {
+                        pricePerNight = charges.get(0).getTotal().longValue();
+                        if (minPrice == null || pricePerNight < minPrice) {
+                            minPrice = pricePerNight;
+                        }
+                    }
+                } catch (Exception e) {
+                    // 요금 계산 실패 시 무시
+                }
+
+                String roomClassName = getRoomClassName(roomType.getRoomClassId());
+
+                roomTypeInfos.add(RatePlanListResponse.RoomTypeInfo.builder()
+                        .roomTypeId(roomType.getId())
+                        .roomTypeCode(roomType.getRoomTypeCode())
+                        .roomClassName(roomClassName)
+                        .pricePerNight(pricePerNight)
+                        .build());
+            }
+
+            if (roomTypeInfos.isEmpty()) continue;
+
+            // 레이트코드 상세 조회
+            RateCode rateCode = rateCodeRepository.findById(rc.getId()).orElse(null);
+
+            result.add(RatePlanListResponse.builder()
+                    .ratePlanId(rc.getId())
+                    .rateCode(rc.getRateCode())
+                    .ratePlanName(rc.getRateNameKo())
+                    .ratePlanNameEn(rateCode != null ? rateCode.getRateNameEn() : null)
+                    .category(rc.getRateCategory())
+                    .currency(rc.getCurrency())
+                    .minPrice(minPrice)
+                    .minStayDays(rateCode != null ? rateCode.getMinStayDays() : null)
+                    .maxStayDays(rateCode != null ? rateCode.getMaxStayDays() : null)
+                    .roomTypeCount(roomTypeInfos.size())
+                    .roomTypes(roomTypeInfos)
+                    .build());
+        }
+
+        // 최저가 순 정렬
+        result.sort((a, b) -> {
+            if (a.getMinPrice() == null) return 1;
+            if (b.getMinPrice() == null) return -1;
+            return Long.compare(a.getMinPrice(), b.getMinPrice());
+        });
+
+        return result;
+    }
+
     // ─── 캘린더 API (산하 2.2 + 2.3 통합) ───
 
     @Override

@@ -57,6 +57,22 @@ public class BookingApiController {
     }
 
     /**
+     * 패키지(레이트플랜) 목록 조회
+     */
+    @Operation(summary = "패키지 목록", description = "조건별 예약 가능 레이트플랜 목록 (최저가 순)")
+    @GetMapping("/properties/{propertyCode}/rate-plans")
+    public BookingResponse<List<RatePlanListResponse>> getRatePlans(
+            @PathVariable String propertyCode,
+            @RequestParam LocalDate checkIn,
+            @RequestParam LocalDate checkOut,
+            @RequestParam(required = false, defaultValue = "2") Integer adults,
+            @RequestParam(required = false, defaultValue = "0") Integer children,
+            @RequestParam(required = false) String promotionCode) {
+        return BookingResponse.success(bookingService.getRatePlans(
+                propertyCode, checkIn, checkOut, adults, children, promotionCode));
+    }
+
+    /**
      * 가용 객실 검색 (날짜/인원 기반)
      */
     @Operation(summary = "가용 객실 검색", description = "날짜/인원 기반 예약 가능 객실타입 + 요금 조회")
