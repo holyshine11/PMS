@@ -1,0 +1,16 @@
+{
+  "name": "hola-pms-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "npx playwright test",
+    "test:auth": "npx playwright test tests/01-auth",
+    "test:hotel": "npx playwright test tests/02-hotel",
+    "test:member": "npx playwright test tests/03-member-role",
+    "test:room-rate": "npx playwright test tests/04-room-rate",
+    "test:reservation": "npx playwright test tests/05-reservation"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0"
+  }
+}

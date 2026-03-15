@@ -1,0 +1,1434 @@
+{
+  "config": {
+    "configFile": "/Users/Dev/PMS/e2e-tests/playwright.config.js",
+    "rootDir": "/Users/Dev/PMS/e2e-tests/tests",
+    "forbidOnly": true,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/Dev/PMS/e2e-tests/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "setup",
+        "name": "setup",
+        "testDir": "/Users/Dev/PMS/e2e-tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/global-setup\\.js/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "/Users/Dev/PMS/e2e-tests/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "tests",
+        "name": "tests",
+        "testDir": "/Users/Dev/PMS/e2e-tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "reports/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "global-setup.js",
+      "file": "global-setup.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "login and save auth state",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 654,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-03-15T12:20:16.929Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "db39f8d0279b09405b5f-d9c7e2669482b6881e3c",
+          "file": "global-setup.js",
+          "line": 4,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "05-reservation.spec.js",
+      "file": "05-reservation.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "예약 목록",
+          "file": "05-reservation.spec.js",
+          "line": 76,
+          "column": 6,
+          "specs": [
+            {
+              "title": "페이지 접근 및 기본 구조 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 814,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "콘솔 에러: []\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:18.220Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-554a9628432af1573d3f",
+              "file": "05-reservation.spec.js",
+              "line": 77,
+              "column": 3
+            },
+            {
+              "title": "프로퍼티 미선택 시 contextAlert 표시",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 874,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:19.224Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-c7482fc224d75bb21c36",
+              "file": "05-reservation.spec.js",
+              "line": 98,
+              "column": 3
+            },
+            {
+              "title": "프로퍼티 선택 후 리스트 로드 및 뷰 전환 탭 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2875,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:20.103Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-7114dd1b54ed4387b387",
+              "file": "05-reservation.spec.js",
+              "line": 112,
+              "column": 3
+            },
+            {
+              "title": "상태 필터 버튼 존재 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2965,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:22.983Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-f0a30757d85634550f02",
+              "file": "05-reservation.spec.js",
+              "line": 133,
+              "column": 3
+            },
+            {
+              "title": "테이블뷰 전환 및 데이터 로드",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4023,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:25.953Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-d3c0fbce0b90f049bf80",
+              "file": "05-reservation.spec.js",
+              "line": 159,
+              "column": 3
+            },
+            {
+              "title": "캘린더뷰 전환 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3902,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:29.980Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-a52fc65f407822beda19",
+              "file": "05-reservation.spec.js",
+              "line": 181,
+              "column": 3
+            },
+            {
+              "title": "키워드 검색 필드 및 검색 버튼 동작",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4032,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:33.887Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-149c013e8c9a883321c7",
+              "file": "05-reservation.spec.js",
+              "line": 196,
+              "column": 3
+            },
+            {
+              "title": "신규 예약 버튼 링크 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2353,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:37.925Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-ab9040086ab6f169ea8c",
+              "file": "05-reservation.spec.js",
+              "line": 215,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "예약 등록 폼",
+          "file": "05-reservation.spec.js",
+          "line": 231,
+          "column": 6,
+          "specs": [
+            {
+              "title": "페이지 접근 및 contextAlert 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 391,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "예약 등록 폼 타이틀: Hola PMS - 예약 등록\n"
+                        },
+                        {
+                          "text": "예약 등록 폼 - contextAlert 가시성: \u001b[33mfalse\u001b[39m\n"
+                        },
+                        {
+                          "text": "예약 등록 폼 - formContainer 가시성: \u001b[33mfalse\u001b[39m\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:40.282Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-3af4441a1b62f7211a3c",
+              "file": "05-reservation.spec.js",
+              "line": 232,
+              "column": 3
+            },
+            {
+              "title": "프로퍼티 선택 후 폼 표시 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2918,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:40.678Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-25bc189bb930fb43cf27",
+              "file": "05-reservation.spec.js",
+              "line": 262,
+              "column": 3
+            },
+            {
+              "title": "탭 네비게이션 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2844,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:43.600Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-3f67ff28e85286336753",
+              "file": "05-reservation.spec.js",
+              "line": 277,
+              "column": 3
+            },
+            {
+              "title": "필수 필드 존재 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2985,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:46.447Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-e40d797cdeadf767f1a6",
+              "file": "05-reservation.spec.js",
+              "line": 299,
+              "column": 3
+            },
+            {
+              "title": "예약채널 셀렉트 로드 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 11905,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:20:49.436Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-544d7af8b95cd9c42203",
+              "file": "05-reservation.spec.js",
+              "line": 317,
+              "column": 3
+            },
+            {
+              "title": "레이트코드/마켓코드 검색 버튼 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2859,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:01.346Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-4925379646604fc9a810",
+              "file": "05-reservation.spec.js",
+              "line": 336,
+              "column": 3
+            },
+            {
+              "title": "객실 추가 버튼 존재 확인 (상세정보 탭 내부)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2989,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "#addRoomBtn (탭 비활성 상태) 가시성: \u001b[33mfalse\u001b[39m\n"
+                        },
+                        {
+                          "text": "#addRoomBtn (탭 활성화 후) 가시성: \u001b[33mtrue\u001b[39m\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:04.210Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-dfcb276b80e47e303f0b",
+              "file": "05-reservation.spec.js",
+              "line": 350,
+              "column": 3
+            },
+            {
+              "title": "날짜 선택 - 체크아웃 자동 보정 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3189,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:07.204Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-73a6a7c4f2460de0d01d",
+              "file": "05-reservation.spec.js",
+              "line": 376,
+              "column": 3
+            },
+            {
+              "title": "저장 버튼 존재 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2891,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:10.400Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-514da3eca11fb2e74308",
+              "file": "05-reservation.spec.js",
+              "line": 394,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "예약 상세",
+          "file": "05-reservation.spec.js",
+          "line": 409,
+          "column": 6,
+          "specs": [
+            {
+              "title": "예약 상세 페이지 접근 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/Dev/PMS/e2e-tests/tests/05-reservation.spec.js",
+                        "line": 450,
+                        "column": 12
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 368,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "예약 상세 테스트 - reservationId: \u001b[1mnull\u001b[22m\n"
+                        },
+                        {
+                          "text": "예약 데이터 없음 - 상세 테스트 스킵\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:13.296Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "/Users/Dev/PMS/e2e-tests/tests/05-reservation.spec.js",
+                            "line": 450,
+                            "column": 12
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-c1ae5e716e359f0039eb",
+              "file": "05-reservation.spec.js",
+              "line": 447,
+              "column": 3
+            },
+            {
+              "title": "프로퍼티 선택 후 예약 데이터 표시 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/Dev/PMS/e2e-tests/tests/05-reservation.spec.js",
+                        "line": 473,
+                        "column": 12
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 377,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "예약 상세 테스트 - reservationId: \u001b[1mnull\u001b[22m\n"
+                        },
+                        {
+                          "text": "예약 데이터 없음 - 상세 테스트 스킵\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:13.669Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "/Users/Dev/PMS/e2e-tests/tests/05-reservation.spec.js",
+                            "line": 473,
+                            "column": 12
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-2ab66dd5b99d6132f36c",
+              "file": "05-reservation.spec.js",
+              "line": 470,
+              "column": 3
+            },
+            {
+              "title": "예약 API 응답 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/Dev/PMS/e2e-tests/tests/05-reservation.spec.js",
+                        "line": 493,
+                        "column": 12
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 284,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "예약 상세 테스트 - reservationId: \u001b[1mnull\u001b[22m\n"
+                        },
+                        {
+                          "text": "예약 데이터 없음 - API 테스트 스킵\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:14.051Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "/Users/Dev/PMS/e2e-tests/tests/05-reservation.spec.js",
+                            "line": 493,
+                            "column": 12
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-05f4a2a966c23f0ae25c",
+              "file": "05-reservation.spec.js",
+              "line": 490,
+              "column": 3
+            },
+            {
+              "title": "상태 전이 버튼 확인 (RESERVED 상태)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/Dev/PMS/e2e-tests/tests/05-reservation.spec.js",
+                        "line": 519,
+                        "column": 12
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 575,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "예약 상세 테스트 - reservationId: \u001b[1mnull\u001b[22m\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:14.339Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "/Users/Dev/PMS/e2e-tests/tests/05-reservation.spec.js",
+                            "line": 519,
+                            "column": 12
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-2f3da1535c03c46ef77d",
+              "file": "05-reservation.spec.js",
+              "line": 517,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "예약채널 관리",
+          "file": "05-reservation.spec.js",
+          "line": 540,
+          "column": 6,
+          "specs": [
+            {
+              "title": "페이지 접근 및 기본 구조 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 886,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "예약채널 콘솔 에러: []\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:14.918Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-993e7a8df339a6bfaa77",
+              "file": "05-reservation.spec.js",
+              "line": 541,
+              "column": 3
+            },
+            {
+              "title": "프로퍼티 미선택 시 contextAlert 표시",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1921,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "contextAlert visible: \u001b[33mtrue\u001b[39m\n"
+                        },
+                        {
+                          "text": "btnCreateWrap visible: \u001b[33mfalse\u001b[39m\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:15.807Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-76e107cd6b04a03e6c87",
+              "file": "05-reservation.spec.js",
+              "line": 560,
+              "column": 3
+            },
+            {
+              "title": "프로퍼티 선택 후 DataTable 로드",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 13331,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:17.732Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-9fe96a1ef53d1cc1890e",
+              "file": "05-reservation.spec.js",
+              "line": 576,
+              "column": 3
+            },
+            {
+              "title": "채널 목록 컬럼 헤더 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2936,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "채널 테이블 헤더: \n                NO채널코드채널명채널유형설명(국문)사용여부관리\n                \n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:31.068Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-55ba9aa0be0a92aba5b7",
+              "file": "05-reservation.spec.js",
+              "line": 603,
+              "column": 3
+            },
+            {
+              "title": "검색 필드 동작 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3466,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:34.008Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-ab66d175d3b1aef6513a",
+              "file": "05-reservation.spec.js",
+              "line": 617,
+              "column": 3
+            },
+            {
+              "title": "사용여부 라디오 필터 존재 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 316,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "사용여부 필터 텍스트: 전체 사용 미사용\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:37.477Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-ddda4ba7dfe821b81da6",
+              "file": "05-reservation.spec.js",
+              "line": 637,
+              "column": 3
+            },
+            {
+              "title": "등록 모달 오픈 (프로퍼티 선택 후)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3952,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:37.797Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-42685acfb4629dd48365",
+              "file": "05-reservation.spec.js",
+              "line": 659,
+              "column": 3
+            },
+            {
+              "title": "페이지 사이즈 셀렉터 존재 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 297,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:41.752Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-271c984d2ee2efeffad6",
+              "file": "05-reservation.spec.js",
+              "line": 691,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "예약 API 검증",
+          "file": "05-reservation.spec.js",
+          "line": 713,
+          "column": 6,
+          "specs": [
+            {
+              "title": "예약채널 API 응답 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 349,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "getFirstPropertyId 결과: \u001b[1mnull\u001b[22m\n"
+                        },
+                        {
+                          "text": "예약채널 API propertyId: \u001b[1mnull\u001b[22m\n"
+                        },
+                        {
+                          "text": "프로퍼티 없음 - 스킵\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:42.052Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-6f4fe19c649420b2eb8d",
+              "file": "05-reservation.spec.js",
+              "line": 735,
+              "column": 3
+            },
+            {
+              "title": "예약 목록 API 응답 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 269,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "getFirstPropertyId 결과: \u001b[1mnull\u001b[22m\n"
+                        },
+                        {
+                          "text": "예약 목록 API propertyId: \u001b[1mnull\u001b[22m\n"
+                        },
+                        {
+                          "text": "프로퍼티 없음 - 스킵\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:42.405Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-a89cf0d8d8c7e0c02f76",
+              "file": "05-reservation.spec.js",
+              "line": 756,
+              "column": 3
+            },
+            {
+              "title": "예약 캘린더 API 응답 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tests",
+                  "projectName": "tests",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 372,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "getFirstPropertyId 결과: \u001b[1mnull\u001b[22m\n"
+                        },
+                        {
+                          "text": "캘린더 API propertyId: \u001b[1mnull\u001b[22m\n"
+                        },
+                        {
+                          "text": "프로퍼티 없음 - 스킵\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-15T12:21:42.678Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4b51e69023e4690954fc-bcde6e4e2030a57b8f94",
+              "file": "05-reservation.spec.js",
+              "line": 777,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-03-15T12:20:16.520Z",
+    "duration": 86555.392,
+    "expected": 29,
+    "skipped": 4,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
