@@ -366,6 +366,18 @@ var HolaBooking = (function() {
             if (room.rateOptions && room.rateOptions.length > 0) {
                 $.each(room.rateOptions, function(ri, rate) {
                     var perNight = nights > 0 ? Math.round(rate.totalAmount / nights) : rate.totalAmount;
+                    // 포함 서비스 태그 렌더링
+                    var includedSvcHtml = '';
+                    if (rate.includedServices && rate.includedServices.length > 0) {
+                        includedSvcHtml = '<div class="mt-1">';
+                        $.each(rate.includedServices, function(si, svc) {
+                            includedSvcHtml += '<span class="badge bg-info text-white me-1" style="font-size:0.7rem;">'
+                                + '<i class="fas fa-check me-1"></i>' + escapeHtml(svc.nameKo)
+                                + '</span>';
+                        });
+                        includedSvcHtml += '</div>';
+                    }
+
                     rateOptionsHtml += ''
                         + '<div class="rate-option" data-room-idx="' + idx + '" data-rate-idx="' + ri + '"'
                         + '     data-room-type-id="' + room.roomTypeId + '"'
@@ -375,11 +387,13 @@ var HolaBooking = (function() {
                         + '     data-rate-code="' + escapeHtml(rate.rateCode) + '"'
                         + '     data-rate-name="' + escapeHtml(rate.rateNameKo) + '"'
                         + '     data-total-amount="' + rate.totalAmount + '"'
-                        + '     data-currency="' + (rate.currency || 'KRW') + '">'
+                        + '     data-currency="' + (rate.currency || 'KRW') + '"'
+                        + '     data-included-services="' + escapeHtml(JSON.stringify(rate.includedServices || [])) + '">'
                         + '  <div class="d-flex justify-content-between align-items-center">'
                         + '    <div>'
                         + '      <div class="rate-name">' + escapeHtml(rate.rateNameKo) + '</div>'
                         + '      <div class="text-muted" style="font-size:0.75rem;">' + escapeHtml(rate.rateCode) + '</div>'
+                        + includedSvcHtml
                         + '    </div>'
                         + '    <div class="text-end">'
                         + '      <div class="rate-price">' + formatCurrency(rate.totalAmount, rate.currency) + '</div>'
@@ -447,6 +461,11 @@ var HolaBooking = (function() {
                 $this.find('.daily-prices-toggle').slideDown(200);
 
                 // 선택 정보 저장
+                var includedSvcs = [];
+                try {
+                    includedSvcs = JSON.parse($this.attr('data-included-services') || '[]');
+                } catch(e) { includedSvcs = []; }
+
                 self.selectedRoom = {
                     roomTypeId: parseInt($this.data('room-type-id')),
                     roomTypeCode: $this.data('room-type-code'),
@@ -455,7 +474,8 @@ var HolaBooking = (function() {
                     rateCode: $this.data('rate-code'),
                     rateNameKo: $this.data('rate-name'),
                     totalAmount: parseFloat($this.data('total-amount')),
-                    currency: $this.data('currency') || 'KRW'
+                    currency: $this.data('currency') || 'KRW',
+                    includedServices: includedSvcs
                 };
 
                 self.updateBottomBar();
@@ -503,6 +523,7 @@ var HolaBooking = (function() {
                     rateNameKo: this.selectedRoom.rateNameKo,
                     totalAmount: this.selectedRoom.totalAmount,
                     currency: this.selectedRoom.currency,
+                    includedServices: this.selectedRoom.includedServices || [],
                     checkIn: this.checkIn,
                     checkOut: this.checkOut,
                     adults: this.adults,
@@ -589,11 +610,22 @@ var HolaBooking = (function() {
             var room = data.rooms[0];
             var nights = calcNights(data.checkIn, data.checkOut);
 
-            // 객실 정보
+            // 객실 정보 + 포함 서비스
+            var includedHtml = '';
+            if (room.includedServices && room.includedServices.length > 0) {
+                includedHtml = '<div class="mt-2">';
+                $.each(room.includedServices, function(i, svc) {
+                    includedHtml += '<div class="small"><i class="fas fa-check text-info me-1"></i>'
+                        + escapeHtml(svc.nameKo) + ' <span class="text-info">(포함)</span></div>';
+                });
+                includedHtml += '</div>';
+            }
+
             $('#summaryRoomInfo').html(
                 '<div class="p-2 rounded" style="background:rgba(5,130,202,0.05);">'
                 + '<div class="fw-bold">' + escapeHtml(room.roomClassName) + '</div>'
                 + '<div class="small text-muted">' + escapeHtml(room.rateNameKo) + '</div>'
+                + includedHtml
                 + '</div>'
             );
 
@@ -868,6 +900,29 @@ var HolaBooking = (function() {
                         + '<span class="confirm-label">객실 요금</span>'
                         + '<span class="confirm-value">' + formatCurrency(room.roomTotal, data.currency) + '</span>'
                         + '</div>';
+
+                    // 서비스 내역 표시
+                    if (room.services && room.services.length > 0) {
+                        roomsHtml += '<div class="mt-2 mb-1"><span class="confirm-label small text-muted">'
+                            + '<i class="fas fa-concierge-bell me-1"></i>서비스 내역</span></div>';
+                        $.each(room.services, function(si, svc) {
+                            var isIncluded = svc.serviceType === 'RATE_INCLUDED';
+                            var priceText = isIncluded
+                                ? '<span class="text-info">포함</span>'
+                                : formatCurrency(svc.totalPrice, data.currency);
+                            var dateText = svc.serviceDate ? ' (' + svc.serviceDate + ')' : '';
+                            roomsHtml += '<div class="confirm-detail-row" style="padding:2px 0;">'
+                                + '<span class="confirm-label small">'
+                                + (isIncluded ? '<span class="badge bg-info text-white me-1" style="font-size:0.65rem;">포함</span>' : '')
+                                + escapeHtml(svc.serviceName) + dateText
+                                + '</span>'
+                                + '<span class="confirm-value small">'
+                                + (svc.quantity > 1 ? svc.quantity + ' x ' : '') + priceText
+                                + '</span>'
+                                + '</div>';
+                        });
+                    }
+
                     if (i < data.rooms.length - 1) {
                         roomsHtml += '<hr class="my-2">';
                     }

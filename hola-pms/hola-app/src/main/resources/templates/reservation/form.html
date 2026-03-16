@@ -257,39 +257,40 @@
 
     <!-- ═══ 레이트코드 선택 모달 ═══ -->
     <div class="modal fade" id="rateCodeModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title">레이트코드 선택</h5>
+                    <h5 class="modal-title"><i class="fas fa-won-sign me-2"></i>레이트코드 선택</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">레이트코드명 검색</label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="rateCodeSearchKeyword" placeholder="코드명을 입력하세요.">
-                                <button class="btn btn-outline-primary btn-sm" id="rateCodeSearchAction">검색</button>
+                                <button class="btn btn-outline-primary btn-sm" id="rateCodeSearchAction"><i class="fas fa-search me-1"></i>검색</button>
                             </div>
                         </div>
                     </div>
-                    <table id="rateCodeSelectTable" class="table table-hover table-bordered mb-0" style="width:100%">
-                        <thead class="table-light">
-                        <tr>
-                            <th style="width:50px">NO</th>
-                            <th>레이트코드</th>
-                            <th>코드명</th>
-                            <th>카테고리</th>
-                            <th>판매기간</th>
-                            <th style="width:60px">선택</th>
-                        </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table id="rateCodeSelectTable" class="table table-hover table-bordered mb-0" style="min-width:600px">
+                            <thead class="table-light">
+                            <tr>
+                                <th style="width:50px" class="text-center">NO</th>
+                                <th style="min-width:100px">레이트코드</th>
+                                <th style="min-width:120px">코드명</th>
+                                <th style="min-width:80px" class="text-center">카테고리</th>
+                                <th style="min-width:180px" class="text-center">판매기간</th>
+                                <th style="width:60px" class="text-center">선택</th>
+                            </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-                    <button type="button" class="btn btn-primary" id="rateCodeApplyBtn">적용</button>
+                    <button type="button" class="btn btn-primary" id="rateCodeApplyBtn"><i class="fas fa-check me-1"></i>적용</button>
                 </div>
             </div>
         </div>
@@ -297,38 +298,39 @@
 
     <!-- ═══ 마켓코드 선택 모달 ═══ -->
     <div class="modal fade" id="marketCodeModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title">마켓코드 선택</h5>
+                    <h5 class="modal-title"><i class="fas fa-tags me-2"></i>마켓코드 선택</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">마켓코드명 검색</label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="marketCodeSearchKeyword" placeholder="코드명을 입력하세요.">
-                                <button class="btn btn-outline-primary btn-sm" id="marketCodeSearchAction">검색</button>
+                                <button class="btn btn-outline-primary btn-sm" id="marketCodeSearchAction"><i class="fas fa-search me-1"></i>검색</button>
                             </div>
                         </div>
                     </div>
-                    <table id="marketCodeSelectTable" class="table table-hover table-bordered mb-0" style="width:100%">
-                        <thead class="table-light">
-                        <tr>
-                            <th style="width:50px">NO</th>
-                            <th>마켓코드</th>
-                            <th>코드명</th>
-                            <th>설명</th>
-                            <th style="width:60px">선택</th>
-                        </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table id="marketCodeSelectTable" class="table table-hover table-bordered mb-0" style="min-width:500px">
+                            <thead class="table-light">
+                            <tr>
+                                <th style="width:50px" class="text-center">NO</th>
+                                <th style="min-width:100px">마켓코드</th>
+                                <th style="min-width:120px">코드명</th>
+                                <th style="min-width:150px">설명</th>
+                                <th style="width:60px" class="text-center">선택</th>
+                            </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-                    <button type="button" class="btn btn-primary" id="marketCodeApplyBtn">적용</button>
+                    <button type="button" class="btn btn-primary" id="marketCodeApplyBtn"><i class="fas fa-check me-1"></i>적용</button>
                 </div>
             </div>
         </div>
@@ -351,20 +353,14 @@
                                 <button class="btn btn-outline-primary btn-sm" id="roomTypeSearchAction">검색</button>
                             </div>
                         </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="showAllRoomTypes">
+                                <label class="form-check-label" for="showAllRoomTypes">전체 객실타입 보기</label>
+                            </div>
+                        </div>
                     </div>
-                    <table id="roomTypeSelectTable" class="table table-hover table-bordered mb-0" style="width:100%">
-                        <thead class="table-light">
-                        <tr>
-                            <th style="width:50px">NO</th>
-                            <th>객실타입 코드</th>
-                            <th>객실 클래스</th>
-                            <th>객실크기</th>
-                            <th>최대인원</th>
-                            <th style="width:60px">선택</th>
-                        </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <div id="roomTypeContent"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
@@ -374,30 +370,51 @@
         </div>
     </div>
 
-    <!-- ═══ 층/호수 선택 모달 ═══ -->
+    <!-- ═══ 객실 배정 모달 ═══ -->
     <div class="modal fade" id="roomAssignModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title">층/호수 선택</h5>
+                    <h5 class="modal-title"><i class="fas fa-door-open me-2"></i>객실 배정</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label">층 선택</label>
-                            <select class="form-select" id="assignFloorSelect">
-                                <option value="">선택</option>
-                            </select>
+                <div class="modal-body p-0">
+                    <!-- 요금 요약 -->
+                    <div id="assignPriceSummary" class="border-bottom p-3" style="background: linear-gradient(135deg, #051923 0%, #003554 100%);">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <small class="d-block mb-1" style="color: rgba(255,255,255,0.7); font-size: 0.75rem; letter-spacing: 0.5px;">총 요금</small>
+                                <span id="assignTotalPrice" class="d-block" style="color: #fff; font-size: 1.25rem; font-weight: 700;">-</span>
+                            </div>
+                            <div class="col-4 border-start border-end" style="border-color: rgba(255,255,255,0.15) !important;">
+                                <small class="d-block mb-1" style="color: rgba(255,255,255,0.7); font-size: 0.75rem; letter-spacing: 0.5px;">1박 평균</small>
+                                <span id="assignAvgNightly" class="d-block" style="color: #fff; font-size: 1.25rem; font-weight: 700;">-</span>
+                            </div>
+                            <div class="col-4">
+                                <small class="d-block mb-1" style="color: rgba(255,255,255,0.7); font-size: 0.75rem; letter-spacing: 0.5px;">숙박일수</small>
+                                <span id="assignNights" class="d-block" style="color: #fff; font-size: 1.25rem; font-weight: 700;">-</span>
+                            </div>
                         </div>
                     </div>
-                    <div id="roomNumberList">
-                        <p class="text-muted text-center py-3">층을 먼저 선택하세요</p>
+                    <!-- 탭 -->
+                    <ul class="nav nav-tabs px-3 pt-3" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" data-assign-tab="recommended" type="button"><i class="fas fa-star me-1"></i>추천 객실</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-assign-tab="all" type="button"><i class="fas fa-list me-1"></i>전체 객실</button>
+                        </li>
+                    </ul>
+                    <!-- 본문 -->
+                    <div id="assignContent" class="p-3">
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-spinner fa-spin me-1"></i> 객실 정보를 불러오는 중...
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-                    <button type="button" class="btn btn-primary" id="roomAssignApplyBtn">적용</button>
+                    <button type="button" class="btn btn-primary" id="btnApplyRoomAssign"><i class="fas fa-check me-1"></i>적용</button>
                 </div>
             </div>
         </div>

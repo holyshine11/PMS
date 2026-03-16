@@ -13,6 +13,8 @@ public interface PaidServiceOptionService {
 
     List<PaidServiceOptionResponse> getPaidServiceOptions(Long propertyId);
 
+    List<PaidServiceOptionResponse> getPaidServiceOptions(Long propertyId, Long roomTypeId);
+
     PaidServiceOptionResponse getPaidServiceOption(Long id);
 
     PaidServiceOptionResponse createPaidServiceOption(Long propertyId, PaidServiceOptionCreateRequest request);

@@ -15,4 +15,6 @@ public interface PaidServiceOptionRepository extends JpaRepository<PaidServiceOp
     boolean existsByPropertyIdAndServiceOptionCode(Long propertyId, String serviceOptionCode);
 
     long countByPropertyId(Long propertyId);
+
+    boolean existsByTransactionCodeId(Long transactionCodeId);
 }

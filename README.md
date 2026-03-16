@@ -536,6 +536,9 @@ hola-pms/
 
 ## 10. API 엔드포인트 전체 목록
 
+**Swagger UI URL**
+- http://localhost:8080/swagger-ui.html
+
 ### 인증 (JWT)
 | Method | URL | 설명 |
 |--------|-----|------|
@@ -629,6 +632,8 @@ http://localhost:8080/swagger-ui.html
 |----------|-----|------|
 | 올라 그랜드 명동 | http://localhost:8080/booking/GMP | 5성급, 테스트 데이터 포함 |
 | 올라 그랜드 서초 | http://localhost:8080/booking/GMS | 4성급 |
+
+예약 조회 : http://localhost:8080/booking/GMP/confirmation/030931E7
 
 ### 테스트 플로우
 

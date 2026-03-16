@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>트랜잭션 코드 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <!-- 페이지 타이틀 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-exchange-alt me-2"></i>트랜잭션 코드 관리</h4>
+    </div>
+
+    <!-- 컨텍스트 미선택 경고 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <!-- 메인 레이아웃: 좌(그룹 트리) + 우(코드 테이블) -->
+    <div class="row" id="mainContent">
+
+        <!-- 좌측: 그룹 트리 -->
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0"><i class="fas fa-sitemap me-1"></i>코드 그룹</h6>
+                    <button class="btn btn-primary btn-sm" id="btnAddGroup" onclick="TcPage.openGroupModal()">
+                        <i class="fas fa-plus me-1"></i>그룹추가
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div id="groupTree" class="p-3" style="min-height: 400px; max-height: 600px; overflow-y: auto;">
+                        <div class="text-muted text-center py-5">프로퍼티를 선택해주세요</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 우측: 코드 테이블 -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold mb-0 d-inline"><i class="fas fa-list-ol me-1"></i>트랜잭션 코드</h6>
+                        <span class="ms-2 text-muted" id="selectedGroupLabel"></span>
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="btnAddCode" onclick="TcPage.openCodeModal()">
+                        <i class="fas fa-plus me-1"></i>코드추가
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <!-- 필터 -->
+                    <div class="p-3 border-bottom">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-4">
+                                <select id="filterRevenueCategory" class="form-select form-select-sm">
+                                    <option value="">매출분류 전체</option>
+                                    <option value="LODGING">숙박</option>
+                                    <option value="FOOD_BEVERAGE">식음</option>
+                                    <option value="MISC">기타</option>
+                                    <option value="TAX">세금</option>
+                                    <option value="NON_REVENUE">비매출</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="filterUseYn" id="filterAll" value="" checked>
+                                    <label class="btn btn-outline-secondary btn-sm" for="filterAll">전체</label>
+                                    <input type="radio" class="btn-check" name="filterUseYn" id="filterY" value="true">
+                                    <label class="btn btn-outline-secondary btn-sm" for="filterY">사용</label>
+                                    <input type="radio" class="btn-check" name="filterUseYn" id="filterN" value="false">
+                                    <label class="btn btn-outline-secondary btn-sm" for="filterN">미사용</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <span class="text-muted">총 <strong id="totalCount">0</strong>개</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 테이블 -->
+                    <table id="codeTable" class="table table-hover mb-0" style="width:100%">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:50px">NO</th>
+                                <th style="width:80px">코드</th>
+                                <th>코드명</th>
+                                <th style="width:100px">매출분류</th>
+                                <th style="width:80px">유형</th>
+                                <th style="width:80px">상태</th>
+                                <th style="width:100px">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- 그룹 등록/수정 모달 -->
+<div class="modal fade" id="groupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="groupModalTitle">그룹 등록</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="groupId">
+                <div class="mb-3">
+                    <label class="form-label required">그룹 유형</label>
+                    <select id="groupType" class="form-select">
+                        <option value="MAIN">대분류 (MAIN)</option>
+                        <option value="SUB">소분류 (SUB)</option>
+                    </select>
+                </div>
+                <div class="mb-3 d-none" id="parentGroupRow">
+                    <label class="form-label required">상위 그룹</label>
+                    <select id="parentGroupId" class="form-select">
+                        <option value="">선택</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label required">그룹 코드</label>
+                    <input type="text" class="form-control" id="groupCode" placeholder="예: LODGING, FOOD_BEVERAGE" maxlength="20">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label required">그룹명 (한글)</label>
+                    <input type="text" class="form-control" id="groupNameKo" placeholder="예: 숙박" maxlength="100">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">그룹명 (영문)</label>
+                    <input type="text" class="form-control" id="groupNameEn" placeholder="예: Lodging" maxlength="100">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">정렬순서</label>
+                    <input type="number" class="form-control" id="groupSortOrder" value="0" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="TcPage.saveGroup()">
+                    <i class="fas fa-save me-1"></i>저장
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 코드 등록/수정 모달 -->
+<div class="modal fade" id="codeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="codeModalTitle">트랜잭션 코드 등록</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="codeId">
+                <div class="mb-3">
+                    <label class="form-label required">소속 그룹</label>
+                    <select id="codeGroupId" class="form-select">
+                        <option value="">선택</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label required">트랜잭션 코드</label>
+                    <input type="text" class="form-control" id="transactionCode" placeholder="예: 1000, 2000" maxlength="10">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label required">코드명 (한글)</label>
+                    <input type="text" class="form-control" id="codeNameKo" placeholder="예: 객실 매출" maxlength="200">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">코드명 (영문)</label>
+                    <input type="text" class="form-control" id="codeNameEn" placeholder="예: Room Revenue" maxlength="200">
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label required">매출 분류</label>
+                        <select id="revenueCategory" class="form-select">
+                            <option value="LODGING">숙박</option>
+                            <option value="FOOD_BEVERAGE">식음</option>
+                            <option value="MISC">기타</option>
+                            <option value="TAX">세금</option>
+                            <option value="NON_REVENUE">비매출</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label required">코드 유형</label>
+                        <select id="codeType" class="form-select">
+                            <option value="CHARGE">부과 (CHARGE)</option>
+                            <option value="PAYMENT">결제 (PAYMENT)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">정렬순서</label>
+                    <input type="number" class="form-control" id="codeSortOrder" value="0" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="TcPage.saveCode()">
+                    <i class="fas fa-save me-1"></i>저장
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/transaction-code.js}"></script>
+</th:block>
+</body>
+</html>

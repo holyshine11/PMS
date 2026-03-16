@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -20,6 +21,10 @@ public class RoomTypeListResponse {
     private String roomTypeCode;
     private String roomClassCode;
     private String roomClassName;
+    private BigDecimal roomSize;
+    private Integer maxAdults;
+    private Integer maxChildren;
+    private String description;
     private Long roomCount;
     private Boolean useYn;
     private LocalDateTime updatedAt;

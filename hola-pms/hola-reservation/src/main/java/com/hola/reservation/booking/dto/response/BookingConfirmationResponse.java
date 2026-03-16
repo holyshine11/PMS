@@ -57,5 +57,18 @@ public class BookingConfirmationResponse {
         private final int nights;
         private final BigDecimal roomTotal;
         private final List<AvailableRoomTypeResponse.DailyPrice> dailyCharges;
+        /** 포함/추가 서비스 내역 */
+        private final List<ServiceDetail> services;
+    }
+
+    @Getter
+    @Builder
+    public static class ServiceDetail {
+        private final String serviceName;
+        private final String serviceType;
+        private final int quantity;
+        private final BigDecimal unitPrice;
+        private final BigDecimal totalPrice;
+        private final LocalDate serviceDate;
     }
 }

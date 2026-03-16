@@ -18,4 +18,9 @@ public interface ReservationServiceItemRepository extends JpaRepository<Reservat
     @Modifying
     @Query("DELETE FROM ReservationServiceItem s WHERE s.subReservation.id = :subReservationId")
     void deleteAllBySubReservationId(@Param("subReservationId") Long subReservationId);
+
+    @Modifying
+    @Query("DELETE FROM ReservationServiceItem s WHERE s.subReservation.id = :subReservationId AND s.serviceType = :serviceType")
+    void deleteBySubReservationIdAndServiceType(@Param("subReservationId") Long subReservationId,
+                                                 @Param("serviceType") String serviceType);
 }

@@ -92,7 +92,10 @@ public class HotelRoleApiController {
     @Operation(summary = "권한 선택 목록", description = "드롭다운용 권한 목록 (활성화만)")
     @GetMapping("/selector")
     public ResponseEntity<HolaResponse<List<RoleListResponse>>> getRolesForSelector(
-            @RequestParam Long hotelId) {
+            @RequestParam(required = false) Long hotelId) {
+        if (hotelId == null) {
+            return ResponseEntity.ok(HolaResponse.success(java.util.Collections.emptyList()));
+        }
         return ResponseEntity.ok(HolaResponse.success(hotelRoleService.getRolesForSelector(hotelId)));
     }
 }

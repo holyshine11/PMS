@@ -91,7 +91,8 @@ const HolaPms = {
             '<div class="toast-body">' + safeMessage + '</div>' +
             '</div>').appendTo($container);
 
-        setTimeout(function() { $toast.fadeOut(300, function() { $(this).remove(); }); }, 1000);
+        var duration = (type === 'error' || type === 'danger') ? 3000 : 1500;
+        setTimeout(function() { $toast.fadeOut(300, function() { $(this).remove(); }); }, duration);
     },
 
     /**
@@ -424,6 +425,63 @@ const HolaPms = {
     },
 
     /**
+     * 사이드바 접힘/펼침
+     */
+    sidebar: {
+        toggle: function() {
+            document.body.classList.toggle('sidebar-collapsed');
+            try {
+                localStorage.setItem('holaSidebarCollapsed',
+                    document.body.classList.contains('sidebar-collapsed'));
+            } catch (e) { /* localStorage 비가용 시 무시 */ }
+        },
+        init: function() {
+            try {
+                if (localStorage.getItem('holaSidebarCollapsed') === 'true') {
+                    document.body.classList.add('sidebar-collapsed');
+                }
+            } catch (e) { /* 무시 */ }
+            var toggleBtn = document.getElementById('sidebarToggle');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', HolaPms.sidebar.toggle);
+            }
+        }
+    },
+
+    /**
+     * 팝업 테이블 행 클릭 → 라디오/체크박스 선택 (공통)
+     * 모달 내 table-hover 테이블의 tbody tr 클릭 시 해당 행의 radio/checkbox 선택
+     */
+    initModalRowClick: function() {
+        $(document).on('click', '.modal .table-hover tbody tr', function(e) {
+            // radio/checkbox 직접 클릭한 경우 무시 (이중 토글 방지)
+            if ($(e.target).is('input[type="radio"], input[type="checkbox"]')) return;
+            // disabled 행 무시
+            if ($(this).hasClass('table-secondary')) return;
+
+            var $radio = $(this).find('input[type="radio"]');
+            var $checkbox = $(this).find('input[type="checkbox"]');
+
+            if ($radio.length && !$radio.prop('disabled')) {
+                $radio.prop('checked', true).trigger('change');
+                // 같은 테이블 내 모든 행에서 선택 스타일 제거 후 현재 행에 적용
+                $(this).closest('tbody').find('tr').removeClass('row-selected');
+                $(this).addClass('row-selected');
+            } else if ($checkbox.length && !$checkbox.prop('disabled')) {
+                $checkbox.prop('checked', !$checkbox.prop('checked')).trigger('change');
+                $(this).toggleClass('row-selected', $checkbox.prop('checked'));
+            }
+        });
+
+        // radio change 이벤트로 행 하이라이트 동기화
+        $(document).on('change', '.modal .table-hover input[type="radio"]', function() {
+            var $tbody = $(this).closest('tbody');
+            $tbody.find('tr').removeClass('row-selected');
+            $(this).closest('tr').addClass('row-selected');
+        });
+    },
+
+    /**
      * DataTables 기본 설정
      */
     dataTableDefaults: {
@@ -470,6 +528,12 @@ $.fn.dataTable.ext.errMode = function(settings, techNote, message) {
 
 // 헤더 호텔/프로퍼티 컨텍스트 초기화 + flash alert 표시
 $(document).ready(function() {
+    // 사이드바 접힘/펼침 초기화
+    HolaPms.sidebar.init();
+
+    // 팝업 행 클릭 선택 초기화
+    HolaPms.initModalRowClick();
+
     if ($('#headerHotelSelect').length) {
         HolaPms.context.init();
     }

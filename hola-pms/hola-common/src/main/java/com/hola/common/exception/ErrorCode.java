@@ -73,6 +73,21 @@ public enum ErrorCode {
     PAID_SERVICE_OPTION_NOT_FOUND("HOLA-2030", "유료 서비스 옵션을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     PAID_SERVICE_CODE_DUPLICATE("HOLA-2031", "동일 프로퍼티 내 이미 존재하는 서비스 옵션 코드입니다.", HttpStatus.CONFLICT),
 
+    // 트랜잭션 코드 (HOLA-25xx)
+    TC_GROUP_NOT_FOUND("HOLA-2500", "트랜잭션 코드 그룹을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    TC_GROUP_CODE_DUPLICATE("HOLA-2501", "동일 프로퍼티 내 이미 존재하는 그룹 코드입니다.", HttpStatus.CONFLICT),
+    TC_GROUP_HAS_CHILDREN("HOLA-2502", "하위 그룹이 존재하여 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    TC_GROUP_HAS_CODES("HOLA-2503", "하위 트랜잭션 코드가 존재하여 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    TC_NOT_FOUND("HOLA-2510", "트랜잭션 코드를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    TC_CODE_DUPLICATE("HOLA-2511", "동일 프로퍼티 내 이미 존재하는 트랜잭션 코드입니다.", HttpStatus.CONFLICT),
+    TC_IN_USE("HOLA-2512", "사용 중인 트랜잭션 코드는 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
+
+    // 재고 관리 (HOLA-26xx)
+    INVENTORY_ITEM_NOT_FOUND("HOLA-2600", "재고 아이템을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    INVENTORY_ITEM_CODE_DUPLICATE("HOLA-2601", "동일 프로퍼티 내 이미 존재하는 아이템 코드입니다.", HttpStatus.CONFLICT),
+    INVENTORY_NOT_AVAILABLE("HOLA-2610", "해당 기간에 재고가 부족합니다.", HttpStatus.CONFLICT),
+    INVENTORY_AVAILABILITY_NOT_SET("HOLA-2611", "해당 기간의 재고 가용성이 설정되지 않았습니다.", HttpStatus.BAD_REQUEST),
+
     // 레이트관리 (HOLA-3xxx)
     RATE_CODE_NOT_FOUND("HOLA-3000", "레이트 코드를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     RATE_CODE_DUPLICATE("HOLA-3001", "동일 프로퍼티 내 이미 존재하는 레이트 코드입니다.", HttpStatus.CONFLICT),
@@ -127,6 +142,13 @@ public enum ErrorCode {
     // 예약 서비스 (HOLA-406x)
     RESERVATION_SERVICE_NOT_FOUND("HOLA-4060", "예약 서비스 항목을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     RESERVATION_SERVICE_MISMATCH("HOLA-4061", "해당 객실 레그에 속하지 않는 서비스 항목입니다.", HttpStatus.BAD_REQUEST),
+    SERVICE_DATE_OUT_OF_RANGE("HOLA-4062", "서비스 일자는 체크인~체크아웃 기간 내여야 합니다.", HttpStatus.BAD_REQUEST),
+
+    // 객실 업그레이드 (HOLA-41xx)
+    UPGRADE_NOT_ALLOWED("HOLA-4100", "현재 예약 상태에서는 업그레이드할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    UPGRADE_SAME_ROOM_TYPE("HOLA-4101", "동일한 객실타입으로 업그레이드할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    UPGRADE_ROOM_TYPE_NOT_AVAILABLE("HOLA-4102", "대상 객실타입에 가용 객실이 없습니다.", HttpStatus.CONFLICT),
+    UPGRADE_RATE_NOT_FOUND("HOLA-4103", "대상 객실타입에 적용 가능한 레이트가 없습니다.", HttpStatus.NOT_FOUND),
 
     // 얼리체크인/레이트체크아웃 (HOLA-405x)
     EARLY_LATE_POLICY_NOT_FOUND("HOLA-4050", "얼리/레이트 정책을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
@@ -152,6 +174,7 @@ public enum ErrorCode {
     // 취소 정책 (HOLA-408x)
     BOOKING_CANCEL_NOT_ALLOWED("HOLA-4080", "해당 상태에서는 취소할 수 없습니다.", HttpStatus.BAD_REQUEST),
     BOOKING_ALREADY_CANCELED("HOLA-4081", "이미 취소된 예약입니다.", HttpStatus.BAD_REQUEST),
+    BOOKING_INVALID_CARD_BIN("HOLA-4082", "유효하지 않은 카드 BIN입니다.", HttpStatus.BAD_REQUEST),
 
     // 부킹 인증 (HOLA-409x)
     BOOKING_AUTH_REQUIRED("HOLA-4090", "API-KEY와 VENDOR-ID 헤더가 필요합니다.", HttpStatus.UNAUTHORIZED),

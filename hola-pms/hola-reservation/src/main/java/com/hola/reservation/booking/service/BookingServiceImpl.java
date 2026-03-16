@@ -15,8 +15,10 @@ import com.hola.hotel.repository.PropertyRepository;
 import com.hola.hotel.repository.ReservationChannelRepository;
 import com.hola.rate.dto.response.RateCodeListResponse;
 import com.hola.rate.entity.RateCode;
+import com.hola.rate.entity.RateCodePaidService;
 import com.hola.rate.entity.RateCodeRoomType;
 import com.hola.rate.entity.PromotionCode;
+import com.hola.rate.repository.RateCodePaidServiceRepository;
 import com.hola.rate.repository.PromotionCodeRepository;
 import com.hola.rate.repository.RateCodeRepository;
 import com.hola.rate.repository.RateCodeRoomTypeRepository;
@@ -34,9 +36,11 @@ import com.hola.reservation.booking.repository.BookingAuditLogRepository;
 import com.hola.reservation.dto.request.PaymentProcessRequest;
 import com.hola.reservation.entity.DailyCharge;
 import com.hola.reservation.entity.MasterReservation;
+import com.hola.reservation.entity.ReservationServiceItem;
 import com.hola.reservation.entity.SubReservation;
 import com.hola.reservation.repository.DailyChargeRepository;
 import com.hola.reservation.repository.MasterReservationRepository;
+import com.hola.reservation.repository.ReservationServiceItemRepository;
 import com.hola.reservation.repository.SubReservationRepository;
 import com.hola.reservation.service.PriceCalculationService;
 import com.hola.reservation.service.ReservationNumberGenerator;
@@ -62,6 +66,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -98,10 +103,14 @@ public class BookingServiceImpl implements BookingService {
     private final PaymentGateway paymentGateway;
     private final BookingAuditLogRepository bookingAuditLogRepository;
     private final ObjectMapper objectMapper;
+    private final com.hola.reservation.service.RateIncludedServiceHelper rateIncludedServiceHelper;
+    private final ReservationServiceItemRepository reservationServiceItemRepository;
+    private final RateCodePaidServiceRepository rateCodePaidServiceRepository;
     private final CancellationPolicyService cancellationPolicyService;
     private final com.hola.hotel.repository.CancellationFeeRepository cancellationFeeRepository;
     private final com.hola.reservation.repository.ReservationPaymentRepository reservationPaymentRepository;
     private final com.hola.reservation.repository.PaymentTransactionRepository paymentTransactionRepository;
+    private final com.hola.room.service.InventoryService inventoryService;
 
     /** 최대 숙박 가능 일수 */
     private static final int MAX_STAY_NIGHTS = 30;
@@ -417,19 +426,58 @@ public class BookingServiceImpl implements BookingService {
                     .checkOut(room.getCheckOut())
                     .build();
             sub = subReservationRepository.save(sub);
+            final SubReservation savedSub = sub;
 
-            // DailyCharge 저장 (subReservation 연결)
+            // DailyCharge 벌크 저장 (subReservation 연결)
             List<DailyCharge> dailyCharges = roomDailyChargesList.get(i);
-            for (DailyCharge dc : dailyCharges) {
-                DailyCharge charge = DailyCharge.builder()
-                        .subReservation(sub)
-                        .chargeDate(dc.getChargeDate())
-                        .supplyPrice(dc.getSupplyPrice())
-                        .tax(dc.getTax())
-                        .serviceCharge(dc.getServiceCharge())
-                        .total(dc.getTotal())
-                        .build();
-                dailyChargeRepository.save(charge);
+            List<DailyCharge> chargesToSave = dailyCharges.stream()
+                    .map(dc -> DailyCharge.builder()
+                            .subReservation(savedSub)
+                            .chargeDate(dc.getChargeDate())
+                            .supplyPrice(dc.getSupplyPrice())
+                            .tax(dc.getTax())
+                            .serviceCharge(dc.getServiceCharge())
+                            .total(dc.getTotal())
+                            .build())
+                    .toList();
+            dailyChargeRepository.saveAll(chargesToSave);
+
+            // 레이트코드 포함 서비스 자동 추가
+            rateIncludedServiceHelper.addRateIncludedServices(sub, room.getRateCodeId());
+
+            // 선택 서비스(Add-on) 추가
+            if (room.getServices() != null && !room.getServices().isEmpty()) {
+                for (BookingCreateRequest.ServiceSelection sel : room.getServices()) {
+                    PaidServiceOption option = paidServiceOptionRepository.findById(sel.getServiceOptionId())
+                            .orElse(null);
+                    if (option == null || !Boolean.TRUE.equals(option.getUseYn())) continue;
+
+                    int qty = sel.getQuantity() != null ? sel.getQuantity() : 1;
+                    BigDecimal unitPrice = option.getVatIncludedPrice();
+                    BigDecimal tax = option.getTaxAmount().multiply(BigDecimal.valueOf(qty));
+                    BigDecimal total = unitPrice.multiply(BigDecimal.valueOf(qty));
+
+                    reservationServiceItemRepository.save(ReservationServiceItem.builder()
+                            .subReservation(sub)
+                            .serviceType("PAID")
+                            .serviceOptionId(option.getId())
+                            .serviceDate(room.getCheckIn())
+                            .quantity(qty)
+                            .unitPrice(unitPrice)
+                            .tax(tax)
+                            .totalPrice(total)
+                            .transactionCodeId(option.getTransactionCodeId())
+                            .build());
+
+                    // 재고 아이템 연결 시 재고 차감
+                    if (option.getInventoryItemId() != null) {
+                        boolean reserved = inventoryService.reserveInventory(
+                                option.getInventoryItemId(), room.getCheckIn(), room.getCheckOut(), qty);
+                        if (!reserved) {
+                            throw new HolaException(ErrorCode.INVENTORY_NOT_AVAILABLE);
+                        }
+                    }
+                }
             }
         }
 
@@ -529,13 +577,27 @@ public class BookingServiceImpl implements BookingService {
 
         List<AvailableRoomTypeResponse.RateOption> rateOptions = new ArrayList<>();
 
+        // 벌크 조회: 모든 레이트코드의 객실타입 매핑 + 포함 서비스 (N+1 방지)
+        List<Long> rateCodeIds = availableRateCodes.stream().map(RateCodeListResponse::getId).toList();
+        Map<Long, Set<Long>> rateToRoomTypeMap = rateCodeRoomTypeRepository.findAllByRateCodeIdIn(rateCodeIds).stream()
+                .collect(Collectors.groupingBy(RateCodeRoomType::getRateCodeId,
+                        Collectors.mapping(RateCodeRoomType::getRoomTypeId, Collectors.toSet())));
+        Map<Long, List<RateCodePaidService>> rateToPaidServiceMap = rateCodePaidServiceRepository
+                .findAllByRateCodeIdIn(rateCodeIds).stream()
+                .collect(Collectors.groupingBy(RateCodePaidService::getRateCodeId));
+
+        // 포함 서비스 옵션 벌크 조회
+        Set<Long> allPaidSvcIds = rateToPaidServiceMap.values().stream()
+                .flatMap(List::stream)
+                .map(RateCodePaidService::getPaidServiceOptionId)
+                .collect(Collectors.toSet());
+        Map<Long, PaidServiceOption> paidSvcMap = allPaidSvcIds.isEmpty() ? Map.of()
+                : paidServiceOptionRepository.findAllById(allPaidSvcIds).stream()
+                        .collect(Collectors.toMap(PaidServiceOption::getId, s -> s));
+
         for (RateCodeListResponse rc : availableRateCodes) {
             // 해당 레이트코드가 이 객실타입에 매핑되어 있는지 확인
-            List<RateCodeRoomType> mappings = rateCodeRoomTypeRepository.findAllByRateCodeId(rc.getId());
-            Set<Long> mappedRoomTypeIds = mappings.stream()
-                    .map(RateCodeRoomType::getRoomTypeId)
-                    .collect(Collectors.toSet());
-
+            Set<Long> mappedRoomTypeIds = rateToRoomTypeMap.getOrDefault(rc.getId(), Set.of());
             if (!mappedRoomTypeIds.contains(roomTypeId)) {
                 continue;
             }
@@ -549,12 +611,10 @@ public class BookingServiceImpl implements BookingService {
                         request.getChildren() != null ? request.getChildren() : 0,
                         null);
 
-                // 합계 계산
                 BigDecimal totalAmount = dailyCharges.stream()
                         .map(DailyCharge::getTotal)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                // 일별 가격 DTO 변환
                 List<AvailableRoomTypeResponse.DailyPrice> dailyPrices = dailyCharges.stream()
                         .map(dc -> AvailableRoomTypeResponse.DailyPrice.builder()
                                 .date(dc.getChargeDate().toString())
@@ -565,6 +625,19 @@ public class BookingServiceImpl implements BookingService {
                                 .build())
                         .toList();
 
+                // 포함 서비스 조회 (벌크 캐시에서)
+                List<RateCodePaidService> serviceMappings = rateToPaidServiceMap.getOrDefault(rc.getId(), List.of());
+                List<AvailableRoomTypeResponse.IncludedServiceInfo> includedServices = serviceMappings.stream()
+                        .map(m -> paidSvcMap.get(m.getPaidServiceOptionId()))
+                        .filter(s -> s != null && Boolean.TRUE.equals(s.getUseYn()))
+                        .map(s -> AvailableRoomTypeResponse.IncludedServiceInfo.builder()
+                                .serviceOptionId(s.getId())
+                                .nameKo(s.getServiceNameKo())
+                                .type(s.getServiceType())
+                                .applicableNights(s.getApplicableNights())
+                                .build())
+                        .toList();
+
                 rateOptions.add(AvailableRoomTypeResponse.RateOption.builder()
                         .rateCodeId(rc.getId())
                         .rateCode(rc.getRateCode())
@@ -572,10 +645,10 @@ public class BookingServiceImpl implements BookingService {
                         .currency(rc.getCurrency())
                         .totalAmount(totalAmount)
                         .dailyPrices(dailyPrices)
+                        .includedServices(includedServices)
                         .build());
 
             } catch (HolaException e) {
-                // 요금 계산 실패 시 해당 레이트코드는 건너뜀 (적용 불가)
                 log.debug("레이트코드 요금 계산 실패: rateCodeId={}, roomTypeId={}, error={}",
                         rc.getId(), roomTypeId, e.getMessage());
             }
@@ -589,11 +662,16 @@ public class BookingServiceImpl implements BookingService {
      */
     private List<AvailableRoomTypeResponse.ServiceInfo> buildFreeServices(Long roomTypeId) {
         List<RoomTypeFreeService> mappings = roomTypeFreeServiceRepository.findAllByRoomTypeId(roomTypeId);
+        if (mappings.isEmpty()) return List.of();
+
+        // 벌크 조회 (N+1 방지)
+        List<Long> svcIds = mappings.stream().map(RoomTypeFreeService::getFreeServiceOptionId).toList();
+        Map<Long, FreeServiceOption> svcMap = freeServiceOptionRepository.findAllById(svcIds).stream()
+                .collect(Collectors.toMap(FreeServiceOption::getId, s -> s));
 
         return mappings.stream()
                 .map(m -> {
-                    FreeServiceOption opt = freeServiceOptionRepository.findById(m.getFreeServiceOptionId())
-                            .orElse(null);
+                    FreeServiceOption opt = svcMap.get(m.getFreeServiceOptionId());
                     if (opt == null) return null;
                     return AvailableRoomTypeResponse.ServiceInfo.builder()
                             .nameKo(opt.getServiceNameKo())
@@ -682,6 +760,34 @@ public class BookingServiceImpl implements BookingService {
                             .map(RoomType::getRoomClassId).orElse(null));
             int nights = (int) ChronoUnit.DAYS.between(sub.getCheckIn(), sub.getCheckOut());
 
+            // 서비스 항목 조회
+            List<ReservationServiceItem> serviceItems = reservationServiceItemRepository
+                    .findBySubReservationId(sub.getId());
+            List<BookingConfirmationResponse.ServiceDetail> serviceDetails = new ArrayList<>();
+            if (!serviceItems.isEmpty()) {
+                // 서비스명 벌크 조회
+                Set<Long> svcIds = serviceItems.stream()
+                        .map(ReservationServiceItem::getServiceOptionId)
+                        .filter(id -> id != null)
+                        .collect(Collectors.toSet());
+                java.util.Map<Long, String> svcNameMap = svcIds.isEmpty() ? java.util.Map.of()
+                        : paidServiceOptionRepository.findAllById(svcIds).stream()
+                                .collect(Collectors.toMap(PaidServiceOption::getId, PaidServiceOption::getServiceNameKo));
+
+                for (ReservationServiceItem si : serviceItems) {
+                    serviceDetails.add(BookingConfirmationResponse.ServiceDetail.builder()
+                            .serviceName(si.getServiceOptionId() != null
+                                    ? svcNameMap.getOrDefault(si.getServiceOptionId(), "서비스 #" + si.getServiceOptionId())
+                                    : "기타")
+                            .serviceType(si.getServiceType())
+                            .quantity(si.getQuantity())
+                            .unitPrice(si.getUnitPrice())
+                            .totalPrice(si.getTotalPrice())
+                            .serviceDate(si.getServiceDate())
+                            .build());
+                }
+            }
+
             roomDetails.add(BookingConfirmationResponse.RoomDetail.builder()
                     .roomTypeName(roomTypeName)
                     .checkIn(sub.getCheckIn())
@@ -691,6 +797,7 @@ public class BookingServiceImpl implements BookingService {
                     .nights(nights)
                     .roomTotal(roomTotal)
                     .dailyCharges(dailyPrices)
+                    .services(serviceDetails)
                     .build());
         }
 
@@ -846,6 +953,23 @@ public class BookingServiceImpl implements BookingService {
                         .memo("게스트 자가 취소 환불 (수수료: " + cancelFee + "원)")
                         .build();
                 paymentTransactionRepository.save(refundTxn);
+            }
+        }
+
+        // 서비스 항목 재고 복원
+        for (SubReservation sub : master.getSubReservations()) {
+            List<ReservationServiceItem> serviceItems = reservationServiceItemRepository
+                    .findBySubReservationId(sub.getId());
+            for (ReservationServiceItem item : serviceItems) {
+                if (item.getServiceOptionId() != null) {
+                    paidServiceOptionRepository.findById(item.getServiceOptionId()).ifPresent(option -> {
+                        if (option.getInventoryItemId() != null) {
+                            inventoryService.releaseInventory(
+                                    option.getInventoryItemId(), sub.getCheckIn(), sub.getCheckOut(),
+                                    item.getQuantity());
+                        }
+                    });
+                }
             }
         }
 
@@ -1528,5 +1652,103 @@ public class BookingServiceImpl implements BookingService {
                 .endDate(endDate)
                 .dates(dates)
                 .build();
+    }
+
+    // ─── 객실별 적용가능 레이트플랜 역방향 조회 ───
+
+    @Override
+    public List<RatePlanListResponse> getRatePlansByRoomType(String propertyCode, Long roomTypeId,
+                                                              LocalDate checkIn, LocalDate checkOut,
+                                                              Integer adults, Integer children) {
+        Property property = findPropertyByCode(propertyCode);
+
+        // 객실타입 존재 + 소속 검증
+        RoomType roomType = roomTypeRepository.findById(roomTypeId)
+                .orElseThrow(() -> new HolaException(ErrorCode.ROOM_TYPE_NOT_FOUND));
+        if (!roomType.getPropertyId().equals(property.getId())) {
+            throw new HolaException(ErrorCode.ROOM_TYPE_NOT_FOUND);
+        }
+
+        final int adultsCount = (adults != null) ? adults : 2;
+        final int childrenCount = (children != null) ? children : 0;
+
+        // 인원수 초과 시 빈 목록
+        if (adultsCount > roomType.getMaxAdults()) {
+            return List.of();
+        }
+
+        // 해당 roomType에 매핑된 rateCodeId 목록
+        Set<Long> mappedRateCodeIds = rateCodeRoomTypeRepository.findAllByRoomTypeId(roomTypeId)
+                .stream()
+                .map(RateCodeRoomType::getRateCodeId)
+                .collect(Collectors.toSet());
+
+        if (mappedRateCodeIds.isEmpty()) {
+            return List.of();
+        }
+
+        // 기간 유효 레이트코드 조회
+        List<RateCodeListResponse> availableRateCodes = rateCodeService.getAvailableRateCodes(
+                property.getId(), checkIn, checkOut);
+
+        // 교집합 필터 (해당 roomType에 매핑된 것만)
+        availableRateCodes = availableRateCodes.stream()
+                .filter(rc -> mappedRateCodeIds.contains(rc.getId()))
+                .toList();
+
+        // 가용성 확인
+        int available = roomAvailabilityService.getAvailableRoomCount(roomTypeId, checkIn, checkOut);
+        if (available <= 0) {
+            return List.of();
+        }
+
+        String roomClassName = getRoomClassName(roomType.getRoomClassId());
+        List<RatePlanListResponse> result = new ArrayList<>();
+
+        for (RateCodeListResponse rc : availableRateCodes) {
+            // 1박 요금 계산
+            Long pricePerNight = null;
+            try {
+                List<DailyCharge> charges = priceCalculationService.calculateDailyCharges(
+                        rc.getId(), property, checkIn, checkOut, adultsCount, childrenCount, null);
+                if (!charges.isEmpty()) {
+                    pricePerNight = charges.get(0).getTotal().longValue();
+                }
+            } catch (Exception e) {
+                // 요금 계산 실패 시 무시
+            }
+
+            RateCode rateCode = rateCodeRepository.findById(rc.getId()).orElse(null);
+
+            RatePlanListResponse.RoomTypeInfo roomTypeInfo = RatePlanListResponse.RoomTypeInfo.builder()
+                    .roomTypeId(roomType.getId())
+                    .roomTypeCode(roomType.getRoomTypeCode())
+                    .roomClassName(roomClassName)
+                    .pricePerNight(pricePerNight)
+                    .build();
+
+            result.add(RatePlanListResponse.builder()
+                    .ratePlanId(rc.getId())
+                    .rateCode(rc.getRateCode())
+                    .ratePlanName(rc.getRateNameKo())
+                    .ratePlanNameEn(rateCode != null ? rateCode.getRateNameEn() : null)
+                    .category(rc.getRateCategory())
+                    .currency(rc.getCurrency())
+                    .minPrice(pricePerNight)
+                    .minStayDays(rateCode != null ? rateCode.getMinStayDays() : null)
+                    .maxStayDays(rateCode != null ? rateCode.getMaxStayDays() : null)
+                    .roomTypeCount(1)
+                    .roomTypes(List.of(roomTypeInfo))
+                    .build());
+        }
+
+        // 최저가 순 정렬
+        result.sort((a, b) -> {
+            if (a.getMinPrice() == null) return 1;
+            if (b.getMinPrice() == null) return -1;
+            return Long.compare(a.getMinPrice(), b.getMinPrice());
+        });
+
+        return result;
     }
 }

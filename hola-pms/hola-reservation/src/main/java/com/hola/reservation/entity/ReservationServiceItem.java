@@ -30,7 +30,7 @@ public class ReservationServiceItem {
     @JoinColumn(name = "sub_reservation_id", nullable = false)
     private SubReservation subReservation;
 
-    @Column(name = "service_type", nullable = false, length = 10)
+    @Column(name = "service_type", nullable = false, length = 20)
     private String serviceType;
 
     @Column(name = "service_option_id")
@@ -51,6 +51,14 @@ public class ReservationServiceItem {
 
     @Column(name = "total_price", precision = 15, scale = 2)
     private BigDecimal totalPrice;
+
+    // Phase 5: 트랜잭션 코드 연결 + 포스팅 상태
+    @Column(name = "transaction_code_id")
+    private Long transactionCodeId;
+
+    @Column(name = "posting_status", length = 10)
+    @Builder.Default
+    private String postingStatus = "POSTED";    // POSTED / PENDING / VOIDED
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)

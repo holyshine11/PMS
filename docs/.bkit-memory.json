@@ -1,11 +1,11 @@
 {
-  "sessionCount": 205,
+  "sessionCount": 240,
   "lastSession": {
-    "startedAt": "2026-03-15T14:34:29.835Z",
+    "startedAt": "2026-03-16T13:05:47.527Z",
     "platform": "claude",
     "level": "Starter"
   },
-  "currentFeature": "cancellation-policy",
+  "currentFeature": "transaction-charge-system",
   "currentPhase": "check",
-  "matchRate": 96
+  "matchRate": 95
 }

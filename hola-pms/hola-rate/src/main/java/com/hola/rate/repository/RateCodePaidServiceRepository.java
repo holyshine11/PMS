@@ -15,6 +15,8 @@ public interface RateCodePaidServiceRepository extends JpaRepository<RateCodePai
 
     List<RateCodePaidService> findAllByRateCodeId(Long rateCodeId);
 
+    List<RateCodePaidService> findAllByRateCodeIdIn(List<Long> rateCodeIds);
+
     @Modifying
     @Query("DELETE FROM RateCodePaidService r WHERE r.rateCodeId = :rateCodeId")
     void deleteAllByRateCodeId(@Param("rateCodeId") Long rateCodeId);

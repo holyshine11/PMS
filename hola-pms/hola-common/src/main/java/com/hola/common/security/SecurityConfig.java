@@ -78,6 +78,11 @@ public class SecurityConfig {
                 // 층/호수 조회: 객실 타입 폼에서 사용
                 .requestMatchers("/api/v1/properties/*/floors/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 .requestMatchers("/api/v1/properties/*/room-numbers/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 트랜잭션 코드 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/api/v1/properties/*/transaction-code-groups/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                .requestMatchers("/api/v1/properties/*/transaction-codes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 재고 관리 API
+                .requestMatchers("/api/v1/properties/*/inventory-items/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 호텔관리 API: SUPER_ADMIN 전용 (제너릭 경로는 마지막)
                 .requestMatchers("/api/v1/hotels/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/api/v1/properties/**").hasRole("SUPER_ADMIN")
@@ -96,12 +101,12 @@ public class SecurityConfig {
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write("{\"success\":false,\"code\":\"HOLA-0002\",\"message\":\"인증이 필요합니다.\"}");
+                    response.getWriter().write("{\"success\":false,\"code\":\"HOLA-0005\",\"message\":\"인증이 필요합니다.\"}");
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write("{\"success\":false,\"code\":\"HOLA-0003\",\"message\":\"접근 권한이 없습니다.\"}");
+                    response.getWriter().write("{\"success\":false,\"code\":\"HOLA-0006\",\"message\":\"접근 권한이 없습니다.\"}");
                 })
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

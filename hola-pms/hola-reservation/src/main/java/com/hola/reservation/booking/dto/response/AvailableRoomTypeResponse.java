@@ -38,6 +38,17 @@ public class AvailableRoomTypeResponse {
         private final String currency;
         private final BigDecimal totalAmount;
         private final List<DailyPrice> dailyPrices;
+        /** 레이트코드에 포함된 유료 서비스 */
+        private final List<IncludedServiceInfo> includedServices;
+    }
+
+    @Getter
+    @Builder
+    public static class IncludedServiceInfo {
+        private final Long serviceOptionId;
+        private final String nameKo;
+        private final String type;
+        private final String applicableNights;
     }
 
     @Getter

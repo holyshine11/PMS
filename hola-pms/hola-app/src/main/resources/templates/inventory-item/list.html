@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>재고 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <!-- 페이지 타이틀 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-boxes me-2"></i>재고 관리</h4>
+        <button class="btn btn-primary" id="btnCreate" onclick="InvPage.openModal()">
+            <i class="fas fa-plus me-1"></i>아이템 등록
+        </button>
+    </div>
+
+    <!-- 컨텍스트 미선택 경고 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <!-- 필터 카드 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">관리 유형</label>
+                    <select id="filterManagementType" class="form-select form-select-sm">
+                        <option value="">전체</option>
+                        <option value="INTERNAL">자체관리</option>
+                        <option value="EXTERNAL">외부 ERP</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">아이템 유형</label>
+                    <select id="filterItemType" class="form-select form-select-sm">
+                        <option value="">전체</option>
+                        <option value="EXTRA_BED">엑스트라 베드</option>
+                        <option value="CRIB">유아용 침대</option>
+                        <option value="ROLLAWAY">롤어웨이 베드</option>
+                        <option value="EQUIPMENT">장비</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted">총 <strong id="totalCount">0</strong>개</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 테이블 -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <table id="invTable" class="table table-hover mb-0" style="width:100%">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:50px">NO</th>
+                        <th style="width:100px">코드</th>
+                        <th>아이템명</th>
+                        <th style="width:120px">유형</th>
+                        <th style="width:100px">관리방식</th>
+                        <th style="width:80px">보유수량</th>
+                        <th style="width:80px">상태</th>
+                        <th style="width:120px">관리</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+<!-- 등록/수정 모달 -->
+<div class="modal fade" id="invModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="invModalTitle">아이템 등록</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="itemId">
+                <div class="mb-3">
+                    <label class="form-label required">아이템 코드</label>
+                    <input type="text" class="form-control" id="itemCode" placeholder="예: XBED-01" maxlength="30">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label required">아이템명 (한글)</label>
+                    <input type="text" class="form-control" id="itemNameKo" placeholder="예: 엑스트라 베드" maxlength="200">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">아이템명 (영문)</label>
+                    <input type="text" class="form-control" id="itemNameEn" placeholder="예: Extra Bed" maxlength="200">
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label required">아이템 유형</label>
+                        <select id="itemType" class="form-select">
+                            <option value="EXTRA_BED">엑스트라 베드</option>
+                            <option value="CRIB">유아용 침대</option>
+                            <option value="ROLLAWAY">롤어웨이 베드</option>
+                            <option value="EQUIPMENT">장비</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label required">관리 방식</label>
+                        <select id="managementType" class="form-select">
+                            <option value="INTERNAL">자체관리</option>
+                            <option value="EXTERNAL">외부 ERP</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3 d-none" id="externalCodeRow">
+                    <label class="form-label">외부 시스템 코드</label>
+                    <input type="text" class="form-control" id="externalSystemCode" placeholder="SAP 아이템 코드" maxlength="50">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label required">보유 수량</label>
+                    <input type="number" class="form-control" id="totalQuantity" value="0" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="InvPage.save()">
+                    <i class="fas fa-save me-1"></i>저장
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/inventory-item.js}"></script>
+</th:block>
+</body>
+</html>

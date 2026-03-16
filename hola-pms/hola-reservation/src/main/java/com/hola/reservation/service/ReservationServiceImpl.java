@@ -67,8 +67,10 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationPaymentService paymentService;
     private final AccessControlService accessControlService;
     private final com.hola.reservation.booking.service.CancellationPolicyService cancellationPolicyService;
+    private final com.hola.room.service.InventoryService inventoryService;
     private final ReservationPaymentRepository reservationPaymentRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final RateIncludedServiceHelper rateIncludedServiceHelper;
 
     // 허용되는 상태 전이 매트릭스
     private static final Map<String, Set<String>> STATUS_TRANSITIONS = Map.of(
@@ -338,8 +340,9 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         // 레이트코드 또는 날짜가 실제 변경된 경우에만 재검증
+        boolean rateChanged = false;
         if (request.getRateCodeId() != null) {
-            boolean rateChanged = !request.getRateCodeId().equals(master.getRateCodeId());
+            rateChanged = !request.getRateCodeId().equals(master.getRateCodeId());
             boolean datesChanged = !request.getMasterCheckIn().equals(master.getMasterCheckIn())
                     || !request.getMasterCheckOut().equals(master.getMasterCheckOut());
             if (rateChanged || datesChanged) {
@@ -385,6 +388,11 @@ public class ReservationServiceImpl implements ReservationService {
 
                     updateGuests(sub, subReq.getGuests());
                     recalculateDailyCharges(sub, property);
+
+                    // 레이트코드 변경 시 포함 서비스 갱신
+                    if (rateChanged) {
+                        rateIncludedServiceHelper.refreshRateIncludedServices(sub, request.getRateCodeId());
+                    }
                 } else {
                     // 신규 레그 추가 (소프트삭제 포함 전체 수 기준 채번)
                     int legSeq = subReservationRepository.countAllIncludingDeleted(master.getId()) + 1;
@@ -488,6 +496,19 @@ public class ReservationServiceImpl implements ReservationService {
                         .memo("취소 환불 (수수료: " + cancelFee + "원)")
                         .build();
                 paymentTransactionRepository.save(refundTxn);
+            }
+        }
+
+        // 재고 복원 (PAID 서비스 중 inventoryItemId가 있는 항목)
+        for (SubReservation sub : master.getSubReservations()) {
+            for (var svcItem : sub.getServices()) {
+                if ("PAID".equals(svcItem.getServiceType()) && svcItem.getServiceOptionId() != null) {
+                    paidServiceOptionRepository.findById(svcItem.getServiceOptionId())
+                            .filter(opt -> opt.getInventoryItemId() != null)
+                            .ifPresent(opt -> inventoryService.releaseInventory(
+                                    opt.getInventoryItemId(), sub.getCheckIn(), sub.getCheckOut(),
+                                    svcItem.getQuantity()));
+                }
             }
         }
 
@@ -914,7 +935,90 @@ public class ReservationServiceImpl implements ReservationService {
             recalculateDailyCharges(sub, property);
         }
 
+        // 레이트코드 포함 서비스 자동 추가
+        rateIncludedServiceHelper.addRateIncludedServices(sub, master.getRateCodeId());
+
+        // 예약 시 선택한 유료 서비스(Add-on) 추가
+        if (request.getServices() != null && !request.getServices().isEmpty()) {
+            addSelectedServices(sub, request.getServices());
+        }
+
         return sub;
+    }
+
+    /**
+     * 예약 시 선택한 유료 서비스를 PAID 타입으로 추가
+     */
+    private void addSelectedServices(SubReservation sub, List<ServiceSelectionRequest> services) {
+        List<Long> serviceIds = services.stream()
+                .map(ServiceSelectionRequest::getServiceOptionId)
+                .collect(Collectors.toList());
+
+        Map<Long, PaidServiceOption> optionMap = paidServiceOptionRepository.findAllById(serviceIds).stream()
+                .collect(Collectors.toMap(PaidServiceOption::getId, java.util.function.Function.identity()));
+
+        for (ServiceSelectionRequest sel : services) {
+            PaidServiceOption option = optionMap.get(sel.getServiceOptionId());
+            if (option == null) continue;
+
+            int qty = sel.getQuantity() != null ? sel.getQuantity() : 1;
+            BigDecimal unitPrice = option.getVatIncludedPrice();
+            BigDecimal tax = option.getTaxAmount().multiply(BigDecimal.valueOf(qty));
+            BigDecimal total = unitPrice.multiply(BigDecimal.valueOf(qty));
+
+            String applicableNights = option.getApplicableNights();
+            // 재고 아이템 연결 시 재고 차감
+            if (option.getInventoryItemId() != null) {
+                boolean reserved = inventoryService.reserveInventory(
+                        option.getInventoryItemId(), sub.getCheckIn(), sub.getCheckOut(), qty);
+                if (!reserved) {
+                    log.warn("재고 부족 - 서비스 스킵: serviceId={}, itemId={}", option.getId(), option.getInventoryItemId());
+                    continue;
+                }
+            }
+
+            if ("ALL_NIGHTS".equals(applicableNights)) {
+                LocalDate date = sub.getCheckIn();
+                while (date.isBefore(sub.getCheckOut())) {
+                    serviceItemRepository.save(ReservationServiceItem.builder()
+                            .subReservation(sub)
+                            .serviceType("PAID")
+                            .serviceOptionId(option.getId())
+                            .transactionCodeId(option.getTransactionCodeId())
+                            .serviceDate(date)
+                            .quantity(qty)
+                            .unitPrice(unitPrice)
+                            .tax(tax)
+                            .totalPrice(total)
+                            .build());
+                    date = date.plusDays(1);
+                }
+            } else if ("FIRST_NIGHT_ONLY".equals(applicableNights)) {
+                serviceItemRepository.save(ReservationServiceItem.builder()
+                        .subReservation(sub)
+                        .serviceType("PAID")
+                        .serviceOptionId(option.getId())
+                        .transactionCodeId(option.getTransactionCodeId())
+                        .serviceDate(sub.getCheckIn())
+                        .quantity(qty)
+                        .unitPrice(unitPrice)
+                        .tax(tax)
+                        .totalPrice(total)
+                        .build());
+            } else {
+                serviceItemRepository.save(ReservationServiceItem.builder()
+                        .subReservation(sub)
+                        .serviceType("PAID")
+                        .serviceOptionId(option.getId())
+                        .transactionCodeId(option.getTransactionCodeId())
+                        .serviceDate(null)
+                        .quantity(qty)
+                        .unitPrice(unitPrice)
+                        .tax(tax)
+                        .totalPrice(total)
+                        .build());
+            }
+        }
     }
 
     /**
@@ -1013,6 +1117,14 @@ public class ReservationServiceImpl implements ReservationService {
 
         SubReservation sub = findSubAndValidateOwnership(subReservationId, master);
 
+        // 서비스 일자가 체크인~체크아웃 전일 범위 내인지 검증 (체크아웃 당일은 객실 사용일이 아님)
+        if (request.getServiceDate() != null) {
+            if (request.getServiceDate().isBefore(sub.getCheckIn())
+                    || !request.getServiceDate().isBefore(sub.getCheckOut())) {
+                throw new HolaException(ErrorCode.SERVICE_DATE_OUT_OF_RANGE);
+            }
+        }
+
         PaidServiceOption option = paidServiceOptionRepository.findById(request.getServiceOptionId())
                 .orElseThrow(() -> new HolaException(ErrorCode.PAID_SERVICE_OPTION_NOT_FOUND));
 
@@ -1025,6 +1137,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .subReservation(sub)
                 .serviceType("PAID")
                 .serviceOptionId(option.getId())
+                .transactionCodeId(option.getTransactionCodeId())
                 .serviceDate(request.getServiceDate())
                 .quantity(qty)
                 .unitPrice(unitPrice)

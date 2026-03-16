@@ -24,4 +24,8 @@ public interface RoomTypeFloorRepository extends JpaRepository<RoomTypeFloor, Lo
     /** 특정 층에 매핑된 호수 ID 목록 (중복 제거) */
     @Query("SELECT DISTINCT rtf.roomNumberId FROM RoomTypeFloor rtf WHERE rtf.floorId = :floorId")
     List<Long> findDistinctRoomNumberIdsByFloorId(@Param("floorId") Long floorId);
+
+    /** 여러 객실타입에 매핑된 층/호수 벌크 조회 */
+    @Query("SELECT rtf FROM RoomTypeFloor rtf WHERE rtf.roomTypeId IN :roomTypeIds")
+    List<RoomTypeFloor> findAllByRoomTypeIdIn(@Param("roomTypeIds") List<Long> roomTypeIds);
 }

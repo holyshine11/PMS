@@ -36,4 +36,14 @@ public class PaidServiceOptionResponse {
     private Boolean useYn;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Phase 2 확장 필드
+    private Long transactionCodeId;
+    private String transactionCodeName;     // 조인: TransactionCode.codeNameKo
+    private String transactionCodeValue;    // 조인: TransactionCode.transactionCode
+    private String postingFrequency;
+    private String packageScope;
+    private Boolean sellSeparately;
+    private Long inventoryItemId;
+    private String inventoryItemName;
 }

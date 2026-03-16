@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <aside th:fragment="sidebar">
-    <nav class="sidebar hola-sidebar text-white" style="width: 250px; height: calc(100vh - 56px); position: fixed; top: 56px; left: 0; padding-top: 1rem; z-index: 1020; overflow-y: auto; background-color: #051923;">
+    <nav class="sidebar hola-sidebar text-white" style="height: calc(100vh - 56px); position: fixed; top: 56px; left: 0; padding-top: 1rem; z-index: 1020; background-color: #051923;">
         <ul class="nav flex-column pb-4">
             <!-- 대시보드 -->
             <li class="nav-item">
@@ -140,6 +140,18 @@
                     <a class="nav-link text-white ps-4" th:href="@{/admin/paid-service-options}"
                        th:classappend="${#strings.startsWith(currentURI, '/admin/paid-service-options')} ? 'active' : ''">
                         <i class="fas fa-coins me-2"></i>유료 옵션 관리
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/transaction-codes}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/transaction-codes')} ? 'active' : ''">
+                        <i class="fas fa-exchange-alt me-2"></i>트랜잭션 코드 관리
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/inventory-items}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/inventory-items')} ? 'active' : ''">
+                        <i class="fas fa-boxes me-2"></i>재고 관리
                     </a>
                 </li>
                 <!-- 객실관리 > 레이트 관리 -->

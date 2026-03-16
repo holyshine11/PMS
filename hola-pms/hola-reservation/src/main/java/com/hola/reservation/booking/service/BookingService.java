@@ -108,4 +108,11 @@ public interface BookingService {
      * 이용약관 목록 조회
      */
     List<PropertyTermsResponse> getTerms(String propertyCode);
+
+    /**
+     * 객실별 적용가능 레이트플랜 조회 (역방향)
+     */
+    List<RatePlanListResponse> getRatePlansByRoomType(String propertyCode, Long roomTypeId,
+                                                      LocalDate checkIn, LocalDate checkOut,
+                                                      Integer adults, Integer children);
 }

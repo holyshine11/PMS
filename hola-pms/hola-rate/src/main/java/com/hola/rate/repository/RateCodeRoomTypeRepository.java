@@ -15,6 +15,10 @@ public interface RateCodeRoomTypeRepository extends JpaRepository<RateCodeRoomTy
 
     List<RateCodeRoomType> findAllByRateCodeId(Long rateCodeId);
 
+    List<RateCodeRoomType> findAllByRateCodeIdIn(List<Long> rateCodeIds);
+
+    List<RateCodeRoomType> findAllByRoomTypeId(Long roomTypeId);
+
     long countByRateCodeId(Long rateCodeId);
 
     @Modifying

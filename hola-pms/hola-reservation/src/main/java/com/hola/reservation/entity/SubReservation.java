@@ -30,6 +30,11 @@ public class SubReservation extends BaseEntity {
     @Column(name = "sub_reservation_no", nullable = false, unique = true, length = 25)
     private String subReservationNo;
 
+    @Version
+    @Column(name = "version")
+    @Builder.Default
+    private Long version = 0L;
+
     @Column(name = "room_reservation_status", nullable = false, length = 20)
     @Builder.Default
     private String roomReservationStatus = "RESERVED";
@@ -113,6 +118,15 @@ public class SubReservation extends BaseEntity {
         this.checkOut = checkOut;
         this.earlyCheckIn = earlyCheckIn;
         this.lateCheckOut = lateCheckOut;
+    }
+
+    /**
+     * 객실타입 변경 (업그레이드용) - 기존 배정 초기화
+     */
+    public void changeRoomType(Long newRoomTypeId) {
+        this.roomTypeId = newRoomTypeId;
+        this.roomNumberId = null;
+        this.floorId = null;
     }
 
     /**

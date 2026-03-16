@@ -43,4 +43,7 @@ public class SubReservationRequest {
 
     // 동반 투숙객
     private List<ReservationGuestRequest> guests;
+
+    // 유료 서비스 선택 (Add-on)
+    private List<ServiceSelectionRequest> services;
 }

@@ -33,6 +33,11 @@ public class MasterReservation extends BaseEntity {
     @Column(name = "confirmation_no", nullable = false, unique = true, length = 10)
     private String confirmationNo;
 
+    @Version
+    @Column(name = "version")
+    @Builder.Default
+    private Long version = 0L;
+
     @Column(name = "reservation_status", nullable = false, length = 20)
     @Builder.Default
     private String reservationStatus = "RESERVED";

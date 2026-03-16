@@ -1,5 +1,6 @@
 package com.hola.reservation.booking.dto.request;
 
+import com.hola.reservation.dto.request.ServiceSelectionRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
@@ -86,6 +87,21 @@ public class BookingCreateRequest {
 
         @Min(value = 0, message = "아동 인원수는 0 이상이어야 합니다.")
         private Integer children = 0;
+
+        /** 유료 서비스 선택 (Add-on, 선택사항) */
+        @Valid
+        private List<ServiceSelection> services;
+    }
+
+    @Getter
+    @Setter
+    public static class ServiceSelection {
+
+        @NotNull(message = "서비스 옵션 ID는 필수입니다.")
+        private Long serviceOptionId;
+
+        @Min(value = 1, message = "수량은 1 이상이어야 합니다.")
+        private Integer quantity = 1;
     }
 
     @Getter

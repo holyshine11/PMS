@@ -29,12 +29,13 @@ public class PaidServiceOptionApiController {
     private final AccessControlService accessControlService;
     private final PaidServiceOptionService paidServiceOptionService;
 
-    @Operation(summary = "유료 옵션 목록 조회", description = "프로퍼티 유료 서비스 옵션 전체 목록")
+    @Operation(summary = "유료 옵션 목록 조회", description = "프로퍼티 유료 서비스 옵션 전체 목록 (roomTypeId로 필터링 가능)")
     @GetMapping
     public ResponseEntity<HolaResponse<List<PaidServiceOptionResponse>>> getPaidServiceOptions(
-            @PathVariable Long propertyId) {
+            @PathVariable Long propertyId,
+            @RequestParam(required = false) Long roomTypeId) {
         accessControlService.validatePropertyAccess(propertyId);
-        List<PaidServiceOptionResponse> list = paidServiceOptionService.getPaidServiceOptions(propertyId);
+        List<PaidServiceOptionResponse> list = paidServiceOptionService.getPaidServiceOptions(propertyId, roomTypeId);
         return ResponseEntity.ok(HolaResponse.success(list));
     }
 

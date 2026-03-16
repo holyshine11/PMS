@@ -80,6 +80,30 @@ public class PaidServiceOption extends BaseEntity {
     @Column(name = "admin_memo", columnDefinition = "TEXT")
     private String adminMemo;
 
+    // === Phase 2: Transaction Code 연결 + PackageCode 역할 ===
+
+    /** 트랜잭션 코드 FK (점진 매핑, nullable) */
+    @Column(name = "transaction_code_id")
+    private Long transactionCodeId;
+
+    /** 부과 빈도: PER_NIGHT, PER_STAY, ONE_TIME (applicableNights 대체) */
+    @Column(name = "posting_frequency", length = 20)
+    private String postingFrequency;
+
+    /** 패키지 범위: PROPERTY_WIDE(전체) / ROOM_TYPE_SPECIFIC(객실타입 한정) */
+    @Column(name = "package_scope", nullable = false, length = 20)
+    @Builder.Default
+    private String packageScope = "PROPERTY_WIDE";
+
+    /** 개별 판매 가능 여부 */
+    @Column(name = "sell_separately", nullable = false)
+    @Builder.Default
+    private Boolean sellSeparately = true;
+
+    /** 연결된 재고 아이템 ID (Phase 3) */
+    @Column(name = "inventory_item_id")
+    private Long inventoryItemId;
+
     /**
      * 유료 서비스 옵션 정보 수정
      */
@@ -101,5 +125,18 @@ public class PaidServiceOption extends BaseEntity {
         this.quantity = quantity;
         this.quantityUnit = quantityUnit;
         this.adminMemo = adminMemo;
+    }
+
+    /**
+     * Phase 2 확장 필드 수정
+     */
+    public void updatePackageFields(Long transactionCodeId, String postingFrequency,
+                                     String packageScope, Boolean sellSeparately,
+                                     Long inventoryItemId) {
+        this.transactionCodeId = transactionCodeId;
+        this.postingFrequency = postingFrequency;
+        this.packageScope = packageScope != null ? packageScope : "PROPERTY_WIDE";
+        this.sellSeparately = sellSeparately != null ? sellSeparately : true;
+        this.inventoryItemId = inventoryItemId;
     }
 }

@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
@@ -156,6 +157,26 @@ public class PriceCalculationService {
             }
             date = date.plusDays(1);
         }
+    }
+
+    /**
+     * 요금 커버리지 여부 확인 (예외 미발생, boolean 반환)
+     * 트랜잭션 rollback 마킹 없이 안전하게 호출 가능
+     */
+    public boolean hasPricingCoverage(Long rateCodeId, LocalDate checkIn, LocalDate checkOut) {
+        List<RatePricing> pricingList = ratePricingRepository.findAllByRateCodeIdOrderByIdAsc(rateCodeId);
+        if (pricingList.isEmpty()) {
+            return false;
+        }
+        LocalDate date = checkIn;
+        while (date.isBefore(checkOut)) {
+            RatePricing pricing = findPricingForDate(pricingList, date);
+            if (pricing == null) {
+                return false;
+            }
+            date = date.plusDays(1);
+        }
+        return true;
     }
 
     /**

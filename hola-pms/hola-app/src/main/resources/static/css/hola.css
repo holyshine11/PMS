@@ -189,6 +189,8 @@ body {
 /* ── 사이드바 ── */
 .sidebar.hola-sidebar {
     background-color: var(--hola-sidebar-bg) !important;
+    width: 250px;
+    overflow-y: auto;
 }
 
 .sidebar .nav-link.active {
@@ -438,6 +440,150 @@ textarea[readonly].form-control {
     color: #adb5bd;
     font-size: 0.82rem;
     padding: 4px 0 4px 20px;
+}
+
+/* ── 사이드바 접힘/펼침 ── */
+.sidebar.hola-sidebar {
+    transition: width 0.25s ease;
+}
+
+main.main-content {
+    transition: margin-left 0.25s ease;
+}
+
+/* 토글 버튼 */
+.sidebar-toggle-btn {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 1.1rem;
+    padding: 4px 8px !important;
+    border-radius: 4px;
+    transition: background-color 0.15s ease;
+}
+.sidebar-toggle-btn:hover {
+    color: #fff !important;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 접힌 사이드바: 기본 60px */
+body.sidebar-collapsed .sidebar.hola-sidebar:not(:hover) {
+    width: 60px;
+    overflow: hidden;
+}
+
+/* 접힌 사이드바 호버: 250px 임시 확장 (오버레이) */
+body.sidebar-collapsed .sidebar.hola-sidebar:hover {
+    width: 250px;
+    overflow-y: auto;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.15);
+}
+
+/* 접힌 상태 메인 콘텐츠 여백 축소 */
+body.sidebar-collapsed main.main-content {
+    margin-left: 60px !important;
+}
+
+/* 접힌 상태: 텍스트 숨기고 아이콘만 표시 */
+body.sidebar-collapsed .sidebar:not(:hover) .nav-link {
+    font-size: 0;
+    text-align: center;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    white-space: nowrap;
+}
+body.sidebar-collapsed .sidebar:not(:hover) .nav-link > i {
+    font-size: 1rem;
+    margin-right: 0 !important;
+    display: block;
+    line-height: 2;
+}
+
+/* 접힌 상태: active 링크 보더 중앙 정렬 */
+body.sidebar-collapsed .sidebar:not(:hover) .nav-link.active {
+    margin: 0 6px;
+}
+
+/* 접힌 상태: 섹션 헤더 아이콘만 */
+body.sidebar-collapsed .sidebar:not(:hover) .sidebar-section {
+    font-size: 0;
+    justify-content: center;
+}
+body.sidebar-collapsed .sidebar:not(:hover) .sidebar-section > i:first-child {
+    font-size: 0.75rem;
+    margin-right: 0 !important;
+}
+body.sidebar-collapsed .sidebar:not(:hover) .sidebar-arrow {
+    display: none;
+}
+
+/* 접힌 상태: 아이콘 없는 서브 카테고리 레이블 숨기기 */
+body.sidebar-collapsed .sidebar:not(:hover) .nav-link.text-secondary.small:not(.sidebar-section) {
+    display: none;
+}
+
+/* 접힌 상태: 뱃지 숨기기 */
+body.sidebar-collapsed .sidebar:not(:hover) .nav-link .badge {
+    display: none;
+}
+
+/* 접힌 상태: 모든 collapse 그룹 표시 (아이콘 접근 가능하도록) */
+body.sidebar-collapsed .sidebar:not(:hover) .collapse {
+    display: block !important;
+}
+
+/* ── 팝업 테이블 행 클릭 선택 ── */
+.modal .table-hover tbody tr.row-selected {
+    background-color: rgba(5, 130, 202, 0.12) !important;
+}
+.modal .table-hover tbody tr {
+    cursor: pointer;
+}
+.modal .table-hover tbody tr.table-secondary {
+    cursor: not-allowed;
+}
+
+/* ── 팝업 테이블 가로 스크롤 ── */
+.modal .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.modal .table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+.modal .table-responsive::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+}
+.modal .table-responsive::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* ── 객실 배정 모달 확장 ── */
+#roomAssignModal .modal-xl {
+    max-width: 1200px;
+}
+@media (min-width: 1400px) {
+    #roomAssignModal .modal-xl {
+        max-width: 1400px;
+    }
+}
+
+/* 아코디언 헤더 가로 스크롤 */
+#roomAssignModal .accordion-button {
+    white-space: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+#roomAssignModal .accordion-button::-webkit-scrollbar {
+    height: 4px;
+}
+#roomAssignModal .accordion-button::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+}
+
+/* 아코디언 내부 콘텐츠 가로 스크롤 */
+#roomAssignModal .accordion-body {
+    overflow-x: auto;
 }
 
 /* ── 예약 캘린더뷰 ── */

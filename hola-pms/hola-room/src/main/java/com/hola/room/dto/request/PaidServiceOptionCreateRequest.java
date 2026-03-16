@@ -61,4 +61,11 @@ public class PaidServiceOptionCreateRequest {
     private String adminMemo;
 
     private Boolean useYn;
+
+    // Phase 2 확장 필드
+    private Long transactionCodeId;
+    private String postingFrequency;
+    private String packageScope;
+    private Boolean sellSeparately;
+    private Long inventoryItemId;
 }

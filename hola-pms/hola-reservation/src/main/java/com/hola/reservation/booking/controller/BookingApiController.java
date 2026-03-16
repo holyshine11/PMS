@@ -8,6 +8,7 @@ import com.hola.reservation.booking.dto.request.CancelBookingRequest;
 import com.hola.reservation.booking.dto.request.PriceCheckRequest;
 import com.hola.reservation.booking.dto.response.*;
 import com.hola.reservation.booking.service.BookingService;
+import com.hola.reservation.booking.service.CardBinValidationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,6 +34,7 @@ import java.util.List;
 public class BookingApiController {
 
     private final BookingService bookingService;
+    private final CardBinValidationService cardBinValidationService;
 
     /**
      * 프로퍼티 기본정보 조회
@@ -245,5 +247,31 @@ public class BookingApiController {
         String userAgent = httpRequest.getHeader("User-Agent");
         return ResponseEntity.ok(BookingResponse.success(
                 bookingService.cancelBooking(confirmationNo, request.getEmail(), clientIp, userAgent)));
+    }
+
+    /**
+     * 객실별 적용가능 레이트플랜 조회 (역방향)
+     */
+    @Operation(summary = "객실별 레이트플랜", description = "특정 객실타입에 적용 가능한 레이트플랜 목록 (최저가 순)")
+    @GetMapping("/properties/{propertyCode}/rooms/{roomTypeId}/rate-plans")
+    public BookingResponse<List<RatePlanListResponse>> getRatePlansByRoomType(
+            @PathVariable String propertyCode,
+            @PathVariable Long roomTypeId,
+            @RequestParam LocalDate checkIn,
+            @RequestParam LocalDate checkOut,
+            @RequestParam(required = false, defaultValue = "2") Integer adults,
+            @RequestParam(required = false, defaultValue = "0") Integer children) {
+        return BookingResponse.success(bookingService.getRatePlansByRoomType(
+                propertyCode, roomTypeId, checkIn, checkOut, adults, children));
+    }
+
+    /**
+     * Card BIN 검증
+     */
+    @Operation(summary = "Card BIN 검증", description = "카드 BIN(앞 6자리)으로 네트워크 판별 및 지원 여부 확인")
+    @GetMapping("/card-bin/validate")
+    public BookingResponse<CardBinValidationResponse> validateCardBin(
+            @RequestParam String bin) {
+        return BookingResponse.success(cardBinValidationService.validate(bin));
     }
 }
