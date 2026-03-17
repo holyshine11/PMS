@@ -29,8 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.hola.rate.entity.RateCode;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -76,21 +74,24 @@ public class RoomAssignServiceImpl implements RoomAssignService {
                 .orElseThrow(() -> new HolaException(ErrorCode.RATE_CODE_NOT_FOUND));
 
         // 3. 현재 레그 요금 계산 (rate pricing 미설정 시 안전하게 0 처리)
+        // hasPricingCoverage 먼저 확인하여 HolaException에 의한 트랜잭션 rollback-only 방지
         int nights = (int) ChronoUnit.DAYS.between(checkIn, checkOut);
         BigDecimal currentLegTotalPrice = BigDecimal.ZERO;
         BigDecimal currentAvgNightly = BigDecimal.ZERO;
 
-        try {
-            List<DailyCharge> currentCharges = priceCalculationService.calculateDailyCharges(
-                    rateCodeId, property, checkIn, checkOut, adults, children, null);
-            currentLegTotalPrice = currentCharges.stream()
-                    .map(DailyCharge::getTotal)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            currentAvgNightly = nights > 0
-                    ? currentLegTotalPrice.divide(BigDecimal.valueOf(nights), 2, RoundingMode.HALF_UP)
-                    : BigDecimal.ZERO;
-        } catch (Exception e) {
-            log.warn("현재 레그 요금 계산 실패 (rateCodeId={}): {}", rateCodeId, e.getMessage());
+        if (priceCalculationService.hasPricingCoverage(rateCodeId, checkIn, checkOut)) {
+            try {
+                List<DailyCharge> currentCharges = priceCalculationService.calculateDailyCharges(
+                        rateCodeId, property, checkIn, checkOut, adults, children, null);
+                currentLegTotalPrice = currentCharges.stream()
+                        .map(DailyCharge::getTotal)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                currentAvgNightly = nights > 0
+                        ? currentLegTotalPrice.divide(BigDecimal.valueOf(nights), 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+            } catch (Exception e) {
+                log.warn("현재 레그 요금 계산 실패 (rateCodeId={}): {}", rateCodeId, e.getMessage());
+            }
         }
 
         // 4. 레이트코드에 매핑된 객실타입 ID 조회 (추천 기준)
@@ -165,36 +166,39 @@ public class RoomAssignServiceImpl implements RoomAssignService {
             boolean isRecommended = rateCodeMappedRoomTypeIds.contains(rt.getId());
             RoomClass roomClass = roomClassMap.get(rt.getRoomClassId());
 
-            // 해당 roomType에 적합한 레이트코드 탐색 후 요금 계산 (try-catch로 실패 시 null)
+            // 해당 roomType에 적합한 레이트코드 탐색 후 요금 계산
+            // hasPricingCoverage 먼저 확인하여 트랜잭션 rollback-only 방지
             BigDecimal typeTotalPrice = null;
             BigDecimal typeAvgNightly = null;
             BigDecimal priceDiff = null;
             List<DailyChargeDetail> dailyChargeDetails = null;
 
-            try {
-                Long typeRateCodeId = findRateCodeForRoomType(rt.getId(), rateCodeId);
-                List<DailyCharge> typeCharges = priceCalculationService.calculateDailyCharges(
-                        typeRateCodeId, property, checkIn, checkOut, adults, children, null);
-                typeTotalPrice = typeCharges.stream()
-                        .map(DailyCharge::getTotal)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-                typeAvgNightly = nights > 0
-                        ? typeTotalPrice.divide(BigDecimal.valueOf(nights), 2, RoundingMode.HALF_UP)
-                        : BigDecimal.ZERO;
-                priceDiff = typeTotalPrice.subtract(currentLegTotalPrice);
+            Long typeRateCodeId = findRateCodeForRoomType(rt.getId(), rateCodeId);
+            if (priceCalculationService.hasPricingCoverage(typeRateCodeId, checkIn, checkOut)) {
+                try {
+                    List<DailyCharge> typeCharges = priceCalculationService.calculateDailyCharges(
+                            typeRateCodeId, property, checkIn, checkOut, adults, children, null);
+                    typeTotalPrice = typeCharges.stream()
+                            .map(DailyCharge::getTotal)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    typeAvgNightly = nights > 0
+                            ? typeTotalPrice.divide(BigDecimal.valueOf(nights), 2, RoundingMode.HALF_UP)
+                            : BigDecimal.ZERO;
+                    priceDiff = typeTotalPrice.subtract(currentLegTotalPrice);
 
-                // 일자별 요금 상세
-                dailyChargeDetails = typeCharges.stream()
-                        .map(dc -> DailyChargeDetail.builder()
-                                .chargeDate(dc.getChargeDate())
-                                .supplyPrice(dc.getSupplyPrice())
-                                .tax(dc.getTax())
-                                .serviceCharge(dc.getServiceCharge())
-                                .total(dc.getTotal())
-                                .build())
-                        .collect(Collectors.toList());
-            } catch (Exception e) {
-                log.debug("객실타입 {} 요금 계산 실패: {}", rt.getRoomTypeCode(), e.getMessage());
+                    // 일자별 요금 상세
+                    dailyChargeDetails = typeCharges.stream()
+                            .map(dc -> DailyChargeDetail.builder()
+                                    .chargeDate(dc.getChargeDate())
+                                    .supplyPrice(dc.getSupplyPrice())
+                                    .tax(dc.getTax())
+                                    .serviceCharge(dc.getServiceCharge())
+                                    .total(dc.getTotal())
+                                    .build())
+                            .collect(Collectors.toList());
+                } catch (Exception e) {
+                    log.debug("객실타입 {} 요금 계산 실패: {}", rt.getRoomTypeCode(), e.getMessage());
+                }
             }
 
             // 층별 그룹핑

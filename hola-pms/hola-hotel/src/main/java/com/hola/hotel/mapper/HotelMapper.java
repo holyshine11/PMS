@@ -122,6 +122,8 @@ public class HotelMapper {
                 .sortOrder(roomNumber.getSortOrder())
                 .useYn(roomNumber.getUseYn())
                 .updatedAt(roomNumber.getUpdatedAt())
+                .hkStatus(roomNumber.getHkStatus())
+                .foStatus(roomNumber.getFoStatus())
                 .build();
     }
 

@@ -575,6 +575,36 @@ public class ReservationServiceImpl implements ReservationService {
             throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
         }
 
+        // 체크인 전제조건 검증
+        if ("CHECK_IN".equals(newStatus)) {
+            for (SubReservation sub : master.getSubReservations()) {
+                if ("CANCELED".equals(sub.getRoomReservationStatus())) continue;
+                // 객실 배정 필수
+                if (sub.getRoomNumberId() == null) {
+                    throw new HolaException(ErrorCode.FD_ROOM_ASSIGN_REQUIRED);
+                }
+                // 배정된 객실 HK 상태 검증
+                com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
+                if (room != null && "OOO".equals(room.getHkStatus())) {
+                    throw new HolaException(ErrorCode.FD_ROOM_OUT_OF_ORDER);
+                }
+            }
+        }
+
+        // 체크아웃 전제조건: 결제 잔액 검증
+        if ("CHECKED_OUT".equals(newStatus)) {
+            ReservationPayment payment = reservationPaymentRepository
+                    .findByMasterReservationId(master.getId()).orElse(null);
+            if (payment != null) {
+                BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
+                BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+                BigDecimal remaining = grandTotal.subtract(totalPaid);
+                if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+                    throw new HolaException(ErrorCode.CHECKOUT_OUTSTANDING_BALANCE);
+                }
+            }
+        }
+
         master.updateStatus(newStatus);
         LocalDateTime now = LocalDateTime.now();
 
@@ -584,16 +614,30 @@ public class ReservationServiceImpl implements ReservationService {
             if (!"CANCELED".equals(sub.getRoomReservationStatus())) {
                 sub.updateStatus(newStatus);
 
-                // 체크인 시 실제 시각 및 얼리 체크인 요금 기록
+                // 체크인 시: 실제 시각 + 얼리 요금 + 객실 FO 상태 변경
                 if ("CHECK_IN".equals(newStatus)) {
                     BigDecimal earlyFee = earlyLateCheckService.calculateEarlyCheckInFee(sub, now);
                     sub.recordCheckIn(now, earlyFee);
+                    // 객실 FO 상태 → OCCUPIED
+                    if (sub.getRoomNumberId() != null) {
+                        com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
+                        if (room != null) {
+                            room.checkIn();
+                        }
+                    }
                 }
 
-                // 체크아웃 시 실제 시각 및 레이트 체크아웃 요금 기록
+                // 체크아웃 시: 결제 잔액 검증 + 실제 시각 + 레이트 요금 + 객실 FO→VACANT, HK→DIRTY
                 if ("CHECKED_OUT".equals(newStatus)) {
                     BigDecimal lateFee = earlyLateCheckService.calculateLateCheckOutFee(sub, now);
                     sub.recordCheckOut(now, lateFee);
+                    // 객실 상태 변경
+                    if (sub.getRoomNumberId() != null) {
+                        com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
+                        if (room != null) {
+                            room.checkOut();
+                        }
+                    }
                 }
             }
         }
@@ -687,6 +731,18 @@ public class ReservationServiceImpl implements ReservationService {
         SubReservation sub = findSubAndValidateOwnership(legId, master);
 
         validateDates(request.getCheckIn(), request.getCheckOut());
+
+        // 객실타입 최대 수용 인원 검증
+        if (request.getRoomTypeId() != null) {
+            RoomType roomType = roomTypeRepository.findById(request.getRoomTypeId()).orElse(null);
+            if (roomType != null) {
+                int adults = request.getAdults() != null ? request.getAdults() : 1;
+                int children = request.getChildren() != null ? request.getChildren() : 0;
+                if (adults > roomType.getMaxAdults() || children > roomType.getMaxChildren()) {
+                    throw new HolaException(ErrorCode.SUB_RESERVATION_OCCUPANCY_EXCEEDED);
+                }
+            }
+        }
 
         // L1 객실 충돌 검사 (자기 자신 제외)
         if (request.getRoomNumberId() != null) {
@@ -885,6 +941,18 @@ public class ReservationServiceImpl implements ReservationService {
     private SubReservation createSubReservation(MasterReservation master, SubReservationRequest request,
                                                  int legSeq, Property property) {
         validateDates(request.getCheckIn(), request.getCheckOut());
+
+        // 객실타입 최대 수용 인원 검증
+        if (request.getRoomTypeId() != null) {
+            RoomType roomType = roomTypeRepository.findById(request.getRoomTypeId()).orElse(null);
+            if (roomType != null) {
+                int adults = request.getAdults() != null ? request.getAdults() : 1;
+                int children = request.getChildren() != null ? request.getChildren() : 0;
+                if (adults > roomType.getMaxAdults() || children > roomType.getMaxChildren()) {
+                    throw new HolaException(ErrorCode.SUB_RESERVATION_OCCUPANCY_EXCEEDED);
+                }
+            }
+        }
 
         // L1 객실 충돌 검사 (비관적 락으로 동시 예약 시 오버부킹 방지)
         if (request.getRoomNumberId() != null) {

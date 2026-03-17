@@ -36,6 +36,10 @@ public class EarlyLateCheckService {
      */
     public BigDecimal calculateEarlyCheckInFee(SubReservation sub, LocalDateTime actualCheckInTime) {
         Property property = sub.getMasterReservation().getProperty();
+        // 체크인 시간 미설정 시 요금 없음
+        if (property.getCheckInTime() == null || property.getCheckInTime().isBlank()) {
+            return BigDecimal.ZERO;
+        }
         LocalTime standardCheckIn = LocalTime.parse(property.getCheckInTime());
         LocalTime actualTime = actualCheckInTime.toLocalTime();
 
@@ -71,6 +75,10 @@ public class EarlyLateCheckService {
      */
     public BigDecimal calculateLateCheckOutFee(SubReservation sub, LocalDateTime actualCheckOutTime) {
         Property property = sub.getMasterReservation().getProperty();
+        // 체크아웃 시간 미설정 시 요금 없음
+        if (property.getCheckOutTime() == null || property.getCheckOutTime().isBlank()) {
+            return BigDecimal.ZERO;
+        }
         LocalTime standardCheckOut = LocalTime.parse(property.getCheckOutTime());
         LocalTime actualTime = actualCheckOutTime.toLocalTime();
 

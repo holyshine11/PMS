@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -18,4 +20,14 @@ public interface DailyChargeRepository extends JpaRepository<DailyCharge, Long> 
     @Modifying
     @Query("DELETE FROM DailyCharge d WHERE d.subReservation.id = :subReservationId")
     void deleteAllBySubReservationId(@Param("subReservationId") Long subReservationId);
+
+    /**
+     * 특정 프로퍼티, 특정 날짜의 매출 합계 (취소/노쇼 제외)
+     */
+    @Query("SELECT COALESCE(SUM(d.total), 0) FROM DailyCharge d " +
+           "WHERE d.subReservation.masterReservation.property.id = :propertyId " +
+           "AND d.chargeDate = :chargeDate " +
+           "AND d.subReservation.roomReservationStatus NOT IN ('CANCELED', 'NO_SHOW')")
+    BigDecimal sumRevenueByPropertyAndDate(@Param("propertyId") Long propertyId,
+                                           @Param("chargeDate") LocalDate chargeDate);
 }

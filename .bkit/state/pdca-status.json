@@ -1,0 +1,215 @@
+{
+  "version": "2.0",
+  "lastUpdated": "2026-03-17T11:58:06.006Z",
+  "activeFeatures": [
+    "hola",
+    "web",
+    "service",
+    "repository",
+    "js",
+    "exception"
+  ],
+  "primaryFeature": "hola",
+  "features": {
+    "hola": {
+      "phase": "check",
+      "phaseNumber": 4,
+      "matchRate": 92,
+      "iterationCount": 1,
+      "requirements": [],
+      "documents": {
+        "analysis": "docs/03-analysis/hola.analysis.md"
+      },
+      "timestamps": {
+        "started": "2026-03-03T01:46:32.103Z",
+        "lastUpdated": "2026-03-15T15:00:00.000Z"
+      },
+      "lastFile": "/Users/Dev/PMS/docs/03-analysis/hola.analysis.md"
+    },
+    "web": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-17T11:55:19.540Z",
+        "lastUpdated": "2026-03-17T11:56:17.212Z"
+      },
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/java/com/hola/web/RoomRackController.java"
+    },
+    "service": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-17T11:55:28.938Z",
+        "lastUpdated": "2026-03-17T11:56:44.491Z"
+      },
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/FrontDeskServiceImpl.java"
+    },
+    "repository": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-17T11:55:38.199Z",
+        "lastUpdated": "2026-03-17T11:55:44.578Z"
+      },
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/repository/SubReservationRepository.java"
+    },
+    "js": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-17T11:57:13.724Z",
+        "lastUpdated": "2026-03-17T11:57:46.723Z"
+      },
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/resources/static/js/fd-departures-page.js"
+    },
+    "exception": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-17T11:57:52.496Z",
+        "lastUpdated": "2026-03-17T11:58:06.006Z"
+      },
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-common/src/main/java/com/hola/common/exception/GlobalExceptionHandler.java"
+    }
+  },
+  "pipeline": {
+    "currentPhase": 1,
+    "level": "Dynamic",
+    "phaseHistory": []
+  },
+  "session": {
+    "startedAt": "2026-03-03T00:54:55.026Z",
+    "onboardingCompleted": false,
+    "lastActivity": "2026-03-17T11:58:06.006Z"
+  },
+  "history": [
+    {
+      "timestamp": "2026-03-03T01:46:32.103Z",
+      "feature": "hola",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:55:19.540Z",
+      "feature": "web",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:55:28.938Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:55:38.199Z",
+      "feature": "repository",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:55:44.578Z",
+      "feature": "repository",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:55:48.653Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:55:58.461Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:56:02.133Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:56:11.721Z",
+      "feature": "web",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:56:17.212Z",
+      "feature": "web",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:56:27.705Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:56:34.860Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:56:39.983Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:56:44.491Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:57:13.724Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:57:46.723Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:57:52.496Z",
+      "feature": "exception",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-17T11:58:06.006Z",
+      "feature": "exception",
+      "phase": "do",
+      "action": "updated"
+    }
+  ]
+}

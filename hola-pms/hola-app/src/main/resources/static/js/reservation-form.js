@@ -834,6 +834,20 @@ var ReservationForm = {
         var adults = $leg.find('.leg-adults').val() || 1;
         var children = $leg.find('.leg-children').val() || 0;
 
+        // 필수 파라미터 검증
+        if (!rateCodeId) {
+            HolaPms.alert('warning', '레이트코드를 먼저 선택해주세요.');
+            return;
+        }
+        if (!roomTypeId) {
+            HolaPms.alert('warning', '객실타입을 먼저 선택해주세요.');
+            return;
+        }
+        if (!checkIn || !checkOut) {
+            HolaPms.alert('warning', '체크인/체크아웃 날짜를 입력해주세요.');
+            return;
+        }
+
         // 탭 초기화 (추천 탭 활성)
         $('#roomAssignModal [data-assign-tab]').removeClass('active');
         $('#roomAssignModal [data-assign-tab="recommended"]').addClass('active');
@@ -1189,6 +1203,22 @@ var ReservationForm = {
                 HolaPms.alert('warning', '객실 #' + (i + 1) + '의 체크아웃은 체크인 이후여야 합니다.');
                 $('a[href="#tabDetail"]').tab('show');
                 return false;
+            }
+            // 객실타입 최대 수용 인원 검증
+            if (sub.roomTypeId && self.allRoomTypes) {
+                var rt = self.allRoomTypes.find(function(t) { return t.id === sub.roomTypeId; });
+                if (rt) {
+                    if ((sub.adults || 1) > (rt.maxAdults || 99)) {
+                        HolaPms.alert('warning', '객실 #' + (i + 1) + '의 성인 수가 최대 수용 인원(' + rt.maxAdults + '명)을 초과합니다.');
+                        $('a[href="#tabDetail"]').tab('show');
+                        return false;
+                    }
+                    if ((sub.children || 0) > (rt.maxChildren || 99)) {
+                        HolaPms.alert('warning', '객실 #' + (i + 1) + '의 아동 수가 최대 수용 인원(' + rt.maxChildren + '명)을 초과합니다.');
+                        $('a[href="#tabDetail"]').tab('show');
+                        return false;
+                    }
+                }
             }
         }
 

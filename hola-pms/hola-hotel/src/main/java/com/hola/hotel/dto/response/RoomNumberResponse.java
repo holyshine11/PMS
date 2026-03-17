@@ -21,4 +21,7 @@ public class RoomNumberResponse {
     private Integer sortOrder;
     private Boolean useYn;
     private LocalDateTime updatedAt;
+    // Phase B: 객실 상태 필드
+    private String hkStatus;
+    private String foStatus;
 }

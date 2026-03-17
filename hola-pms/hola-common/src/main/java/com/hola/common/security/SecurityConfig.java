@@ -49,6 +49,8 @@ public class SecurityConfig {
                 // 부킹엔진 API: BookingSecurityConfig(@Order(0))에서 별도 처리
                 // 내 프로필 API: 모든 인증 사용자
                 .requestMatchers("/api/v1/my-profile/**").authenticated()
+                // 대시보드 API: 모든 인증 사용자
+                .requestMatchers("/api/v1/dashboard/**").authenticated()
                 // selector API: 모든 인증 사용자 허용 (헤더 드롭다운)
                 .requestMatchers("/api/v1/hotels/selector").authenticated()
                 .requestMatchers("/api/v1/properties/selector").authenticated()
@@ -83,6 +85,14 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/properties/*/transaction-codes/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 재고 관리 API
                 .requestMatchers("/api/v1/properties/*/inventory-items/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 객실 배정 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/api/v1/properties/*/room-assign/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 프론트데스크 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/api/v1/properties/*/front-desk/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 객실 상태 API
+                .requestMatchers("/api/v1/properties/*/room-status/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // Room Rack API
+                .requestMatchers("/api/v1/properties/*/room-rack/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 호텔관리 API: SUPER_ADMIN 전용 (제너릭 경로는 마지막)
                 .requestMatchers("/api/v1/hotels/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/api/v1/properties/**").hasRole("SUPER_ADMIN")
@@ -153,6 +163,8 @@ public class SecurityConfig {
                 .requestMatchers("/admin/reservation-channels/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 예약관리 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
                 .requestMatchers("/admin/reservations/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 프론트데스크 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                .requestMatchers("/admin/front-desk/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 회원관리
                 .requestMatchers("/admin/members/bluewave-admins/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/members/hotel-admins/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN")

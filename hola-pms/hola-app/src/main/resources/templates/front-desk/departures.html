@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>출발 (Departures)</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-plane-departure me-2"></i>출발 (Departures)</h4>
+    </div>
+
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center pt-3 pb-2">
+            <h6 class="fw-bold mb-0">오늘 출발 예정 (<span id="departureCount">0</span>)</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="departureTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">예약번호</th>
+                            <th>투숙객</th>
+                            <th>객실</th>
+                            <th>체크인</th>
+                            <th>체크아웃</th>
+                            <th class="text-center">Late C/O</th>
+                            <th class="text-end">요금</th>
+                            <th class="text-end">결제</th>
+                            <th class="text-end">잔액</th>
+                            <th class="text-center pe-3">체크아웃</th>
+                        </tr>
+                    </thead>
+                    <tbody id="departureBody">
+                        <tr><td colspan="10" class="text-center py-4 text-muted">데이터 로딩 중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 체크아웃 확인 모달 -->
+    <div class="modal fade" id="checkOutModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-sign-out-alt me-2"></i>체크아웃 확인</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-2"><div class="col-4 text-muted">투숙객</div><div class="col-8" id="coGuest">-</div></div>
+                    <div class="row mb-2"><div class="col-4 text-muted">객실</div><div class="col-8" id="coRoom">-</div></div>
+                    <div class="row mb-2"><div class="col-4 text-muted">총 요금</div><div class="col-8" id="coTotal">-</div></div>
+                    <div class="row mb-2"><div class="col-4 text-muted">결제액</div><div class="col-8" id="coPaid">-</div></div>
+                    <hr>
+                    <div class="row mb-2"><div class="col-4 fw-bold">잔액</div><div class="col-8 fw-bold" id="coBalance">-</div></div>
+                    <div id="coBalanceWarning" class="alert alert-danger d-none mt-2">
+                        <i class="fas fa-exclamation-triangle me-1"></i>미결제 잔액이 있습니다. 결제 후 체크아웃하세요.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-danger" id="coCompleteBtn">
+                        <i class="fas fa-sign-out-alt me-1"></i>체크아웃 완료
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/fd-departures-page.js}"></script>
+</th:block>
+</body>
+</html>

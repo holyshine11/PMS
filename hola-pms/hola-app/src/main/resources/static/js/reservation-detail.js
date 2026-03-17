@@ -753,6 +753,16 @@ var ReservationDetail = {
             return;
         }
 
+        // 체크아웃 시 결제 잔액 검증
+        if (newStatus === 'CHECKED_OUT') {
+            var remaining = ReservationPayment.paymentData
+                ? Number(ReservationPayment.paymentData.remainingAmount) || 0 : 0;
+            if (remaining > 0) {
+                HolaPms.alert('warning', '결제 잔액을 확인하세요.');
+                return;
+            }
+        }
+
         var statusInfo = self.STATUS_BADGE[newStatus] || { label: newStatus };
         $('#statusConfirmMessage').text('예약 상태를 "' + label + '"(으)로 변경하시겠습니까?');
 
@@ -1368,6 +1378,20 @@ var ReservationDetail = {
         var children = legCard.find('.leg-children').val() || 0;
         var excludeSubId = legCard.data('leg-id') || '';
 
+        // 필수 파라미터 검증
+        if (!rateCodeId) {
+            HolaPms.alert('warning', '레이트코드를 먼저 선택해주세요.');
+            return;
+        }
+        if (!roomTypeId) {
+            HolaPms.alert('warning', '객실타입을 먼저 선택해주세요.');
+            return;
+        }
+        if (!checkIn || !checkOut) {
+            HolaPms.alert('warning', '체크인/체크아웃 날짜를 입력해주세요.');
+            return;
+        }
+
         // 하위 호환용 값 유지
         self.assignCheckIn = checkIn || '';
         self.assignCheckOut = checkOut || '';
@@ -1831,6 +1855,22 @@ var ReservationDetail = {
                 HolaPms.alert('warning', '객실 #' + (i + 1) + '의 체크아웃은 체크인 이후여야 합니다.');
                 $('a[href="#tabDetail"]').tab('show');
                 return false;
+            }
+            // 객실타입 최대 수용 인원 검증
+            if (sub.roomTypeId && self.allRoomTypes) {
+                var rt = self.allRoomTypes.find(function(t) { return t.id === sub.roomTypeId; });
+                if (rt) {
+                    if ((sub.adults || 1) > (rt.maxAdults || 99)) {
+                        HolaPms.alert('warning', '객실 #' + (i + 1) + '의 성인 수가 최대 수용 인원(' + rt.maxAdults + '명)을 초과합니다.');
+                        $('a[href="#tabDetail"]').tab('show');
+                        return false;
+                    }
+                    if ((sub.children || 0) > (rt.maxChildren || 99)) {
+                        HolaPms.alert('warning', '객실 #' + (i + 1) + '의 아동 수가 최대 수용 인원(' + rt.maxChildren + '명)을 초과합니다.');
+                        $('a[href="#tabDetail"]').tab('show');
+                        return false;
+                    }
+                }
             }
         }
 

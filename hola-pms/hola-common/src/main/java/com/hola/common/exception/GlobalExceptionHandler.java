@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
@@ -46,6 +47,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(HolaResponse.error("HOLA-4027", "다른 요청이 진행 중입니다. 잠시 후 다시 시도해주세요."));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<HolaResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.warn("파라미터 타입 오류: {} = {}", e.getName(), e.getValue());
+        return ResponseEntity
+                .badRequest()
+                .body(HolaResponse.error(ErrorCode.INVALID_INPUT.getCode(),
+                        "잘못된 파라미터 형식입니다: " + e.getName()));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

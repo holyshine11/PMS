@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org"
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
       layout:decorate="~{layout/default}">
 <head>
     <title>대시보드</title>
@@ -9,82 +10,208 @@
 <div layout:fragment="content">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold mb-0"><i class="fas fa-tachometer-alt me-2"></i>대시보드</h4>
+        <span class="text-muted" id="dashboardDate"></span>
     </div>
 
-    <div class="row g-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-muted mb-1">전체 호텔</p>
-                            <h3 class="fw-bold mb-0" th:text="${hotelCount ?: 0}">0</h3>
+    <!-- ===================== SUPER_ADMIN: 전체 프로퍼티 랭킹 ===================== -->
+    <div sec:authorize="hasRole('SUPER_ADMIN')">
+        <!-- 전체 요약 카드 -->
+        <div class="row g-3 mb-4" id="superAdminSummary">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1">전체 프로퍼티</p>
+                                <h3 class="mb-0" id="totalProperties">-</h3>
+                            </div>
+                            <div class="dashboard-icon bg-primary bg-opacity-10">
+                                <i class="fas fa-city fa-lg text-primary"></i>
+                            </div>
                         </div>
-                        <div class="bg-primary bg-opacity-10 rounded-3 p-3">
-                            <i class="fas fa-hotel fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1">전체 객실</p>
+                                <h3 class="mb-0" id="totalRoomsAll">-</h3>
+                            </div>
+                            <div class="dashboard-icon bg-info bg-opacity-10">
+                                <i class="fas fa-bed fa-lg text-info"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1">평균 점유율</p>
+                                <h3 class="mb-0" id="avgOccupancy">-</h3>
+                            </div>
+                            <div class="dashboard-icon bg-success bg-opacity-10">
+                                <i class="fas fa-chart-pie fa-lg text-success"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1">총 매출</p>
+                                <h3 class="mb-0" id="totalRevenueAll">-</h3>
+                            </div>
+                            <div class="dashboard-icon bg-danger bg-opacity-10">
+                                <i class="fas fa-won-sign fa-lg text-danger"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-muted mb-1">전체 프로퍼티</p>
-                            <h3 class="fw-bold mb-0" th:text="${propertyCount ?: 0}">0</h3>
-                        </div>
-                        <div class="hola-icon-box hola-icon-dark rounded-3 p-3">
-                            <i class="fas fa-building fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
+
+        <!-- 프로퍼티 랭킹 테이블 -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-3 pb-2">
+                <h6 class="fw-bold mb-0"><i class="fas fa-trophy me-2 text-warning"></i>프로퍼티 점유율 랭킹</h6>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-muted mb-1">전체 객실</p>
-                            <h3 class="fw-bold mb-0">0</h3>
-                        </div>
-                        <div class="hola-icon-box hola-icon-accent rounded-3 p-3">
-                            <i class="fas fa-bed fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-muted mb-1">오늘 예약</p>
-                            <h3 class="fw-bold mb-0">0</h3>
-                        </div>
-                        <div class="hola-icon-box hola-icon-danger rounded-3 p-3">
-                            <i class="fas fa-calendar-check fa-2x"></i>
-                        </div>
-                    </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="rankingTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width:50px;">#</th>
+                                <th>프로퍼티</th>
+                                <th class="text-center">객실 수</th>
+                                <th class="text-center">판매 객실</th>
+                                <th class="text-center">OCC%</th>
+                                <th class="text-end">ADR</th>
+                                <th class="text-end">RevPAR</th>
+                                <th class="text-end pe-3">오늘 매출</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rankingBody">
+                            <tr><td colspan="8" class="text-center py-4 text-muted">데이터 로딩 중...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mt-4">
-        <div class="card-body">
-            <h5 class="card-title fw-bold">시스템 현황</h5>
-            <p class="text-muted">Hola PMS v0.1.0 - Phase 0 기반 구축 완료</p>
-            <ul class="list-unstyled">
-                <li><i class="fas fa-check-circle text-primary me-2"></i>관리자 인증 시스템</li>
-                <li><i class="fas fa-check-circle text-primary me-2"></i>멀티테넌시 기반 구조</li>
-                <li><i class="fas fa-check-circle text-primary me-2"></i>호텔/프로퍼티 관리</li>
-            </ul>
+    <!-- ===================== PROPERTY 선택 시: KPI + 운영 + 차트 ===================== -->
+    <div id="propertyDashboard" class="d-none">
+        <!-- KPI 카드 4종 -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">점유율 (OCC%)</p>
+                        <h3 class="mb-1 text-primary" id="kpiOcc">-</h3>
+                        <small class="text-muted"><span id="kpiSold">0</span> / <span id="kpiTotal">0</span> 객실</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">평균 객단가 (ADR)</p>
+                        <h3 class="mb-1" id="kpiAdr">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">객실당 매출 (RevPAR)</p>
+                        <h3 class="mb-1" id="kpiRevpar">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">오늘 매출</p>
+                        <h3 class="mb-1 text-danger" id="kpiRevenue">-</h3>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- 운영현황 카드 -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm dashboard-card" style="border-left: 4px solid #0582CA !important;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1">도착 예정</p>
+                                <h3 class="mb-0" id="opArrivals">-</h3>
+                            </div>
+                            <div>
+                                <span class="text-muted small">체크인 완료</span>
+                                <span class="badge bg-primary ms-1" id="opCheckedIn">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm dashboard-card" style="border-left: 4px solid #003554 !important;">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">현재 투숙</p>
+                        <h3 class="mb-0" id="opInHouse">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm dashboard-card" style="border-left: 4px solid #EF476F !important;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1">출발 예정</p>
+                                <h3 class="mb-0" id="opDepartures">-</h3>
+                            </div>
+                            <div>
+                                <span class="text-muted small">체크아웃 완료</span>
+                                <span class="badge bg-danger ms-1" id="opCheckedOut">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7일 추이 차트 -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-3 pb-2">
+                <h6 class="fw-bold mb-0"><i class="fas fa-chart-line me-2"></i>7일 예약 추이</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="pickupChart" height="80"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 프로퍼티 미선택 안내 (HOTEL_ADMIN, PROPERTY_ADMIN) -->
+    <div id="contextAlert" class="alert alert-info d-none mt-3" role="alert" sec:authorize="!hasRole('SUPER_ADMIN')">
+        <i class="fas fa-info-circle me-1"></i>호텔과 프로퍼티를 선택하면 대시보드 데이터가 표시됩니다.
     </div>
 </div>
+
+<th:block layout:fragment="scripts">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script th:src="@{/js/dashboard-page.js}"></script>
+</th:block>
 </body>
 </html>

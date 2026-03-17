@@ -116,6 +116,7 @@ public enum ErrorCode {
     SUB_RESERVATION_NO_AVAILABILITY("HOLA-4012", "해당 객실 타입의 가용 객실이 없습니다.", HttpStatus.BAD_REQUEST),
     SUB_RESERVATION_DATE_INVALID("HOLA-4013", "체크아웃은 체크인 이후여야 합니다.", HttpStatus.BAD_REQUEST),
     RESERVATION_CHECKIN_PAST_DATE("HOLA-4014", "체크인 날짜는 오늘 이후여야 합니다.", HttpStatus.BAD_REQUEST),
+    SUB_RESERVATION_OCCUPANCY_EXCEEDED("HOLA-4015", "객실 최대 수용 인원을 초과했습니다.", HttpStatus.BAD_REQUEST),
 
     // 가격/결제 (HOLA-402x)
     RESERVATION_RATE_NOT_APPLICABLE("HOLA-4020", "해당 기간에 적용 가능한 요금이 없습니다.", HttpStatus.BAD_REQUEST),
@@ -158,6 +159,7 @@ public enum ErrorCode {
     RESERVATION_PAYMENT_AMOUNT_EXCEEDED("HOLA-4026", "결제 금액이 잔액을 초과합니다.", HttpStatus.BAD_REQUEST),
     RESERVATION_PAYMENT_CONCURRENT_CONFLICT("HOLA-4027", "다른 결제가 진행 중입니다. 잠시 후 다시 시도해주세요.", HttpStatus.CONFLICT),
     RESERVATION_PAYMENT_AMOUNT_INVALID("HOLA-4028", "결제 금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
+    CHECKOUT_OUTSTANDING_BALANCE("HOLA-4029", "결제 잔액을 확인하세요.", HttpStatus.BAD_REQUEST),
 
     // 부킹엔진 (HOLA-407x)
     BOOKING_PROPERTY_NOT_FOUND("HOLA-4070", "예약 가능한 프로퍼티를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
@@ -180,7 +182,14 @@ public enum ErrorCode {
     BOOKING_AUTH_REQUIRED("HOLA-4090", "API-KEY와 VENDOR-ID 헤더가 필요합니다.", HttpStatus.UNAUTHORIZED),
     BOOKING_AUTH_INVALID("HOLA-4091", "유효하지 않은 API Key입니다.", HttpStatus.UNAUTHORIZED),
     BOOKING_AUTH_EXPIRED("HOLA-4092", "만료된 API Key입니다.", HttpStatus.UNAUTHORIZED),
-    BOOKING_AUTH_IP_DENIED("HOLA-4093", "허용되지 않은 IP입니다.", HttpStatus.FORBIDDEN);
+    BOOKING_AUTH_IP_DENIED("HOLA-4093", "허용되지 않은 IP입니다.", HttpStatus.FORBIDDEN),
+
+    // 프론트데스크 (HOLA-5xxx)
+    FD_ROOM_ASSIGN_REQUIRED("HOLA-5001", "체크인 전 객실 배정이 필요합니다.", HttpStatus.BAD_REQUEST),
+    FD_ROOM_NOT_CLEAN("HOLA-5002", "객실이 청소완료 상태가 아닙니다.", HttpStatus.BAD_REQUEST),
+    FD_ROOM_OUT_OF_ORDER("HOLA-5003", "사용불가(OOO) 객실에는 체크인할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    FD_UNPAID_BALANCE("HOLA-5010", "미결제 잔액이 있습니다.", HttpStatus.BAD_REQUEST),
+    FD_STATUS_CHANGE_NOT_ALLOWED("HOLA-5020", "해당 상태로 변경할 수 없습니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

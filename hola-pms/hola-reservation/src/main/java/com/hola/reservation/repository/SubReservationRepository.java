@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -79,4 +80,105 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
             @Param("checkIn") LocalDate checkIn,
             @Param("checkOut") LocalDate checkOut,
             @Param("excludeStatuses") List<String> excludeStatuses);
+
+    // === 대시보드 집계 쿼리 ===
+
+    /**
+     * 오늘 투숙중 객실 수 (CHECK_IN 또는 INHOUSE 상태)
+     */
+    @Query("SELECT COUNT(s) FROM SubReservation s " +
+           "WHERE s.masterReservation.property.id = :propertyId " +
+           "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
+           "AND s.checkIn <= :today AND s.checkOut > :today")
+    long countSoldRooms(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
+
+    /**
+     * 오늘 도착 예정 (RESERVED 상태, checkIn = today)
+     */
+    @Query("SELECT COUNT(s) FROM SubReservation s " +
+           "WHERE s.masterReservation.property.id = :propertyId " +
+           "AND s.roomReservationStatus = 'RESERVED' " +
+           "AND s.checkIn = :today")
+    long countArrivals(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
+
+    /**
+     * 현재 투숙중 (CHECK_IN/INHOUSE, 체크아웃 날짜 >= 오늘)
+     */
+    @Query("SELECT COUNT(s) FROM SubReservation s " +
+           "WHERE s.masterReservation.property.id = :propertyId " +
+           "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
+           "AND s.checkOut >= :today")
+    long countInHouse(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
+
+    /**
+     * 오늘 출발 예정 (checkOut = today, CHECK_IN/INHOUSE)
+     */
+    @Query("SELECT COUNT(s) FROM SubReservation s " +
+           "WHERE s.masterReservation.property.id = :propertyId " +
+           "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
+           "AND s.checkOut = :today")
+    long countDepartures(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
+
+    /**
+     * 오늘 실제 체크인 완료
+     */
+    @Query("SELECT COUNT(s) FROM SubReservation s " +
+           "WHERE s.masterReservation.property.id = :propertyId " +
+           "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE', 'CHECKED_OUT') " +
+           "AND s.actualCheckInTime >= :startOfDay AND s.actualCheckInTime < :endOfDay")
+    long countCheckedInToday(@Param("propertyId") Long propertyId,
+                             @Param("startOfDay") LocalDateTime startOfDay,
+                             @Param("endOfDay") LocalDateTime endOfDay);
+
+    /**
+     * 오늘 실제 체크아웃 완료
+     */
+    @Query("SELECT COUNT(s) FROM SubReservation s " +
+           "WHERE s.masterReservation.property.id = :propertyId " +
+           "AND s.roomReservationStatus = 'CHECKED_OUT' " +
+           "AND s.actualCheckOutTime >= :startOfDay AND s.actualCheckOutTime < :endOfDay")
+    long countCheckedOutToday(@Param("propertyId") Long propertyId,
+                              @Param("startOfDay") LocalDateTime startOfDay,
+                              @Param("endOfDay") LocalDateTime endOfDay);
+
+    /**
+     * 7일 추이: 특정 날짜에 체류 중인 예약 수 (checkIn <= date AND checkOut > date)
+     */
+    @Query("SELECT COUNT(s) FROM SubReservation s " +
+           "WHERE s.masterReservation.property.id = :propertyId " +
+           "AND s.roomReservationStatus NOT IN ('CANCELED', 'NO_SHOW') " +
+           "AND s.checkIn <= :date AND s.checkOut > :date")
+    long countOccupiedByDate(@Param("propertyId") Long propertyId, @Param("date") LocalDate date);
+
+    // === 프론트데스크 리스트 쿼리 ===
+
+    /**
+     * 오늘 도착 예정 리스트 (RESERVED, checkIn=today)
+     */
+    @Query("SELECT s FROM SubReservation s JOIN FETCH s.masterReservation m " +
+           "WHERE m.property.id = :propertyId " +
+           "AND s.roomReservationStatus = 'RESERVED' " +
+           "AND s.checkIn = :today " +
+           "ORDER BY m.guestNameKo ASC")
+    List<SubReservation> findArrivals(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
+
+    /**
+     * 현재 투숙중 리스트 (CHECK_IN/INHOUSE, 체크아웃 날짜 >= 오늘)
+     */
+    @Query("SELECT s FROM SubReservation s JOIN FETCH s.masterReservation m " +
+           "WHERE m.property.id = :propertyId " +
+           "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
+           "AND s.checkOut >= :today " +
+           "ORDER BY s.checkOut ASC, m.guestNameKo ASC")
+    List<SubReservation> findInHouse(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
+
+    /**
+     * 오늘 출발 예정 리스트 (checkOut=today, CHECK_IN/INHOUSE)
+     */
+    @Query("SELECT s FROM SubReservation s JOIN FETCH s.masterReservation m " +
+           "WHERE m.property.id = :propertyId " +
+           "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
+           "AND s.checkOut = :today " +
+           "ORDER BY m.guestNameKo ASC")
+    List<SubReservation> findDepartures(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 }

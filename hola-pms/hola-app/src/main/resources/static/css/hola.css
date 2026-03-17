@@ -598,3 +598,75 @@ body.sidebar-collapsed .sidebar:not(:hover) .collapse {
     transform: translateY(-1px);
     transition: all 0.15s ease;
 }
+
+/* ── 대시보드 위젯 ── */
+.dashboard-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.dashboard-card:hover {
+    transform: translateY(-2px);
+}
+.dashboard-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 대시보드 랭킹 테이블 */
+#rankingTable thead th {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #6c757d;
+    border-bottom: 2px solid #dee2e6;
+}
+#rankingTable tbody td {
+    font-size: 0.88rem;
+    vertical-align: middle;
+    padding: 10px 8px;
+}
+
+/* ── Room Rack 카드 ── */
+.room-card {
+    width: 100px;
+    min-height: 80px;
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    position: relative;
+}
+.room-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.room-card-number {
+    font-weight: 700;
+    font-size: 1rem;
+}
+.room-card-status {
+    font-size: 0.7rem;
+    opacity: 0.85;
+}
+.room-card-guest {
+    font-size: 0.7rem;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.room-card-co {
+    font-size: 0.65rem;
+    opacity: 0.75;
+}
+
+/* Room Rack 상태 색상 */
+.room-card-vc  { background: #28a745; color: #fff; }
+.room-card-vd  { background: #dc3545; color: #fff; }
+.room-card-oc  { background: #0582CA; color: #fff; }
+.room-card-od  { background: #6f42c1; color: #fff; }
+.room-card-ooo { background: #6c757d; color: #fff; background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.1) 5px, rgba(255,255,255,0.1) 10px); }
+.room-card-oos { background: #e9ecef; color: #333; }
