@@ -12,11 +12,30 @@ var FdRoomRack = {
         this.reload();
     },
 
+    activeStatuses: ['VC','VD','OC','OD','OOO','OOS'],
+
     bindEvents: function() {
         var self = this;
         $(document).on('hola:contextChange', function() { self.reload(); });
         $('#refreshBtn').on('click', function() { self.loadRoomRack(); });
         $('#rdSaveBtn').on('click', function() { self.saveHkStatus(); });
+
+        // 상태 필터 토글
+        $(document).on('click', '.filter-badge', function() {
+            var status = $(this).data('status');
+            var idx = self.activeStatuses.indexOf(status);
+            if (idx >= 0) {
+                self.activeStatuses.splice(idx, 1);
+                $(this).css('opacity', '0.3');
+            } else {
+                self.activeStatuses.push(status);
+                $(this).css('opacity', '1');
+            }
+            self.renderGrid();
+        });
+
+        // 층 필터
+        $('#floorFilter').on('change', function() { self.renderGrid(); });
     },
 
     reload: function() {
@@ -46,9 +65,13 @@ var FdRoomRack = {
             success: function(res) {
                 if (!res.success) return;
                 self.data = res.data;
+                self.updateFloorFilter();
                 self.renderGrid();
                 var now = new Date();
                 $('#lastRefresh').text(String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0') + ' 갱신');
+            },
+            error: function() {
+                HolaPms.alert('danger', '객실현황을 불러오지 못했습니다.');
             }
         });
     },
@@ -67,25 +90,49 @@ var FdRoomRack = {
                 $('#cntOD').text(d.OD || 0);
                 $('#cntOOO').text(d.OOO || 0);
                 $('#cntOOS').text(d.OOS || 0);
-            }
+            },
+            error: function() { /* 요약 실패는 무시 - 그리드가 주 데이터 */ }
         });
+    },
+
+    updateFloorFilter: function() {
+        var self = this;
+        var currentVal = $('#floorFilter').val();
+        var options = '<option value="">전체 층</option>';
+        for (var i = 0; i < self.data.length; i++) {
+            var label = self.data[i].floorLabel;
+            options += '<option value="' + HolaPms.escapeHtml(label) + '">' + HolaPms.escapeHtml(label) + '</option>';
+        }
+        $('#floorFilter').html(options).val(currentVal);
     },
 
     renderGrid: function() {
         var self = this;
+        var floorFilter = $('#floorFilter').val();
         var html = '';
 
         for (var i = 0; i < self.data.length; i++) {
             var floor = self.data[i];
+
+            // 층 필터
+            if (floorFilter && floor.floorLabel !== floorFilter) continue;
+
+            // 상태 필터 적용
+            var filteredRooms = floor.rooms.filter(function(r) {
+                return self.activeStatuses.indexOf(r.statusCode) >= 0;
+            });
+
+            if (filteredRooms.length === 0) continue;
+
             html += '<div class="card border-0 shadow-sm mb-3">'
                 + '<div class="card-header bg-white border-0 py-2">'
-                + '<h6 class="fw-bold mb-0">' + HolaPms.escapeHtml(floor.floorLabel) + '</h6>'
+                + '<h6 class="fw-bold mb-0">' + HolaPms.escapeHtml(floor.floorLabel) + ' <small class="text-muted">(' + filteredRooms.length + ')</small></h6>'
                 + '</div>'
                 + '<div class="card-body pt-0">'
                 + '<div class="d-flex flex-wrap gap-2">';
 
-            for (var j = 0; j < floor.rooms.length; j++) {
-                var room = floor.rooms[j];
+            for (var j = 0; j < filteredRooms.length; j++) {
+                var room = filteredRooms[j];
                 var cssClass = 'room-card-' + room.statusCode.toLowerCase();
                 var guestLine = room.guestName ? '<div class="room-card-guest">' + HolaPms.escapeHtml(room.guestName) + '</div>' : '';
                 var checkOutLine = room.checkOut ? '<div class="room-card-co">' + room.checkOut + '</div>' : '';
@@ -160,6 +207,9 @@ var FdRoomRack = {
                     self.loadRoomRack();
                     self.loadSummary();
                 }
+            },
+            error: function() {
+                HolaPms.alert('danger', '객실 상태 변경에 실패했습니다.');
             }
         });
     },

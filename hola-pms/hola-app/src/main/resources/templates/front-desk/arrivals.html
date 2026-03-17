@@ -46,6 +46,17 @@
 
     <!-- 도착 리스트 -->
     <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 pt-3 pb-2">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h6 class="fw-bold mb-0">도착 예정 (<span id="arrivalListCount">0</span>)</h6>
+                </div>
+                <div class="col-auto">
+                    <input type="text" class="form-control form-control-sm" id="arrivalSearch"
+                           placeholder="이름, 객실번호, 예약번호 검색..." style="width: 250px;">
+                </div>
+            </div>
+        </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover mb-0" id="arrivalTable">
@@ -72,7 +83,7 @@
         </div>
     </div>
 
-    <!-- 체크인 모달 (7단계 pill 탭) -->
+    <!-- 체크인 모달 (4단계) -->
     <div class="modal fade" id="checkInModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -84,16 +95,13 @@
                     <!-- 스텝 인디케이터 -->
                     <ul class="nav nav-pills nav-fill mb-3" id="checkInSteps">
                         <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#step1">1.예약확인</a></li>
-                        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#step2">2.게스트</a></li>
-                        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#step3">3.객실배정</a></li>
-                        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#step4">4.요금</a></li>
-                        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#step5">5.결제</a></li>
-                        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#step6">6.메모</a></li>
-                        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#step7">7.완료</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#step2">2.객실배정</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#step3">3.요금/결제</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#step4">4.완료</a></li>
                     </ul>
 
                     <div class="tab-content">
-                        <!-- Step 1: 예약 확인 -->
+                        <!-- Step 1: 예약확인 + 게스트 통합 -->
                         <div class="tab-pane fade show active" id="step1">
                             <div class="row mb-2">
                                 <div class="col-sm-3 text-muted">예약번호</div>
@@ -112,6 +120,10 @@
                                 <div class="col-sm-9" id="ciPhone">-</div>
                             </div>
                             <div class="row mb-2">
+                                <div class="col-sm-3 text-muted">채널</div>
+                                <div class="col-sm-9" id="ciChannel">-</div>
+                            </div>
+                            <div class="row mb-2">
                                 <div class="col-sm-3 text-muted">객실타입</div>
                                 <div class="col-sm-9" id="ciRoomType">-</div>
                             </div>
@@ -123,45 +135,37 @@
                                 <div class="col-sm-3 text-muted">인원</div>
                                 <div class="col-sm-9" id="ciGuests">-</div>
                             </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-3 text-muted">총 요금</div>
+                                <div class="col-sm-9" id="ciTotalAmount">-</div>
+                            </div>
+                            <div class="mt-2">
+                                <a href="#" id="ciDetailLink" class="text-muted small"><i class="fas fa-external-link-alt me-1"></i>예약 상세 보기</a>
+                            </div>
                         </div>
 
-                        <!-- Step 2: 게스트 정보 (읽기 전용) -->
+                        <!-- Step 2: 객실 배정 -->
                         <div class="tab-pane fade" id="step2">
-                            <p class="text-muted mb-3">게스트 정보를 확인합니다. 수정이 필요하면 예약 상세에서 변경하세요.</p>
-                            <div id="ciGuestInfo"></div>
-                        </div>
-
-                        <!-- Step 3: 객실 배정 -->
-                        <div class="tab-pane fade" id="step3">
                             <p class="text-muted mb-2">배정할 객실을 선택합니다. <span class="badge bg-success">VC</span> 객실을 추천합니다.</p>
                             <div class="mb-2">
                                 <span class="text-muted">현재 배정:</span>
-                                <span class="fw-bold" id="ciCurrentRoom">미배정</span>
+                                <span id="ciCurrentRoom">미배정</span>
                             </div>
                             <div id="ciRoomList" class="border rounded p-2" style="max-height: 300px; overflow-y: auto;"></div>
                         </div>
 
-                        <!-- Step 4: 요금 확인 -->
-                        <div class="tab-pane fade" id="step4">
-                            <div id="ciChargeInfo"></div>
-                        </div>
-
-                        <!-- Step 5: 결제 확인 -->
-                        <div class="tab-pane fade" id="step5">
+                        <!-- Step 3: 요금/결제 요약 -->
+                        <div class="tab-pane fade" id="step3">
+                            <div id="ciChargeInfo" class="mb-3"></div>
+                            <hr>
                             <div id="ciPaymentInfo"></div>
-                        </div>
-
-                        <!-- Step 6: 메모 -->
-                        <div class="tab-pane fade" id="step6">
-                            <div id="ciMemoList" class="mb-3"></div>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="ciNewMemo" placeholder="메모 입력...">
-                                <button class="btn btn-outline-primary" id="ciAddMemoBtn">추가</button>
+                            <div class="mt-2">
+                                <a href="#" id="ciPayDetailLink" class="text-muted small"><i class="fas fa-external-link-alt me-1"></i>예약 상세에서 결제/수정</a>
                             </div>
                         </div>
 
-                        <!-- Step 7: 체크인 완료 -->
-                        <div class="tab-pane fade" id="step7">
+                        <!-- Step 4: 체크인 완료 -->
+                        <div class="tab-pane fade" id="step4">
                             <div class="text-center py-4">
                                 <i class="fas fa-check-circle fa-3x text-primary mb-3"></i>
                                 <h5>체크인 준비 완료</h5>

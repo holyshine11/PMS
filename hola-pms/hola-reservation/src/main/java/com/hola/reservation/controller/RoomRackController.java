@@ -1,7 +1,8 @@
-package com.hola.web;
+package com.hola.reservation.controller;
 
 import com.hola.common.dto.HolaResponse;
 import com.hola.common.security.AccessControlService;
+import com.hola.common.util.NameMaskingUtil;
 import com.hola.hotel.dto.response.RoomRackFloorGroupResponse;
 import com.hola.hotel.dto.response.RoomRackItemResponse;
 import com.hola.hotel.service.RoomStatusService;
@@ -15,7 +16,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Room Rack REST API (hola-app에서 hotel + reservation 데이터 합성)
+ * Room Rack REST API (hotel + reservation 데이터 합성)
  */
 @RestController
 @RequestMapping("/api/v1/properties/{propertyId}/room-rack")
@@ -57,7 +58,7 @@ public class RoomRackController {
                         .hkStatus(item.getHkStatus())
                         .foStatus(item.getFoStatus())
                         .statusCode(item.getStatusCode())
-                        .guestName(sub.getMasterReservation().getGuestNameKo())
+                        .guestName(NameMaskingUtil.maskKoreanName(sub.getMasterReservation().getGuestNameKo()))
                         .checkOut(sub.getCheckOut())
                         .reservationId(sub.getMasterReservation().getId())
                         .hkMemo(item.getHkMemo())
@@ -112,7 +113,7 @@ public class RoomRackController {
                         .hkStatus(item.getHkStatus())
                         .foStatus(item.getFoStatus())
                         .statusCode(item.getStatusCode())
-                        .guestName(sub.getMasterReservation().getGuestNameKo())
+                        .guestName(NameMaskingUtil.maskKoreanName(sub.getMasterReservation().getGuestNameKo()))
                         .checkOut(sub.getCheckOut())
                         .reservationId(sub.getMasterReservation().getId())
                         .hkMemo(item.getHkMemo())

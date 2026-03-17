@@ -30,6 +30,7 @@ public class FrontDeskArrivalResponse {
     private LocalDate checkOut;
     private Integer adults;
     private Integer children;
+    private Long roomTypeId;         // 객실 배정 시 기존 타입 유지용
     private String reservationStatus;
     private String channelName;
     private BigDecimal totalAmount;  // 총 요금

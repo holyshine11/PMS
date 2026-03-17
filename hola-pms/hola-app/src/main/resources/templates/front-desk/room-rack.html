@@ -21,14 +21,18 @@
         <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
     </div>
 
-    <!-- 상태별 범례 + 카운트 -->
-    <div class="d-flex flex-wrap gap-2 mb-3" id="legendBar">
-        <span class="badge room-card-vc px-2 py-1">VC <span id="cntVC">0</span></span>
-        <span class="badge room-card-vd px-2 py-1">VD <span id="cntVD">0</span></span>
-        <span class="badge room-card-oc px-2 py-1">OC <span id="cntOC">0</span></span>
-        <span class="badge room-card-od px-2 py-1">OD <span id="cntOD">0</span></span>
-        <span class="badge room-card-ooo px-2 py-1">OOO <span id="cntOOO">0</span></span>
-        <span class="badge room-card-oos px-2 py-1">OOS <span id="cntOOS">0</span></span>
+    <!-- 필터 바: 상태 토글 + 층 선택 -->
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="legendBar">
+        <span class="badge room-card-vc px-2 py-1 filter-badge active" data-status="VC" role="button">VC <span id="cntVC">0</span></span>
+        <span class="badge room-card-vd px-2 py-1 filter-badge active" data-status="VD" role="button">VD <span id="cntVD">0</span></span>
+        <span class="badge room-card-oc px-2 py-1 filter-badge active" data-status="OC" role="button">OC <span id="cntOC">0</span></span>
+        <span class="badge room-card-od px-2 py-1 filter-badge active" data-status="OD" role="button">OD <span id="cntOD">0</span></span>
+        <span class="badge room-card-ooo px-2 py-1 filter-badge active" data-status="OOO" role="button">OOO <span id="cntOOO">0</span></span>
+        <span class="badge room-card-oos px-2 py-1 filter-badge active" data-status="OOS" role="button">OOS <span id="cntOOS">0</span></span>
+        <span class="text-muted mx-2">|</span>
+        <select class="form-select form-select-sm" id="floorFilter" style="width: 120px;">
+            <option value="">전체 층</option>
+        </select>
     </div>
 
     <!-- Room Rack 그리드 -->

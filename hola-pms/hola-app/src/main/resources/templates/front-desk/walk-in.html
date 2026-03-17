@@ -20,19 +20,33 @@
             <h6 class="fw-bold mb-0">현장 투숙 등록</h6>
         </div>
         <div class="card-body">
-            <p class="text-muted mb-3">현장 방문 고객의 예약을 생성하고 즉시 체크인합니다.</p>
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-1"></i>
-                Walk-In은 <a th:href="@{/admin/reservations}" class="alert-link">예약 등록</a>에서 예약 생성 후
-                <a th:href="@{/admin/front-desk/arrivals}" class="alert-link">도착 화면</a>에서 체크인 처리합니다.
-            </div>
-            <div class="d-flex gap-2">
-                <a th:href="@{/admin/reservations}" class="btn btn-primary">
-                    <i class="fas fa-plus me-1"></i>새 예약 등록
-                </a>
-                <a th:href="@{/admin/front-desk/arrivals}" class="btn btn-outline-primary">
-                    <i class="fas fa-plane-arrival me-1"></i>도착 화면으로 이동
-                </a>
+            <p class="text-muted mb-3">현장 방문 고객의 예약을 생성하면 즉시 도착 화면에서 체크인할 수 있습니다.</p>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="card border h-100">
+                        <div class="card-body text-center py-4">
+                            <i class="fas fa-plus-circle fa-2x text-primary mb-2"></i>
+                            <h6>Walk-In 예약 등록</h6>
+                            <p class="text-muted small mb-3">예약 생성 후 도착 화면으로 바로 이동합니다.</p>
+                            <a th:href="@{/admin/reservations/new?walkin=true}" class="btn btn-primary">
+                                <i class="fas fa-walking me-1"></i>Walk-In 예약 등록
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border h-100">
+                        <div class="card-body text-center py-4">
+                            <i class="fas fa-plane-arrival fa-2x text-muted mb-2"></i>
+                            <h6>도착 화면</h6>
+                            <p class="text-muted small mb-3">이미 등록된 예약의 체크인을 처리합니다.</p>
+                            <a th:href="@{/admin/front-desk/arrivals}" class="btn btn-outline-primary">
+                                <i class="fas fa-plane-arrival me-1"></i>도착 화면으로 이동
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -5,8 +5,9 @@ var FdArrivals = {
     propertyId: null,
     data: [],
     currentStep: 0,
-    totalSteps: 7,
+    totalSteps: 4,
     selectedReservation: null,
+    pollInterval: null,
 
     init: function() {
         var self = this;
@@ -19,6 +20,9 @@ var FdArrivals = {
     bindEvents: function() {
         var self = this;
         $(document).on('hola:contextChange', function() { self.reload(); });
+
+        // 검색 필터
+        $('#arrivalSearch').on('input', function() { self.renderTable(); });
 
         // 체크인 모달 네비게이션
         $('#ciPrevBtn').on('click', function() { self.prevStep(); });
@@ -46,6 +50,9 @@ var FdArrivals = {
         $('#arrivalTable').closest('.card').show();
         self.propertyId = propertyId;
         self.loadArrivals();
+        // 60초 자동 갱신
+        if (self.pollInterval) clearInterval(self.pollInterval);
+        self.pollInterval = setInterval(function() { self.loadArrivals(); }, 60000);
     },
 
     loadArrivals: function() {
@@ -58,23 +65,38 @@ var FdArrivals = {
                 self.data = res.data;
                 self.renderTable();
                 self.updateSummary();
+            },
+            error: function() {
+                HolaPms.alert('danger', '도착 예정 목록을 불러오지 못했습니다.');
             }
         });
     },
 
     renderTable: function() {
         var self = this;
+        var keyword = ($('#arrivalSearch').val() || '').trim().toLowerCase();
+        var filtered = self.data;
+        if (keyword) {
+            filtered = self.data.filter(function(d) {
+                return (d.guestNameKo || '').toLowerCase().indexOf(keyword) >= 0
+                    || (d.roomNumber || '').toLowerCase().indexOf(keyword) >= 0
+                    || (d.masterReservationNo || '').toLowerCase().indexOf(keyword) >= 0
+                    || (d.confirmationNo || '').toLowerCase().indexOf(keyword) >= 0;
+            });
+        }
+        $('#arrivalListCount').text(filtered.length);
+
         var html = '';
-        if (self.data.length === 0) {
-            html = '<tr><td colspan="11" class="text-center py-4 text-muted">오늘 도착 예정 예약이 없습니다.</td></tr>';
+        if (filtered.length === 0) {
+            html = '<tr><td colspan="11" class="text-center py-4 text-muted">' + (keyword ? '검색 결과가 없습니다.' : '오늘 도착 예정 예약이 없습니다.') + '</td></tr>';
         } else {
-            for (var i = 0; i < self.data.length; i++) {
-                var d = self.data[i];
+            for (var i = 0; i < filtered.length; i++) {
+                var d = filtered[i];
                 var hkBadge = self.getHkBadge(d.hkStatus);
                 var roomDisplay = d.roomNumber ? HolaPms.escapeHtml(d.roomNumber) : '<span class="text-danger">미배정</span>';
 
                 html += '<tr>'
-                    + '<td class="ps-3">' + HolaPms.escapeHtml(d.masterReservationNo) + '</td>'
+                    + '<td class="ps-3"><a href="/admin/reservations/' + d.masterReservationId + '">' + HolaPms.escapeHtml(d.masterReservationNo) + '</a></td>'
                     + '<td>' + HolaPms.escapeHtml(d.confirmationNo) + '</td>'
                     + '<td>' + HolaPms.escapeHtml(d.guestNameKo || '-') + '</td>'
                     + '<td>' + HolaPms.escapeHtml(d.roomTypeName || '-') + '</td>'
@@ -85,7 +107,7 @@ var FdArrivals = {
                     + '<td>' + d.checkOut + '</td>'
                     + '<td class="text-end">' + (d.totalAmount ? Number(d.totalAmount).toLocaleString() : '0') + '</td>'
                     + '<td class="text-center pe-3">'
-                    + '<button class="btn btn-sm btn-primary" onclick="FdArrivals.openCheckIn(' + i + ')">'
+                    + '<button class="btn btn-sm btn-primary" onclick="FdArrivals.openCheckIn(' + self.data.indexOf(d) + ')">'
                     + '<i class="fas fa-sign-in-alt"></i></button>'
                     + '</td></tr>';
             }
@@ -123,14 +145,18 @@ var FdArrivals = {
         self.showStep(0);
 
         var d = self.selectedReservation;
-        // Step 1 데이터 채우기
+        // Step 1 데이터 채우기 (예약확인 + 게스트 통합)
         $('#ciReservationNo').text(d.masterReservationNo);
         $('#ciConfirmationNo').text(d.confirmationNo);
         $('#ciGuestName').text(d.guestNameKo || '-');
         $('#ciPhone').text(d.phoneNumber || '-');
+        $('#ciChannel').text(d.channelName || '-');
         $('#ciRoomType').text(d.roomTypeName || '-');
         $('#ciDates').text(d.checkIn + ' ~ ' + d.checkOut);
         $('#ciGuests').text('성인 ' + d.adults + '명' + (d.children > 0 ? ', 아동 ' + d.children + '명' : ''));
+        $('#ciTotalAmount').text(d.totalAmount ? Number(d.totalAmount).toLocaleString() + '원' : '-');
+        $('#ciDetailLink').attr('href', '/admin/reservations/' + d.masterReservationId);
+        $('#ciPayDetailLink').attr('href', '/admin/reservations/' + d.masterReservationId);
 
         HolaPms.modal.show('checkInModal');
     },
@@ -144,7 +170,7 @@ var FdArrivals = {
         $('#checkInSteps .nav-link').eq(step).addClass('active');
 
         // 패널 표시
-        var tabs = ['#step1','#step2','#step3','#step4','#step5','#step6','#step7'];
+        var tabs = ['#step1','#step2','#step3','#step4'];
         for (var i = 0; i < tabs.length; i++) {
             $(tabs[i]).toggleClass('show active', i === step);
         }
@@ -155,12 +181,9 @@ var FdArrivals = {
         $('#ciCompleteBtn').toggleClass('d-none', step !== self.totalSteps - 1);
 
         // 각 스텝별 데이터 로드
-        if (step === 1) self.loadGuestInfo();
-        if (step === 2) self.loadRoomList();
-        if (step === 3) self.loadChargeInfo();
-        if (step === 4) self.loadPaymentInfo();
-        if (step === 5) self.loadMemos();
-        if (step === 6) self.updateFinalSummary();
+        if (step === 1) self.loadRoomList();
+        if (step === 2) { self.loadChargeInfo(); self.loadPaymentInfo(); }
+        if (step === 3) self.updateFinalSummary();
     },
 
     prevStep: function() {
@@ -173,62 +196,81 @@ var FdArrivals = {
         if (self.currentStep < self.totalSteps - 1) self.showStep(self.currentStep + 1);
     },
 
-    loadGuestInfo: function() {
-        var self = this;
-        var d = self.selectedReservation;
-        var html = '<div class="row mb-2"><div class="col-sm-3 text-muted">이름(한)</div><div class="col-sm-9">' + HolaPms.escapeHtml(d.guestNameKo || '-') + '</div></div>'
-            + '<div class="row mb-2"><div class="col-sm-3 text-muted">연락처</div><div class="col-sm-9">' + HolaPms.escapeHtml(d.phoneNumber || '-') + '</div></div>'
-            + '<div class="row mb-2"><div class="col-sm-3 text-muted">채널</div><div class="col-sm-9">' + HolaPms.escapeHtml(d.channelName || '-') + '</div></div>';
-        $('#ciGuestInfo').html(html);
-    },
-
     loadRoomList: function() {
         var self = this;
         var d = self.selectedReservation;
         $('#ciCurrentRoom').text(d.roomNumber || '미배정');
 
-        // VC 객실 로드 (기존 room-assign API 재사용)
+        // 객실 목록 로드 (VC 우선 정렬)
         HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/room-numbers',
             method: 'GET',
             success: function(res) {
                 if (!res.success) return;
                 var rooms = res.data;
+
+                // VC 우선 정렬: VC → VD → 기타 Vacant → Occupied → OOO/OOS
+                rooms.sort(function(a, b) {
+                    return self.getRoomSortOrder(a) - self.getRoomSortOrder(b);
+                });
+
                 var html = '<table class="table table-sm table-hover mb-0">'
                     + '<thead><tr><th>호수</th><th>HK</th><th>FO</th><th></th></tr></thead><tbody>';
 
+                var availableCount = 0;
                 for (var i = 0; i < rooms.length; i++) {
                     var r = rooms[i];
                     var isVC = r.hkStatus === 'CLEAN' && r.foStatus === 'VACANT';
-                    var isOOO = r.hkStatus === 'OOO';
-                    var rowClass = isOOO ? 'table-secondary' : (isVC ? '' : 'text-muted');
-                    var btnDisabled = (isOOO || r.foStatus === 'OCCUPIED') ? 'disabled' : '';
+                    var isVacant = r.foStatus === 'VACANT';
+                    var isUnavailable = r.hkStatus === 'OOO' || r.hkStatus === 'OOS' || r.foStatus === 'OCCUPIED';
+                    var rowClass = isUnavailable ? 'table-secondary' : (isVC ? '' : '');
+                    var btnDisabled = isUnavailable ? 'disabled' : '';
                     var recommended = isVC ? ' <span class="badge bg-success">추천</span>' : '';
+                    var foLabel = r.foStatus === 'OCCUPIED' ? '<span class="badge bg-primary">OC</span>'
+                        : (isVC ? '<span class="badge bg-success">VC</span>' : '<span class="badge bg-secondary">V</span>');
+
+                    if (!isUnavailable) availableCount++;
 
                     html += '<tr class="' + rowClass + '">'
                         + '<td>' + HolaPms.escapeHtml(r.roomNumber) + recommended + '</td>'
                         + '<td>' + self.getHkBadge(r.hkStatus) + '</td>'
-                        + '<td>' + (r.foStatus === 'OCCUPIED' ? '<span class="badge bg-primary">OC</span>' : '<span class="badge bg-secondary">VC</span>') + '</td>'
+                        + '<td>' + foLabel + '</td>'
                         + '<td><button class="btn btn-sm btn-outline-primary" ' + btnDisabled
                         + ' onclick="FdArrivals.assignRoom(' + r.id + ', \'' + HolaPms.escapeHtml(r.roomNumber) + '\')">'
                         + '배정</button></td></tr>';
                 }
                 html += '</tbody></table>';
+
+                if (availableCount === 0) {
+                    html = '<div class="text-center text-danger py-3">배정 가능한 객실이 없습니다.</div>' + html;
+                }
+
                 $('#ciRoomList').html(html);
+            },
+            error: function() {
+                HolaPms.alert('danger', '객실 목록을 불러오지 못했습니다.');
             }
         });
+    },
+
+    getRoomSortOrder: function(room) {
+        // VC=0, VD=1, 기타Vacant=2, Occupied=3, OOO/OOS=4
+        if (room.hkStatus === 'OOO' || room.hkStatus === 'OOS') return 4;
+        if (room.foStatus === 'OCCUPIED') return 3;
+        if (room.hkStatus === 'CLEAN' && room.foStatus === 'VACANT') return 0;
+        if (room.hkStatus === 'DIRTY' && room.foStatus === 'VACANT') return 1;
+        return 2;
     },
 
     assignRoom: function(roomId, roomNumber) {
         var self = this;
         var d = self.selectedReservation;
-        // 기존 예약 수정 API로 객실 배정 (서브 예약 수정)
+        // 기존 예약 수정 API로 객실 배정 (서브 예약 수정) - roomTypeId 기존 값 유지
         HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + d.masterReservationId + '/legs/' + d.subReservationId,
             method: 'PUT',
             data: JSON.stringify({
-                roomTypeId: null, // 기존 유지
-                floorId: null,
+                roomTypeId: d.roomTypeId,
                 roomNumberId: roomId,
                 adults: d.adults,
                 children: d.children,
@@ -244,6 +286,9 @@ var FdArrivals = {
                     $('#ciCurrentRoom').text(roomNumber).addClass('text-primary');
                     HolaPms.alert('success', '객실 ' + roomNumber + ' 배정 완료');
                 }
+            },
+            error: function() {
+                HolaPms.alert('danger', '객실 배정에 실패했습니다.');
             }
         });
     },
@@ -273,8 +318,11 @@ var FdArrivals = {
                     }
                 }
                 html += '</tbody></table>';
-                html += '<div class="text-end mt-2 fw-bold">총액: ' + Number(d.totalAmount || 0).toLocaleString() + '원</div>';
+                html += '<div class="text-end mt-2">총액: ' + Number(d.totalAmount || 0).toLocaleString() + '원</div>';
                 $('#ciChargeInfo').html(html);
+            },
+            error: function() {
+                $('#ciChargeInfo').html('<p class="text-muted">요금 정보를 불러오지 못했습니다.</p>');
             }
         });
     },
@@ -292,9 +340,12 @@ var FdArrivals = {
                 var html = '<div class="row mb-2"><div class="col-6 text-muted">총 요금</div><div class="col-6 text-end">' + Number(ps.totalCharge || 0).toLocaleString() + '원</div></div>'
                     + '<div class="row mb-2"><div class="col-6 text-muted">결제 금액</div><div class="col-6 text-end">' + Number(ps.totalPaid || 0).toLocaleString() + '원</div></div>'
                     + '<hr>'
-                    + '<div class="row mb-2"><div class="col-6 fw-bold">잔액</div><div class="col-6 text-end fw-bold ' + ((ps.balance || 0) > 0 ? 'text-danger' : 'text-primary') + '">'
+                    + '<div class="row mb-2"><div class="col-6 text-muted">잔액</div><div class="col-6 text-end ' + ((ps.balance || 0) > 0 ? 'text-danger' : 'text-primary') + '">'
                     + Number(ps.balance || 0).toLocaleString() + '원</div></div>';
                 $('#ciPaymentInfo').html(html);
+            },
+            error: function() {
+                $('#ciPaymentInfo').html('<p class="text-muted">결제 정보를 불러오지 못했습니다.</p>');
             }
         });
     },
@@ -318,6 +369,9 @@ var FdArrivals = {
                     }
                     $('#ciMemoList').html(html);
                 }
+            },
+            error: function() {
+                $('#ciMemoList').html('<p class="text-muted">메모를 불러오지 못했습니다.</p>');
             }
         });
     },
@@ -337,6 +391,9 @@ var FdArrivals = {
                     self.loadMemos();
                     HolaPms.alert('success', '메모 추가 완료');
                 }
+            },
+            error: function() {
+                HolaPms.alert('danger', '메모 추가에 실패했습니다.');
             }
         });
     },
@@ -369,6 +426,14 @@ var FdArrivals = {
                     HolaPms.alert('success', d.guestNameKo + ' 체크인 완료 (객실: ' + d.roomNumber + ')');
                     self.reload();
                 }
+            },
+            error: function(xhr) {
+                // 서버 검증 실패 (미배정 객실, OOO 객실 등) 메시지 표시
+                var msg = '체크인 처리에 실패했습니다.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                HolaPms.alert('danger', msg);
             }
         });
     }

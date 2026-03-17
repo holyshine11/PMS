@@ -1245,6 +1245,12 @@ var ReservationForm = {
             data: data,
             success: function(res) {
                 if (res.success) {
+                    // Walk-In 모드: 도착 화면으로 리다이렉트 (즉시 체크인 가능)
+                    var isWalkIn = new URLSearchParams(window.location.search).get('walkin') === 'true';
+                    if (isWalkIn) {
+                        HolaPms.alertAndRedirect('success', 'Walk-In 예약이 등록되었습니다. 도착 화면에서 체크인해주세요.', '/admin/front-desk/arrivals');
+                        return;
+                    }
                     var reservationId = res.data ? (res.data.id || '') : '';
                     var redirectUrl = reservationId
                         ? '/admin/reservations/' + reservationId

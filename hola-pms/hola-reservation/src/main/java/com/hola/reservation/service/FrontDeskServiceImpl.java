@@ -65,6 +65,7 @@ public class FrontDeskServiceImpl implements FrontDeskService {
                     .roomTypeName(roomTypeNames.getOrDefault(sub.getRoomTypeId(), "-"))
                     .roomNumber(room != null ? room.getRoomNumber() : null)
                     .roomNumberId(sub.getRoomNumberId())
+                    .roomTypeId(sub.getRoomTypeId())
                     .checkIn(sub.getCheckIn())
                     .checkOut(sub.getCheckOut())
                     .adults(sub.getAdults())
@@ -86,12 +87,16 @@ public class FrontDeskServiceImpl implements FrontDeskService {
         Map<Long, String> roomTypeNames = resolveRoomTypeNames(propertyId);
         Map<Long, RoomNumber> roomNumbers = resolveRoomNumbers(subs);
 
+        // 벌크 결제 금액 조회 (N+1 방지)
+        List<Long> masterIds = subs.stream().map(s -> s.getMasterReservation().getId()).distinct().collect(Collectors.toList());
+        Map<Long, BigDecimal> paidMap = calcPaidAmountBulk(masterIds);
+
         List<FrontDeskInHouseResponse> result = new ArrayList<>();
         for (SubReservation sub : subs) {
             MasterReservation master = sub.getMasterReservation();
             RoomNumber room = roomNumbers.get(sub.getRoomNumberId());
             BigDecimal totalAmount = calcTotalCharge(sub);
-            BigDecimal paidAmount = calcPaidAmount(master.getId());
+            BigDecimal paidAmount = paidMap.getOrDefault(master.getId(), BigDecimal.ZERO);
             BigDecimal balance = totalAmount.subtract(paidAmount);
 
             result.add(FrontDeskInHouseResponse.builder()
@@ -124,12 +129,16 @@ public class FrontDeskServiceImpl implements FrontDeskService {
         Map<Long, String> roomTypeNames = resolveRoomTypeNames(propertyId);
         Map<Long, RoomNumber> roomNumbers = resolveRoomNumbers(subs);
 
+        // 벌크 결제 금액 조회 (N+1 방지)
+        List<Long> masterIds = subs.stream().map(s -> s.getMasterReservation().getId()).distinct().collect(Collectors.toList());
+        Map<Long, BigDecimal> paidMap = calcPaidAmountBulk(masterIds);
+
         List<FrontDeskDepartureResponse> result = new ArrayList<>();
         for (SubReservation sub : subs) {
             MasterReservation master = sub.getMasterReservation();
             RoomNumber room = roomNumbers.get(sub.getRoomNumberId());
             BigDecimal totalAmount = calcTotalCharge(sub);
-            BigDecimal paidAmount = calcPaidAmount(master.getId());
+            BigDecimal paidAmount = paidMap.getOrDefault(master.getId(), BigDecimal.ZERO);
             BigDecimal balance = totalAmount.subtract(paidAmount);
 
             result.add(FrontDeskDepartureResponse.builder()
@@ -197,6 +206,26 @@ public class FrontDeskServiceImpl implements FrontDeskService {
     private BigDecimal calcPaidAmount(Long masterReservationId) {
         List<PaymentTransaction> transactions = paymentTransactionRepository
                 .findByMasterReservationIdOrderByTransactionSeqAsc(masterReservationId);
+        return sumPaidFromTransactions(transactions);
+    }
+
+    /**
+     * 벌크 결제 금액 조회: 여러 마스터 예약 ID에 대해 한 번에 쿼리
+     */
+    private Map<Long, BigDecimal> calcPaidAmountBulk(List<Long> masterIds) {
+        if (masterIds.isEmpty()) return Collections.emptyMap();
+        List<PaymentTransaction> allTx = paymentTransactionRepository.findByMasterReservationIdIn(masterIds);
+        // masterReservationId별 그룹핑
+        Map<Long, List<PaymentTransaction>> grouped = allTx.stream()
+                .collect(Collectors.groupingBy(PaymentTransaction::getMasterReservationId));
+        Map<Long, BigDecimal> result = new HashMap<>();
+        for (Long id : masterIds) {
+            result.put(id, sumPaidFromTransactions(grouped.getOrDefault(id, Collections.emptyList())));
+        }
+        return result;
+    }
+
+    private BigDecimal sumPaidFromTransactions(List<PaymentTransaction> transactions) {
         BigDecimal paid = BigDecimal.ZERO;
         for (PaymentTransaction tx : transactions) {
             if ("COMPLETED".equals(tx.getTransactionStatus())) {

@@ -5,8 +5,11 @@ var FdDepartures = {
     propertyId: null,
     data: [],
     selectedIndex: -1,
+    pollInterval: null,
 
     init: function() {
+        var today = new Date();
+        $('#todayLabel').text(today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0'));
         this.bindEvents();
         this.reload();
     },
@@ -14,6 +17,7 @@ var FdDepartures = {
     bindEvents: function() {
         var self = this;
         $(document).on('hola:contextChange', function() { self.reload(); });
+        $('#departureSearch').on('input', function() { self.renderTable(); });
         $('#coCompleteBtn').on('click', function() { self.doCheckOut(); });
     },
 
@@ -22,13 +26,18 @@ var FdDepartures = {
         var propertyId = HolaPms.context.getPropertyId();
         if (!propertyId) {
             $('#contextAlert').removeClass('d-none');
+            $('#summaryCards').hide();
             $('#departureTable').closest('.card').hide();
             return;
         }
         $('#contextAlert').addClass('d-none');
+        $('#summaryCards').show();
         $('#departureTable').closest('.card').show();
         self.propertyId = propertyId;
         self.loadData();
+        // 60초 자동 갱신
+        if (self.pollInterval) clearInterval(self.pollInterval);
+        self.pollInterval = setInterval(function() { self.loadData(); }, 60000);
     },
 
     loadData: function() {
@@ -39,35 +48,60 @@ var FdDepartures = {
             success: function(res) {
                 if (!res.success) return;
                 self.data = res.data;
-                $('#departureCount').text(self.data.length);
 
-                if (self.data.length === 0) {
-                    $('#departureBody').html('<tr><td colspan="10" class="text-center py-4 text-muted">오늘 출발 예정 예약이 없습니다.</td></tr>');
-                    return;
-                }
+                // 요약 카드 업데이트
+                var lateCount = self.data.filter(function(d) { return d.lateCheckOut; }).length;
+                var balanceCount = self.data.filter(function(d) { return (d.balance || 0) > 0; }).length;
+                $('#departureTotal').text(self.data.length);
+                $('#lateCount').text(lateCount);
+                $('#balanceWarningCount').text(balanceCount);
 
-                var html = '';
-                for (var i = 0; i < self.data.length; i++) {
-                    var d = self.data[i];
-                    var balanceClass = d.balance > 0 ? 'text-danger' : '';
-                    var lateBadge = d.lateCheckOut ? '<span class="badge bg-warning text-dark">Late</span>' : '-';
-                    html += '<tr>'
-                        + '<td class="ps-3">' + HolaPms.escapeHtml(d.masterReservationNo) + '</td>'
-                        + '<td>' + HolaPms.escapeHtml(d.guestNameKo || '-') + '</td>'
-                        + '<td>' + HolaPms.escapeHtml(d.roomNumber || '-') + '</td>'
-                        + '<td>' + d.checkIn + '</td>'
-                        + '<td>' + d.checkOut + '</td>'
-                        + '<td class="text-center">' + lateBadge + '</td>'
-                        + '<td class="text-end">' + Number(d.totalAmount || 0).toLocaleString() + '</td>'
-                        + '<td class="text-end">' + Number(d.paidAmount || 0).toLocaleString() + '</td>'
-                        + '<td class="text-end ' + balanceClass + '">' + Number(d.balance || 0).toLocaleString() + '</td>'
-                        + '<td class="text-center pe-3">'
-                        + '<button class="btn btn-sm btn-danger" onclick="FdDepartures.openCheckOut(' + i + ')">'
-                        + '<i class="fas fa-sign-out-alt"></i></button></td></tr>';
-                }
-                $('#departureBody').html(html);
+                self.renderTable();
+            },
+            error: function() {
+                HolaPms.alert('danger', '출발 예정 목록을 불러오지 못했습니다.');
             }
         });
+    },
+
+    renderTable: function() {
+        var self = this;
+        var keyword = ($('#departureSearch').val() || '').trim().toLowerCase();
+        var filtered = self.data;
+        if (keyword) {
+            filtered = self.data.filter(function(d) {
+                return (d.guestNameKo || '').toLowerCase().indexOf(keyword) >= 0
+                    || (d.roomNumber || '').toLowerCase().indexOf(keyword) >= 0
+                    || (d.masterReservationNo || '').toLowerCase().indexOf(keyword) >= 0;
+            });
+        }
+        $('#departureCount').text(filtered.length);
+
+        if (filtered.length === 0) {
+            $('#departureBody').html('<tr><td colspan="10" class="text-center py-4 text-muted">' + (keyword ? '검색 결과가 없습니다.' : '오늘 출발 예정 예약이 없습니다.') + '</td></tr>');
+            return;
+        }
+        var html = '';
+        for (var i = 0; i < filtered.length; i++) {
+            var d = filtered[i];
+            var idx = self.data.indexOf(d);
+            var balanceClass = d.balance > 0 ? 'text-danger' : '';
+            var lateBadge = d.lateCheckOut ? '<span class="badge bg-warning text-dark">Late</span>' : '-';
+            html += '<tr>'
+                + '<td class="ps-3"><a href="/admin/reservations/' + d.masterReservationId + '">' + HolaPms.escapeHtml(d.masterReservationNo) + '</a></td>'
+                + '<td>' + HolaPms.escapeHtml(d.guestNameKo || '-') + '</td>'
+                + '<td>' + HolaPms.escapeHtml(d.roomNumber || '-') + '</td>'
+                + '<td>' + d.checkIn + '</td>'
+                + '<td>' + d.checkOut + '</td>'
+                + '<td class="text-center">' + lateBadge + '</td>'
+                + '<td class="text-end">' + Number(d.totalAmount || 0).toLocaleString() + '</td>'
+                + '<td class="text-end">' + Number(d.paidAmount || 0).toLocaleString() + '</td>'
+                + '<td class="text-end ' + balanceClass + '">' + Number(d.balance || 0).toLocaleString() + '</td>'
+                + '<td class="text-center pe-3">'
+                + '<button class="btn btn-sm btn-danger" onclick="FdDepartures.openCheckOut(' + idx + ')">'
+                + '<i class="fas fa-sign-out-alt"></i></button></td></tr>';
+        }
+        $('#departureBody').html(html);
     },
 
     openCheckOut: function(index) {
@@ -84,6 +118,8 @@ var FdDepartures = {
         $('#coBalance').text(Number(balance).toLocaleString() + '원')
             .toggleClass('text-danger', balance > 0);
         $('#coBalanceWarning').toggleClass('d-none', balance <= 0);
+        // 결제 링크: 예약 상세 페이지로 이동 (결제 탭)
+        $('#coPayLink').attr('href', '/admin/reservations/' + d.masterReservationId);
 
         HolaPms.modal.show('checkOutModal');
     },
@@ -102,6 +138,13 @@ var FdDepartures = {
                     HolaPms.alert('success', d.guestNameKo + ' 체크아웃 완료 (객실: ' + d.roomNumber + ')');
                     self.reload();
                 }
+            },
+            error: function(xhr) {
+                var msg = '체크아웃 처리에 실패했습니다.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                HolaPms.alert('danger', msg);
             }
         });
     }
