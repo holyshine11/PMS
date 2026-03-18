@@ -202,7 +202,7 @@ var ReservationPayment = {
                 + '</tr></thead><tbody>';
 
             paidServices.forEach(function(s) {
-                var typeLabel = s.serviceName || (s.serviceType === 'PAID' ? '유료 서비스' : '서비스');
+                var typeLabel = s.serviceName || (s.serviceOptionId ? '서비스 #' + s.serviceOptionId : '객실 업그레이드');
                 if (s.serviceDate) typeLabel += ' (' + s.serviceDate + ')';
 
                 var unitP = Number(s.unitPrice) || 0;
@@ -751,7 +751,7 @@ var ReservationPayment = {
         if (paidServices.length > 0) {
             chargeRows += '<tr class="section-header"><td colspan="4">유료 서비스</td></tr>';
             paidServices.forEach(function(s) {
-                var sLabel = s.serviceName || '유료 서비스';
+                var sLabel = s.serviceName || (s.serviceOptionId ? '서비스 #' + s.serviceOptionId : '객실 업그레이드');
                 if (s.serviceDate) sLabel += ' (' + s.serviceDate + ')';
                 var unitP = Number(s.unitPrice) || 0;
                 var qty = s.quantity || 1;

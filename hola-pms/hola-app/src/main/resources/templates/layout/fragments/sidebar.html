@@ -208,7 +208,7 @@
                 </li>
             </div>
 
-            <!-- 프론트데스크 -->
+            <!-- 객실현황 (예약관리 하위) -->
             <li class="nav-item mt-2" sec:authorize="hasAnyRole('SUPER_ADMIN', 'HOTEL_ADMIN', 'PROPERTY_ADMIN')">
                 <div class="nav-link text-secondary small text-uppercase fw-bold sidebar-section" data-bs-toggle="collapse" data-bs-target="#menu-frontdesk" role="button" aria-expanded="true">
                     <i class="fas fa-concierge-bell me-2"></i>프론트데스크
@@ -217,33 +217,21 @@
             </li>
             <div class="collapse show" id="menu-frontdesk" sec:authorize="hasAnyRole('SUPER_ADMIN', 'HOTEL_ADMIN', 'PROPERTY_ADMIN')">
                 <li class="nav-item">
-                    <a class="nav-link text-white ps-4" th:href="@{/admin/front-desk/arrivals}"
-                       th:classappend="${#strings.startsWith(currentURI, '/admin/front-desk/arrivals')} ? 'active' : ''">
-                        <i class="fas fa-plane-arrival me-2"></i>도착
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white ps-4" th:href="@{/admin/front-desk/in-house}"
-                       th:classappend="${#strings.startsWith(currentURI, '/admin/front-desk/in-house')} ? 'active' : ''">
-                        <i class="fas fa-user-check me-2"></i>투숙
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white ps-4" th:href="@{/admin/front-desk/departures}"
-                       th:classappend="${#strings.startsWith(currentURI, '/admin/front-desk/departures')} ? 'active' : ''">
-                        <i class="fas fa-plane-departure me-2"></i>출발
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white ps-4" th:href="@{/admin/front-desk/walk-in}"
-                       th:classappend="${#strings.startsWith(currentURI, '/admin/front-desk/walk-in')} ? 'active' : ''">
-                        <i class="fas fa-walking me-2"></i>현장투숙
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/front-desk/operations}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/front-desk/operations')} ? 'active' : ''">
+                        <i class="fas fa-clipboard-check me-2"></i>운영현황
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link text-white ps-4" th:href="@{/admin/front-desk/room-rack}"
                        th:classappend="${#strings.startsWith(currentURI, '/admin/front-desk/room-rack')} ? 'active' : ''">
                         <i class="fas fa-th me-2"></i>객실현황
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/front-desk/room-unavailable}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/front-desk/room-unavailable')} ? 'active' : ''">
+                        <i class="fas fa-ban me-2"></i>OOO/OOS 관리
                     </a>
                 </li>
             </div>

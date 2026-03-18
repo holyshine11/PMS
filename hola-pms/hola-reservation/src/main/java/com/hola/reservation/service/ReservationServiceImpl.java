@@ -75,7 +75,7 @@ public class ReservationServiceImpl implements ReservationService {
     // 허용되는 상태 전이 매트릭스
     private static final Map<String, Set<String>> STATUS_TRANSITIONS = Map.of(
             "RESERVED", Set.of("CHECK_IN", "CANCELED", "NO_SHOW"),
-            "CHECK_IN", Set.of("INHOUSE", "CHECKED_OUT", "CANCELED"),
+            "CHECK_IN", Set.of("INHOUSE", "CANCELED"),
             "INHOUSE", Set.of("CHECKED_OUT"),
             "CHECKED_OUT", Set.of(),
             "CANCELED", Set.of(),
@@ -566,81 +566,86 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional
     public void changeStatus(Long id, Long propertyId, ReservationStatusRequest request) {
         MasterReservation master = findMasterById(id, propertyId);
-        String currentStatus = master.getReservationStatus();
         String newStatus = request.getNewStatus();
+        boolean statusChanged = false;
 
-        // 상태 전이 검증
-        Set<String> allowedTransitions = STATUS_TRANSITIONS.getOrDefault(currentStatus, Set.of());
-        if (!allowedTransitions.contains(newStatus)) {
+        if (request.getSubReservationId() != null) {
+            // ── Leg 단위 상태 변경 ──
+            SubReservation targetSub = findSubAndValidateOwnership(request.getSubReservationId(), master);
+            String currentLegStatus = targetSub.getRoomReservationStatus();
+
+            // Leg 상태 전이 검증
+            Set<String> allowed = STATUS_TRANSITIONS.getOrDefault(currentLegStatus, Set.of());
+            if (!allowed.contains(newStatus)) {
+                throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
+            }
+
+            // 체크인 전제조건: 객실 배정 + OOO 확인
+            if ("CHECK_IN".equals(newStatus)) {
+                validateCheckInPrerequisites(targetSub);
+            }
+
+            // 체크아웃 전제조건: 마지막 활성 Leg인 경우에만 결제 잔액 검증
+            if ("CHECKED_OUT".equals(newStatus) && isLastActiveLeg(targetSub, master)) {
+                validateCheckOutBalance(master);
+            }
+
+            applyStatusChange(targetSub, newStatus);
+            statusChanged = true;
+
+            log.info("Leg 상태 변경: {} → {} (서브예약: {})", currentLegStatus, newStatus, targetSub.getSubReservationNo());
+
+        } else {
+            // ── 전체 Leg 일괄 변경 (하위 호환) ──
+            // 노쇼/취소는 전체 적용
+            if ("NO_SHOW".equals(newStatus) || "CANCELED".equals(newStatus)) {
+                // 마스터 레벨 전이 검증
+                Set<String> masterAllowed = STATUS_TRANSITIONS.getOrDefault(master.getReservationStatus(), Set.of());
+                if (!masterAllowed.contains(newStatus)) {
+                    throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
+                }
+                for (SubReservation sub : master.getSubReservations()) {
+                    if (!"CANCELED".equals(sub.getRoomReservationStatus())
+                            && !"NO_SHOW".equals(sub.getRoomReservationStatus())
+                            && !"CHECKED_OUT".equals(sub.getRoomReservationStatus())) {
+                        sub.updateStatus(newStatus);
+                    }
+                }
+                statusChanged = true;
+            } else {
+                // 체크인/투숙중/체크아웃: 전이 가능한 Leg만 변경
+                if ("CHECK_IN".equals(newStatus)) {
+                    // 전체 체크인: 모든 RESERVED Leg의 전제조건 검증
+                    for (SubReservation sub : master.getSubReservations()) {
+                        if ("RESERVED".equals(sub.getRoomReservationStatus())) {
+                            validateCheckInPrerequisites(sub);
+                        }
+                    }
+                }
+                if ("CHECKED_OUT".equals(newStatus)) {
+                    validateCheckOutBalance(master);
+                }
+
+                for (SubReservation sub : master.getSubReservations()) {
+                    if ("CANCELED".equals(sub.getRoomReservationStatus())
+                            || "NO_SHOW".equals(sub.getRoomReservationStatus())) continue;
+                    Set<String> allowed = STATUS_TRANSITIONS.getOrDefault(sub.getRoomReservationStatus(), Set.of());
+                    if (allowed.contains(newStatus)) {
+                        applyStatusChange(sub, newStatus);
+                        statusChanged = true;
+                    }
+                }
+            }
+        }
+
+        if (!statusChanged) {
             throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
         }
 
-        // 체크인 전제조건 검증
-        if ("CHECK_IN".equals(newStatus)) {
-            for (SubReservation sub : master.getSubReservations()) {
-                if ("CANCELED".equals(sub.getRoomReservationStatus())) continue;
-                // 객실 배정 필수
-                if (sub.getRoomNumberId() == null) {
-                    throw new HolaException(ErrorCode.FD_ROOM_ASSIGN_REQUIRED);
-                }
-                // 배정된 객실 HK 상태 검증
-                com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
-                if (room != null && "OOO".equals(room.getHkStatus())) {
-                    throw new HolaException(ErrorCode.FD_ROOM_OUT_OF_ORDER);
-                }
-            }
-        }
-
-        // 체크아웃 전제조건: 결제 잔액 검증
-        if ("CHECKED_OUT".equals(newStatus)) {
-            ReservationPayment payment = reservationPaymentRepository
-                    .findByMasterReservationId(master.getId()).orElse(null);
-            if (payment != null) {
-                BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
-                BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
-                BigDecimal remaining = grandTotal.subtract(totalPaid);
-                if (remaining.compareTo(BigDecimal.ZERO) > 0) {
-                    throw new HolaException(ErrorCode.CHECKOUT_OUTSTANDING_BALANCE);
-                }
-            }
-        }
-
-        master.updateStatus(newStatus);
-        LocalDateTime now = LocalDateTime.now();
-
-        // 서브 예약 동기화 (마스터와 동일 상태로 변경)
-        for (SubReservation sub : master.getSubReservations()) {
-            // CANCELED 서브는 건너뜀 (부분취소된 경우)
-            if (!"CANCELED".equals(sub.getRoomReservationStatus())) {
-                sub.updateStatus(newStatus);
-
-                // 체크인 시: 실제 시각 + 얼리 요금 + 객실 FO 상태 변경
-                if ("CHECK_IN".equals(newStatus)) {
-                    BigDecimal earlyFee = earlyLateCheckService.calculateEarlyCheckInFee(sub, now);
-                    sub.recordCheckIn(now, earlyFee);
-                    // 객실 FO 상태 → OCCUPIED
-                    if (sub.getRoomNumberId() != null) {
-                        com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
-                        if (room != null) {
-                            room.checkIn();
-                        }
-                    }
-                }
-
-                // 체크아웃 시: 결제 잔액 검증 + 실제 시각 + 레이트 요금 + 객실 FO→VACANT, HK→DIRTY
-                if ("CHECKED_OUT".equals(newStatus)) {
-                    BigDecimal lateFee = earlyLateCheckService.calculateLateCheckOutFee(sub, now);
-                    sub.recordCheckOut(now, lateFee);
-                    // 객실 상태 변경
-                    if (sub.getRoomNumberId() != null) {
-                        com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
-                        if (room != null) {
-                            room.checkOut();
-                        }
-                    }
-                }
-            }
-        }
+        // 마스터 상태 자동 도출
+        String derivedStatus = deriveMasterStatus(master.getSubReservations());
+        String previousMasterStatus = master.getReservationStatus();
+        master.updateStatus(derivedStatus);
 
         // 얼리/레이트 요금 발생 시 결제 재계산
         if ("CHECK_IN".equals(newStatus) || "CHECKED_OUT".equals(newStatus)) {
@@ -649,42 +654,146 @@ public class ReservationServiceImpl implements ReservationService {
 
         // 노쇼 처리 시 수수료 계산 + REFUND 거래 기록
         if ("NO_SHOW".equals(newStatus)) {
-            BigDecimal firstNightSupply = getFirstNightSupplyPrice(master.getId());
-            var cancelResult = cancellationPolicyService.calculateCancelFee(
-                    propertyId, master.getMasterCheckIn(), firstNightSupply, true);
-
-            ReservationPayment payment = reservationPaymentRepository
-                    .findByMasterReservationId(master.getId()).orElse(null);
-            if (payment != null) {
-                BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
-                BigDecimal cancelFee = cancelResult.feeAmount();
-                BigDecimal refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
-
-                payment.updateCancelRefund(cancelFee, refundAmt);
-
-                if (refundAmt.compareTo(BigDecimal.ZERO) > 0) {
-                    List<PaymentTransaction> existingTxns = paymentTransactionRepository
-                            .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
-                    int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
-
-                    PaymentTransaction refundTxn = PaymentTransaction.builder()
-                            .masterReservationId(master.getId())
-                            .transactionSeq(nextSeq)
-                            .transactionType("REFUND")
-                            .paymentMethod(payment.getPaymentMethod() != null ? payment.getPaymentMethod() : "CARD")
-                            .amount(refundAmt)
-                            .transactionStatus("COMPLETED")
-                            .memo("노쇼 환불 (수수료: " + cancelFee + "원)")
-                            .build();
-                    paymentTransactionRepository.save(refundTxn);
-                }
-            }
-
-            log.info("노쇼 처리: {}, 수수료: {}, 정책: {}",
-                    master.getMasterReservationNo(), cancelResult.feeAmount(), cancelResult.policyDescription());
+            processNoShow(master, propertyId);
         }
 
-        log.info("예약 상태 변경: {} → {} (예약번호: {})", currentStatus, newStatus, master.getMasterReservationNo());
+        log.info("예약 상태 변경: {} → {} (마스터: {}, 예약번호: {})",
+                previousMasterStatus, derivedStatus, newStatus, master.getMasterReservationNo());
+    }
+
+    /**
+     * 개별 Leg 상태 변경 + 부수효과 (체크인/아웃 시 객실 상태 변경 등)
+     */
+    private void applyStatusChange(SubReservation sub, String newStatus) {
+        sub.updateStatus(newStatus);
+        LocalDateTime now = LocalDateTime.now();
+
+        if ("CHECK_IN".equals(newStatus)) {
+            BigDecimal earlyFee = earlyLateCheckService.calculateEarlyCheckInFee(sub, now);
+            sub.recordCheckIn(now, earlyFee);
+            if (sub.getRoomNumberId() != null) {
+                com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
+                if (room != null) room.checkIn();
+            }
+        }
+
+        if ("CHECKED_OUT".equals(newStatus)) {
+            BigDecimal lateFee = earlyLateCheckService.calculateLateCheckOutFee(sub, now);
+            sub.recordCheckOut(now, lateFee);
+            if (sub.getRoomNumberId() != null) {
+                com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
+                if (room != null) room.checkOut();
+            }
+        }
+    }
+
+    /**
+     * 마스터 상태 자동 도출 (Leg 상태 조합 기반)
+     *
+     * 규칙:
+     * - 활성 Leg(CANCELED/NO_SHOW 제외) 중 가장 진행된 상태를 마스터 상태로 설정
+     * - 전부 CHECKED_OUT → CHECKED_OUT
+     * - 하나라도 INHOUSE → INHOUSE
+     * - 하나라도 CHECK_IN → CHECK_IN
+     * - 전부 CANCELED → CANCELED
+     */
+    private String deriveMasterStatus(List<SubReservation> subs) {
+        List<String> activeStatuses = subs.stream()
+                .filter(s -> !"CANCELED".equals(s.getRoomReservationStatus())
+                          && !"NO_SHOW".equals(s.getRoomReservationStatus()))
+                .map(SubReservation::getRoomReservationStatus)
+                .toList();
+
+        if (activeStatuses.isEmpty()) {
+            boolean allCanceled = subs.stream()
+                    .allMatch(s -> "CANCELED".equals(s.getRoomReservationStatus()));
+            return allCanceled ? "CANCELED" : "NO_SHOW";
+        }
+
+        if (activeStatuses.contains("INHOUSE")) return "INHOUSE";
+        if (activeStatuses.contains("CHECK_IN")) return "CHECK_IN";
+        if (activeStatuses.stream().allMatch("CHECKED_OUT"::equals)) return "CHECKED_OUT";
+        return "RESERVED";
+    }
+
+    /**
+     * 체크인 전제조건 검증 (개별 Leg 단위)
+     */
+    private void validateCheckInPrerequisites(SubReservation sub) {
+        if (sub.getRoomNumberId() == null) {
+            throw new HolaException(ErrorCode.FD_ROOM_ASSIGN_REQUIRED);
+        }
+        com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
+        if (room != null && "OOO".equals(room.getHkStatus())) {
+            throw new HolaException(ErrorCode.FD_ROOM_OUT_OF_ORDER);
+        }
+    }
+
+    /**
+     * 체크아웃 잔액 검증
+     */
+    private void validateCheckOutBalance(MasterReservation master) {
+        ReservationPayment payment = reservationPaymentRepository
+                .findByMasterReservationId(master.getId()).orElse(null);
+        if (payment != null) {
+            BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
+            BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+            BigDecimal remaining = grandTotal.subtract(totalPaid);
+            if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+                throw new HolaException(ErrorCode.CHECKOUT_OUTSTANDING_BALANCE);
+            }
+        }
+    }
+
+    /**
+     * 마지막 활성 Leg 여부 판별 (체크아웃 잔액 검증 필요 여부)
+     */
+    private boolean isLastActiveLeg(SubReservation targetSub, MasterReservation master) {
+        return master.getSubReservations().stream()
+                .filter(s -> !s.getId().equals(targetSub.getId()))
+                .filter(s -> !"CANCELED".equals(s.getRoomReservationStatus())
+                          && !"CHECKED_OUT".equals(s.getRoomReservationStatus())
+                          && !"NO_SHOW".equals(s.getRoomReservationStatus()))
+                .findAny().isEmpty();
+    }
+
+    /**
+     * 노쇼 처리 — 수수료 계산 + 환불 거래 기록
+     */
+    private void processNoShow(MasterReservation master, Long propertyId) {
+        BigDecimal firstNightSupply = getFirstNightSupplyPrice(master.getId());
+        var cancelResult = cancellationPolicyService.calculateCancelFee(
+                propertyId, master.getMasterCheckIn(), firstNightSupply, true);
+
+        ReservationPayment payment = reservationPaymentRepository
+                .findByMasterReservationId(master.getId()).orElse(null);
+        if (payment != null) {
+            BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+            BigDecimal cancelFee = cancelResult.feeAmount();
+            BigDecimal refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
+
+            payment.updateCancelRefund(cancelFee, refundAmt);
+
+            if (refundAmt.compareTo(BigDecimal.ZERO) > 0) {
+                List<PaymentTransaction> existingTxns = paymentTransactionRepository
+                        .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
+                int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
+
+                PaymentTransaction refundTxn = PaymentTransaction.builder()
+                        .masterReservationId(master.getId())
+                        .transactionSeq(nextSeq)
+                        .transactionType("REFUND")
+                        .paymentMethod(payment.getPaymentMethod() != null ? payment.getPaymentMethod() : "CARD")
+                        .amount(refundAmt)
+                        .transactionStatus("COMPLETED")
+                        .memo("노쇼 환불 (수수료: " + cancelFee + "원)")
+                        .build();
+                paymentTransactionRepository.save(refundTxn);
+            }
+        }
+
+        log.info("노쇼 처리: {}, 수수료: {}, 정책: {}",
+                master.getMasterReservationNo(), cancelResult.feeAmount(), cancelResult.policyDescription());
     }
 
     @Override
@@ -704,6 +813,9 @@ public class ReservationServiceImpl implements ReservationService {
 
         int legSeq = subReservationRepository.countAllIncludingDeleted(master.getId()) + 1;
         SubReservation sub = createSubReservation(master, request, legSeq, property);
+
+        // 새 Leg를 마스터의 컬렉션에 추가 (syncMasterDates가 새 Leg 포함하여 계산하도록)
+        master.getSubReservations().add(sub);
 
         // 마스터 체크인/체크아웃 자동 동기화
         syncMasterDates(master);
@@ -942,6 +1054,11 @@ public class ReservationServiceImpl implements ReservationService {
                                                  int legSeq, Property property) {
         validateDates(request.getCheckIn(), request.getCheckOut());
 
+        // 서브예약도 과거 날짜 체크인 불가
+        if (request.getCheckIn().isBefore(LocalDate.now())) {
+            throw new HolaException(ErrorCode.RESERVATION_CHECKIN_PAST_DATE);
+        }
+
         // 객실타입 최대 수용 인원 검증
         if (request.getRoomTypeId() != null) {
             RoomType roomType = roomTypeRepository.findById(request.getRoomTypeId()).orElse(null);
@@ -971,12 +1088,18 @@ public class ReservationServiceImpl implements ReservationService {
             }
         }
 
-        // 서브 예약 생성
+        // 서브 예약 생성 — 마스터 상태가 이미 진행 중이면 새 Leg도 동일 상태로 시작
+        String masterStatus = master.getReservationStatus();
+        String legStatus = "RESERVED";
+        if ("CHECK_IN".equals(masterStatus) || "INHOUSE".equals(masterStatus)) {
+            legStatus = masterStatus;
+        }
+
         String subNo = numberGenerator.generateSubReservationNo(master.getMasterReservationNo(), legSeq);
         SubReservation sub = SubReservation.builder()
                 .masterReservation(master)
                 .subReservationNo(subNo)
-                .roomReservationStatus("RESERVED")
+                .roomReservationStatus(legStatus)
                 .roomTypeId(request.getRoomTypeId())
                 .floorId(request.getFloorId())
                 .roomNumberId(request.getRoomNumberId())

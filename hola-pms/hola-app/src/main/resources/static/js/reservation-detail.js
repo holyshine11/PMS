@@ -49,6 +49,24 @@ var ReservationDetail = {
 
         self.bindEvents();
         self.reload();
+
+        // URL tab 파라미터로 탭 자동 활성화 (운영현황 등에서 특정 탭으로 이동 시)
+        var urlParams = new URLSearchParams(window.location.search);
+        var targetTab = urlParams.get('tab');
+        if (targetTab) {
+            var tabMap = { detail: '#tabDetail', payment: '#tabPayment', deposit: '#tabDeposit', etc: '#tabEtc' };
+            var tabSelector = tabMap[targetTab];
+            if (tabSelector) {
+                // 데이터 로드 후 탭 전환 (약간의 딜레이)
+                setTimeout(function() {
+                    var $tabLink = $('a[href="' + tabSelector + '"]');
+                    if ($tabLink.length) {
+                        var tab = new bootstrap.Tab($tabLink[0]);
+                        tab.show();
+                    }
+                }, 300);
+            }
+        }
     },
 
     /**
@@ -243,8 +261,17 @@ var ReservationDetail = {
         // 상태별 필드 제어
         self.applyFieldControl();
 
-        // 상태 변경 메뉴 구성
-        self.buildStatusChangeMenu(data.reservationStatus);
+        // 마스터 상태 변경 드롭다운 — Leg별 관리로 전환되었으므로 숨김
+        // 마스터 상태는 Leg 상태에서 자동 도출 (deriveMasterStatus)
+        $('#statusChangeGroup').hide();
+
+        // Leg가 하나뿐이면 마스터 레벨 취소/노쇼는 유지 (편의)
+        var activeLegCount = (data.subReservations || []).filter(function(s) {
+            return ['CANCELED','NO_SHOW','CHECKED_OUT'].indexOf(s.roomReservationStatus) === -1;
+        }).length;
+        if (activeLegCount > 0 && !self.isReadonly) {
+            self.buildMasterActionMenu(data.reservationStatus, activeLegCount);
+        }
     },
 
     /**
@@ -311,11 +338,11 @@ var ReservationDetail = {
             checkOut = $('#masterCheckOut').val() || '';
         }
 
-        // 상태에 따른 얼리/레이트 체크박스 활성화 제어
-        // RESERVED/CONFIRMED: 둘 다 편집 가능 (사전 요청)
+        // 상태에 따른 얼리/레이트 체크박스 활성화 제어 (Leg 상태 기준)
+        // RESERVED: 둘 다 편집 가능 (사전 요청)
         // CHECK_IN/INHOUSE: 얼리 읽기전용 (자동 판정 완료), 레이트 편집 가능
         // CHECKED_OUT/CANCELED/NO_SHOW: 둘 다 읽기전용
-        var status = self.reservationData ? self.reservationData.reservationStatus : '';
+        var status = legStatus || (self.reservationData ? self.reservationData.reservationStatus : '');
         var earlyDisabled = '';
         var lateDisabled = '';
         if (['CHECK_IN', 'INHOUSE'].indexOf(status) !== -1) {
@@ -328,10 +355,28 @@ var ReservationDetail = {
         var headerLabel = '객실 #' + seq;
         if (subNo) headerLabel += ' <span class="text-muted small ms-2">(' + HolaPms.escapeHtml(subNo) + ')</span>';
 
+        // Leg별 상태 뱃지 + 액션 드롭다운 (허용 전이 전체 표시)
+        var legStatus = legData ? (legData.roomReservationStatus || '') : '';
+        var legStatusBadge = legStatus ? HolaPms.reservationStatus.styledBadge(legStatus) : '';
+        var legActionBtn = '';
+        if (legId && legStatus && self.STATUS_TRANSITIONS[legStatus]) {
+            var transitions = self.STATUS_TRANSITIONS[legStatus];
+            var btnAttr = 'data-leg-id="' + legId + '"';
+            var items = '';
+            transitions.forEach(function(t) {
+                items += '<li><a class="dropdown-item leg-status-change" href="#" ' + btnAttr + ' data-new-status="' + t.status + '">'
+                    + '<i class="fas ' + t.icon + ' me-2"></i>' + t.label + '</a></li>';
+            });
+            legActionBtn = '<div class="dropdown d-inline-block ms-2">'
+                + '<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">'
+                + '<i class="fas fa-exchange-alt me-1"></i>상태 변경</button>'
+                + '<ul class="dropdown-menu">' + items + '</ul></div>';
+        }
+
         var legHtml = ''
             + '<div class="card border shadow-sm mb-3 room-leg-card" id="roomLeg_' + seq + '" data-leg-seq="' + seq + '" data-leg-id="' + legId + '">'
             + '  <div class="card-header d-flex justify-content-between align-items-center">'
-            + '    <span>' + headerLabel + '</span>'
+            + '    <span>' + headerLabel + ' ' + legStatusBadge + legActionBtn + '</span>'
             + '    <div>'
             + (legId && self.isUpgradeable() ? '    <button class="btn btn-outline-primary btn-sm me-1 upgrade-btn" data-leg-id="' + legId + '" data-room-type-id="' + roomTypeId + '" data-room-type-name="' + HolaPms.escapeHtml(roomTypeName) + '"><i class="fas fa-arrow-up me-1"></i>업그레이드</button>' : '')
             + '    <button class="btn btn-outline-danger btn-sm remove-leg-btn" data-leg="' + seq + '" data-leg-id="' + legId + '">'
@@ -416,17 +461,19 @@ var ReservationDetail = {
             + '        <div class="col-sm-2">'
             + '          <input type="number" class="form-control form-control-sm service-qty" value="1" min="1" max="99">'
             + '        </div>'
-            + '        <div class="col-sm-3">'
+            + '        <div class="col-sm-2">'
             + '          <input type="date" class="form-control form-control-sm service-date"'
             + (legData && legData.checkIn ? ' min="' + legData.checkIn + '"' : '')
             + (legData && legData.checkOut ? ' max="' + legData.checkOut + '"' : '')
             + '>'
             + '        </div>'
-            + '        <div class="col-sm-2">'
-            + '          <button class="btn btn-primary btn-sm w-100 confirm-add-service-btn" data-leg="' + seq + '" data-leg-id="' + legId + '">추가</button>'
+            + '        <div class="col-sm-3 d-flex gap-1">'
+            + '          <button class="btn btn-primary btn-sm confirm-add-service-btn" data-leg="' + seq + '" data-leg-id="' + legId + '">추가</button>'
+            + '          <button class="btn btn-outline-secondary btn-sm cancel-add-service-btn" data-leg="' + seq + '">취소</button>'
             + '        </div>'
             + '      </div>'
             + '    </div>'
+            + (legId ? '    <div class="upgrade-history mt-3" id="upgradeHistory_' + seq + '" data-leg-id="' + legId + '"></div>' : '')
             + '  </div>'
             + '</div>';
 
@@ -435,6 +482,11 @@ var ReservationDetail = {
         // 서비스 옵션 드롭다운 구성
         this.populateServiceOptions(seq);
         this.updateRoomLegsEmpty();
+
+        // 업그레이드 이력 로드
+        if (legId) {
+            this.loadUpgradeHistory(seq, legId);
+        }
     },
 
     /**
@@ -508,7 +560,7 @@ var ReservationDetail = {
         var self = this;
         var html = '<table class="table table-sm table-borderless mb-0">';
         services.forEach(function(svc) {
-            var name = svc.serviceName || ('서비스 #' + svc.serviceOptionId);
+            var name = svc.serviceName || (svc.serviceOptionId ? '서비스 #' + svc.serviceOptionId : '객실 업그레이드');
             var isRateIncluded = svc.serviceType === 'RATE_INCLUDED';
             var badgeHtml = isRateIncluded ? ' <span class="badge bg-info text-white">포함</span>' : '';
             var qtyPrice = svc.quantity + ' x ' + Number(svc.unitPrice || 0).toLocaleString('ko-KR') + '원';
@@ -537,18 +589,68 @@ var ReservationDetail = {
     },
 
     /**
+     * 업그레이드 이력 조회 및 렌더링
+     */
+    loadUpgradeHistory: function(seq, legId) {
+        var self = this;
+        var $container = $('#upgradeHistory_' + seq);
+        if (!$container.length) return;
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + legId + '/upgrade/history',
+            type: 'GET',
+            success: function(res) {
+                var history = (res.data || []);
+                if (history.length === 0) return;
+
+                var typeBadge = function(type) {
+                    if (type === 'COMPLIMENTARY') return '<span class="badge bg-success">무료</span>';
+                    if (type === 'UPSELL') return '<span class="badge bg-info">업셀</span>';
+                    return '<span class="badge bg-primary">유료</span>';
+                };
+
+                var html = '<hr class="my-2">';
+                html += '<span class="text-muted small"><i class="fas fa-arrow-up me-1"></i>업그레이드 이력 (' + history.length + ')</span>';
+                html += '<table class="table table-sm table-borderless mb-0 mt-1">';
+                history.forEach(function(h) {
+                    var diff = Number(h.priceDifference || 0).toLocaleString('ko-KR');
+                    var dateStr = h.upgradedAt ? h.upgradedAt.replace('T', ' ').substring(0, 16) : '';
+                    html += '<tr>'
+                        + '<td class="small">' + typeBadge(h.upgradeType) + '</td>'
+                        + '<td class="small">' + HolaPms.escapeHtml(h.fromRoomTypeName || '') + ' → ' + HolaPms.escapeHtml(h.toRoomTypeName || '') + '</td>'
+                        + '<td class="small text-end">' + (h.priceDifference > 0 ? '+' : '') + diff + '원</td>'
+                        + '<td class="small text-muted text-end">' + dateStr + '</td>'
+                        + '</tr>';
+                });
+                html += '</table>';
+                $container.html(html);
+            },
+            error: function() {
+                // 업그레이드 이력 API 미구현 시 무시
+            }
+        });
+    },
+
+    /**
      * 서비스 옵션 드롭다운 구성
      */
     populateServiceOptions: function(seq) {
         var self = this;
-        var $select = $('#serviceAddForm_' + seq + ' .service-option-select');
+        var $form = $('#serviceAddForm_' + seq);
+        var $select = $form.find('.service-option-select');
         $select.find('option:not(:first)').remove();
 
         // 해당 레그의 roomTypeId 조회
         var $leg = $('#roomLeg_' + seq);
         var roomTypeId = $leg.find('.room-type-id').val() || null;
 
+        // 로딩 표시
+        $select.prop('disabled', true);
+        $select.find('option:first').text('로딩중...');
+
         self.loadPaidServiceOptions(roomTypeId, function(options) {
+            $select.prop('disabled', false);
+            $select.find('option:first').text('서비스 선택');
             if (options && options.length > 0) {
                 options.forEach(function(opt) {
                     var price = Number(opt.vatIncludedPrice || 0).toLocaleString('ko-KR');
@@ -556,6 +658,8 @@ var ReservationDetail = {
                         + HolaPms.escapeHtml(opt.serviceNameKo) + ' (' + price + '원)'
                         + '</option>');
                 });
+            } else {
+                $select.find('option:first').text('등록된 서비스가 없습니다');
             }
         });
     },
@@ -712,19 +816,33 @@ var ReservationDetail = {
     /**
      * 상태 변경 메뉴 동적 구성
      */
-    buildStatusChangeMenu: function(currentStatus) {
+    /**
+     * 마스터 레벨 액션 메뉴 (전체 취소/노쇼 + 전체 일괄 버튼)
+     * Leg별 체크인/투숙중/체크아웃은 Leg 카드에서 개별 처리
+     */
+    buildMasterActionMenu: function(currentStatus, activeLegCount) {
         var self = this;
         var $menu = $('#statusChangeMenu');
         $menu.empty();
 
-        var transitions = self.STATUS_TRANSITIONS[currentStatus];
-        if (!transitions || transitions.length === 0) {
+        var items = [];
+
+        // 전체 취소 (마스터가 종료 상태가 아닐 때)
+        if (['RESERVED', 'CHECK_IN'].indexOf(currentStatus) !== -1) {
+            items.push({ status: 'CANCELED', label: '전체 취소', icon: 'fa-ban', cls: 'btn-danger' });
+        }
+        // 전체 노쇼 (예약 상태일 때만)
+        if (currentStatus === 'RESERVED') {
+            items.push({ status: 'NO_SHOW', label: '전체 노쇼', icon: 'fa-user-slash', cls: 'btn-warning' });
+        }
+
+        if (items.length === 0) {
             $('#statusChangeGroup').hide();
             return;
         }
 
         $('#statusChangeGroup').show();
-        transitions.forEach(function(t) {
+        items.forEach(function(t) {
             var $li = $('<li><a class="dropdown-item" href="javascript:void(0);">'
                 + '<i class="fas ' + t.icon + ' me-1"></i>' + t.label
                 + '</a></li>');
@@ -733,6 +851,12 @@ var ReservationDetail = {
             });
             $menu.append($li);
         });
+    },
+
+    /** @deprecated 기존 마스터 레벨 전이 메뉴 (Leg 독립 관리 전환 후 미사용) */
+    buildStatusChangeMenu: function(currentStatus) {
+        // Leg별 관리로 전환 — buildMasterActionMenu로 대체
+        $('#statusChangeGroup').hide();
     },
 
     /**
@@ -753,12 +877,17 @@ var ReservationDetail = {
             return;
         }
 
-        // 체크아웃 시 결제 잔액 검증
+        // 체크아웃 시 결제 잔액 검증 → 잔액 있으면 결제정보 탭으로 이동
         if (newStatus === 'CHECKED_OUT') {
             var remaining = ReservationPayment.paymentData
                 ? Number(ReservationPayment.paymentData.remainingAmount) || 0 : 0;
             if (remaining > 0) {
-                HolaPms.alert('warning', '결제 잔액을 확인하세요.');
+                HolaPms.alert('warning', '미결제 잔액이 있습니다. 결제정보 탭으로 이동합니다.');
+                var $tabLink = $('a[href="#tabPayment"]');
+                if ($tabLink.length) {
+                    var tab = new bootstrap.Tab($tabLink[0]);
+                    tab.show();
+                }
                 return;
             }
         }
@@ -839,16 +968,40 @@ var ReservationDetail = {
     /**
      * 상태 변경 API 호출
      */
-    changeStatus: function(newStatus) {
+    changeStatus: function(newStatus, subReservationId) {
         var self = this;
         HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/status',
             type: 'PUT',
-            data: { newStatus: newStatus },
+            data: { newStatus: newStatus, subReservationId: subReservationId || null },
             success: function(res) {
                 if (res.success) {
                     HolaPms.alert('success', '상태가 변경되었습니다.');
                     setTimeout(function() { location.reload(); }, 500);
+                }
+            },
+            error: function(xhr) {
+                var res = xhr.responseJSON;
+                var msg = res && res.message ? res.message : '처리 중 오류가 발생했습니다.';
+                var code = res && res.code ? res.code : '';
+
+                // 전제조건 에러: 해당 탭으로 자동 이동
+                var codeTabMap = {
+                    'HOLA-4029': '#tabPayment',  // 결제 잔액 → 결제정보 탭
+                    'HOLA-5001': '#tabDetail',   // 객실 미배정 → 상세정보 탭
+                    'HOLA-5003': '#tabDetail',   // OOO 객실 → 상세정보 탭
+                    'HOLA-5010': '#tabPayment'   // 미결제 잔액 → 결제정보 탭
+                };
+                var targetTab = codeTabMap[code];
+                if (targetTab) {
+                    HolaPms.alert('warning', msg);
+                    var $tabLink = $('a[href="' + targetTab + '"]');
+                    if ($tabLink.length) {
+                        var tab = new bootstrap.Tab($tabLink[0]);
+                        tab.show();
+                    }
+                } else {
+                    HolaPms.alert('error', msg);
                 }
             }
         });
@@ -866,6 +1019,18 @@ var ReservationDetail = {
             self.allRoomTypes = null;
             self.assignData = null;
             self.reload();
+        });
+
+        // Leg별 상태 변경 (이벤트 위임)
+        $(document).on('click', '.leg-status-change', function(e) {
+            e.preventDefault();
+            var legId = $(this).data('leg-id');
+            var newStatus = $(this).data('new-status');
+            var label = $(this).text().trim();
+            if (!confirm(label + ' 처리하시겠습니까?')) return;
+
+            // 체크아웃 시 잔액 검증은 서버에서 수행
+            self.changeStatus(newStatus, legId);
         });
 
         // 업그레이드 버튼 클릭
@@ -1064,6 +1229,12 @@ var ReservationDetail = {
                 $form.find('.service-qty').val(1);
                 $form.find('.service-date').val('');
             }
+        });
+
+        // 유료 서비스 추가 취소 (이벤트 위임)
+        $(document).on('click', '.cancel-add-service-btn', function() {
+            var legSeq = $(this).data('leg');
+            $('#serviceAddForm_' + legSeq).addClass('d-none');
         });
 
         // 유료 서비스 추가 확인 (이벤트 위임)

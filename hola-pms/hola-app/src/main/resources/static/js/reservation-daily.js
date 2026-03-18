@@ -22,9 +22,15 @@ var ReservationDaily = {
                     return;
                 }
 
-                // 캘린더 API로 해당 날짜 데이터 조회
+                // 캘린더 API로 해당 날짜 데이터 조회 (endDate는 +1일: 범위 쿼리가 < endDate이므로)
+                var endDate = new Date(self.date + 'T00:00:00');
+                endDate.setDate(endDate.getDate() + 1);
+                var endDateStr = endDate.getFullYear() + '-'
+                    + String(endDate.getMonth() + 1).padStart(2, '0') + '-'
+                    + String(endDate.getDate()).padStart(2, '0');
+
                 var url = '/api/v1/properties/' + pid + '/reservations/calendar'
-                    + '?startDate=' + self.date + '&endDate=' + self.date;
+                    + '?startDate=' + self.date + '&endDate=' + endDateStr;
 
                 HolaPms.ajax({
                     url: url,

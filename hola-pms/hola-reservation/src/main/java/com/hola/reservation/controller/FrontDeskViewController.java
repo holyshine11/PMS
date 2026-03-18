@@ -5,34 +5,25 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
- * 프론트데스크 View 컨트롤러
+ * 프론트데스크 뷰 컨트롤러
  */
 @Controller
 @RequestMapping("/admin/front-desk")
 public class FrontDeskViewController {
 
-    @GetMapping("/arrivals")
-    public String arrivals() {
-        return "front-desk/arrivals";
+    /**
+     * 운영현황 페이지 (도착/투숙/출발 탭 통합)
+     */
+    @GetMapping("/operations")
+    public String operations() {
+        return "front-desk/operations";
     }
 
-    @GetMapping("/in-house")
-    public String inHouse() {
-        return "front-desk/in-house";
-    }
-
-    @GetMapping("/departures")
-    public String departures() {
-        return "front-desk/departures";
-    }
-
-    @GetMapping("/walk-in")
-    public String walkIn() {
-        return "front-desk/walk-in";
-    }
-
-    @GetMapping("/room-rack")
-    public String roomRack() {
-        return "front-desk/room-rack";
+    /**
+     * OOO/OOS 관리 페이지
+     */
+    @GetMapping("/room-unavailable")
+    public String roomUnavailable() {
+        return "front-desk/room-unavailable";
     }
 }

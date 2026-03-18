@@ -87,8 +87,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/properties/*/inventory-items/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 객실 배정 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
                 .requestMatchers("/api/v1/properties/*/room-assign/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
-                // 프론트데스크 API: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                // 프론트데스크 API
                 .requestMatchers("/api/v1/properties/*/front-desk/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // OOO/OOS 관리 API
+                .requestMatchers("/api/v1/properties/*/room-unavailable/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 객실 상태 API
                 .requestMatchers("/api/v1/properties/*/room-status/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // Room Rack API
@@ -163,7 +165,7 @@ public class SecurityConfig {
                 .requestMatchers("/admin/reservation-channels/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 예약관리 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
                 .requestMatchers("/admin/reservations/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
-                // 프론트데스크 웹: SUPER_ADMIN + HOTEL_ADMIN + PROPERTY_ADMIN
+                // 프론트데스크 웹
                 .requestMatchers("/admin/front-desk/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 회원관리
                 .requestMatchers("/admin/members/bluewave-admins/**").hasRole("SUPER_ADMIN")

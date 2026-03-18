@@ -1,32 +1,29 @@
 package com.hola.reservation.service;
 
-import com.hola.common.util.NameMaskingUtil;
-import com.hola.hotel.entity.RoomNumber;
-import com.hola.hotel.repository.ReservationChannelRepository;
-import com.hola.hotel.repository.RoomNumberRepository;
-import com.hola.reservation.dto.response.FrontDeskArrivalResponse;
-import com.hola.reservation.dto.response.FrontDeskDepartureResponse;
-import com.hola.reservation.dto.response.FrontDeskInHouseResponse;
-import com.hola.reservation.entity.DailyCharge;
+import com.hola.reservation.dto.response.FrontDeskOperationResponse;
 import com.hola.reservation.entity.MasterReservation;
-import com.hola.reservation.entity.PaymentTransaction;
+import com.hola.reservation.entity.ReservationPayment;
 import com.hola.reservation.entity.SubReservation;
-import com.hola.reservation.repository.PaymentTransactionRepository;
+import com.hola.reservation.repository.ReservationPaymentRepository;
 import com.hola.reservation.repository.SubReservationRepository;
+import com.hola.hotel.entity.RoomNumber;
+import com.hola.hotel.repository.RoomNumberRepository;
 import com.hola.room.entity.RoomType;
 import com.hola.room.repository.RoomTypeRepository;
+import com.hola.hotel.entity.ReservationChannel;
+import com.hola.hotel.repository.ReservationChannelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 프론트데스크 서비스 구현체
+ * 프론트데스크 운영현황 서비스 구현
  */
 @Service
 @RequiredArgsConstructor
@@ -34,134 +31,30 @@ import java.util.stream.Collectors;
 public class FrontDeskServiceImpl implements FrontDeskService {
 
     private final SubReservationRepository subReservationRepository;
+    private final ReservationPaymentRepository paymentRepository;
     private final RoomTypeRepository roomTypeRepository;
     private final RoomNumberRepository roomNumberRepository;
     private final ReservationChannelRepository reservationChannelRepository;
-    private final PaymentTransactionRepository paymentTransactionRepository;
 
     @Override
-    public List<FrontDeskArrivalResponse> getArrivals(Long propertyId) {
+    public List<FrontDeskOperationResponse> getArrivals(Long propertyId) {
         LocalDate today = LocalDate.now();
         List<SubReservation> subs = subReservationRepository.findArrivals(propertyId, today);
-
-        // 벌크 이름 해석
-        Map<Long, String> roomTypeNames = resolveRoomTypeNames(propertyId);
-        Map<Long, RoomNumber> roomNumbers = resolveRoomNumbers(subs);
-        Map<Long, String> channelNames = resolveChannelNames(propertyId);
-
-        List<FrontDeskArrivalResponse> result = new ArrayList<>();
-        for (SubReservation sub : subs) {
-            MasterReservation master = sub.getMasterReservation();
-            RoomNumber room = roomNumbers.get(sub.getRoomNumberId());
-            BigDecimal totalAmount = calcTotalCharge(sub);
-
-            result.add(FrontDeskArrivalResponse.builder()
-                    .masterReservationId(master.getId())
-                    .subReservationId(sub.getId())
-                    .masterReservationNo(master.getMasterReservationNo())
-                    .confirmationNo(master.getConfirmationNo())
-                    .guestNameKo(NameMaskingUtil.maskKoreanName(master.getGuestNameKo()))
-                    .phoneNumber(master.getPhoneNumber())
-                    .roomTypeName(roomTypeNames.getOrDefault(sub.getRoomTypeId(), "-"))
-                    .roomNumber(room != null ? room.getRoomNumber() : null)
-                    .roomNumberId(sub.getRoomNumberId())
-                    .roomTypeId(sub.getRoomTypeId())
-                    .checkIn(sub.getCheckIn())
-                    .checkOut(sub.getCheckOut())
-                    .adults(sub.getAdults())
-                    .children(sub.getChildren())
-                    .reservationStatus(sub.getRoomReservationStatus())
-                    .channelName(channelNames.getOrDefault(master.getReservationChannelId(), "-"))
-                    .totalAmount(totalAmount)
-                    .hkStatus(room != null ? room.getHkStatus() : null)
-                    .build());
-        }
-        return result;
+        return toResponseList(subs);
     }
 
     @Override
-    public List<FrontDeskInHouseResponse> getInHouse(Long propertyId) {
+    public List<FrontDeskOperationResponse> getInHouse(Long propertyId) {
         LocalDate today = LocalDate.now();
         List<SubReservation> subs = subReservationRepository.findInHouse(propertyId, today);
-
-        Map<Long, String> roomTypeNames = resolveRoomTypeNames(propertyId);
-        Map<Long, RoomNumber> roomNumbers = resolveRoomNumbers(subs);
-
-        // 벌크 결제 금액 조회 (N+1 방지)
-        List<Long> masterIds = subs.stream().map(s -> s.getMasterReservation().getId()).distinct().collect(Collectors.toList());
-        Map<Long, BigDecimal> paidMap = calcPaidAmountBulk(masterIds);
-
-        List<FrontDeskInHouseResponse> result = new ArrayList<>();
-        for (SubReservation sub : subs) {
-            MasterReservation master = sub.getMasterReservation();
-            RoomNumber room = roomNumbers.get(sub.getRoomNumberId());
-            BigDecimal totalAmount = calcTotalCharge(sub);
-            BigDecimal paidAmount = paidMap.getOrDefault(master.getId(), BigDecimal.ZERO);
-            BigDecimal balance = totalAmount.subtract(paidAmount);
-
-            result.add(FrontDeskInHouseResponse.builder()
-                    .masterReservationId(master.getId())
-                    .subReservationId(sub.getId())
-                    .masterReservationNo(master.getMasterReservationNo())
-                    .confirmationNo(master.getConfirmationNo())
-                    .guestNameKo(NameMaskingUtil.maskKoreanName(master.getGuestNameKo()))
-                    .phoneNumber(master.getPhoneNumber())
-                    .roomTypeName(roomTypeNames.getOrDefault(sub.getRoomTypeId(), "-"))
-                    .roomNumber(room != null ? room.getRoomNumber() : null)
-                    .checkIn(sub.getCheckIn())
-                    .checkOut(sub.getCheckOut())
-                    .actualCheckInTime(sub.getActualCheckInTime())
-                    .adults(sub.getAdults())
-                    .children(sub.getChildren())
-                    .totalAmount(totalAmount)
-                    .paidAmount(paidAmount)
-                    .balance(balance)
-                    .build());
-        }
-        return result;
+        return toResponseList(subs);
     }
 
     @Override
-    public List<FrontDeskDepartureResponse> getDepartures(Long propertyId) {
+    public List<FrontDeskOperationResponse> getDepartures(Long propertyId) {
         LocalDate today = LocalDate.now();
         List<SubReservation> subs = subReservationRepository.findDepartures(propertyId, today);
-
-        Map<Long, String> roomTypeNames = resolveRoomTypeNames(propertyId);
-        Map<Long, RoomNumber> roomNumbers = resolveRoomNumbers(subs);
-
-        // 벌크 결제 금액 조회 (N+1 방지)
-        List<Long> masterIds = subs.stream().map(s -> s.getMasterReservation().getId()).distinct().collect(Collectors.toList());
-        Map<Long, BigDecimal> paidMap = calcPaidAmountBulk(masterIds);
-
-        List<FrontDeskDepartureResponse> result = new ArrayList<>();
-        for (SubReservation sub : subs) {
-            MasterReservation master = sub.getMasterReservation();
-            RoomNumber room = roomNumbers.get(sub.getRoomNumberId());
-            BigDecimal totalAmount = calcTotalCharge(sub);
-            BigDecimal paidAmount = paidMap.getOrDefault(master.getId(), BigDecimal.ZERO);
-            BigDecimal balance = totalAmount.subtract(paidAmount);
-
-            result.add(FrontDeskDepartureResponse.builder()
-                    .masterReservationId(master.getId())
-                    .subReservationId(sub.getId())
-                    .masterReservationNo(master.getMasterReservationNo())
-                    .confirmationNo(master.getConfirmationNo())
-                    .guestNameKo(NameMaskingUtil.maskKoreanName(master.getGuestNameKo()))
-                    .phoneNumber(master.getPhoneNumber())
-                    .roomTypeName(roomTypeNames.getOrDefault(sub.getRoomTypeId(), "-"))
-                    .roomNumber(room != null ? room.getRoomNumber() : null)
-                    .checkIn(sub.getCheckIn())
-                    .checkOut(sub.getCheckOut())
-                    .actualCheckInTime(sub.getActualCheckInTime())
-                    .adults(sub.getAdults())
-                    .children(sub.getChildren())
-                    .totalAmount(totalAmount)
-                    .paidAmount(paidAmount)
-                    .balance(balance)
-                    .lateCheckOut(sub.getLateCheckOut())
-                    .build());
-        }
-        return result;
+        return toResponseList(subs);
     }
 
     @Override
@@ -174,68 +67,89 @@ public class FrontDeskServiceImpl implements FrontDeskService {
         return summary;
     }
 
-    // === 헬퍼 메서드 ===
+    /**
+     * SubReservation 리스트를 DTO 리스트로 변환 (N+1 방지: 벌크 조회)
+     */
+    private List<FrontDeskOperationResponse> toResponseList(List<SubReservation> subs) {
+        if (subs.isEmpty()) {
+            return Collections.emptyList();
+        }
 
-    private Map<Long, String> resolveRoomTypeNames(Long propertyId) {
-        return roomTypeRepository.findAllByPropertyIdOrderBySortOrderAscRoomTypeCodeAsc(propertyId)
-                .stream().collect(Collectors.toMap(RoomType::getId, RoomType::getRoomTypeCode, (a, b) -> a));
-    }
+        // 벌크 조회: 객실타입
+        Set<Long> roomTypeIds = subs.stream()
+                .map(SubReservation::getRoomTypeId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, RoomType> roomTypeMap = roomTypeIds.isEmpty() ? Collections.emptyMap() :
+                roomTypeRepository.findAllById(roomTypeIds).stream()
+                        .collect(Collectors.toMap(RoomType::getId, Function.identity()));
 
-    private Map<Long, RoomNumber> resolveRoomNumbers(List<SubReservation> subs) {
-        Set<Long> roomIds = subs.stream()
+        // 벌크 조회: 객실번호
+        Set<Long> roomNumberIds = subs.stream()
                 .map(SubReservation::getRoomNumberId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        if (roomIds.isEmpty()) return Collections.emptyMap();
-        return roomNumberRepository.findAllById(roomIds)
-                .stream().collect(Collectors.toMap(RoomNumber::getId, Function.identity()));
-    }
+        Map<Long, RoomNumber> roomNumberMap = roomNumberIds.isEmpty() ? Collections.emptyMap() :
+                roomNumberRepository.findAllById(roomNumberIds).stream()
+                        .collect(Collectors.toMap(RoomNumber::getId, Function.identity()));
 
-    private Map<Long, String> resolveChannelNames(Long propertyId) {
-        return reservationChannelRepository.findByPropertyIdOrderBySortOrderAsc(propertyId)
-                .stream().collect(Collectors.toMap(ch -> ch.getId(), ch -> ch.getChannelName(), (a, b) -> a));
-    }
+        // 벌크 조회: 결제 정보 (N+1 방지)
+        Set<Long> masterIds = subs.stream()
+                .map(s -> s.getMasterReservation().getId())
+                .collect(Collectors.toSet());
+        Map<Long, ReservationPayment> paymentMap = masterIds.isEmpty() ? Collections.emptyMap() :
+                paymentRepository.findAllByMasterReservationIdIn(masterIds).stream()
+                        .collect(Collectors.toMap(
+                                p -> p.getMasterReservation().getId(),
+                                Function.identity(),
+                                (a, b) -> a
+                        ));
 
-    private BigDecimal calcTotalCharge(SubReservation sub) {
-        return sub.getDailyCharges().stream()
-                .map(DailyCharge::getTotal)
+        // 벌크 조회: 예약 채널
+        Set<Long> channelIds = subs.stream()
+                .map(s -> s.getMasterReservation().getReservationChannelId())
                 .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
+                .collect(Collectors.toSet());
+        Map<Long, ReservationChannel> channelMap = channelIds.isEmpty() ? Collections.emptyMap() :
+                reservationChannelRepository.findAllById(channelIds).stream()
+                        .collect(Collectors.toMap(ReservationChannel::getId, Function.identity()));
 
-    private BigDecimal calcPaidAmount(Long masterReservationId) {
-        List<PaymentTransaction> transactions = paymentTransactionRepository
-                .findByMasterReservationIdOrderByTransactionSeqAsc(masterReservationId);
-        return sumPaidFromTransactions(transactions);
-    }
+        return subs.stream().map(sub -> {
+            MasterReservation master = sub.getMasterReservation();
+            RoomType roomType = roomTypeMap.get(sub.getRoomTypeId());
+            RoomNumber roomNumber = roomNumberMap.get(sub.getRoomNumberId());
+            ReservationPayment payment = paymentMap.get(master.getId());
+            ReservationChannel channel = master.getReservationChannelId() != null
+                    ? channelMap.get(master.getReservationChannelId()) : null;
 
-    /**
-     * 벌크 결제 금액 조회: 여러 마스터 예약 ID에 대해 한 번에 쿼리
-     */
-    private Map<Long, BigDecimal> calcPaidAmountBulk(List<Long> masterIds) {
-        if (masterIds.isEmpty()) return Collections.emptyMap();
-        List<PaymentTransaction> allTx = paymentTransactionRepository.findByMasterReservationIdIn(masterIds);
-        // masterReservationId별 그룹핑
-        Map<Long, List<PaymentTransaction>> grouped = allTx.stream()
-                .collect(Collectors.groupingBy(PaymentTransaction::getMasterReservationId));
-        Map<Long, BigDecimal> result = new HashMap<>();
-        for (Long id : masterIds) {
-            result.put(id, sumPaidFromTransactions(grouped.getOrDefault(id, Collections.emptyList())));
-        }
-        return result;
-    }
-
-    private BigDecimal sumPaidFromTransactions(List<PaymentTransaction> transactions) {
-        BigDecimal paid = BigDecimal.ZERO;
-        for (PaymentTransaction tx : transactions) {
-            if ("COMPLETED".equals(tx.getTransactionStatus())) {
-                if ("PAYMENT".equals(tx.getTransactionType())) {
-                    paid = paid.add(tx.getAmount());
-                } else if ("REFUND".equals(tx.getTransactionType())) {
-                    paid = paid.subtract(tx.getAmount());
-                }
-            }
-        }
-        return paid;
+            return FrontDeskOperationResponse.builder()
+                    .reservationId(master.getId())
+                    .subReservationId(sub.getId())
+                    .subReservationNo(sub.getSubReservationNo())
+                    .masterReservationNo(master.getMasterReservationNo())
+                    .confirmationNo(master.getConfirmationNo())
+                    .reservationStatus(master.getReservationStatus())
+                    .roomReservationStatus(sub.getRoomReservationStatus())
+                    .guestNameKo(master.getGuestNameKo())
+                    .guestLastNameEn(master.getGuestLastNameEn())
+                    .phoneNumber(master.getPhoneNumber())
+                    .email(master.getEmail())
+                    .roomTypeName(roomType != null ? roomType.getRoomTypeCode() : null)
+                    .roomNumber(roomNumber != null ? roomNumber.getRoomNumber() : null)
+                    .roomNumberId(sub.getRoomNumberId())
+                    .adults(sub.getAdults())
+                    .children(sub.getChildren())
+                    .checkIn(sub.getCheckIn())
+                    .checkOut(sub.getCheckOut())
+                    .nights((int) ChronoUnit.DAYS.between(sub.getCheckIn(), sub.getCheckOut()))
+                    .eta(sub.getEta())
+                    .etd(sub.getEtd())
+                    .actualCheckInTime(sub.getActualCheckInTime())
+                    .actualCheckOutTime(sub.getActualCheckOutTime())
+                    .paymentStatus(payment != null ? payment.getPaymentStatus() : null)
+                    .reservationChannelName(channel != null ? channel.getChannelName() : null)
+                    .isOtaManaged(master.getIsOtaManaged())
+                    .build();
+        }).collect(Collectors.toList());
     }
 }

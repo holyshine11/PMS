@@ -328,8 +328,9 @@ var ReservationForm = {
      * 객실 레그 카드 동적 추가
      */
     addRoomLeg: function() {
-        this.roomLegSeq++;
-        var seq = this.roomLegSeq;
+        var self = this;
+        self.roomLegSeq++;
+        var seq = self.roomLegSeq;
 
         // 마스터 체크인/체크아웃 기본값 세팅
         var masterCheckIn = $('#masterCheckIn').val() || '';
@@ -367,9 +368,9 @@ var ReservationForm = {
             + '    </div>'
             + '    <div class="row mb-3">'
             + '      <label class="col-sm-2 col-form-label">체크인</label>'
-            + '      <div class="col-sm-4"><input type="date" class="form-control leg-check-in" value="' + masterCheckIn + '"></div>'
+            + '      <div class="col-sm-4"><input type="date" class="form-control leg-check-in" value="' + masterCheckIn + '" min="' + self.formatDate(new Date()) + '"></div>'
             + '      <label class="col-sm-2 col-form-label">체크아웃</label>'
-            + '      <div class="col-sm-4"><input type="date" class="form-control leg-check-out" value="' + masterCheckOut + '"></div>'
+            + '      <div class="col-sm-4"><input type="date" class="form-control leg-check-out" value="' + masterCheckOut + '" min="' + self.formatDate(new Date()) + '"></div>'
             + '    </div>'
             + '    <div class="row mb-3">'
             + '      <label class="col-sm-2 col-form-label">성인</label>'
@@ -409,7 +410,7 @@ var ReservationForm = {
             + '</div>';
 
         $('#roomLegsContainer').append(legHtml);
-        this.updateRoomLegsEmpty();
+        self.updateRoomLegsEmpty();
     },
 
     /**
@@ -1245,10 +1246,10 @@ var ReservationForm = {
             data: data,
             success: function(res) {
                 if (res.success) {
-                    // Walk-In 모드: 도착 화면으로 리다이렉트 (즉시 체크인 가능)
+                    // Walk-In 모드: 예약 목록으로 리다이렉트
                     var isWalkIn = new URLSearchParams(window.location.search).get('walkin') === 'true';
                     if (isWalkIn) {
-                        HolaPms.alertAndRedirect('success', 'Walk-In 예약이 등록되었습니다. 도착 화면에서 체크인해주세요.', '/admin/front-desk/arrivals');
+                        HolaPms.alertAndRedirect('success', 'Walk-In 예약이 등록되었습니다.', '/admin/reservations');
                         return;
                     }
                     var reservationId = res.data ? (res.data.id || '') : '';

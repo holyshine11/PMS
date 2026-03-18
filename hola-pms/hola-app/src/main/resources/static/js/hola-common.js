@@ -247,9 +247,21 @@ const HolaPms = {
             else if ($('#roleHotelAdmin').length) this.userRole = 'HOTEL_ADMIN';
             else if ($('#rolePropertyAdmin').length) this.userRole = 'PROPERTY_ADMIN';
 
-            // sessionStorage에서 복원
-            this.selectedHotelId = sessionStorage.getItem('selectedHotelId') || null;
-            this.selectedPropertyId = sessionStorage.getItem('selectedPropertyId') || null;
+            // URL 파라미터 우선 (새 창에서 프로퍼티 컨텍스트 전달용)
+            var urlParams = new URLSearchParams(window.location.search);
+            var urlHotelId = urlParams.get('hotelId');
+            var urlPropertyId = urlParams.get('propertyId');
+
+            if (urlHotelId && urlPropertyId) {
+                this.selectedHotelId = urlHotelId;
+                this.selectedPropertyId = urlPropertyId;
+                sessionStorage.setItem('selectedHotelId', urlHotelId);
+                sessionStorage.setItem('selectedPropertyId', urlPropertyId);
+            } else {
+                // sessionStorage에서 복원
+                this.selectedHotelId = sessionStorage.getItem('selectedHotelId') || null;
+                this.selectedPropertyId = sessionStorage.getItem('selectedPropertyId') || null;
+            }
             this.loadHotels();
         },
 

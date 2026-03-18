@@ -115,7 +115,7 @@ public enum ErrorCode {
     SUB_RESERVATION_ROOM_CONFLICT("HOLA-4011", "해당 기간에 이미 예약된 객실입니다.", HttpStatus.CONFLICT),
     SUB_RESERVATION_NO_AVAILABILITY("HOLA-4012", "해당 객실 타입의 가용 객실이 없습니다.", HttpStatus.BAD_REQUEST),
     SUB_RESERVATION_DATE_INVALID("HOLA-4013", "체크아웃은 체크인 이후여야 합니다.", HttpStatus.BAD_REQUEST),
-    RESERVATION_CHECKIN_PAST_DATE("HOLA-4014", "체크인 날짜는 오늘 이후여야 합니다.", HttpStatus.BAD_REQUEST),
+    RESERVATION_CHECKIN_PAST_DATE("HOLA-4014", "체크인 날짜는 오늘 또는 이후여야 합니다. (과거 날짜 불가)", HttpStatus.BAD_REQUEST),
     SUB_RESERVATION_OCCUPANCY_EXCEEDED("HOLA-4015", "객실 최대 수용 인원을 초과했습니다.", HttpStatus.BAD_REQUEST),
 
     // 가격/결제 (HOLA-402x)

@@ -8,6 +8,7 @@ import org.hibernate.annotations.SQLRestriction;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,6 +63,13 @@ public class SubReservation extends BaseEntity {
 
     @Column(name = "check_out", nullable = false)
     private LocalDate checkOut;
+
+    // 예상 도착/출발 시간
+    @Column(name = "eta")
+    private LocalTime eta;
+
+    @Column(name = "etd")
+    private LocalTime etd;
 
     @Column(name = "early_check_in", nullable = false)
     @Builder.Default

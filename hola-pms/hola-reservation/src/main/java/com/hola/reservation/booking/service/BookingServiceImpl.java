@@ -558,7 +558,7 @@ public class BookingServiceImpl implements BookingService {
         }
         if (checkIn.isBefore(LocalDate.now())) {
             throw new HolaException(ErrorCode.BOOKING_INVALID_DATE_RANGE,
-                    "체크인 날짜는 오늘 이후여야 합니다.");
+                    "체크인 날짜는 오늘 또는 이후여야 합니다.");
         }
         long nights = ChronoUnit.DAYS.between(checkIn, checkOut);
         if (nights > MAX_STAY_NIGHTS) {

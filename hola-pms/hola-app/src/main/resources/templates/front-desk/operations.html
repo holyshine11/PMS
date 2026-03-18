@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>운영현황 - Hola PMS</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-concierge-bell me-2"></i>운영현황</h4>
+        <button class="btn btn-outline-secondary btn-sm" id="btnRefresh">
+            <i class="fas fa-sync-alt me-1"></i>새로고침
+        </button>
+    </div>
+
+    <!-- 요약 카드: 오늘 기준 운영 현황 -->
+    <div class="row mb-3" id="summaryCards">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm" style="cursor:pointer;" data-filter="arrivals">
+                <div class="card-body text-center py-3">
+                    <div class="text-secondary mb-1"><i class="fas fa-key me-1"></i>오늘 도착</div>
+                    <div class="small text-muted">체크인일=오늘 &amp; 예약상태</div>
+                    <div id="summaryArrivals" style="font-size: 2.5rem; font-weight: 700; color: #0582CA; line-height: 1.2;">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm" style="cursor:pointer;" data-filter="inhouse">
+                <div class="card-body text-center py-3">
+                    <div class="text-secondary mb-1"><i class="fas fa-bed me-1"></i>투숙중</div>
+                    <div class="small text-muted">체크인/투숙중 상태</div>
+                    <div id="summaryInHouse" style="font-size: 2.5rem; font-weight: 700; color: #003554; line-height: 1.2;">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm" style="cursor:pointer;" data-filter="departures">
+                <div class="card-body text-center py-3">
+                    <div class="text-secondary mb-1"><i class="fas fa-door-closed me-1"></i>오늘 출발</div>
+                    <div class="small text-muted">체크아웃일=오늘 &amp; 투숙중</div>
+                    <div id="summaryDepartures" style="font-size: 2.5rem; font-weight: 700; color: #EF476F; line-height: 1.2;">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-3">
+                    <div class="text-secondary mb-1"><i class="fas fa-hotel me-1"></i>전체</div>
+                    <div class="small text-muted">운영 대상 전체</div>
+                    <div id="summaryTotal" style="font-size: 2.5rem; font-weight: 700; color: #051923; line-height: 1.2;">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 필터+검색 1줄 통합 -->
+    <div class="card border-0 shadow-sm mb-3" id="filterCard">
+        <div class="card-body py-3">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <!-- 상태 필터 -->
+                <div class="d-flex flex-wrap gap-2" id="statusFilterGroup">
+                    <button class="btn btn-sm status-filter-btn active" data-status="" style="background:#051923; color:#fff; border:2px solid #051923;">전체</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="RESERVED" style="background:#d4edff; color:#0582CA; border:2px solid transparent;">예약</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="CHECK_IN" style="background:#d1ecf1; color:#0c5460; border:2px solid transparent;">체크인</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="INHOUSE" style="background:#003554; color:#ffffff; border:2px solid transparent;">투숙중</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="CHECKED_OUT" style="background:#e2e3e5; color:#383d41; border:2px solid transparent;">체크아웃</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="CANCELED" style="background:#f8d7da; color:#721c24; border:2px solid transparent;">취소</button>
+                    <button class="btn btn-sm status-filter-btn" data-status="NO_SHOW" style="background:#fff3cd; color:#856404; border:2px solid transparent;">노쇼</button>
+                </div>
+                <!-- 검색 (오른쪽 정렬) -->
+                <div class="d-flex gap-2 ms-auto align-items-center">
+                    <input type="text" class="form-control form-control-sm" id="keyword" placeholder="예약번호/예약자/전화번호" style="width:200px;">
+                    <button class="btn btn-primary btn-sm" id="searchBtn"><i class="fas fa-search me-1"></i>검색</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="resetBtn"><i class="fas fa-undo me-1"></i>초기화</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 데이터 테이블 -->
+    <div class="card border-0 shadow-sm" id="tableCard">
+        <div class="card-body">
+            <table id="operationTable" class="table table-hover mb-0" style="width:100%">
+                <thead class="table-light">
+                <tr>
+                    <th>예약번호</th>
+                    <th>예약자</th>
+                    <th>객실타입</th>
+                    <th>객실</th>
+                    <th>인원</th>
+                    <th>체크인</th>
+                    <th>체크아웃</th>
+                    <th>박수</th>
+                    <th>상태</th>
+                    <th>결제</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 예약 상세 모달 -->
+    <div class="modal fade" id="reservationDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title fw-bold">
+                        예약 상세 <span id="mdlConfirmNo" class="ms-2" style="color:#0582CA;"></span>
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="mdlBody">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <a id="mdlFullDetailLink" href="#" target="_blank" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-edit me-1"></i>예약정보 수정
+                    </a>
+                    <div id="mdlActionButtons">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">닫기</button>
+                        <button type="button" class="btn btn-primary btn-sm d-none" id="mdlBtnCheckin">
+                            <i class="fas fa-key me-1"></i>체크인
+                        </button>
+                        <button type="button" class="btn btn-sm d-none" id="mdlBtnInhouse" style="background-color:#003554; color:#fff;">
+                            <i class="fas fa-bed me-1"></i>투숙중 처리
+                        </button>
+                        <button type="button" class="btn btn-sm d-none" id="mdlBtnCheckout" style="background-color:#EF476F; color:#fff;">
+                            <i class="fas fa-door-closed me-1"></i>체크아웃
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/fd-operations-page.js}"></script>
+</th:block>
+</body>
+</html>

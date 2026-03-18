@@ -81,7 +81,8 @@ var ReservationCalendarView = {
             endMonth = 1;
             endYear++;
         }
-        var endDate = new Date(endYear, endMonth, 0);
+        // endDate는 다음달 1일 (서버 쿼리가 masterCheckIn < endDate 이므로 해당 월 마지막 날도 포함되려면)
+        var endDate = new Date(endYear, endMonth - 1, 1);
 
         return {
             startDate: this.formatDate(startDate),

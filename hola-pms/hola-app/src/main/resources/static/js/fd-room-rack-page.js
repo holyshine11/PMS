@@ -71,7 +71,7 @@ var FdRoomRack = {
                 $('#lastRefresh').text(String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0') + ' 갱신');
             },
             error: function() {
-                HolaPms.alert('danger', '객실현황을 불러오지 못했습니다.');
+                HolaPms.alert('error', '객실현황을 불러오지 못했습니다.');
             }
         });
     },
@@ -188,7 +188,7 @@ var FdRoomRack = {
         }
         $('#rdMemo').text(room.hkMemo || '-');
 
-        HolaPms.modal.show('roomDetailModal');
+        HolaPms.modal.show('#roomDetailModal');
     },
 
     saveHkStatus: function() {
@@ -202,14 +202,14 @@ var FdRoomRack = {
             data: JSON.stringify({ hkStatus: hkStatus, memo: memo }),
             success: function(res) {
                 if (res.success) {
-                    HolaPms.modal.hide('roomDetailModal');
+                    HolaPms.modal.hide('#roomDetailModal');
                     HolaPms.alert('success', '객실 상태 변경 완료');
                     self.loadRoomRack();
                     self.loadSummary();
                 }
             },
             error: function() {
-                HolaPms.alert('danger', '객실 상태 변경에 실패했습니다.');
+                HolaPms.alert('error', '객실 상태 변경에 실패했습니다.');
             }
         });
     },
