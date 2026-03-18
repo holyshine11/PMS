@@ -161,7 +161,11 @@ var FdOperations = {
             completed++;
             if (completed < 2) return;
 
-            var today = new Date().toISOString().split('T')[0];
+            // 로컬 타임존(KST) 기준 오늘 날짜 — UTC 사용 시 KST 00:00~08:59에 전날로 계산됨
+            var now = new Date();
+            var today = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0');
             self.arrivalsData = self.allData.filter(function (d) {
                 return d.roomReservationStatus === 'RESERVED' && d.checkIn === today;
             });
