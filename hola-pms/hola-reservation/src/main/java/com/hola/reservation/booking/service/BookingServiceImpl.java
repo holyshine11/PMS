@@ -877,7 +877,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 1박 요금 조회
-        BigDecimal firstNightAmount = getFirstNightSupplyPrice(master.getId());
+        BigDecimal firstNightAmount = getFirstNightTotal(master.getId());
 
         // 취소 수수료 계산
         Long propertyId = master.getProperty().getId();
@@ -923,7 +923,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 취소 수수료 계산
-        BigDecimal firstNightAmount = getFirstNightSupplyPrice(master.getId());
+        BigDecimal firstNightAmount = getFirstNightTotal(master.getId());
         Long propertyId = master.getProperty().getId();
         var cancelResult = cancellationPolicyService.calculateCancelFee(
                 propertyId, master.getMasterCheckIn(), firstNightAmount);
@@ -1313,16 +1313,24 @@ public class BookingServiceImpl implements BookingService {
     }
 
     /**
-     * 첫 번째 서브예약의 1박 공급가 조회
+     * 첫 번째 서브예약의 1박 총액 조회 (공급가 + 세액 + 봉사료)
+     * 취소/노쇼 수수료는 1박 총액 기준으로 계산
      */
-    private BigDecimal getFirstNightSupplyPrice(Long masterReservationId) {
+    private BigDecimal getFirstNightTotal(Long masterReservationId) {
         List<SubReservation> subs = subReservationRepository.findByMasterReservationId(masterReservationId);
         if (subs.isEmpty()) return BigDecimal.ZERO;
 
         List<DailyCharge> charges = dailyChargeRepository.findBySubReservationId(subs.get(0).getId());
         if (charges.isEmpty()) return BigDecimal.ZERO;
 
-        return charges.get(0).getSupplyPrice();
+        DailyCharge first = charges.get(0);
+        if (first.getTotal() != null) {
+            return first.getTotal();
+        }
+        BigDecimal supply = first.getSupplyPrice() != null ? first.getSupplyPrice() : BigDecimal.ZERO;
+        BigDecimal tax = first.getTax() != null ? first.getTax() : BigDecimal.ZERO;
+        BigDecimal svc = first.getServiceCharge() != null ? first.getServiceCharge() : BigDecimal.ZERO;
+        return supply.add(tax).add(svc);
     }
 
     private void saveAuditLog(Long masterReservationId, String confirmationNo,

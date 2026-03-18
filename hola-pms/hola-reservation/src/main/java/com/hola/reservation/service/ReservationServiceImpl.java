@@ -421,7 +421,7 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         // 1박 공급가 조회
-        BigDecimal firstNightSupply = getFirstNightSupplyPrice(master.getId());
+        BigDecimal firstNightSupply = getFirstNightTotal(master.getId());
 
         // 취소 수수료 계산 (노쇼 여부 전달)
         var cancelResult = cancellationPolicyService.calculateCancelFee(
@@ -445,7 +445,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .checkIn(master.getMasterCheckIn().toString())
                 .checkOut(master.getMasterCheckOut().toString())
                 .reservationStatus(currentStatus)
-                .firstNightSupplyPrice(firstNightSupply)
+                .firstNightTotal(firstNightSupply)
                 .cancelFeeAmount(cancelFee)
                 .cancelFeePercent(cancelResult.feePercent())
                 .totalPaidAmount(totalPaid)
@@ -466,7 +466,7 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         // 취소 수수료 계산
-        BigDecimal firstNightSupply = getFirstNightSupplyPrice(master.getId());
+        BigDecimal firstNightSupply = getFirstNightTotal(master.getId());
         var cancelResult = cancellationPolicyService.calculateCancelFee(
                 propertyId, master.getMasterCheckIn(), firstNightSupply);
 
@@ -525,7 +525,11 @@ public class ReservationServiceImpl implements ReservationService {
     /**
      * 첫 번째 서브예약의 1박 공급가 조회
      */
-    private BigDecimal getFirstNightSupplyPrice(Long masterReservationId) {
+    /**
+     * 첫 번째 Leg의 1박 요금 조회 (공급가 + 세액 + 봉사료)
+     * 취소/노쇼 수수료는 1박 총액 기준으로 계산해야 세액·봉사료가 누락되지 않음
+     */
+    private BigDecimal getFirstNightTotal(Long masterReservationId) {
         List<SubReservation> subs = subReservationRepository.findByMasterReservationId(masterReservationId);
         if (subs.isEmpty()) return BigDecimal.ZERO;
 
@@ -533,7 +537,16 @@ public class ReservationServiceImpl implements ReservationService {
         List<DailyCharge> charges = dailyChargeRepository.findBySubReservationId(firstSub.getId());
         if (charges.isEmpty()) return BigDecimal.ZERO;
 
-        return charges.get(0).getSupplyPrice();
+        DailyCharge first = charges.get(0);
+        // total = 공급가 + 세액 + 봉사료 (DailyCharge.total 컬럼)
+        if (first.getTotal() != null) {
+            return first.getTotal();
+        }
+        // total이 null인 경우 직접 합산 (방어 코드)
+        BigDecimal supply = first.getSupplyPrice() != null ? first.getSupplyPrice() : BigDecimal.ZERO;
+        BigDecimal tax = first.getTax() != null ? first.getTax() : BigDecimal.ZERO;
+        BigDecimal svc = first.getServiceCharge() != null ? first.getServiceCharge() : BigDecimal.ZERO;
+        return supply.add(tax).add(svc);
     }
 
     @Override
@@ -761,7 +774,7 @@ public class ReservationServiceImpl implements ReservationService {
      * 노쇼 처리 — 수수료 계산 + 환불 거래 기록
      */
     private void processNoShow(MasterReservation master, Long propertyId) {
-        BigDecimal firstNightSupply = getFirstNightSupplyPrice(master.getId());
+        BigDecimal firstNightSupply = getFirstNightTotal(master.getId());
         var cancelResult = cancellationPolicyService.calculateCancelFee(
                 propertyId, master.getMasterCheckIn(), firstNightSupply, true);
 

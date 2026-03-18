@@ -31,7 +31,7 @@ public class CancelFeePreviewResponse {
     /** 체크아웃 날짜 */
     private String checkOut;
 
-    /** 1박 객실 요금 (공급가 기준) */
+    /** 1박 객실 요금 (공급가 + 세액 + 봉사료) */
     private BigDecimal firstNightAmount;
 
     /** 취소 수수료 금액 */

@@ -31,6 +31,15 @@ public class FrontDeskApiController {
     }
 
     /**
+     * 전체 운영현황 목록 (모든 상태 포함)
+     */
+    @GetMapping("/all")
+    public HolaResponse<List<FrontDeskOperationResponse>> getAllOperations(@PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(frontDeskService.getAllOperations(propertyId));
+    }
+
+    /**
      * 도착 예정 목록
      */
     @GetMapping("/arrivals")

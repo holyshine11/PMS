@@ -22,7 +22,8 @@ public class AdminCancelPreviewResponse {
     private String checkIn;
     private String checkOut;
     private String reservationStatus;
-    private BigDecimal firstNightSupplyPrice;
+    /** 1박 총액 (공급가 + 세액 + 봉사료) */
+    private BigDecimal firstNightTotal;
     private BigDecimal cancelFeeAmount;
     private BigDecimal cancelFeePercent;
     private BigDecimal totalPaidAmount;

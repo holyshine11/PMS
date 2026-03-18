@@ -123,7 +123,7 @@ body {
 }
 
 .bg-warning {
-    background-color: #003554 !important;
+    background-color: #ffc107 !important;
 }
 
 .text-success {
@@ -555,6 +555,110 @@ body.sidebar-collapsed .sidebar:not(:hover) .collapse {
 }
 .modal .table-responsive::-webkit-scrollbar-track {
     background: transparent;
+}
+
+/* ── 프론트데스크 Drawer (Offcanvas) ── */
+#reservationDrawer {
+    width: 500px !important;
+}
+#reservationDrawer .offcanvas-body {
+    overflow-y: auto;
+}
+#reservationDrawer .offcanvas-footer {
+    background: #fff;
+}
+/* Drawer 내 Leg 카드 */
+.drawer-leg-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    transition: border-color 0.15s ease;
+}
+.drawer-leg-card:hover {
+    border-color: #0582CA;
+}
+.drawer-leg-card .leg-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.drawer-leg-card .leg-info {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 0.88rem;
+    color: #555;
+}
+.drawer-leg-card .leg-actions {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+/* Drawer 결제 요약 */
+.drawer-payment-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+.drawer-payment-summary .pay-item {
+    text-align: center;
+    flex: 1;
+}
+.drawer-payment-summary .pay-label {
+    font-size: 0.78rem;
+    color: #6c757d;
+    margin-bottom: 2px;
+}
+.drawer-payment-summary .pay-value {
+    font-size: 1rem;
+}
+/* Drawer 내 객실 배정 인라인 */
+.room-assign-panel {
+    border-top: 1px dashed #dee2e6;
+    margin-top: 10px;
+    padding-top: 10px;
+}
+.room-assign-panel .floor-group {
+    margin-bottom: 8px;
+}
+.room-assign-panel .floor-label {
+    font-size: 0.82rem;
+    color: #003554;
+    margin-bottom: 4px;
+}
+.room-assign-panel .room-option {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    margin: 2px 4px 2px 0;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.room-assign-panel .room-option:hover:not(.disabled) {
+    border-color: #0582CA;
+    background: #e8f4fd;
+}
+.room-assign-panel .room-option.selected {
+    border-color: #0582CA;
+    background: #0582CA;
+    color: #fff;
+}
+.room-assign-panel .room-option.disabled {
+    background: #f0f0f0;
+    color: #aaa;
+    cursor: not-allowed;
+    text-decoration: line-through;
 }
 
 /* ── 객실 배정 모달 확장 ── */

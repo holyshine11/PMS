@@ -58,6 +58,13 @@ public class FrontDeskServiceImpl implements FrontDeskService {
     }
 
     @Override
+    public List<FrontDeskOperationResponse> getAllOperations(Long propertyId) {
+        LocalDate today = LocalDate.now();
+        List<SubReservation> subs = subReservationRepository.findAllOperations(propertyId, today);
+        return toResponseList(subs);
+    }
+
+    @Override
     public Map<String, Long> getSummary(Long propertyId) {
         LocalDate today = LocalDate.now();
         Map<String, Long> summary = new LinkedHashMap<>();

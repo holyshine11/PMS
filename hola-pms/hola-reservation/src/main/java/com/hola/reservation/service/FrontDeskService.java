@@ -29,4 +29,9 @@ public interface FrontDeskService {
      * 운영 요약 (도착/투숙/출발 건수)
      */
     Map<String, Long> getSummary(Long propertyId);
+
+    /**
+     * 오늘 관련 전체 운영현황 리스트 (모든 상태 포함)
+     */
+    List<FrontDeskOperationResponse> getAllOperations(Long propertyId);
 }

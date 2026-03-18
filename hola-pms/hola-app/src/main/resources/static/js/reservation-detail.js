@@ -925,7 +925,7 @@ var ReservationDetail = {
                     $('#cpReservationNo').text(d.masterReservationNo);
                     $('#cpGuestName').text(d.guestNameKo);
                     $('#cpCheckInOut').text(d.checkIn + ' ~ ' + d.checkOut);
-                    $('#cpFirstNight').text(fmt(d.firstNightSupplyPrice));
+                    $('#cpFirstNight').text(fmt(d.firstNightTotal));
                     $('#cpPolicyDesc').text(d.policyDescription || '정책 미설정');
                     $('#cpCancelFeeAmt').text(fmt(d.cancelFeeAmount) + ' (' + (d.cancelFeePercent || 0) + '%)');
                     $('#cpTotalPaid').text(fmt(d.totalPaidAmount));

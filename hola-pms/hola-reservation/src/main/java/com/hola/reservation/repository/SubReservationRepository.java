@@ -181,4 +181,23 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
            "AND s.checkOut = :today " +
            "ORDER BY m.guestNameKo ASC")
     List<SubReservation> findDepartures(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
+
+    /**
+     * 오늘 관련 전체 운영현황 리스트 (모든 상태 포함)
+     * - 오늘 도착 예정/완료 (checkIn = today, 모든 상태)
+     * - 현재 체류중 (checkIn <= today AND checkOut >= today, CHECK_IN/INHOUSE)
+     * - 오늘 체크아웃 완료 (checkOut = today, CHECKED_OUT)
+     * - 노쇼/취소 (체류 기간이 오늘과 겹치는 건 — 어제 이전 도착 노쇼 포함)
+     * - 미도착 예약 (checkIn < today AND 아직 RESERVED — 과거 미처리 건)
+     */
+    @Query("SELECT DISTINCT s FROM SubReservation s JOIN FETCH s.masterReservation m " +
+           "WHERE m.property.id = :propertyId " +
+           "AND (" +
+           "  s.checkIn = :today " +
+           "  OR (s.checkIn <= :today AND s.checkOut >= :today AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE')) " +
+           "  OR (s.checkOut = :today AND s.roomReservationStatus = 'CHECKED_OUT') " +
+           "  OR (s.checkIn <= :today AND s.checkOut >= :today AND s.roomReservationStatus IN ('NO_SHOW', 'CANCELED', 'RESERVED')) " +
+           ") " +
+           "ORDER BY s.checkIn ASC, m.guestNameKo ASC")
+    List<SubReservation> findAllOperations(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 }
