@@ -204,6 +204,13 @@ var FdOperations = {
         var pid = this.propertyId;
         if (!pid) return;
 
+        // "전체" 클릭 시 specialFilter 해제 → allData 표시
+        if (filter === 'all') {
+            self.specialFilter = null;
+            self.renderTable(self.allData);
+            return;
+        }
+
         var endpointMap = {
             arrivals: '/api/v1/properties/' + pid + '/front-desk/arrivals',
             inhouse: '/api/v1/properties/' + pid + '/front-desk/in-house',
