@@ -12,10 +12,6 @@ var FdOperations = {
     propertyId: null,
     dataTable: null,
     allData: [],
-    arrivalsData: [],
-    inHouseData: [],
-    departuresData: [],
-    activeFilter: '',
     specialFilter: null,
     summaryData: null,
     pollInterval: null,
@@ -46,11 +42,12 @@ var FdOperations = {
             self.applyFilter();
         });
 
-        // 요약 카드 클릭 → 특수 필터
+        // 요약 카드 클릭 → 서버 API 직접 호출 (summary 카운트와 일치 보장)
         $('#summaryCards .card[data-filter]').on('click', function () {
-            self.specialFilter = $(this).data('filter');
+            var filter = $(this).data('filter');
+            self.specialFilter = filter;
             $('#statusFilterGroup button').removeClass('active').css('border-color', 'transparent').css('box-shadow', 'none');
-            self.applyFilter();
+            self.loadSpecialFilter(filter);
         });
 
         // 검색
@@ -161,23 +158,13 @@ var FdOperations = {
             completed++;
             if (completed < 2) return;
 
-            // 로컬 타임존(KST) 기준 오늘 날짜 — UTC 사용 시 KST 00:00~08:59에 전날로 계산됨
-            var now = new Date();
-            var today = now.getFullYear() + '-' +
-                String(now.getMonth() + 1).padStart(2, '0') + '-' +
-                String(now.getDate()).padStart(2, '0');
-            self.arrivalsData = self.allData.filter(function (d) {
-                return d.roomReservationStatus === 'RESERVED' && d.checkIn === today;
-            });
-            self.inHouseData = self.allData.filter(function (d) {
-                return (d.roomReservationStatus === 'CHECK_IN' || d.roomReservationStatus === 'INHOUSE') && d.checkOut >= today;
-            });
-            self.departuresData = self.allData.filter(function (d) {
-                return (d.roomReservationStatus === 'CHECK_IN' || d.roomReservationStatus === 'INHOUSE') && d.checkOut === today;
-            });
-
             self.updateSummary();
-            self.applyFilter();
+            // specialFilter가 활성이면 서버 API로 재조회, 아니면 allData 기반 필터
+            if (self.specialFilter) {
+                self.loadSpecialFilter(self.specialFilter);
+            } else {
+                self.applyFilter();
+            }
         }
 
         HolaPms.ajax({
@@ -203,31 +190,51 @@ var FdOperations = {
             $('#summaryArrivals').text(this.summaryData.arrivals || 0);
             $('#summaryInHouse').text(this.summaryData.inHouse || 0);
             $('#summaryDepartures').text(this.summaryData.departures || 0);
-        } else {
-            $('#summaryArrivals').text(this.arrivalsData.length);
-            $('#summaryInHouse').text(this.inHouseData.length);
-            $('#summaryDepartures').text(this.departuresData.length);
         }
         $('#summaryTotal').text(this.allData.length);
     },
 
-    applyFilter: function () {
-        var filtered;
+    /**
+     * 요약 카드 클릭 시 서버 API 직접 호출
+     * allData(오늘 관련 건)와 summary(전체 카운트) 범위가 달라서
+     * 카드 클릭 시에는 전용 API로 정확한 데이터를 로드해야 함
+     */
+    loadSpecialFilter: function (filter) {
+        var self = this;
+        var pid = this.propertyId;
+        if (!pid) return;
 
-        if (this.specialFilter === 'arrivals') {
-            filtered = this.arrivalsData.slice();
-        } else if (this.specialFilter === 'departures') {
-            filtered = this.departuresData.slice();
-        } else if (this.specialFilter === 'inhouse') {
-            filtered = this.inHouseData.slice();
-        } else {
-            var status = $('#statusFilterGroup button.active').data('status') || '';
-            filtered = this.allData.slice();
-            if (status) {
-                filtered = filtered.filter(function (d) {
-                    return d.roomReservationStatus === status || d.reservationStatus === status;
-                });
+        var endpointMap = {
+            arrivals: '/api/v1/properties/' + pid + '/front-desk/arrivals',
+            inhouse: '/api/v1/properties/' + pid + '/front-desk/in-house',
+            departures: '/api/v1/properties/' + pid + '/front-desk/departures'
+        };
+        var url = endpointMap[filter];
+        if (!url) { self.applyFilter(); return; }
+
+        HolaPms.ajax({
+            url: url,
+            type: 'GET',
+            success: function (res) {
+                var data = res.data || [];
+                self.renderTable(data);
+            },
+            error: function () {
+                self.renderTable([]);
             }
+        });
+    },
+
+    applyFilter: function () {
+        // specialFilter가 활성 상태이면 이미 loadSpecialFilter에서 처리됨
+        if (this.specialFilter) return;
+
+        var status = $('#statusFilterGroup button.active').data('status') || '';
+        var filtered = this.allData.slice();
+        if (status) {
+            filtered = filtered.filter(function (d) {
+                return d.roomReservationStatus === status || d.reservationStatus === status;
+            });
         }
 
         var keyword = $.trim($('#keyword').val()).toLowerCase();
@@ -240,12 +247,19 @@ var FdOperations = {
             });
         }
 
+        this.renderTable(filtered);
+    },
+
+    /**
+     * DataTable에 데이터 렌더링 (applyFilter / loadSpecialFilter 공용)
+     */
+    renderTable: function (data) {
         if (this.dataTable) {
             this.dataTable.clear();
-            this.dataTable.rows.add(filtered);
+            this.dataTable.rows.add(data);
             this.dataTable.draw();
         } else {
-            this.initTable(filtered);
+            this.initTable(data);
         }
     },
 
