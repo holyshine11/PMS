@@ -106,44 +106,6 @@
         </div>
     </div>
 
-    <!-- 예약 상세 Drawer (Offcanvas) -->
-    <div class="offcanvas offcanvas-end" id="reservationDrawer" tabindex="-1">
-        <div class="offcanvas-header border-bottom">
-            <h6 class="offcanvas-title fw-bold">
-                예약 상세 <span id="drawerConfirmNo" class="ms-2" style="color:#0582CA;"></span>
-            </h6>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div class="offcanvas-body p-0" id="drawerBody">
-            <div class="text-center py-4">
-                <div class="spinner-border text-primary" role="status"></div>
-            </div>
-        </div>
-        <div class="offcanvas-footer border-top p-3 d-flex justify-content-between" id="drawerFooter">
-            <a id="drawerFullDetailLink" href="#" target="_blank" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-edit me-1"></i>예약정보 수정
-            </a>
-            <div id="drawerActionButtons" class="d-flex gap-1">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="offcanvas">닫기</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="drawerBtnCancel">
-                    <i class="fas fa-times me-1"></i>취소
-                </button>
-                <button type="button" class="btn btn-outline-warning btn-sm d-none" id="drawerBtnNoshow">
-                    <i class="fas fa-user-times me-1"></i>노쇼
-                </button>
-                <button type="button" class="btn btn-primary btn-sm d-none" id="drawerBtnCheckin">
-                    <i class="fas fa-key me-1"></i>체크인
-                </button>
-                <button type="button" class="btn btn-sm d-none" id="drawerBtnInhouse" style="background-color:#003554; color:#fff;">
-                    <i class="fas fa-bed me-1"></i>투숙중 처리
-                </button>
-                <button type="button" class="btn btn-sm d-none" id="drawerBtnCheckout" style="background-color:#EF476F; color:#fff;">
-                    <i class="fas fa-door-closed me-1"></i>체크아웃
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- 취소/노쇼 수수료 미리보기 모달 -->
     <div class="modal fade" id="fdCancelPreviewModal" tabindex="-1">
         <div class="modal-dialog">

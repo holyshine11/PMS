@@ -19,6 +19,7 @@
     <link th:href="@{/css/hola.css}" rel="stylesheet">
 </head>
 <body>
+    <script>if(new URLSearchParams(location.search).get('mode')==='popup')document.body.classList.add('popup-mode');</script>
     <!-- 헤더 -->
     <div th:replace="~{layout/fragments/header :: header}"></div>
 

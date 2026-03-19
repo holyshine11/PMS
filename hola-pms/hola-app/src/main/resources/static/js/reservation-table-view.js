@@ -46,7 +46,7 @@ var ReservationTableView = {
                     render: function(data, type, row) {
                         var id = row.id;
                         var display = HolaPms.escapeHtml(data || row.reservationNo || '-');
-                        return '<a href="/admin/reservations/' + id + '" class="text-primary">' + display + '</a>';
+                        return '<a href="javascript:void(0)" class="text-primary" onclick="HolaPms.popup.openReservationDetail(' + id + ')">' + display + '</a>';
                     }
                 },
                 {
@@ -116,7 +116,7 @@ var ReservationTableView = {
                     orderable: false,
                     render: function(data, type, row) {
                         var id = row.id;
-                        return '<a href="/admin/reservations/' + id + '" class="btn btn-sm btn-outline-primary">' +
+                        return '<a href="javascript:void(0)" onclick="HolaPms.popup.openReservationDetail(' + id + ')" class="btn btn-sm btn-outline-primary">' +
                                '<i class="fas fa-eye"></i></a>';
                     },
                     className: 'text-center',
@@ -126,6 +126,11 @@ var ReservationTableView = {
             order: [[0, 'desc']],
             dom: 'rtip'
         }));
+
+        // 팝업 자식 창 메시지 수신 → DataTable 갱신
+        HolaPms.popup.onChildMessage(function() {
+            if (self.dataTable) self.dataTable.ajax.reload(null, false);
+        });
     },
 
     /** 외부에서 전달된 검색 파라미터 (reload 시 갱신) */

@@ -51,7 +51,7 @@ var ReservationDaily = {
                     data: 'masterReservationNo',
                     render: function(data, type, row) {
                         var display = HolaPms.escapeHtml(data || '-');
-                        return '<a href="/admin/reservations/' + row.id + '" class="text-primary">' + display + '</a>';
+                        return '<a href="javascript:void(0)" class="text-primary" onclick="HolaPms.popup.openReservationDetail(' + row.id + ')">' + display + '</a>';
                     }
                 },
                 {
@@ -94,7 +94,7 @@ var ReservationDaily = {
                     data: null,
                     orderable: false,
                     render: function(data, type, row) {
-                        return '<a href="/admin/reservations/' + row.id + '" class="btn btn-sm btn-outline-primary">' +
+                        return '<a href="javascript:void(0)" onclick="HolaPms.popup.openReservationDetail(' + row.id + ')" class="btn btn-sm btn-outline-primary">' +
                                '<i class="fas fa-eye"></i></a>';
                     },
                     className: 'text-center',
@@ -104,6 +104,11 @@ var ReservationDaily = {
             order: [[0, 'desc']],
             dom: 'rtip'
         }));
+
+        // 팝업 자식 창 메시지 수신 → DataTable 갱신
+        HolaPms.popup.onChildMessage(function() {
+            if (self.dataTable) self.dataTable.ajax.reload(null, false);
+        });
     },
 
     /**

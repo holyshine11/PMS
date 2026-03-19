@@ -9,8 +9,8 @@
 <div layout:fragment="content">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold mb-0"><i class="fas fa-th me-2"></i>객실현황 (Room Rack)</h4>
-        <div>
-            <span class="text-muted me-2" id="lastRefresh"></span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small" id="lastRefresh"></span>
             <button class="btn btn-sm btn-outline-primary" id="refreshBtn">
                 <i class="fas fa-sync-alt me-1"></i>새로고침
             </button>
@@ -21,41 +21,46 @@
         <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
     </div>
 
-    <!-- 필터 바: 상태 토글 + 층 선택 -->
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="legendBar">
-        <span class="badge room-card-vc px-2 py-1 filter-badge active" data-status="VC" role="button">VC <span id="cntVC">0</span></span>
-        <span class="badge room-card-vd px-2 py-1 filter-badge active" data-status="VD" role="button">VD <span id="cntVD">0</span></span>
-        <span class="badge room-card-oc px-2 py-1 filter-badge active" data-status="OC" role="button">OC <span id="cntOC">0</span></span>
-        <span class="badge room-card-od px-2 py-1 filter-badge active" data-status="OD" role="button">OD <span id="cntOD">0</span></span>
-        <span class="badge room-card-ooo px-2 py-1 filter-badge active" data-status="OOO" role="button">OOO <span id="cntOOO">0</span></span>
-        <span class="badge room-card-oos px-2 py-1 filter-badge active" data-status="OOS" role="button">OOS <span id="cntOOS">0</span></span>
-        <span class="text-muted mx-2">|</span>
-        <select class="form-select form-select-sm" id="floorFilter" style="width: 120px;">
+    <!-- 요약 카드 -->
+    <div class="row mb-3" id="summaryRow">
+        <div class="col"><div class="card border-0 shadow-sm room-summary-card" data-status="VC"><div class="card-body text-center py-2"><div class="small text-muted">빈방/청소완료</div><div class="room-summary-count" style="color:#28a745;" id="cntVC">0</div><div class="small" style="color:#28a745;">VC</div></div></div></div>
+        <div class="col"><div class="card border-0 shadow-sm room-summary-card" data-status="VD"><div class="card-body text-center py-2"><div class="small text-muted">빈방/청소필요</div><div class="room-summary-count" style="color:#dc3545;" id="cntVD">0</div><div class="small" style="color:#dc3545;">VD</div></div></div></div>
+        <div class="col"><div class="card border-0 shadow-sm room-summary-card" data-status="OC"><div class="card-body text-center py-2"><div class="small text-muted">사용중/청소완료</div><div class="room-summary-count" style="color:#0582CA;" id="cntOC">0</div><div class="small" style="color:#0582CA;">OC</div></div></div></div>
+        <div class="col"><div class="card border-0 shadow-sm room-summary-card" data-status="OD"><div class="card-body text-center py-2"><div class="small text-muted">사용중/청소필요</div><div class="room-summary-count" style="color:#6f42c1;" id="cntOD">0</div><div class="small" style="color:#6f42c1;">OD</div></div></div></div>
+        <div class="col"><div class="card border-0 shadow-sm room-summary-card" data-status="OOO"><div class="card-body text-center py-2"><div class="small text-muted">사용불가</div><div class="room-summary-count" style="color:#6c757d;" id="cntOOO">0</div><div class="small" style="color:#6c757d;">OOO</div></div></div></div>
+        <div class="col"><div class="card border-0 shadow-sm room-summary-card" data-status="OOS"><div class="card-body text-center py-2"><div class="small text-muted">일시중단</div><div class="room-summary-count" style="color:#999;" id="cntOOS">0</div><div class="small" style="color:#999;">OOS</div></div></div></div>
+        <div class="col"><div class="card border-0 shadow-sm room-summary-card active" data-status="ALL"><div class="card-body text-center py-2"><div class="small text-muted">전체</div><div class="room-summary-count" style="color:#051923;" id="cntTotal">0</div><div class="small" style="color:#051923;">ALL</div></div></div></div>
+    </div>
+
+    <!-- 필터 바: 층 선택 -->
+    <div class="d-flex align-items-center gap-2 mb-3" id="filterBar">
+        <select class="form-select form-select-sm" id="floorFilter" style="width: 140px;">
             <option value="">전체 층</option>
         </select>
+        <div class="ms-auto small text-muted">
+            <i class="fas fa-info-circle me-1"></i>빈방 클릭 → HK 변경 | 투숙중 클릭 → 예약 상세
+        </div>
     </div>
 
     <!-- Room Rack 그리드 -->
     <div id="roomRackContainer"></div>
 
-    <!-- 객실 상세 모달 -->
-    <div class="modal fade" id="roomDetailModal" tabindex="-1">
+    <!-- HK 상태 변경 모달 (빈방 클릭 시) -->
+    <div class="modal fade" id="roomHkModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h6 class="modal-title fw-bold"><i class="fas fa-door-open me-2"></i>객실 상세</h6>
+                    <h6 class="modal-title fw-bold"><i class="fas fa-broom me-2"></i>객실 상태 변경</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row mb-2"><div class="col-4 text-muted">호수</div><div class="col-8" id="rdRoom">-</div></div>
-                    <div class="row mb-2"><div class="col-4 text-muted">상태</div><div class="col-8" id="rdStatus">-</div></div>
-                    <div class="row mb-2" id="rdGuestRow"><div class="col-4 text-muted">투숙객</div><div class="col-8" id="rdGuest">-</div></div>
-                    <div class="row mb-2" id="rdCheckOutRow"><div class="col-4 text-muted">체크아웃</div><div class="col-8" id="rdCheckOut">-</div></div>
-                    <div class="row mb-2"><div class="col-4 text-muted">HK 메모</div><div class="col-8" id="rdMemo">-</div></div>
+                    <div class="row mb-2"><div class="col-4 text-muted">호수</div><div class="col-8" id="hkRoom">-</div></div>
+                    <div class="row mb-2"><div class="col-4 text-muted">현재 상태</div><div class="col-8" id="hkCurrentStatus">-</div></div>
+                    <div class="row mb-2"><div class="col-4 text-muted">객실타입</div><div class="col-8" id="hkRoomType">-</div></div>
                     <hr>
                     <div class="mb-2">
                         <label class="form-label text-muted">HK 상태 변경</label>
-                        <select class="form-select" id="rdHkSelect">
+                        <select class="form-select" id="hkStatusSelect">
                             <option value="CLEAN">CLEAN (청소완료)</option>
                             <option value="DIRTY">DIRTY (청소필요)</option>
                             <option value="OOO">OOO (사용불가)</option>
@@ -64,18 +69,19 @@
                     </div>
                     <div class="mb-2">
                         <label class="form-label text-muted">메모</label>
-                        <input type="text" class="form-control" id="rdHkMemo" placeholder="메모 입력...">
+                        <input type="text" class="form-control" id="hkMemoInput" placeholder="메모 입력...">
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-                    <button type="button" class="btn btn-primary" id="rdSaveBtn">
+                    <button type="button" class="btn btn-primary" id="hkSaveBtn">
                         <i class="fas fa-save me-1"></i>상태 변경
                     </button>
                 </div>
             </div>
         </div>
     </div>
+
 </div>
 
 <th:block layout:fragment="scripts">

@@ -8,6 +8,10 @@ import com.hola.hotel.dto.response.RoomRackItemResponse;
 import com.hola.hotel.service.RoomStatusService;
 import com.hola.reservation.entity.SubReservation;
 import com.hola.reservation.repository.SubReservationRepository;
+import com.hola.room.entity.RoomType;
+import com.hola.room.entity.RoomTypeFloor;
+import com.hola.room.repository.RoomTypeFloorRepository;
+import com.hola.room.repository.RoomTypeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +30,8 @@ public class RoomRackController {
     private final RoomStatusService roomStatusService;
     private final SubReservationRepository subReservationRepository;
     private final AccessControlService accessControlService;
+    private final RoomTypeFloorRepository roomTypeFloorRepository;
+    private final RoomTypeRepository roomTypeRepository;
 
     /**
      * Room Rack 전체 조회 (층별 그룹핑)
@@ -37,7 +43,10 @@ public class RoomRackController {
         // 1. 객실 기본 정보 + 상태
         List<RoomRackItemResponse> items = roomStatusService.getRoomRackItems(propertyId);
 
-        // 2. 투숙중 예약 정보 매핑 (roomNumberId → SubReservation)
+        // 2. 객실타입 매핑 (roomNumberId → roomTypeCode)
+        Map<Long, String> roomTypeNameMap = buildRoomTypeNameMap(propertyId);
+
+        // 3. 투숙중 예약 정보 매핑 (roomNumberId → SubReservation)
         LocalDate today = LocalDate.now();
         List<SubReservation> inHouseSubs = subReservationRepository.findInHouse(propertyId, today);
         Map<Long, SubReservation> occupiedRooms = new HashMap<>();
@@ -47,9 +56,10 @@ public class RoomRackController {
             }
         }
 
-        // 3. 투숙객 정보 주입 (FO=OCCUPIED인 객실만)
+        // 4. 객실타입 + 투숙객 정보 주입
         List<RoomRackItemResponse> enrichedItems = new ArrayList<>();
         for (RoomRackItemResponse item : items) {
+            String typeName = roomTypeNameMap.getOrDefault(item.getRoomNumberId(), null);
             SubReservation sub = occupiedRooms.get(item.getRoomNumberId());
             if (sub != null && "OCCUPIED".equals(item.getFoStatus())) {
                 enrichedItems.add(RoomRackItemResponse.builder()
@@ -58,13 +68,22 @@ public class RoomRackController {
                         .hkStatus(item.getHkStatus())
                         .foStatus(item.getFoStatus())
                         .statusCode(item.getStatusCode())
+                        .roomTypeName(typeName)
                         .guestName(NameMaskingUtil.maskKoreanName(sub.getMasterReservation().getGuestNameKo()))
                         .checkOut(sub.getCheckOut())
                         .reservationId(sub.getMasterReservation().getId())
                         .hkMemo(item.getHkMemo())
                         .build());
             } else {
-                enrichedItems.add(item);
+                enrichedItems.add(RoomRackItemResponse.builder()
+                        .roomNumberId(item.getRoomNumberId())
+                        .roomNumber(item.getRoomNumber())
+                        .hkStatus(item.getHkStatus())
+                        .foStatus(item.getFoStatus())
+                        .statusCode(item.getStatusCode())
+                        .roomTypeName(typeName)
+                        .hkMemo(item.getHkMemo())
+                        .build());
             }
         }
 
@@ -102,6 +121,10 @@ public class RoomRackController {
             return HolaResponse.success(null);
         }
 
+        // 객실타입 매핑
+        Map<Long, String> roomTypeNameMap = buildRoomTypeNameMap(propertyId);
+        String typeName = roomTypeNameMap.getOrDefault(roomNumberId, null);
+
         // 투숙객 정보 조회
         LocalDate today = LocalDate.now();
         List<SubReservation> inHouseSubs = subReservationRepository.findInHouse(propertyId, today);
@@ -113,6 +136,7 @@ public class RoomRackController {
                         .hkStatus(item.getHkStatus())
                         .foStatus(item.getFoStatus())
                         .statusCode(item.getStatusCode())
+                        .roomTypeName(typeName)
                         .guestName(NameMaskingUtil.maskKoreanName(sub.getMasterReservation().getGuestNameKo()))
                         .checkOut(sub.getCheckOut())
                         .reservationId(sub.getMasterReservation().getId())
@@ -121,7 +145,35 @@ public class RoomRackController {
             }
         }
 
-        return HolaResponse.success(item);
+        return HolaResponse.success(RoomRackItemResponse.builder()
+                .roomNumberId(item.getRoomNumberId())
+                .roomNumber(item.getRoomNumber())
+                .hkStatus(item.getHkStatus())
+                .foStatus(item.getFoStatus())
+                .statusCode(item.getStatusCode())
+                .roomTypeName(typeName)
+                .hkMemo(item.getHkMemo())
+                .build());
+    }
+
+    /**
+     * 프로퍼티 내 roomNumberId → roomTypeCode 매핑 빌드
+     */
+    private Map<Long, String> buildRoomTypeNameMap(Long propertyId) {
+        List<RoomTypeFloor> mappings = roomTypeFloorRepository.findAllByPropertyId(propertyId);
+        List<RoomType> roomTypes = roomTypeRepository.findAllByPropertyIdOrderBySortOrderAscRoomTypeCodeAsc(propertyId);
+        Map<Long, String> typeIdToCode = new HashMap<>();
+        for (RoomType rt : roomTypes) {
+            typeIdToCode.put(rt.getId(), rt.getRoomTypeCode());
+        }
+        Map<Long, String> result = new HashMap<>();
+        for (RoomTypeFloor rtf : mappings) {
+            String code = typeIdToCode.get(rtf.getRoomTypeId());
+            if (code != null) {
+                result.put(rtf.getRoomNumberId(), code);
+            }
+        }
+        return result;
     }
 
     /**

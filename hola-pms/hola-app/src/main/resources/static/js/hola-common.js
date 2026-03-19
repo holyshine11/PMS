@@ -538,6 +538,49 @@ $.fn.dataTable.ext.errMode = function(settings, techNote, message) {
     console.warn('DataTable:', message);
 };
 
+// ── 팝업 유틸리티 ──
+HolaPms.popup = {
+    isPopup: function() {
+        return new URLSearchParams(window.location.search).get('mode') === 'popup';
+    },
+    openReservationDetail: function(reservationId, opts) {
+        opts = opts || {};
+        var hotelId = HolaPms.context.getHotelId() || '';
+        var propertyId = HolaPms.context.getPropertyId() || '';
+        var url = '/admin/reservations/' + reservationId
+            + '?mode=popup&hotelId=' + hotelId + '&propertyId=' + propertyId;
+        if (opts.tab) url += '&tab=' + opts.tab;
+        var windowName = 'holaReservation_' + reservationId;
+        var features = 'width=1200,height=800,scrollbars=yes,resizable=yes';
+        var left = (screen.width - 1200) / 2;
+        var top = (screen.height - 800) / 2;
+        features += ',left=' + left + ',top=' + top;
+        var win = window.open(url, windowName, features);
+        if (!win) {
+            HolaPms.alert('warning', '팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
+        } else {
+            win.focus();
+        }
+        return win;
+    },
+    notifyParent: function(action, reservationId) {
+        if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(
+                { type: 'holaReservation', action: action, reservationId: Number(reservationId) },
+                window.location.origin
+            );
+        }
+    },
+    onChildMessage: function(callback) {
+        window.addEventListener('message', function(event) {
+            if (event.origin !== window.location.origin) return;
+            if (event.data && event.data.type === 'holaReservation') {
+                callback(event.data);
+            }
+        });
+    }
+};
+
 // 헤더 호텔/프로퍼티 컨텍스트 초기화 + flash alert 표시
 $(document).ready(function() {
     // 사이드바 접힘/펼침 초기화

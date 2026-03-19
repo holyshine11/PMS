@@ -53,6 +53,11 @@ var ReservationCalendarView = {
             self.currentMonth = today.getMonth() + 1;
             self.load();
         });
+
+        // 팝업 자식 창 메시지 수신 → 캘린더 갱신
+        HolaPms.popup.onChildMessage(function() {
+            self.load();
+        });
     },
 
     /**
@@ -375,7 +380,7 @@ var ReservationCalendarView = {
         html += 'border-radius: ' + radius + '; ';
         html += 'font-size: 0.7rem; line-height: ' + (this.LANE_HEIGHT - 2) + 'px; ';
         html += 'padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" ';
-        html += 'onclick="window.location.href=\'/admin/reservations/' + bar.item.id + '\'" ';
+        html += 'onclick="HolaPms.popup.openReservationDetail(' + bar.item.id + ')" ';
         html += 'title="' + tooltip + '">';
 
         if (bar.isFirst) {

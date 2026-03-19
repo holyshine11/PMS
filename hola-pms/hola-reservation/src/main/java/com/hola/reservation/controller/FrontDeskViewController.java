@@ -20,6 +20,14 @@ public class FrontDeskViewController {
     }
 
     /**
+     * 객실현황 (Room Rack)
+     */
+    @GetMapping("/room-rack")
+    public String roomRack() {
+        return "front-desk/room-rack";
+    }
+
+    /**
      * OOO/OOS 관리 페이지
      */
     @GetMapping("/room-unavailable")

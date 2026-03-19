@@ -958,6 +958,7 @@ var ReservationDetail = {
             type: 'DELETE',
             success: function(res) {
                 if (res.success) {
+                    HolaPms.popup.notifyParent('canceled', self.reservationId);
                     HolaPms.alert('success', '예약이 취소되었습니다.');
                     setTimeout(function() { location.reload(); }, 500);
                 }
@@ -976,6 +977,7 @@ var ReservationDetail = {
             data: { newStatus: newStatus, subReservationId: subReservationId || null },
             success: function(res) {
                 if (res.success) {
+                    HolaPms.popup.notifyParent('statusChanged', self.reservationId);
                     HolaPms.alert('success', '상태가 변경되었습니다.');
                     setTimeout(function() { location.reload(); }, 500);
                 }
@@ -2096,6 +2098,7 @@ var ReservationDetail = {
                 if (res.success) {
                     // 2단계: 예치금 저장
                     self.saveDeposit(function() {
+                        HolaPms.popup.notifyParent('saved', self.reservationId);
                         HolaPms.alert('success', '예약이 수정되었습니다.');
                         setTimeout(function() { self.loadData(); }, 500);
                     });
@@ -2119,7 +2122,13 @@ var ReservationDetail = {
             type: 'DELETE',
             success: function(res) {
                 if (res.success) {
-                    HolaPms.alertAndRedirect('success', '예약이 삭제되었습니다.', '/admin/reservations');
+                    HolaPms.popup.notifyParent('deleted', self.reservationId);
+                    if (HolaPms.popup.isPopup()) {
+                        HolaPms.alert('success', '예약이 삭제되었습니다.');
+                        setTimeout(function() { window.close(); }, 800);
+                    } else {
+                        HolaPms.alertAndRedirect('success', '예약이 삭제되었습니다.', '/admin/reservations');
+                    }
                 }
             }
         });
