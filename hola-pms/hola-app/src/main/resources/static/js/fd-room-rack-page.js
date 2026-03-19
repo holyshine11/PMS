@@ -215,6 +215,16 @@ var FdRoomRack = {
         $('#hkStatusSelect').val(room.hkStatus);
         $('#hkMemoInput').val(room.hkMemo || '');
 
+        // OOO/OOS 경고 표시
+        var isOooOos = room.statusCode === 'OOO' || room.statusCode === 'OOS';
+        var warningEl = $('#hkOooOosWarning');
+        if (isOooOos) {
+            $('#hkOooOosWarningText').text('이 객실에 ' + room.statusCode + ' 기록이 있습니다. 상태 변경 시 OOO/OOS 관리에서도 해제해주세요.');
+            warningEl.removeClass('d-none');
+        } else {
+            warningEl.addClass('d-none');
+        }
+
         HolaPms.modal.show('#roomHkModal');
     },
 

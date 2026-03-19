@@ -11,6 +11,8 @@ import com.hola.hotel.repository.FloorRepository;
 import com.hola.hotel.repository.MarketCodeRepository;
 import com.hola.hotel.repository.PropertyRepository;
 import com.hola.hotel.repository.RoomNumberRepository;
+import com.hola.hotel.repository.RoomUnavailableRepository;
+import com.hola.hotel.entity.RoomUnavailable;
 import com.hola.rate.repository.RateCodeRepository;
 import com.hola.room.entity.PaidServiceOption;
 import com.hola.room.entity.RoomType;
@@ -21,6 +23,7 @@ import com.hola.reservation.dto.response.*;
 import com.hola.reservation.entity.*;
 import com.hola.reservation.mapper.ReservationMapper;
 import com.hola.reservation.repository.*;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,11 +69,13 @@ public class ReservationServiceImpl implements ReservationService {
     private final EarlyLateCheckService earlyLateCheckService;
     private final ReservationPaymentService paymentService;
     private final AccessControlService accessControlService;
+    private final RoomUnavailableRepository roomUnavailableRepository;
     private final com.hola.reservation.booking.service.CancellationPolicyService cancellationPolicyService;
     private final com.hola.room.service.InventoryService inventoryService;
     private final ReservationPaymentRepository reservationPaymentRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final RateIncludedServiceHelper rateIncludedServiceHelper;
+    private final EntityManager entityManager;
 
     // 허용되는 상태 전이 매트릭스
     private static final Map<String, Set<String>> STATUS_TRANSITIONS = Map.of(
@@ -315,6 +320,10 @@ public class ReservationServiceImpl implements ReservationService {
         // 결제 금액 계산 (일별 요금 기반)
         paymentService.recalculatePayment(master.getId());
 
+        // L1 캐시 클리어하여 getById에서 서브예약 포함한 완전한 데이터 조회
+        entityManager.flush();
+        entityManager.clear();
+
         return getById(master.getId(), propertyId);
     }
 
@@ -376,6 +385,15 @@ public class ReservationServiceImpl implements ReservationService {
                         if (availabilityService.hasRoomConflict(subReq.getRoomNumberId(),
                                 subReq.getCheckIn(), subReq.getCheckOut(), sub.getId())) {
                             throw new HolaException(ErrorCode.SUB_RESERVATION_ROOM_CONFLICT);
+                        }
+                    }
+
+                    // OOO/OOS 기간 체크
+                    if (subReq.getRoomNumberId() != null) {
+                        List<RoomUnavailable> unavailable = roomUnavailableRepository.findOverlapping(
+                                subReq.getRoomNumberId(), subReq.getCheckIn(), subReq.getCheckOut());
+                        if (!unavailable.isEmpty()) {
+                            throw new HolaException(ErrorCode.ROOM_UNAVAILABLE_FOR_RESERVATION);
                         }
                     }
 
@@ -877,6 +895,15 @@ public class ReservationServiceImpl implements ReservationService {
             }
         }
 
+        // OOO/OOS 기간 체크
+        if (request.getRoomNumberId() != null) {
+            List<RoomUnavailable> unavailable = roomUnavailableRepository.findOverlapping(
+                    request.getRoomNumberId(), request.getCheckIn(), request.getCheckOut());
+            if (!unavailable.isEmpty()) {
+                throw new HolaException(ErrorCode.ROOM_UNAVAILABLE_FOR_RESERVATION);
+            }
+        }
+
         sub.update(request.getRoomTypeId(), request.getFloorId(), request.getRoomNumberId(),
                 request.getAdults() != null ? request.getAdults() : 1,
                 request.getChildren() != null ? request.getChildren() : 0,
@@ -1089,6 +1116,15 @@ public class ReservationServiceImpl implements ReservationService {
             if (availabilityService.hasRoomConflictWithLock(request.getRoomNumberId(),
                     request.getCheckIn(), request.getCheckOut(), null)) {
                 throw new HolaException(ErrorCode.SUB_RESERVATION_ROOM_CONFLICT);
+            }
+        }
+
+        // OOO/OOS 기간 체크 (roomNumberId가 있을 때)
+        if (request.getRoomNumberId() != null) {
+            List<RoomUnavailable> unavailable = roomUnavailableRepository.findOverlapping(
+                    request.getRoomNumberId(), request.getCheckIn(), request.getCheckOut());
+            if (!unavailable.isEmpty()) {
+                throw new HolaException(ErrorCode.ROOM_UNAVAILABLE_FOR_RESERVATION);
             }
         }
 

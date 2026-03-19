@@ -19,6 +19,9 @@ public class RoomAvailabilityItem {
     private String descriptionKo;
     private boolean available;
 
+    /** OOO/OOS 구분 (해당 시) */
+    private String unavailableType;
+
     /** 충돌 예약 정보 */
     private Long conflictReservationId;
     private String conflictReservationNumber;

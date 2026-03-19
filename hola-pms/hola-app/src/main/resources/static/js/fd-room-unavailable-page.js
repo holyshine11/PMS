@@ -214,6 +214,12 @@ var FdRoomUnavailable = {
             return;
         }
 
+        // 날짜 검증
+        if (data.fromDate > data.throughDate) {
+            HolaPms.alert('warning', '시작일은 종료일 이전이어야 합니다.');
+            return;
+        }
+
         var method = id ? 'PUT' : 'POST';
         var url = '/api/v1/properties/' + self.propertyId + '/room-unavailable';
         if (id) url += '/' + id;

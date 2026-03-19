@@ -63,6 +63,13 @@ public class RoomUnavailableServiceImpl implements RoomUnavailableService {
             throw new HolaException(ErrorCode.FORBIDDEN);
         }
 
+        // 동일 객실 기간 중복 체크
+        List<RoomUnavailable> overlapping = roomUnavailableRepository.findOverlapping(
+                request.getRoomNumberId(), request.getFromDate(), request.getThroughDate());
+        if (!overlapping.isEmpty()) {
+            throw new HolaException(ErrorCode.ROOM_UNAVAILABLE_OVERLAP);
+        }
+
         RoomUnavailable entity = RoomUnavailable.builder()
                 .propertyId(propertyId)
                 .roomNumberId(request.getRoomNumberId())
@@ -89,6 +96,14 @@ public class RoomUnavailableServiceImpl implements RoomUnavailableService {
     @Transactional
     public RoomUnavailableResponse update(Long id, Long propertyId, RoomUnavailableRequest request) {
         RoomUnavailable entity = findAndValidate(id, propertyId);
+
+        // 동일 객실 기간 중복 체크 (자기 자신 제외)
+        List<RoomUnavailable> overlapping = roomUnavailableRepository.findOverlappingExclude(
+                entity.getRoomNumberId(), request.getFromDate(), request.getThroughDate(), id);
+        if (!overlapping.isEmpty()) {
+            throw new HolaException(ErrorCode.ROOM_UNAVAILABLE_OVERLAP);
+        }
+
         entity.update(request.getReasonCode(), request.getReasonDetail(),
                       request.getFromDate(), request.getThroughDate(),
                       request.getReturnStatus());
@@ -101,15 +116,25 @@ public class RoomUnavailableServiceImpl implements RoomUnavailableService {
     @Transactional
     public void delete(Long id, Long propertyId) {
         RoomUnavailable entity = findAndValidate(id, propertyId);
+        entity.softDelete();
 
-        // 객실 HK 상태를 return_status로 복귀
+        // flush하여 @SQLRestriction이 softDelete된 레코드를 제외하도록 함
+        roomUnavailableRepository.flush();
+
+        // 같은 객실에 다른 활성 OOO/OOS가 남아있는지 확인
+        LocalDate today = LocalDate.now();
+        List<RoomUnavailable> remaining = roomUnavailableRepository.findOverlapping(
+                entity.getRoomNumberId(), today, today);
+
         RoomNumber room = roomNumberRepository.findById(entity.getRoomNumberId()).orElse(null);
         if (room != null) {
-            String returnStatus = entity.getReturnStatus() != null ? entity.getReturnStatus() : "DIRTY";
-            room.updateHkStatus(returnStatus, null);
+            if (remaining.isEmpty()) {
+                // 남은 OOO/OOS가 없으면 returnStatus로 복구
+                String returnStatus = entity.getReturnStatus() != null ? entity.getReturnStatus() : "DIRTY";
+                room.updateHkStatus(returnStatus, null);
+            }
+            // remaining이 있으면 기존 OOO/OOS 상태 유지 (변경 안 함)
         }
-
-        entity.softDelete();
     }
 
     @Override

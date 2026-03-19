@@ -1014,7 +1014,17 @@ var ReservationForm = {
                         html += disabled + '></td>';
                         html += '<td class="text-center">' + HolaPms.escapeHtml(room.roomNumber) + '</td>';
                         html += '<td class="text-center">' + (room.descriptionKo ? HolaPms.escapeHtml(room.descriptionKo) : '-') + '</td>';
-                        html += '<td class="text-center">' + (room.available ? '<span class="badge bg-success">가용</span>' : '<span class="badge bg-danger">사용중</span>') + '</td>';
+                        var badge;
+                        if (room.available) {
+                            badge = '<span class="badge bg-success">가용</span>';
+                        } else if (room.unavailableType === 'OOO') {
+                            badge = '<span class="badge bg-secondary">OOO</span>';
+                        } else if (room.unavailableType === 'OOS') {
+                            badge = '<span class="badge" style="background:#e9ecef;color:#333">OOS</span>';
+                        } else {
+                            badge = '<span class="badge bg-danger">사용중</span>';
+                        }
+                        html += '<td class="text-center">' + badge + '</td>';
                         html += '<td class="text-center">';
                         if (!room.available && room.conflictReservationNumber) {
                             html += '<small class="text-muted">';

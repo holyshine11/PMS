@@ -1,6 +1,7 @@
 package com.hola.reservation.dto.request;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -27,6 +28,7 @@ public class ReservationCreateRequest {
     private LocalDate masterCheckOut;
 
     // 게스트 정보
+    @NotBlank(message = "투숙객 이름은 필수입니다.")
     private String guestNameKo;
     private String guestFirstNameEn;
     private String guestMiddleNameEn;

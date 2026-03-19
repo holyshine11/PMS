@@ -33,4 +33,15 @@ public interface RoomUnavailableRepository extends JpaRepository<RoomUnavailable
     List<RoomUnavailable> findOverlapping(@Param("roomNumberId") Long roomNumberId,
                                            @Param("fromDate") LocalDate fromDate,
                                            @Param("throughDate") LocalDate throughDate);
+
+    /**
+     * 특정 객실의 겹치는 기간 OOO/OOS 확인 (특정 ID 제외 - 수정 시 자기 자신 제외용)
+     */
+    @Query("SELECT r FROM RoomUnavailable r WHERE r.roomNumberId = :roomNumberId " +
+           "AND r.fromDate <= :throughDate AND r.throughDate >= :fromDate " +
+           "AND r.id != :excludeId")
+    List<RoomUnavailable> findOverlappingExclude(@Param("roomNumberId") Long roomNumberId,
+                                                  @Param("fromDate") LocalDate fromDate,
+                                                  @Param("throughDate") LocalDate throughDate,
+                                                  @Param("excludeId") Long excludeId);
 }

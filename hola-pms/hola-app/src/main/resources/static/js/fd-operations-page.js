@@ -63,15 +63,15 @@ var FdOperations = {
         // Quick Action — Leg 단위 상태 변경
         $(document).on('click', '.btn-checkin', function (e) {
             e.preventDefault(); e.stopPropagation();
-            self.changeStatus($(this).data('reservation-id'), 'CHECK_IN', '체크인 처리하시겠습니까?', $(this).data('sub-id'));
+            self.changeStatus($(this).data('reservation-id'), 'CHECK_IN', '체크인 처리하시겠습니까?', $(this).data('sub-id'), $(this).data('current-status'));
         });
         $(document).on('click', '.btn-inhouse', function (e) {
             e.preventDefault(); e.stopPropagation();
-            self.changeStatus($(this).data('reservation-id'), 'INHOUSE', '투숙중으로 변경하시겠습니까?', $(this).data('sub-id'));
+            self.changeStatus($(this).data('reservation-id'), 'INHOUSE', '투숙중으로 변경하시겠습니까?', $(this).data('sub-id'), $(this).data('current-status'));
         });
         $(document).on('click', '.btn-checkout', function (e) {
             e.preventDefault(); e.stopPropagation();
-            self.changeStatus($(this).data('reservation-id'), 'CHECKED_OUT', '체크아웃 처리하시겠습니까?', $(this).data('sub-id'));
+            self.changeStatus($(this).data('reservation-id'), 'CHECKED_OUT', '체크아웃 처리하시겠습니까?', $(this).data('sub-id'), $(this).data('current-status'));
         });
         $(document).on('click', '.btn-noshow', function (e) {
             e.preventDefault(); e.stopPropagation();
@@ -308,6 +308,16 @@ var FdOperations = {
         'NO_SHOW':     { label: '노쇼',     bg: '#ffc107', color: '#000' }
     },
 
+    // 상태 전환 매트릭스
+    STATUS_TRANSITIONS: {
+        'RESERVED':    ['CHECK_IN', 'CANCELED', 'NO_SHOW'],
+        'CHECK_IN':    ['INHOUSE', 'CANCELED'],
+        'INHOUSE':     ['CHECKED_OUT'],
+        'CHECKED_OUT': [],
+        'CANCELED':    [],
+        'NO_SHOW':     []
+    },
+
     renderStatusBadge: function (data) {
         var info = FdOperations.STATUS_MAP[data] || { label: data || '-', bg: '#6c757d' };
         var textColor = info.color || '#fff';
@@ -316,7 +326,14 @@ var FdOperations = {
 
     // ========== 상태 변경 ==========
 
-    changeStatus: function (reservationId, newStatus, message, subReservationId) {
+    changeStatus: function (reservationId, newStatus, message, subReservationId, currentStatus) {
+        // 프론트엔드 상태 전환 검증
+        if (currentStatus && FdOperations.STATUS_TRANSITIONS[currentStatus]) {
+            if (FdOperations.STATUS_TRANSITIONS[currentStatus].indexOf(newStatus) === -1) {
+                HolaPms.alert('warning', currentStatus + ' 상태에서 ' + newStatus + '(으)로 변경할 수 없습니다.');
+                return;
+            }
+        }
         // message가 null이면 이미 확인 완료 (수수료 미리보기 모달에서 확인)
         if (message && !confirm(message)) return;
         var self = this;

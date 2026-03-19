@@ -23,6 +23,9 @@ public class RoomNumberAvailabilityResponse {
     /** 가용 여부 */
     private boolean available;
 
+    /** OOO/OOS 구분 (해당 시) */
+    private String unavailableType;
+
     /** 선 예약 번호 (불가 시) */
     private String conflictReservationNo;
 

@@ -188,6 +188,8 @@ public enum ErrorCode {
     FD_ROOM_ASSIGN_REQUIRED("HOLA-5001", "체크인 전 객실 배정이 필요합니다.", HttpStatus.BAD_REQUEST),
     FD_ROOM_NOT_CLEAN("HOLA-5002", "객실이 청소완료 상태가 아닙니다.", HttpStatus.BAD_REQUEST),
     FD_ROOM_OUT_OF_ORDER("HOLA-5003", "사용불가(OOO) 객실에는 체크인할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    ROOM_UNAVAILABLE_OVERLAP("HOLA-5004", "해당 기간에 이미 OOO/OOS가 등록된 객실입니다.", HttpStatus.BAD_REQUEST),
+    ROOM_UNAVAILABLE_FOR_RESERVATION("HOLA-5005", "해당 기간에 OOO/OOS 상태인 객실입니다. 다른 객실을 선택해주세요.", HttpStatus.BAD_REQUEST),
     FD_UNPAID_BALANCE("HOLA-5010", "미결제 잔액이 있습니다.", HttpStatus.BAD_REQUEST),
     FD_STATUS_CHANGE_NOT_ALLOWED("HOLA-5020", "해당 상태로 변경할 수 없습니다.", HttpStatus.BAD_REQUEST);
 

@@ -6,9 +6,11 @@ import com.hola.common.util.NameMaskingUtil;
 import com.hola.hotel.entity.Floor;
 import com.hola.hotel.entity.Property;
 import com.hola.hotel.entity.RoomNumber;
+import com.hola.hotel.entity.RoomUnavailable;
 import com.hola.hotel.repository.FloorRepository;
 import com.hola.hotel.repository.PropertyRepository;
 import com.hola.hotel.repository.RoomNumberRepository;
+import com.hola.hotel.repository.RoomUnavailableRepository;
 import com.hola.rate.entity.RateCode;
 import com.hola.rate.entity.RateCodeRoomType;
 import com.hola.rate.repository.RateCodeRepository;
@@ -55,6 +57,7 @@ public class RoomAssignServiceImpl implements RoomAssignService {
     private final RoomNumberRepository roomNumberRepository;
     private final SubReservationRepository subReservationRepository;
     private final PriceCalculationService priceCalculationService;
+    private final RoomUnavailableRepository roomUnavailableRepository;
 
     /** 해제된(비활성) 예약 상태 */
     private static final List<String> RELEASED_STATUSES = List.of("CANCELED", "NO_SHOW", "CHECKED_OUT");
@@ -221,15 +224,18 @@ public class RoomAssignServiceImpl implements RoomAssignService {
                     if (rn == null) continue;
 
                     List<SubReservation> conflicts = conflictMap.getOrDefault(rn.getId(), List.of());
-                    boolean isAvailable = conflicts.isEmpty();
+                    boolean isOooOos = "OOO".equals(rn.getHkStatus()) || "OOS".equals(rn.getHkStatus());
+                    boolean isAvailable = conflicts.isEmpty() && !isOooOos;
 
+                    String unavailableType = isOooOos ? rn.getHkStatus() : null;
                     RoomAvailabilityItem.RoomAvailabilityItemBuilder itemBuilder = RoomAvailabilityItem.builder()
                             .roomNumberId(rn.getId())
                             .roomNumber(rn.getRoomNumber())
                             .descriptionKo(rn.getDescriptionKo())
-                            .available(isAvailable);
+                            .available(isAvailable)
+                            .unavailableType(unavailableType);
 
-                    if (!isAvailable) {
+                    if (!isAvailable && !conflicts.isEmpty()) {
                         SubReservation conflict = conflicts.get(0);
                         String guestName = conflict.getMasterReservation().getGuestNameKo();
                         String maskedName = (guestName != null && !guestName.isBlank())
@@ -359,13 +365,23 @@ public class RoomAssignServiceImpl implements RoomAssignService {
         List<RoomNumberAvailabilityResponse> responses = new ArrayList<>();
         for (RoomNumber room : rooms) {
             List<SubReservation> conflicts = conflictMap.getOrDefault(room.getId(), List.of());
+            boolean isOooOos = "OOO".equals(room.getHkStatus()) || "OOS".equals(room.getHkStatus());
 
-            if (conflicts.isEmpty()) {
+            if (conflicts.isEmpty() && !isOooOos) {
                 responses.add(RoomNumberAvailabilityResponse.builder()
                         .id(room.getId())
                         .roomNumber(room.getRoomNumber())
                         .descriptionKo(room.getDescriptionKo())
                         .available(true)
+                        .build());
+            } else if (isOooOos && conflicts.isEmpty()) {
+                // OOO/OOS 상태 객실 (예약 충돌은 없지만 사용 불가)
+                responses.add(RoomNumberAvailabilityResponse.builder()
+                        .id(room.getId())
+                        .roomNumber(room.getRoomNumber())
+                        .descriptionKo(room.getDescriptionKo())
+                        .available(false)
+                        .unavailableType(room.getHkStatus())
                         .build());
             } else {
                 SubReservation conflict = conflicts.get(0);

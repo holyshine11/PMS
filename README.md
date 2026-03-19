@@ -634,6 +634,8 @@ http://localhost:8080/swagger-ui.html
 | 올라 그랜드 서초 | http://localhost:8080/booking/GMS | 4성급 |
 | 올라 그랜드 부산 | http://localhost:8080/booking/OBH
 
+| 관리자 | http://localhost:8080/admin
+
 예약 조회 : http://localhost:8080/booking/GMP/confirmation/{확인번호}
 
 ### 테스트 플로우
