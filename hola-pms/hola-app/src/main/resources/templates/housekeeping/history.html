@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>하우스키핑 이력 조회</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-history me-2"></i>하우스키핑 이력 조회</h4>
+    </div>
+
+    <!-- 프로퍼티 미선택 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <!-- 필터 -->
+    <div class="card border-0 shadow-sm mb-3" id="filterCard">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <label class="form-label mb-0 me-1">기간</label>
+                </div>
+                <div class="col-auto">
+                    <input type="date" class="form-control form-control-sm" id="filterFrom">
+                </div>
+                <div class="col-auto">~</div>
+                <div class="col-auto">
+                    <input type="date" class="form-control form-control-sm" id="filterTo">
+                </div>
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" id="filterAssignedTo">
+                        <option value="">전체 담당자</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-sm btn-primary" id="btnSearch">
+                        <i class="fas fa-search me-1"></i>조회
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 통계 카드 -->
+    <div class="row g-3 mb-3" id="statsRow">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-2">
+                    <div class="text-muted" style="font-size: 12px;">전체</div>
+                    <div style="font-size: 24px; font-weight: 700;" id="statTotal">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-2">
+                    <div class="text-muted" style="font-size: 12px;">완료</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #28a745;" id="statCompleted">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-2">
+                    <div class="text-muted" style="font-size: 12px;">취소</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #dc3545;" id="statCancelled">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-2">
+                    <div class="text-muted" style="font-size: 12px;">평균 소요시간</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #0582CA;" id="statAvgTime">-</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-2">
+                    <div class="text-muted" style="font-size: 12px;">완료율</div>
+                    <div style="font-size: 24px; font-weight: 700;" id="statRate">0%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 이력 테이블 -->
+    <div class="card border-0 shadow-sm" id="historyTableCard">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0" id="historyTable" style="width: 100%;">
+                <thead class="table-light">
+                <tr>
+                    <th>날짜</th>
+                    <th>호수</th>
+                    <th>유형</th>
+                    <th class="text-center">상태</th>
+                    <th>담당자</th>
+                    <th class="text-center">시작</th>
+                    <th class="text-center">완료</th>
+                    <th class="text-center">소요(분)</th>
+                    <th class="text-center">크레딧</th>
+                </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+    <!-- 메모/이슈 상세 모달 -->
+    <div class="modal fade" id="histMemoDetailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-comment-dots me-2"></i>메모/이슈 상세</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="fw-bold mb-2"><i class="fas fa-sticky-note me-1"></i>작업 메모</h6>
+                    <div id="histMemoNoteContent" class="mb-3"></div>
+                    <hr>
+                    <h6 class="fw-bold mb-2"><i class="fas fa-list-ul me-1"></i>이슈/메모 기록</h6>
+                    <div id="histMemoIssueList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script src="/js/hk-history-page.js"></script>
+</th:block>
+</body>
+</html>

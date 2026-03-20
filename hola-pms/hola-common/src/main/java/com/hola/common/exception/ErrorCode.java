@@ -184,6 +184,26 @@ public enum ErrorCode {
     BOOKING_AUTH_EXPIRED("HOLA-4092", "만료된 API Key입니다.", HttpStatus.UNAUTHORIZED),
     BOOKING_AUTH_IP_DENIED("HOLA-4093", "허용되지 않은 IP입니다.", HttpStatus.FORBIDDEN),
 
+    // 하우스키핑 (HOLA-8xxx)
+    HK_TASK_NOT_FOUND("HOLA-8000", "하우스키핑 작업을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    HK_TASK_INVALID_STATUS("HOLA-8001", "유효하지 않은 작업 상태입니다.", HttpStatus.BAD_REQUEST),
+    HK_TASK_STATUS_CHANGE_NOT_ALLOWED("HOLA-8002", "해당 상태로 변경할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    HK_TASK_ALREADY_EXISTS("HOLA-8003", "해당 객실에 이미 오늘 작업이 존재합니다.", HttpStatus.CONFLICT),
+    HK_TASK_NOT_ASSIGNED("HOLA-8004", "배정되지 않은 작업입니다.", HttpStatus.BAD_REQUEST),
+    HK_TASK_SHEET_NOT_FOUND("HOLA-8010", "작업 시트를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    HK_CONFIG_NOT_FOUND("HOLA-8020", "하우스키핑 설정을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    HK_TASK_ACCESS_DENIED("HOLA-8030", "본인에게 배정된 작업만 처리할 수 있습니다.", HttpStatus.FORBIDDEN),
+    HK_SECTION_NOT_FOUND("HOLA-8040", "하우스키핑 구역을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    HK_NO_AVAILABLE_HOUSEKEEPER("HOLA-8050", "가용한 하우스키퍼가 없습니다.", HttpStatus.BAD_REQUEST),
+    HK_ALREADY_CLOCKED_IN("HOLA-8060", "이미 출근 처리되었습니다.", HttpStatus.BAD_REQUEST),
+    HK_NOT_WORKING("HOLA-8061", "출근 상태가 아닙니다.", HttpStatus.BAD_REQUEST),
+    HK_ATTENDANCE_NOT_FOUND("HOLA-8062", "오늘 출근부가 등록되지 않았습니다.", HttpStatus.NOT_FOUND),
+    HK_DAYOFF_CONFLICT_WORKING("HOLA-8070", "이미 출근한 날짜에는 휴무를 등록할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    HK_DAYOFF_CONFLICT_APPROVE("HOLA-8071", "출근 기록이 있는 날짜는 휴무로 승인할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    HK_CLOCKIN_DAYOFF_CONFLICT("HOLA-8072", "승인된 휴무일에는 출근할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    HK_DAYOFF_NOT_FOUND("HOLA-8073", "휴무일 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    HK_CONCURRENT_MODIFICATION("HOLA-8080", "다른 사용자가 동시에 수정하여 처리에 실패했습니다. 다시 시도해주세요.", HttpStatus.CONFLICT),
+
     // 프론트데스크 (HOLA-5xxx)
     FD_ROOM_ASSIGN_REQUIRED("HOLA-5001", "체크인 전 객실 배정이 필요합니다.", HttpStatus.BAD_REQUEST),
     FD_ROOM_NOT_CLEAN("HOLA-5002", "객실이 청소완료 상태가 아닙니다.", HttpStatus.BAD_REQUEST),

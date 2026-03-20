@@ -261,17 +261,7 @@ var ReservationDetail = {
         // 상태별 필드 제어
         self.applyFieldControl();
 
-        // 마스터 상태 변경 드롭다운 — Leg별 관리로 전환되었으므로 숨김
-        // 마스터 상태는 Leg 상태에서 자동 도출 (deriveMasterStatus)
-        $('#statusChangeGroup').hide();
-
-        // Leg가 하나뿐이면 마스터 레벨 취소/노쇼는 유지 (편의)
-        var activeLegCount = (data.subReservations || []).filter(function(s) {
-            return ['CANCELED','NO_SHOW','CHECKED_OUT'].indexOf(s.roomReservationStatus) === -1;
-        }).length;
-        if (activeLegCount > 0 && !self.isReadonly) {
-            self.buildMasterActionMenu(data.reservationStatus, activeLegCount);
-        }
+        // 마스터 상태 변경은 Leg 카드에서 개별 처리 (하단 드롭다운 제거됨)
     },
 
     /**
@@ -1029,9 +1019,27 @@ var ReservationDetail = {
             var legId = $(this).data('leg-id');
             var newStatus = $(this).data('new-status');
             var label = $(this).text().trim();
-            if (!confirm(label + ' 처리하시겠습니까?')) return;
 
-            // 체크아웃 시 잔액 검증은 서버에서 수행
+            // 체크아웃 시 클라이언트 잔액 검증 (서버에서도 검증하지만, 사전 차단)
+            if (newStatus === 'CHECKED_OUT') {
+                var remaining = (typeof ReservationPayment !== 'undefined' && ReservationPayment.paymentData)
+                    ? Number(ReservationPayment.paymentData.remainingAmount) || 0 : -1;
+                if (remaining > 0) {
+                    HolaPms.alert('warning', '미결제 잔액 ' + remaining.toLocaleString() + '원이 있습니다. 결제정보 탭에서 잔액을 처리해주세요.');
+                    var $tabLink = $('a[href="#tabPayment"]');
+                    if ($tabLink.length) {
+                        var tab = new bootstrap.Tab($tabLink[0]);
+                        tab.show();
+                    }
+                    return;
+                }
+                // 결제 데이터 미로드 시 (remaining=-1) 경고 후 서버 검증에 위임
+                if (remaining < 0) {
+                    if (!confirm('결제 정보를 확인할 수 없습니다. 체크아웃을 진행하시겠습니까?')) return;
+                }
+            }
+
+            if (!confirm(label + ' 처리하시겠습니까?')) return;
             self.changeStatus(newStatus, legId);
         });
 

@@ -40,6 +40,64 @@
                 </li>
             </div>
 
+            <!-- 1-1. 하우스키핑 -->
+            <li class="nav-item mt-2" sec:authorize="hasAnyRole('SUPER_ADMIN', 'HOTEL_ADMIN', 'PROPERTY_ADMIN', 'HOUSEKEEPING_SUPERVISOR')">
+                <div class="nav-link text-secondary small text-uppercase fw-bold sidebar-section" data-bs-toggle="collapse" data-bs-target="#menu-housekeeping" role="button" aria-expanded="true">
+                    <i class="fas fa-broom me-2"></i>하우스키핑
+                    <i class="fas fa-chevron-down sidebar-arrow ms-auto"></i>
+                </div>
+            </li>
+            <div class="collapse show" id="menu-housekeeping" sec:authorize="hasAnyRole('SUPER_ADMIN', 'HOTEL_ADMIN', 'PROPERTY_ADMIN', 'HOUSEKEEPING_SUPERVISOR')">
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/housekeeping/dashboard}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/housekeeping/dashboard')} ? 'active' : ''">
+                        <i class="fas fa-chart-pie me-2"></i>대시보드
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/housekeeping/tasks}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/housekeeping/tasks')} ? 'active' : ''">
+                        <i class="fas fa-tasks me-2"></i>작업 관리
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/housekeeping/board}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/housekeeping/board')} ? 'active' : ''">
+                        <i class="fas fa-columns me-2"></i>작업 보드
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/housekeeping/history}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/housekeeping/history')} ? 'active' : ''">
+                        <i class="fas fa-history me-2"></i>이력 조회
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/housekeeping/attendance}"
+                       th:classappend="${currentURI == '/admin/housekeeping/attendance'} ? 'active' : ''">
+                        <i class="fas fa-calendar-check me-2"></i>근태관리
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/housekeeping/dayoff}"
+                       th:classappend="${currentURI == '/admin/housekeeping/dayoff'} ? 'active' : ''">
+                        <i class="fas fa-calendar-minus me-2"></i>휴무일 관리
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/housekeeping/staff}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/housekeeping/staff')} ? 'active' : ''">
+                        <i class="fas fa-user-friends me-2"></i>담당자 관리
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/housekeeping/settings}"
+                       th:classappend="${currentURI == '/admin/housekeeping/settings'} ? 'active' : ''">
+                        <i class="fas fa-cog me-2"></i>설정
+                    </a>
+                </li>
+            </div>
+
             <!-- 2. 예약관리 -->
             <li class="nav-item mt-2" sec:authorize="hasAnyRole('SUPER_ADMIN', 'HOTEL_ADMIN', 'PROPERTY_ADMIN')">
                 <div class="nav-link text-secondary small text-uppercase fw-bold sidebar-section" data-bs-toggle="collapse" data-bs-target="#menu-reservation" role="button" aria-expanded="true">

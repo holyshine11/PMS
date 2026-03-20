@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>하우스키핑 설정</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <h4 class="fw-bold mb-4"><i class="fas fa-cog me-2"></i>하우스키핑 설정</h4>
+
+    <!-- 프로퍼티 미선택 알림 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <!-- 탭 -->
+    <ul class="nav nav-tabs mb-3" id="settingsTabs">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#tabGeneral">
+                <i class="fas fa-sliders-h me-1"></i>일반 설정
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#tabSections">
+                <i class="fas fa-map-marker-alt me-1"></i>구역 관리
+            </a>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="settingsContent">
+
+        <!-- 일반 설정 탭 -->
+        <div class="tab-pane fade show active" id="tabGeneral">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <label class="col-sm-3 col-form-label">검수 필수 여부</label>
+                        <div class="col-sm-9">
+                            <div class="form-check form-switch mt-1">
+                                <input class="form-check-input" type="checkbox" id="cfgInspectionRequired">
+                                <label class="form-check-label" for="cfgInspectionRequired">완료 후 감독자 검수 필수</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label class="col-sm-3 col-form-label">체크아웃 자동 생성</label>
+                        <div class="col-sm-9">
+                            <div class="form-check form-switch mt-1">
+                                <input class="form-check-input" type="checkbox" id="cfgAutoCheckout">
+                                <label class="form-check-label" for="cfgAutoCheckout">체크아웃 시 청소 작업 자동 생성</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label class="col-sm-3 col-form-label">체류 자동 생성</label>
+                        <div class="col-sm-9">
+                            <div class="form-check form-switch mt-1">
+                                <input class="form-check-input" type="checkbox" id="cfgAutoStayover">
+                                <label class="form-check-label" for="cfgAutoStayover">체류 객실 청소 작업 자동 생성</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold mt-4 mb-3">작업 유형별 기본 크레딧</h6>
+                    <div class="row mb-3">
+                        <label class="col-sm-3 col-form-label">퇴실청소</label>
+                        <div class="col-sm-3"><input type="number" class="form-control" id="cfgCheckoutCredit" step="0.1" min="0"></div>
+                        <label class="col-sm-3 col-form-label">체류정리</label>
+                        <div class="col-sm-3"><input type="number" class="form-control" id="cfgStayoverCredit" step="0.1" min="0"></div>
+                    </div>
+                    <div class="row mb-3">
+                        <label class="col-sm-3 col-form-label">턴다운</label>
+                        <div class="col-sm-3"><input type="number" class="form-control" id="cfgTurndownCredit" step="0.1" min="0"></div>
+                        <label class="col-sm-3 col-form-label">딥클리닝</label>
+                        <div class="col-sm-3"><input type="number" class="form-control" id="cfgDeepCleanCredit" step="0.1" min="0"></div>
+                    </div>
+                    <div class="row mb-3">
+                        <label class="col-sm-3 col-form-label">간단정리</label>
+                        <div class="col-sm-3"><input type="number" class="form-control" id="cfgTouchUpCredit" step="0.1" min="0"></div>
+                    </div>
+                    <div class="row mb-3">
+                        <label class="col-sm-3 col-form-label">Rush 기준 (분)</label>
+                        <div class="col-sm-3"><input type="number" class="form-control" id="cfgRushThreshold" min="0"></div>
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button class="btn btn-primary" id="btnSaveConfig"><i class="fas fa-save me-1"></i>설정 저장</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 구역 관리 탭 -->
+        <div class="tab-pane fade" id="tabSections">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">구역 목록</h6>
+                        <button class="btn btn-sm btn-primary" id="btnAddSection">
+                            <i class="fas fa-plus me-1"></i>구역 추가
+                        </button>
+                    </div>
+                    <table class="table table-hover mb-0" id="sectionTable">
+                        <thead class="table-light">
+                        <tr>
+                            <th>구역명</th>
+                            <th class="text-center">포함 층</th>
+                            <th class="text-center">기본 담당자</th>
+                            <th class="text-center" style="width:120px;">관리</th>
+                        </tr>
+                        </thead>
+                        <tbody id="sectionBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 구역 생성/수정 모달 -->
+    <div class="modal fade" id="sectionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="sectionModalTitle">구역 추가</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="sectionEditId">
+                    <div class="mb-3">
+                        <label class="form-label required">구역 이름</label>
+                        <input type="text" class="form-control" id="sectionName" placeholder="예: 3~5층">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">구역 코드</label>
+                        <input type="text" class="form-control" id="sectionCode" placeholder="선택적">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">1인 크레딧 상한</label>
+                        <input type="number" class="form-control" id="sectionMaxCredits" step="0.1" min="0" placeholder="미지정 시 제한 없음">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">포함 층</label>
+                        <div id="sectionFloorCheckboxes" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">기본 담당자</label>
+                        <div id="sectionHkCheckboxes" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveSection">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script src="/js/hk-settings-page.js"></script>
+</th:block>
+</body>
+</html>

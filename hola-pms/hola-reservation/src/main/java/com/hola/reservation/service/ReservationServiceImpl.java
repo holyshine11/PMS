@@ -76,6 +76,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final RateIncludedServiceHelper rateIncludedServiceHelper;
     private final EntityManager entityManager;
+    private final com.hola.hotel.service.HousekeepingService housekeepingService;
 
     // 허용되는 상태 전이 매트릭스
     private static final Map<String, Set<String>> STATUS_TRANSITIONS = Map.of(
@@ -713,7 +714,18 @@ public class ReservationServiceImpl implements ReservationService {
             sub.recordCheckOut(now, lateFee);
             if (sub.getRoomNumberId() != null) {
                 com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
-                if (room != null) room.checkOut();
+                if (room != null) {
+                    room.checkOut();
+                    // HK Task 자동 생성 (설정에서 autoCreateCheckout = true인 경우)
+                    try {
+                        housekeepingService.createTaskOnCheckout(
+                                sub.getMasterReservation().getProperty().getId(),
+                                sub.getRoomNumberId(),
+                                sub.getMasterReservation().getId());
+                    } catch (Exception e) {
+                        log.warn("HK 자동 작업 생성 실패: roomId={}, {}", sub.getRoomNumberId(), e.getMessage());
+                    }
+                }
             }
         }
     }
@@ -771,6 +783,15 @@ public class ReservationServiceImpl implements ReservationService {
             BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
             BigDecimal remaining = grandTotal.subtract(totalPaid);
             if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+                throw new HolaException(ErrorCode.CHECKOUT_OUTSTANDING_BALANCE);
+            }
+        } else {
+            // 결제 레코드가 없더라도 DailyCharge 합계가 있으면 미결제 상태로 판단
+            BigDecimal totalCharge = master.getSubReservations().stream()
+                    .flatMap(sub -> dailyChargeRepository.findBySubReservationId(sub.getId()).stream())
+                    .map(dc -> dc.getTotal() != null ? dc.getTotal() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (totalCharge.compareTo(BigDecimal.ZERO) > 0) {
                 throw new HolaException(ErrorCode.CHECKOUT_OUTSTANDING_BALANCE);
             }
         }

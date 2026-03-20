@@ -13,6 +13,20 @@ const HolaPms = {
     },
 
     /**
+     * 이름 마스킹 (리스트 전용) — 서버 NameMaskingUtil.maskKoreanName()과 동일 로직
+     * 1자: 그대로, 2자: 김*, 3자: 김*수, 4자+: 김**수
+     */
+    maskName: function(name) {
+        if (!name || !name.trim()) return name;
+        var s = name.trim();
+        var len = s.length;
+        if (len === 1) return s;
+        if (len === 2) return s.charAt(0) + '*';
+        if (len === 3) return s.charAt(0) + '*' + s.charAt(len - 1);
+        return s.charAt(0) + '**' + s.charAt(len - 1);
+    },
+
+    /**
      * Ajax 에러 공통 핸들러
      */
     handleAjaxError: function(xhr) {

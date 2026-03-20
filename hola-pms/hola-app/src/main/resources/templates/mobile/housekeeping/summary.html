@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/mobile}">
+<head>
+    <title>일일 요약</title>
+</head>
+<body>
+<span layout:fragment="header-title">
+    <i class="fas fa-chart-bar me-1"></i>일일 요약
+</span>
+
+<div layout:fragment="content">
+    <div class="text-center py-4">
+        <div style="font-size: 14px; color: #6c757d;" id="summaryDate"></div>
+    </div>
+
+    <!-- 요약 카드 -->
+    <div class="row g-3 mb-4">
+        <div class="col-6">
+            <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+                <div class="card-body text-center">
+                    <div style="font-size: 13px; color: #6c757d;">완료 건수</div>
+                    <div style="font-size: 32px; font-weight: 700; color: #28a745;" id="sumCompleted">-</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+                <div class="card-body text-center">
+                    <div style="font-size: 13px; color: #6c757d;">전체 건수</div>
+                    <div style="font-size: 32px; font-weight: 700;" id="sumTotal">-</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+                <div class="card-body text-center">
+                    <div style="font-size: 13px; color: #6c757d;">크레딧 합계</div>
+                    <div style="font-size: 32px; font-weight: 700; color: #0582CA;" id="sumCredits">-</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+                <div class="card-body text-center">
+                    <div style="font-size: 13px; color: #6c757d;">평균 시간</div>
+                    <div style="font-size: 32px; font-weight: 700; color: #fd7e14;" id="sumAvgTime">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 완료율 -->
+    <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+        <div class="card-body">
+            <div class="text-center mb-2" style="font-size: 14px; color: #6c757d;">완료율</div>
+            <div class="text-center" style="font-size: 48px; font-weight: 700;" id="sumRate">0%</div>
+            <div class="mobile-progress mt-2">
+                <div class="bar" id="sumProgressBar" style="width: 0%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        var HK_PROPERTY_ID = [[${propertyId}]];
+    </script>
+    <script src="/js/hk-mobile-summary.js"></script>
+</th:block>
+</body>
+</html>

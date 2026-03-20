@@ -3,8 +3,12 @@ package com.hola.reservation.controller;
 import com.hola.common.dto.HolaResponse;
 import com.hola.common.security.AccessControlService;
 import com.hola.common.util.NameMaskingUtil;
+import com.hola.common.auth.entity.AdminUser;
+import com.hola.common.auth.repository.AdminUserRepository;
 import com.hola.hotel.dto.response.RoomRackFloorGroupResponse;
 import com.hola.hotel.dto.response.RoomRackItemResponse;
+import com.hola.hotel.entity.HkTask;
+import com.hola.hotel.repository.HkTaskRepository;
 import com.hola.hotel.service.RoomStatusService;
 import com.hola.reservation.entity.SubReservation;
 import com.hola.reservation.repository.SubReservationRepository;
@@ -32,6 +36,8 @@ public class RoomRackController {
     private final AccessControlService accessControlService;
     private final RoomTypeFloorRepository roomTypeFloorRepository;
     private final RoomTypeRepository roomTypeRepository;
+    private final HkTaskRepository hkTaskRepository;
+    private final AdminUserRepository adminUserRepository;
 
     /**
      * Room Rack 전체 조회 (층별 그룹핑)
@@ -56,35 +62,43 @@ public class RoomRackController {
             }
         }
 
-        // 4. 객실타입 + 투숙객 정보 주입
+        // 4. HK 작업 정보 매핑 (roomNumberId → HkTask)
+        Map<Long, HkTask> hkTaskMap = buildHkTaskMap(propertyId, today);
+
+        // 5. 객실타입 + 투숙객 + HK 작업 정보 주입
         List<RoomRackItemResponse> enrichedItems = new ArrayList<>();
         for (RoomRackItemResponse item : items) {
             String typeName = roomTypeNameMap.getOrDefault(item.getRoomNumberId(), null);
             SubReservation sub = occupiedRooms.get(item.getRoomNumberId());
+            HkTask hkTask = hkTaskMap.get(item.getRoomNumberId());
+
+            RoomRackItemResponse.RoomRackItemResponseBuilder builder = RoomRackItemResponse.builder()
+                    .roomNumberId(item.getRoomNumberId())
+                    .roomNumber(item.getRoomNumber())
+                    .hkStatus(item.getHkStatus())
+                    .foStatus(item.getFoStatus())
+                    .statusCode(item.getStatusCode())
+                    .roomTypeName(typeName)
+                    .hkMemo(item.getHkMemo());
+
             if (sub != null && "OCCUPIED".equals(item.getFoStatus())) {
-                enrichedItems.add(RoomRackItemResponse.builder()
-                        .roomNumberId(item.getRoomNumberId())
-                        .roomNumber(item.getRoomNumber())
-                        .hkStatus(item.getHkStatus())
-                        .foStatus(item.getFoStatus())
-                        .statusCode(item.getStatusCode())
-                        .roomTypeName(typeName)
-                        .guestName(NameMaskingUtil.maskKoreanName(sub.getMasterReservation().getGuestNameKo()))
-                        .checkOut(sub.getCheckOut())
-                        .reservationId(sub.getMasterReservation().getId())
-                        .hkMemo(item.getHkMemo())
-                        .build());
-            } else {
-                enrichedItems.add(RoomRackItemResponse.builder()
-                        .roomNumberId(item.getRoomNumberId())
-                        .roomNumber(item.getRoomNumber())
-                        .hkStatus(item.getHkStatus())
-                        .foStatus(item.getFoStatus())
-                        .statusCode(item.getStatusCode())
-                        .roomTypeName(typeName)
-                        .hkMemo(item.getHkMemo())
-                        .build());
+                builder.guestName(NameMaskingUtil.maskKoreanName(sub.getMasterReservation().getGuestNameKo()))
+                       .checkOut(sub.getCheckOut())
+                       .reservationId(sub.getMasterReservation().getId());
             }
+
+            // HK 작업 오버레이
+            if (hkTask != null && !"CANCELLED".equals(hkTask.getStatus())) {
+                builder.hkTaskStatus(hkTask.getStatus());
+                if (hkTask.getAssignedTo() != null) {
+                    builder.hkAssigneeName(getUserName(hkTask.getAssignedTo()));
+                }
+                if (hkTask.getStartedAt() != null) {
+                    builder.hkTaskStartedAt(hkTask.getStartedAt().toLocalTime().toString().substring(0, 5));
+                }
+            }
+
+            enrichedItems.add(builder.build());
         }
 
         // 4. 층별 그룹핑 (호수 앞자리 기준)
@@ -154,6 +168,28 @@ public class RoomRackController {
                 .roomTypeName(typeName)
                 .hkMemo(item.getHkMemo())
                 .build());
+    }
+
+    /**
+     * 오늘 HK 작업 매핑 (roomNumberId → 가장 최근 작업)
+     */
+    private Map<Long, HkTask> buildHkTaskMap(Long propertyId, LocalDate date) {
+        List<HkTask> tasks = hkTaskRepository.findByPropertyIdAndTaskDate(propertyId, date);
+        Map<Long, HkTask> map = new HashMap<>();
+        for (HkTask task : tasks) {
+            // 같은 객실에 여러 작업이 있으면 가장 최근 것 사용
+            HkTask existing = map.get(task.getRoomNumberId());
+            if (existing == null || task.getId() > existing.getId()) {
+                map.put(task.getRoomNumberId(), task);
+            }
+        }
+        return map;
+    }
+
+    private String getUserName(Long userId) {
+        return adminUserRepository.findById(userId)
+                .map(AdminUser::getUserName)
+                .orElse(null);
     }
 
     /**

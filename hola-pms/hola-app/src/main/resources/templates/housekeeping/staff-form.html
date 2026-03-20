@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>하우스키퍼 담당자</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0" id="pageTitle"><i class="fas fa-user-plus me-2"></i>담당자 등록</h4>
+    </div>
+
+    <!-- 프로퍼티 미선택 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <div class="card border-0 shadow-sm" id="formCard">
+        <div class="card-body">
+            <form id="staffForm">
+                <!-- 아이디 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">아이디</label>
+                    <div class="col-sm-6">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="loginId" maxlength="50" required>
+                            <button type="button" class="btn btn-outline-secondary" id="btnCheckId">중복확인</button>
+                        </div>
+                        <small class="text-muted">영문, 숫자 조합 (모바일 로그인용)</small>
+                    </div>
+                </div>
+
+                <!-- 담당자명 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">담당자명</label>
+                    <div class="col-sm-6">
+                        <input type="text" class="form-control" id="userName" maxlength="100" required>
+                    </div>
+                </div>
+
+                <!-- 역할 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label required">역할</label>
+                    <div class="col-sm-6">
+                        <select class="form-select" id="role">
+                            <option value="HOUSEKEEPER">청소 담당 - 배정된 객실 청소 수행</option>
+                            <option value="HOUSEKEEPING_SUPERVISOR">감독자 - 작업 배정, 검수, 전체 관리</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 연락처 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">연락처</label>
+                    <div class="col-sm-6">
+                        <input type="text" class="form-control" id="phone" placeholder="010-0000-0000">
+                    </div>
+                </div>
+
+                <!-- 이메일 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">이메일</label>
+                    <div class="col-sm-6">
+                        <input type="email" class="form-control" id="email">
+                    </div>
+                </div>
+
+                <!-- 부서 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">부서</label>
+                    <div class="col-sm-6">
+                        <input type="text" class="form-control" id="department" value="하우스키핑">
+                    </div>
+                </div>
+
+                <!-- 직급/직책 -->
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">직급/직책</label>
+                    <div class="col-sm-6">
+                        <input type="text" class="form-control" id="position" placeholder="담당, 매니저 등">
+                    </div>
+                </div>
+
+                <!-- 담당 구역 (수정 시 읽기 전용) -->
+                <div class="row mb-3 d-none" id="sectionRow">
+                    <label class="col-sm-2 col-form-label">담당 구역</label>
+                    <div class="col-sm-6 d-flex align-items-center">
+                        <span class="form-control-plaintext me-2" id="sectionName" style="flex:0 0 auto;">미배정</span>
+                        <a th:href="@{/admin/housekeeping/settings}" class="btn btn-sm btn-outline-secondary" id="btnGoSection">
+                            <i class="fas fa-external-link-alt me-1"></i><span id="sectionBtnLabel">구역 설정</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 계정상태 (수정 시만) -->
+                <div class="row mb-3 d-none" id="useYnRow">
+                    <label class="col-sm-2 col-form-label">계정상태</label>
+                    <div class="col-sm-6">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="useYn" id="useYnY" value="true" checked>
+                            <label class="form-check-label" for="useYnY">활성</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="useYn" id="useYnN" value="false">
+                            <label class="form-check-label" for="useYnN">비활성</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 비밀번호 변경 (수정 시만) -->
+                <div class="row mb-3 d-none" id="passwordRow">
+                    <label class="col-sm-2 col-form-label">비밀번호 변경</label>
+                    <div class="col-sm-6">
+                        <input type="password" class="form-control form-control-sm mb-2" id="newPassword"
+                               placeholder="새 비밀번호 (10~20자, 영문+숫자+특수문자)" maxlength="20">
+                        <input type="password" class="form-control form-control-sm mb-2" id="confirmPassword"
+                               placeholder="새 비밀번호 확인" maxlength="20">
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-primary" id="btnChangePw">
+                                <i class="fas fa-lock me-1"></i>비밀번호 변경
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm d-none" id="btnResetPw">
+                                <i class="fas fa-key me-1"></i>초기화 (holapms1!)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 버튼 -->
+                <div class="d-flex justify-content-between mt-4">
+                    <div>
+                        <button type="button" class="btn btn-outline-danger d-none" id="btnDelete">
+                            <i class="fas fa-trash me-1"></i>삭제
+                        </button>
+                    </div>
+                    <div>
+                        <a th:href="@{/admin/housekeeping/staff}" class="btn btn-secondary me-2">
+                            <i class="fas fa-arrow-left me-1"></i>취소
+                        </a>
+                        <button type="button" class="btn btn-primary" id="btnSave">
+                            <i class="fas fa-save me-1"></i>저장
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        var STAFF_ID = [[${staffId}]] || null;
+        var IS_SUPER_ADMIN = [[${isSuperAdmin}]] || false;
+    </script>
+    <script src="/js/hk-staff-form.js"></script>
+</th:block>
+</body>
+</html>

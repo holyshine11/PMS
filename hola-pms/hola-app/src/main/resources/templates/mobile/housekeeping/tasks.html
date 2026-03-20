@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/mobile}">
+<head>
+    <title>내 작업</title>
+</head>
+<body>
+<span layout:fragment="header-title">
+    <i class="fas fa-clipboard-list me-1"></i>내 작업
+</span>
+
+<div layout:fragment="content">
+    <!-- 오늘 진행률 -->
+    <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <span style="font-size: 14px; color: #6c757d;">완료 <strong id="completedCount">0</strong>/<strong id="totalCount">0</strong></span>
+            <span style="font-size: 14px; font-weight: 600;" id="completionRate">0%</span>
+        </div>
+        <div class="mobile-progress">
+            <div class="bar" id="progressBar" style="width: 0%;"></div>
+        </div>
+    </div>
+
+    <!-- 필터 탭 -->
+    <div class="d-flex gap-2 mb-3" style="overflow-x: auto;">
+        <button class="btn btn-sm btn-outline-secondary rounded-pill filter-tab active" data-filter="ALL">전체</button>
+        <button class="btn btn-sm btn-outline-secondary rounded-pill filter-tab" data-filter="PENDING">대기</button>
+        <button class="btn btn-sm btn-outline-secondary rounded-pill filter-tab" data-filter="IN_PROGRESS">진행</button>
+        <button class="btn btn-sm btn-outline-secondary rounded-pill filter-tab" data-filter="COMPLETED">완료</button>
+    </div>
+
+    <!-- 작업 카드 목록 -->
+    <div id="taskList">
+        <div class="text-center text-muted py-4">로딩 중...</div>
+    </div>
+
+    <!-- 이슈 등록 모달 -->
+    <div class="modal fade" id="issueModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header">
+                    <h6 class="modal-title">이슈/메모 등록</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="issueTaskId">
+                    <div class="mb-3">
+                        <label class="form-label">유형</label>
+                        <select class="form-select" id="issueType">
+                            <option value="MEMO">일반 메모</option>
+                            <option value="MAINTENANCE">유지보수 요청</option>
+                            <option value="SUPPLY_SHORT">비품 부족</option>
+                            <option value="LOST_FOUND">분실물 발견</option>
+                            <option value="DAMAGE">파손/결함</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">내용</label>
+                        <textarea class="form-control" id="issueDescription" rows="3" placeholder="내용을 입력하세요"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveIssue">등록</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        var HK_PROPERTY_ID = [[${propertyId}]];
+    </script>
+    <script src="/js/hk-mobile-tasks.js"></script>
+</th:block>
+</body>
+</html>

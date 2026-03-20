@@ -250,14 +250,19 @@ body {
     border-radius: 8px;
 }
 
-/* DataTables info: 여백 */
-div.dataTables_wrapper div.dataTables_info.dataTables_info {
-    padding-top: 1rem;
-    padding-left: 1rem;
-    margin-bottom: 1rem;
-}
+/* DataTables info: 여백 (Bootstrap 5 DataTables 센터 정렬 블록에서 통합 관리) */
 
 /* DataTables 페이지네이션: 가운데 정렬 + 하단 여백 */
+/* Bootstrap 5 DataTables: info/paginate 컬럼을 100%로 확장하여 센터 정렬 */
+div.dataTables_wrapper .row:last-child > div[class*="col-"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+}
+div.dataTables_wrapper div.dataTables_info {
+    text-align: left;
+    padding-top: 1rem;
+    padding-left: 1rem;
+}
 div.dataTables_wrapper div.dataTables_paginate.dataTables_paginate {
     text-align: center;
     float: none;
@@ -749,6 +754,15 @@ body.popup-mode .btn-popup-close { display: inline-block !important; }
 .room-card-od  { background: #6f42c1; color: #fff; }
 .room-card-ooo { background: #6c757d; color: #fff; background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.1) 5px, rgba(255,255,255,0.1) 10px); }
 .room-card-oos { background: #e9ecef; color: #333; }
+.room-card-vi  { background: #20c997; color: #fff; }  /* Vacant Inspected */
+.room-card-vp  { background: #fd7e14; color: #fff; }  /* Vacant Pickup */
+.room-card-oi  { background: #20c997; color: #fff; }  /* Occupied Inspected */
+.room-card-op  { background: #fd7e14; color: #fff; }  /* Occupied Pickup */
+
+/* Room Rack HK 작업 오버레이 */
+.room-card-hk { margin-top: 2px; }
+.room-card-assignee { font-size: 10px; opacity: 0.9; margin-top: 1px; }
+.room-card-time { font-size: 10px; opacity: 0.8; }
 
 /* Room Rack 요약 카드 */
 .room-summary-card {

@@ -24,6 +24,8 @@ public class AdminUser extends BaseEntity {
     public static final String ROLE_SUPER_ADMIN = "SUPER_ADMIN";
     public static final String ROLE_HOTEL_ADMIN = "HOTEL_ADMIN";
     public static final String ROLE_PROPERTY_ADMIN = "PROPERTY_ADMIN";
+    public static final String ROLE_HOUSEKEEPING_SUPERVISOR = "HOUSEKEEPING_SUPERVISOR";
+    public static final String ROLE_HOUSEKEEPER = "HOUSEKEEPER";
 
     /** SUPER_ADMIN 여부 */
     public boolean isSuperAdmin() {
@@ -45,7 +47,7 @@ public class AdminUser extends BaseEntity {
     @Column(name = "phone", length = 20)
     private String phone;
 
-    @Column(name = "role", nullable = false, length = 20)
+    @Column(name = "role", nullable = false, length = 30)
     private String role;
 
     @Column(name = "login_fail_count")

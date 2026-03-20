@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/mobile}">
+<head>
+    <title>휴무 관리</title>
+    <style>
+        /* 모바일 캘린더 */
+        .cal-nav { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+        .cal-nav .month-label { font-size: 18px; font-weight: 700; }
+        .cal-nav button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #dee2e6;
+            background: #fff; display: flex; align-items: center; justify-content: center; }
+
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .cal-header { text-align: center; font-size: 12px; font-weight: 600; padding: 6px 0; color: #6c757d; }
+        .cal-header.sun { color: #dc3545; }
+        .cal-header.sat { color: #0582CA; }
+
+        .cal-cell { position: relative; aspect-ratio: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; border-radius: 10px; font-size: 15px;
+            cursor: pointer; transition: background 0.15s; min-height: 44px; }
+        .cal-cell:active { background: #e9ecef; }
+        .cal-cell.other-month { color: #ced4da; }
+        .cal-cell.today { background: #e3f2fd; font-weight: 700; }
+        .cal-cell.today::after { content: ''; position: absolute; bottom: 2px; width: 4px; height: 4px;
+            border-radius: 50%; background: #0582CA; }
+        .cal-cell.sun { color: #dc3545; }
+        .cal-cell.sat { color: #0582CA; }
+
+        /* 휴무 표시 도트 */
+        .cal-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; }
+        .cal-dot.approved { background: #28a745; }
+        .cal-dot.pending { background: #ffc107; }
+        .cal-dot.rejected { background: #dc3545; }
+
+        /* 선택된 날짜 */
+        .cal-cell.selected { background: #0582CA; color: #fff; border-radius: 10px; }
+        .cal-cell.selected.sun, .cal-cell.selected.sat { color: #fff; }
+        .cal-cell.selected .cal-dot { border: 1.5px solid #fff; }
+
+        /* 동료 휴무 리스트 */
+        .colleague-card { background: #fff; border-radius: 10px; padding: 12px 14px;
+            margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            display: flex; align-items: center; justify-content: space-between; }
+        .colleague-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+
+        .section-title { font-size: 14px; font-weight: 600; color: #6c757d; margin: 16px 0 8px; }
+    </style>
+</head>
+<body>
+<div layout:fragment="header-title"><i class="fas fa-calendar-minus me-2"></i>휴무 관리</div>
+<div layout:fragment="content">
+
+    <!-- 월 네비게이션 -->
+    <div class="cal-nav">
+        <button id="btnPrevMonth"><i class="fas fa-chevron-left"></i></button>
+        <span class="month-label" id="monthLabel"></span>
+        <button id="btnNextMonth"><i class="fas fa-chevron-right"></i></button>
+    </div>
+
+    <!-- 요일 헤더 -->
+    <div class="cal-grid" style="margin-bottom: 4px;">
+        <div class="cal-header sun">일</div>
+        <div class="cal-header">월</div>
+        <div class="cal-header">화</div>
+        <div class="cal-header">수</div>
+        <div class="cal-header">목</div>
+        <div class="cal-header">금</div>
+        <div class="cal-header sat">토</div>
+    </div>
+
+    <!-- 캘린더 그리드 -->
+    <div class="cal-grid" id="calGrid"></div>
+
+    <!-- 선택된 날짜 정보 -->
+    <div id="selectedDateInfo" class="mt-3" style="display:none;">
+        <div class="hk-task-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span style="font-size:16px;font-weight:700;" id="selectedDateLabel"></span>
+                <span id="selectedStatusBadge"></span>
+            </div>
+            <div id="selectedAction"></div>
+        </div>
+    </div>
+
+    <!-- 동료 휴무 -->
+    <div class="section-title" id="colleagueTitle" style="display:none;">
+        <i class="fas fa-users me-1"></i>이번 달 동료 휴무
+    </div>
+    <div id="colleagueList"></div>
+
+    <!-- 범례 -->
+    <div class="text-center mt-3" style="font-size:11px;color:#adb5bd;">
+        <span class="colleague-dot approved"></span>승인
+        <span class="colleague-dot pending ms-2"></span>대기
+        <span class="colleague-dot rejected ms-2"></span>거절
+    </div>
+
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        var HK_PROPERTY_ID = [[${propertyId}]] || null;
+        var HK_USER_ID = [[${userId}]] || null;
+    </script>
+    <script src="/js/hk-mobile-dayoff.js"></script>
+</th:block>
+</body>
+</html>

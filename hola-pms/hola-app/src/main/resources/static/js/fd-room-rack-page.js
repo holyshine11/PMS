@@ -181,6 +181,18 @@ var FdRoomRack = {
             html += '<div class="room-card-status">' + room.statusCode + '</div>';
         }
 
+        // HK 작업 오버레이
+        if (room.hkTaskStatus && room.hkTaskStatus !== 'CANCELLED') {
+            var hkLabel = this.getHkTaskLabel(room.hkTaskStatus);
+            html += '<div class="room-card-hk">' + hkLabel + '</div>';
+            if (room.hkAssigneeName) {
+                html += '<div class="room-card-assignee">' + HolaPms.escapeHtml(room.hkAssigneeName) + '</div>';
+            }
+            if (room.hkTaskStartedAt) {
+                html += '<div class="room-card-time">' + room.hkTaskStartedAt + '~</div>';
+            }
+        }
+
         // HK 메모 있으면 표시
         if (room.hkMemo) {
             html += '<div class="room-card-memo" title="' + HolaPms.escapeHtml(room.hkMemo) + '"><i class="fas fa-sticky-note"></i></div>';
@@ -260,10 +272,25 @@ var FdRoomRack = {
             'VD': '<span class="badge room-card-vd">VD (빈방/청소필요)</span>',
             'OC': '<span class="badge room-card-oc">OC (사용중/청소완료)</span>',
             'OD': '<span class="badge room-card-od">OD (사용중/청소필요)</span>',
+            'VI': '<span class="badge room-card-vi">VI (빈방/검수완료)</span>',
+            'VP': '<span class="badge room-card-vp">VP (빈방/간단정리)</span>',
+            'OI': '<span class="badge room-card-oi">OI (사용중/검수완료)</span>',
+            'OP': '<span class="badge room-card-op">OP (사용중/간단정리)</span>',
             'OOO': '<span class="badge room-card-ooo">OOO (사용불가)</span>',
             'OOS': '<span class="badge room-card-oos">OOS (일시중단)</span>'
         };
         return map[code] || '<span class="badge bg-secondary">' + code + '</span>';
+    },
+
+    getHkTaskLabel: function (status) {
+        var map = {
+            'PENDING': '<span class="badge bg-warning text-dark" style="font-size:10px;">대기</span>',
+            'IN_PROGRESS': '<span class="badge bg-primary" style="font-size:10px;">청소중</span>',
+            'PAUSED': '<span class="badge bg-secondary" style="font-size:10px;">중단</span>',
+            'COMPLETED': '<span class="badge bg-success" style="font-size:10px;">완료</span>',
+            'INSPECTED': '<span class="badge" style="font-size:10px;background:#20c997;">검수</span>'
+        };
+        return map[status] || '';
     },
 
     findRoom: function (roomId) {

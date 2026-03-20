@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>하우스키핑 작업 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-tasks me-2"></i>하우스키핑 작업 관리</h4>
+        <button class="btn btn-primary" id="btnCreateTask">
+            <i class="fas fa-plus me-1"></i>작업 생성
+        </button>
+    </div>
+
+    <!-- 프로퍼티 미선택 알림 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <!-- 필터 -->
+    <div class="card border-0 shadow-sm mb-3" id="filterCard">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <input type="date" class="form-control form-control-sm" id="filterDate">
+                </div>
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" id="filterStatus">
+                        <option value="">전체 상태</option>
+                        <option value="PENDING">대기</option>
+                        <option value="IN_PROGRESS">진행중</option>
+                        <option value="COMPLETED">완료</option>
+                        <option value="INSPECTED">검수완료</option>
+                        <option value="CANCELLED">취소</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" id="filterTaskType">
+                        <option value="">전체 유형</option>
+                        <option value="CHECKOUT">퇴실청소</option>
+                        <option value="STAYOVER">체류정리</option>
+                        <option value="TURNDOWN">턴다운</option>
+                        <option value="DEEP_CLEAN">딥클리닝</option>
+                        <option value="TOUCH_UP">간단정리</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" id="filterAssignedTo">
+                        <option value="">전체 담당자</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-sm btn-primary" id="btnSearch">
+                        <i class="fas fa-search me-1"></i>조회
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 일괄 배정 툴바 -->
+    <div class="card border-0 shadow-sm mb-3 d-none" id="batchToolbar">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted" style="font-size:13px;">
+                    <i class="fas fa-check-square me-1"></i>선택: <strong id="batchCount">0</strong>건
+                </span>
+                <select class="form-select form-select-sm" id="batchAssignTo" style="width: 140px;">
+                    <option value="">미배정 (해제)</option>
+                </select>
+                <button class="btn btn-sm btn-primary" id="btnBatchAssign">
+                    <i class="fas fa-user-check me-1"></i>일괄 배정
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" id="btnBatchCancel">
+                    <i class="fas fa-times me-1"></i>선택 해제
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 작업 테이블 -->
+    <div class="card border-0 shadow-sm" id="taskTableCard">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0" id="taskTable" style="width: 100%;">
+                <thead class="table-light">
+                <tr>
+                    <th>호수</th>
+                    <th class="text-center">유형</th>
+                    <th class="text-center">상태</th>
+                    <th class="text-center">우선순위</th>
+                    <th>담당자</th>
+                    <th class="text-center">시작</th>
+                    <th class="text-center">완료</th>
+                    <th class="text-center">소요(분)</th>
+                    <th class="text-center">크레딧</th>
+                    <th class="text-center">관리</th>
+                </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+
+    <!-- 작업 생성 모달 -->
+    <div class="modal fade" id="createTaskModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">청소 작업 생성</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label required">객실</label>
+                        <select class="form-select" id="createRoomNumberId">
+                            <option value="">객실 선택</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label required">작업 유형</label>
+                        <select class="form-select" id="createTaskType">
+                            <option value="CHECKOUT">퇴실청소 - 체크아웃 후 전체 청소 (크레딧 1.0)</option>
+                            <option value="STAYOVER">체류정리 - 투숙 중 객실 정리 (크레딧 0.5)</option>
+                            <option value="TURNDOWN">턴다운 - 저녁 침구 정리 서비스 (크레딧 0.3)</option>
+                            <option value="DEEP_CLEAN">딥클리닝 - 정기 심층 청소 (크레딧 2.0)</option>
+                            <option value="TOUCH_UP">간단정리 - 빠른 간단 정돈 (크레딧 0.2)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">우선순위</label>
+                        <select class="form-select" id="createPriority">
+                            <option value="NORMAL">보통</option>
+                            <option value="RUSH">긴급 (Rush)</option>
+                            <option value="HIGH">높음</option>
+                            <option value="LOW">낮음</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">담당자</label>
+                        <select class="form-select" id="createAssignedTo">
+                            <option value="">미배정</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">메모</label>
+                        <textarea class="form-control" id="createNote" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveTask">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메모/이슈 상세 모달 -->
+    <div class="modal fade" id="memoDetailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-comment-dots me-2"></i>메모/이슈 상세</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="fw-bold mb-2"><i class="fas fa-sticky-note me-1"></i>작업 메모</h6>
+                    <div id="memoNoteContent" class="mb-3"></div>
+                    <hr>
+                    <h6 class="fw-bold mb-2"><i class="fas fa-list-ul me-1"></i>이슈/메모 기록</h6>
+                    <div id="memoIssueList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script src="/js/hk-tasks-page.js"></script>
+</th:block>
+</body>
+</html>

@@ -636,6 +636,8 @@ http://localhost:8080/swagger-ui.html
 
 | 관리자 | http://localhost:8080/admin
 
+| 하우스키퍼 Front URL | http://localhost:8080/m/housekeeping/login
+
 예약 조회 : http://localhost:8080/booking/GMP/confirmation/{확인번호}
 
 ### 테스트 플로우
@@ -677,3 +679,11 @@ Step 4. 예약 확인 (/booking/GMP/confirmation/{no})
 | prop3admin | 정해운 | PROPERTY_ADMIN | 해운대 |
 
 > 전체 계정 비밀번호: `holapms1!`
+
+
+### 하우스키퍼 테스트 계정
+
+hk_supervisor1  |  holapms1!  |  김미영  | HOUSEKEEPING_SUPERVISOR(감독자)  | 하우스키핑/매니저
+hk_staff1  |  holapms1!  |  박수진  | HOUSEKEEPER(청소담당)  | 하우스키핑/담당자
+hk_staff2  |  holapms1!  |  이정은  | HOUSEKEEPER(청소담당)  | 하우스키핑/담당자
+

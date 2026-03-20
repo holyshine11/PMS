@@ -37,7 +37,7 @@ public class RoomNumber extends BaseEntity {
     // 객실 상태 (프론트데스크/하우스키핑)
     @Column(name = "hk_status", nullable = false, length = 20)
     @Builder.Default
-    private String hkStatus = "CLEAN";  // CLEAN, DIRTY, OOO, OOS
+    private String hkStatus = "CLEAN";  // CLEAN, DIRTY, INSPECTED, PICKUP, OOO, OOS
 
     @Column(name = "fo_status", nullable = false, length = 20)
     @Builder.Default

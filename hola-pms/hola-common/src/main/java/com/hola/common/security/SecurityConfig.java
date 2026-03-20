@@ -15,6 +15,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 
 /**
  * Spring Security 설정
@@ -25,6 +26,14 @@ import jakarta.servlet.http.HttpServletResponse;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RoleBasedAuthSuccessHandler roleBasedAuthSuccessHandler;
+
+    /**
+     * 모바일 세션 필터 (Admin 세션과 분리)
+     */
+    private HkMobileSessionFilter hkMobileSessionFilter() {
+        return new HkMobileSessionFilter();
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -32,10 +41,40 @@ public class SecurityConfig {
     }
 
     /**
-     * API 보안 (JWT, Stateless)
+     * 하우스키핑 모바일 API (세션 기반 인증, 세션 허용)
      */
     @Bean
     @Order(1)
+    public SecurityFilterChain hkMobileApiFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/api/v1/properties/*/hk-mobile/**")
+            .csrf(AbstractHttpConfigurer::disable)
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                .sessionFixation().none()  // 모바일 세션 고정 보호 비활성화 (로그인 시 이미 세션 생성됨)
+            )
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/v1/properties/*/hk-mobile/**")
+                    .hasAnyRole("HOUSEKEEPING_SUPERVISOR", "HOUSEKEEPER")
+                .anyRequest().authenticated()
+            )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"success\":false,\"code\":\"HOLA-0005\",\"message\":\"인증이 필요합니다.\"}");
+                })
+            )
+            .addFilterAfter(hkMobileSessionFilter(), SecurityContextHolderFilter.class);
+
+        return http.build();
+    }
+
+    /**
+     * API 보안 (JWT, Stateless)
+     */
+    @Bean
+    @Order(2)
     public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/api/**")
@@ -95,6 +134,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/properties/*/room-status/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // Room Rack API
                 .requestMatchers("/api/v1/properties/*/room-rack/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 하우스키핑 Admin API: SUPER ~ SUPERVISOR
+                .requestMatchers("/api/v1/properties/*/housekeeping/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN", "HOUSEKEEPING_SUPERVISOR")
+                // 하우스키핑 모바일 API: SUPERVISOR + HOUSEKEEPER
+                .requestMatchers("/api/v1/properties/*/hk-mobile/**").hasAnyRole("HOUSEKEEPING_SUPERVISOR", "HOUSEKEEPER")
+                // 하우스키퍼 관리 API
+                .requestMatchers("/api/v1/properties/*/housekeepers/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN", "HOUSEKEEPING_SUPERVISOR")
                 // 호텔관리 API: SUPER_ADMIN 전용 (제너릭 경로는 마지막)
                 .requestMatchers("/api/v1/hotels/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/api/v1/properties/**").hasRole("SUPER_ADMIN")
@@ -121,7 +166,9 @@ public class SecurityConfig {
                     response.getWriter().write("{\"success\":false,\"code\":\"HOLA-0006\",\"message\":\"접근 권한이 없습니다.\"}");
                 })
             )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            // 모바일 경로: 별도 세션 키에서 SecurityContext 복원
+            .addFilterAfter(hkMobileSessionFilter(), SecurityContextHolderFilter.class);
 
         return http.build();
     }
@@ -130,14 +177,14 @@ public class SecurityConfig {
      * 웹 페이지 보안 (세션 기반, Thymeleaf)
      */
     @Bean
-    @Order(2)
+    @Order(3)
     public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/**")
             .csrf(AbstractHttpConfigurer::disable)
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/css/**", "/js/**", "/images/**", "/webjars/**", "/uploads/**",
+                .requestMatchers("/login", "/m/housekeeping/login", "/css/**", "/js/**", "/images/**", "/webjars/**", "/uploads/**",
                     "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 // 부킹엔진 게스트 화면: 인증 없이 접근 허용
@@ -167,18 +214,24 @@ public class SecurityConfig {
                 .requestMatchers("/admin/reservations/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 프론트데스크 웹
                 .requestMatchers("/admin/front-desk/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
+                // 하우스키핑 Admin 웹
+                .requestMatchers("/admin/housekeeping/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN", "HOUSEKEEPING_SUPERVISOR")
+                // 하우스키핑 모바일웹: Controller에서 세션 체크 (세션 만료 시 모바일 로그인으로 리다이렉트)
+                .requestMatchers("/m/housekeeping/**").permitAll()
                 // 회원관리
                 .requestMatchers("/admin/members/bluewave-admins/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/members/hotel-admins/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN")
                 // 권한관리: 호텔 권한 = SUPER_ADMIN 전용, 프로퍼티 권한 = SUPER_ADMIN + HOTEL_ADMIN
                 .requestMatchers("/admin/roles/hotel-admins/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/roles/property-admins/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN")
+                // Admin 페이지: HOUSEKEEPER는 접근 불가 (모바일 전용)
+                .requestMatchers("/admin/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN", "HOUSEKEEPING_SUPERVISOR")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/login")
-                .defaultSuccessUrl("/admin/dashboard", true)
+                .successHandler(roleBasedAuthSuccessHandler)
                 .failureUrl("/login?error=true")
                 .permitAll()
             )

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/mobile}">
+<head><title>내 정보</title></head>
+<body>
+<div layout:fragment="header-title"><i class="fas fa-user-circle me-2"></i>내 정보</div>
+<div layout:fragment="content">
+    <!-- 프로필 카드 -->
+    <div class="hk-task-card mb-3">
+        <div class="d-flex align-items-center mb-3">
+            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-3"
+                 style="width:48px;height:48px;font-size:20px;color:#fff;">
+                <i class="fas fa-user"></i>
+            </div>
+            <div>
+                <div style="font-size:18px;font-weight:700;" id="profileName">-</div>
+                <div class="text-muted" style="font-size:13px;" id="profileRole">-</div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label text-muted" style="font-size:12px;">연락처</label>
+            <input type="text" class="form-control" id="profilePhone" placeholder="010-0000-0000">
+        </div>
+        <div class="mb-3">
+            <label class="form-label text-muted" style="font-size:12px;">이메일</label>
+            <input type="email" class="form-control" id="profileEmail">
+        </div>
+        <button class="btn btn-primary w-100 btn-mobile-sm" id="btnSaveProfile">
+            <i class="fas fa-save me-1"></i>정보 저장
+        </button>
+    </div>
+
+    <!-- 비밀번호 변경 카드 -->
+    <div class="hk-task-card mb-3">
+        <div style="font-size:15px;font-weight:600;margin-bottom:12px;">
+            <i class="fas fa-lock me-2"></i>비밀번호 변경
+        </div>
+        <div class="mb-3">
+            <input type="password" class="form-control" id="currentPassword"
+                   placeholder="현재 비밀번호" maxlength="20">
+        </div>
+        <div class="mb-3">
+            <input type="password" class="form-control" id="newPassword"
+                   placeholder="새 비밀번호 (10~20자)" maxlength="20">
+        </div>
+        <div class="mb-3">
+            <input type="password" class="form-control" id="confirmPassword"
+                   placeholder="새 비밀번호 확인" maxlength="20">
+        </div>
+        <button class="btn btn-outline-primary w-100 btn-mobile-sm" id="btnChangePw">
+            <i class="fas fa-key me-1"></i>비밀번호 변경
+        </button>
+    </div>
+
+    <!-- 로그아웃 -->
+    <a th:href="@{/m/housekeeping/logout}" class="btn btn-outline-secondary w-100 btn-mobile-sm">
+        <i class="fas fa-sign-out-alt me-1"></i>로그아웃
+    </a>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        var HK_PROPERTY_ID = [[${propertyId}]] || null;
+        var HK_USER_ID = [[${userId}]] || null;
+    </script>
+    <script src="/js/hk-mobile-profile.js"></script>
+</th:block>
+</body>
+</html>

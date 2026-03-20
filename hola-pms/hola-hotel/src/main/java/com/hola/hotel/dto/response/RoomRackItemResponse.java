@@ -26,4 +26,9 @@ public class RoomRackItemResponse {
     private LocalDate checkOut;    // 투숙 중이면 체크아웃 예정일
     private Long reservationId;    // 투숙 중이면 마스터예약 ID
     private String hkMemo;
+
+    // HK 작업 오버레이 (Phase 3)
+    private String hkTaskStatus;       // HK 작업 상태 (PENDING, IN_PROGRESS, COMPLETED 등)
+    private String hkAssigneeName;     // 배정된 하우스키퍼 이름
+    private String hkTaskStartedAt;    // 작업 시작 시간 (HH:mm)
 }

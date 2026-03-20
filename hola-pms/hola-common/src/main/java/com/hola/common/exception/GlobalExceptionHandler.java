@@ -49,6 +49,15 @@ public class GlobalExceptionHandler {
                 .body(HolaResponse.error("HOLA-4027", "다른 요청이 진행 중입니다. 잠시 후 다시 시도해주세요."));
     }
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<HolaResponse<Void>> handleDataIntegrityViolation(
+            org.springframework.dao.DataIntegrityViolationException e) {
+        log.warn("데이터 무결성 위반: {}", e.getMostSpecificCause().getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(HolaResponse.error("HOLA-0004", "중복된 데이터가 존재합니다."));
+    }
+
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<HolaResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
         log.warn("파라미터 타입 오류: {} = {}", e.getName(), e.getValue());

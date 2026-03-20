@@ -20,12 +20,18 @@ public interface RoomStatusService {
     /** Room Rack: 전체 객실 기본 정보 (투숙객 정보 없이) */
     List<RoomRackItemResponse> getRoomRackItems(Long propertyId);
 
-    /** 상태코드 계산 유틸 */
+    /** 상태코드 계산 유틸 (INSPECTED→I, PICKUP→P 확장) */
     static String calcStatusCode(String hkStatus, String foStatus) {
         if ("OOO".equals(hkStatus)) return "OOO";
         if ("OOS".equals(hkStatus)) return "OOS";
         String fo = "OCCUPIED".equals(foStatus) ? "O" : "V";
-        String hk = "CLEAN".equals(hkStatus) ? "C" : "D";
+        String hk;
+        switch (hkStatus) {
+            case "CLEAN": hk = "C"; break;
+            case "INSPECTED": hk = "I"; break;
+            case "PICKUP": hk = "P"; break;
+            default: hk = "D"; break; // DIRTY
+        }
         return fo + hk;
     }
 }

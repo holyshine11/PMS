@@ -16,6 +16,10 @@ public interface AdminUserPropertyRepository extends JpaRepository<AdminUserProp
     /** 특정 사용자가 특정 프로퍼티에 접근 권한이 있는지 확인 (exists 쿼리) */
     boolean existsByAdminUserIdAndPropertyId(Long adminUserId, Long propertyId);
 
+    /** 특정 프로퍼티에 매핑된 사용자 ID 목록 */
+    @Query("SELECT p.adminUserId FROM AdminUserProperty p WHERE p.propertyId = :propertyId")
+    List<Long> findAdminUserIdsByPropertyId(Long propertyId);
+
     @Modifying(flushAutomatically = true)
     @Query("DELETE FROM AdminUserProperty p WHERE p.adminUserId = :adminUserId")
     void deleteByAdminUserId(Long adminUserId);

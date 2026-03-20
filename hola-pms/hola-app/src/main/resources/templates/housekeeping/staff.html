@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>하우스키퍼 담당자 관리</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="fas fa-user-friends me-2"></i>담당자 관리</h4>
+        <a th:href="@{/admin/housekeeping/staff/new}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>담당자 등록
+        </a>
+    </div>
+
+    <!-- 프로퍼티 미선택 -->
+    <div id="contextAlert" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
+    </div>
+
+    <!-- 담당자 테이블 -->
+    <div class="card border-0 shadow-sm" id="staffTableCard">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0" id="staffTable" style="width: 100%;">
+                <thead class="table-light">
+                <tr>
+                    <th>아이디</th>
+                    <th>담당자명</th>
+                    <th class="text-center">역할</th>
+                    <th>부서</th>
+                    <th>연락처</th>
+                    <th class="text-center">상태</th>
+                    <th>등록일</th>
+                </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script src="/js/hk-staff-page.js"></script>
+</th:block>
+</body>
+</html>

@@ -38,4 +38,12 @@ public interface RoomNumberRepository extends JpaRepository<RoomNumber, Long> {
            "AND r.foStatus = 'VACANT' AND r.hkStatus = 'CLEAN' " +
            "ORDER BY r.roomNumber ASC")
     List<RoomNumber> findVacantCleanRooms(@Param("propertyId") Long propertyId);
+
+    // === 하우스키핑 구역 배정용: 객실→층 매핑 ===
+
+    /** 특정 객실의 층 ID 조회 (rm_room_type_floor 테이블 활용) */
+    @Query(value = "SELECT DISTINCT rtf.floor_id FROM rm_room_type_floor rtf " +
+                   "WHERE rtf.room_number_id = :roomNumberId LIMIT 1",
+           nativeQuery = true)
+    Long findFloorIdByRoomNumberId(@Param("roomNumberId") Long roomNumberId);
 }
