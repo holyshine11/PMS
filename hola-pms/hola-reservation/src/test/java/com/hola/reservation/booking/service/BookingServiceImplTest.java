@@ -666,7 +666,7 @@ class BookingServiceImplTest {
             when(roomClassRepository.findById(1L))
                     .thenReturn(Optional.of(RoomClass.builder()
                             .propertyId(PROPERTY_ID).roomClassCode("DLX").roomClassName("디럭스").build()));
-            when(reservationPaymentService.getPaymentSummary(1L))
+            when(reservationPaymentService.getPaymentSummary(PROPERTY_ID, 1L))
                     .thenReturn(PaymentSummaryResponse.builder()
                             .paymentStatus("PAID")
                             .transactions(List.of(PaymentTransactionResponse.builder()
@@ -740,7 +740,7 @@ class BookingServiceImplTest {
             when(roomClassRepository.findById(1L))
                     .thenReturn(Optional.of(RoomClass.builder()
                             .propertyId(PROPERTY_ID).roomClassCode("DLX").roomClassName("디럭스").build()));
-            when(reservationPaymentService.getPaymentSummary(1L))
+            when(reservationPaymentService.getPaymentSummary(PROPERTY_ID, 1L))
                     .thenReturn(PaymentSummaryResponse.builder()
                             .paymentStatus("PAID")
                             .transactions(Collections.emptyList())
@@ -842,7 +842,7 @@ class BookingServiceImplTest {
             when(roomClassRepository.findById(1L))
                     .thenReturn(Optional.of(RoomClass.builder()
                             .propertyId(PROPERTY_ID).roomClassCode("DLX").roomClassName("디럭스").build()));
-            when(reservationPaymentService.getPaymentSummary(1L))
+            when(reservationPaymentService.getPaymentSummary(PROPERTY_ID, 1L))
                     .thenReturn(PaymentSummaryResponse.builder()
                             .paymentStatus("PAID")
                             .transactions(Collections.emptyList())

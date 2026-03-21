@@ -97,7 +97,7 @@ class PaymentApiIntegrationTest extends BaseIntegrationTest {
             PaymentSummaryResponse afterPayment = buildSummary(
                     "PARTIAL", new BigDecimal("300000"),
                     new BigDecimal("100000"), new BigDecimal("200000"));
-            when(paymentService.processPayment(eq(RESERVATION_ID), any(PaymentProcessRequest.class)))
+            when(paymentService.processPayment(eq(PROPERTY_ID), eq(RESERVATION_ID), any(PaymentProcessRequest.class)))
                     .thenReturn(afterPayment);
 
             PaymentProcessRequest payReq = new PaymentProcessRequest("CARD", new BigDecimal("100000"), null);
@@ -120,7 +120,7 @@ class PaymentApiIntegrationTest extends BaseIntegrationTest {
                     .createdAt(LocalDateTime.now())
                     .createdBy("admin")
                     .build();
-            when(paymentService.addAdjustment(eq(RESERVATION_ID), any(PaymentAdjustmentRequest.class)))
+            when(paymentService.addAdjustment(eq(PROPERTY_ID), eq(RESERVATION_ID), any(PaymentAdjustmentRequest.class)))
                     .thenReturn(adjResp);
 
             PaymentAdjustmentRequest adjReq = PaymentAdjustmentRequest.builder()
@@ -141,7 +141,7 @@ class PaymentApiIntegrationTest extends BaseIntegrationTest {
             PaymentSummaryResponse finalSummary = buildSummary(
                     "PARTIAL", new BigDecimal("311000"),
                     new BigDecimal("100000"), new BigDecimal("211000"));
-            when(paymentService.getPaymentSummary(RESERVATION_ID)).thenReturn(finalSummary);
+            when(paymentService.getPaymentSummary(PROPERTY_ID, RESERVATION_ID)).thenReturn(finalSummary);
 
             mockMvc.perform(get(BASE_URL, PROPERTY_ID, RESERVATION_ID))
                     .andExpect(status().isOk())
@@ -157,7 +157,7 @@ class PaymentApiIntegrationTest extends BaseIntegrationTest {
         @Test
         @DisplayName("전액 결제 후 추가 결제 시 400")
         void processPayment_alreadyPaid_400() throws Exception {
-            when(paymentService.processPayment(eq(RESERVATION_ID), any(PaymentProcessRequest.class)))
+            when(paymentService.processPayment(eq(PROPERTY_ID), eq(RESERVATION_ID), any(PaymentProcessRequest.class)))
                     .thenThrow(new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED));
 
             PaymentProcessRequest req = new PaymentProcessRequest("CARD", new BigDecimal("100000"), null);
@@ -174,7 +174,7 @@ class PaymentApiIntegrationTest extends BaseIntegrationTest {
             PaymentSummaryResponse resp = buildSummary(
                     "PAID", new BigDecimal("300000"),
                     new BigDecimal("300000"), BigDecimal.ZERO);
-            when(paymentService.processPayment(eq(RESERVATION_ID), any(PaymentProcessRequest.class)))
+            when(paymentService.processPayment(eq(PROPERTY_ID), eq(RESERVATION_ID), any(PaymentProcessRequest.class)))
                     .thenReturn(resp);
 
             PaymentProcessRequest req = new PaymentProcessRequest("CASH", null, "전액 현금 결제");
@@ -205,7 +205,7 @@ class PaymentApiIntegrationTest extends BaseIntegrationTest {
                     .createdAt(LocalDateTime.now())
                     .createdBy("admin")
                     .build();
-            when(paymentService.addAdjustment(eq(RESERVATION_ID), any(PaymentAdjustmentRequest.class)))
+            when(paymentService.addAdjustment(eq(PROPERTY_ID), eq(RESERVATION_ID), any(PaymentAdjustmentRequest.class)))
                     .thenReturn(resp);
 
             PaymentAdjustmentRequest req = PaymentAdjustmentRequest.builder()
@@ -262,7 +262,7 @@ class PaymentApiIntegrationTest extends BaseIntegrationTest {
                     .adjustments(List.of())
                     .transactions(List.of(tx1, tx2))
                     .build();
-            when(paymentService.getPaymentSummary(RESERVATION_ID)).thenReturn(resp);
+            when(paymentService.getPaymentSummary(PROPERTY_ID, RESERVATION_ID)).thenReturn(resp);
 
             mockMvc.perform(get(BASE_URL, PROPERTY_ID, RESERVATION_ID))
                     .andExpect(status().isOk())
@@ -307,7 +307,7 @@ class PaymentApiIntegrationTest extends BaseIntegrationTest {
                     .adjustments(List.of())
                     .transactions(List.of(payTx, refundTx))
                     .build();
-            when(paymentService.getPaymentSummary(RESERVATION_ID)).thenReturn(resp);
+            when(paymentService.getPaymentSummary(PROPERTY_ID, RESERVATION_ID)).thenReturn(resp);
 
             mockMvc.perform(get(BASE_URL, PROPERTY_ID, RESERVATION_ID))
                     .andExpect(status().isOk())

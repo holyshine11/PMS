@@ -1,6 +1,8 @@
 package com.hola.reservation.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.exception.ErrorCode;
+import com.hola.common.exception.HolaException;
 import com.hola.common.security.AccessControlService;
 import com.hola.reservation.dto.request.*;
 import com.hola.reservation.dto.response.*;
@@ -195,7 +197,11 @@ public class ReservationApiController {
                                                           @PathVariable Long id,
                                                           @RequestBody Map<String, String> body) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.addMemo(id, propertyId, body.get("content")));
+        String content = body.get("content");
+        if (content == null || content.isBlank()) {
+            throw new HolaException(ErrorCode.INVALID_INPUT);
+        }
+        return HolaResponse.success(reservationService.addMemo(id, propertyId, content));
     }
 
     /** 예치금 등록 */

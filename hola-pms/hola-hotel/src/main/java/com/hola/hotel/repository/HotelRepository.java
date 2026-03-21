@@ -16,12 +16,14 @@ public interface HotelRepository extends JpaRepository<Hotel, Long> {
 
     Optional<Hotel> findByHotelCode(String hotelCode);
 
-    @Query("SELECT h FROM Hotel h WHERE " +
-           "(:hotelName IS NULL OR h.hotelName LIKE %:hotelName%) " +
-           "AND (:useYn IS NULL OR h.useYn = :useYn)")
-    Page<Hotel> findAllByHotelNameAndUseYn(@Param("hotelName") String hotelName,
-                                            @Param("useYn") Boolean useYn,
-                                            Pageable pageable);
+    // JPQL null 파라미터 안티패턴 회피 — 조건별 개별 메서드 분리
+    Page<Hotel> findAllBy(Pageable pageable);
+
+    Page<Hotel> findAllByHotelNameContaining(String hotelName, Pageable pageable);
+
+    Page<Hotel> findAllByUseYn(Boolean useYn, Pageable pageable);
+
+    Page<Hotel> findAllByHotelNameContainingAndUseYn(String hotelName, Boolean useYn, Pageable pageable);
 
     boolean existsByHotelNameAndDeletedAtIsNull(String hotelName);
 

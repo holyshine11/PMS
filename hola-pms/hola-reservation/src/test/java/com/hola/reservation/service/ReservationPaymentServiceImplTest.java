@@ -65,6 +65,7 @@ class ReservationPaymentServiceImplTest {
     private MasterReservation master;
     private SubReservation defaultSub;
 
+    private static final Long PROPERTY_ID = 1L;
     private static final Long RESERVATION_ID = 1L;
     private static final Long SUB_ID = 100L;
 
@@ -256,7 +257,7 @@ class ReservationPaymentServiceImplTest {
                     .thenReturn(expected);
 
             // when
-            PaymentSummaryResponse result = service.getPaymentSummary(RESERVATION_ID);
+            PaymentSummaryResponse result = service.getPaymentSummary(PROPERTY_ID, RESERVATION_ID);
 
             // then
             assertThat(result.getPaymentStatus()).isEqualTo("PARTIAL");
@@ -272,7 +273,7 @@ class ReservationPaymentServiceImplTest {
                     .thenReturn(Optional.empty());
 
             // when
-            PaymentSummaryResponse result = service.getPaymentSummary(RESERVATION_ID);
+            PaymentSummaryResponse result = service.getPaymentSummary(PROPERTY_ID, RESERVATION_ID);
 
             // then
             assertThat(result.getPaymentStatus()).isEqualTo("UNPAID");
@@ -317,7 +318,7 @@ class ReservationPaymentServiceImplTest {
             PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("300000"));
 
             // when
-            PaymentSummaryResponse result = service.processPayment(RESERVATION_ID, request);
+            PaymentSummaryResponse result = service.processPayment(PROPERTY_ID, RESERVATION_ID, request);
 
             // then
             assertThat(result.getPaymentStatus()).isEqualTo("PAID");
@@ -347,7 +348,7 @@ class ReservationPaymentServiceImplTest {
             PaymentProcessRequest request = createPayRequest("CASH", null); // null = 잔액 전액
 
             // when
-            service.processPayment(RESERVATION_ID, request);
+            service.processPayment(PROPERTY_ID, RESERVATION_ID, request);
 
             // then
             ArgumentCaptor<PaymentTransaction> captor = ArgumentCaptor.forClass(PaymentTransaction.class);
@@ -371,7 +372,7 @@ class ReservationPaymentServiceImplTest {
             PaymentProcessRequest request = createPayRequest("CARD", BigDecimal.ZERO);
 
             // when & then
-            assertThatThrownBy(() -> service.processPayment(RESERVATION_ID, request))
+            assertThatThrownBy(() -> service.processPayment(PROPERTY_ID, RESERVATION_ID, request))
                     .isInstanceOf(HolaException.class)
                     .extracting(e -> ((HolaException) e).getErrorCode())
                     .isEqualTo(ErrorCode.RESERVATION_PAYMENT_AMOUNT_INVALID);
@@ -392,7 +393,7 @@ class ReservationPaymentServiceImplTest {
             PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("500000"));
 
             // when & then
-            assertThatThrownBy(() -> service.processPayment(RESERVATION_ID, request))
+            assertThatThrownBy(() -> service.processPayment(PROPERTY_ID, RESERVATION_ID, request))
                     .isInstanceOf(HolaException.class)
                     .extracting(e -> ((HolaException) e).getErrorCode())
                     .isEqualTo(ErrorCode.RESERVATION_PAYMENT_AMOUNT_EXCEEDED);
@@ -410,7 +411,7 @@ class ReservationPaymentServiceImplTest {
             PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("100000"));
 
             // when & then
-            assertThatThrownBy(() -> service.processPayment(RESERVATION_ID, request))
+            assertThatThrownBy(() -> service.processPayment(PROPERTY_ID, RESERVATION_ID, request))
                     .isInstanceOf(HolaException.class)
                     .extracting(e -> ((HolaException) e).getErrorCode())
                     .isEqualTo(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED);
@@ -468,7 +469,7 @@ class ReservationPaymentServiceImplTest {
             PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("300000"));
 
             // when - OTA 예약도 정상 결제 처리
-            PaymentSummaryResponse result = service.processPayment(2L, request);
+            PaymentSummaryResponse result = service.processPayment(PROPERTY_ID, 2L, request);
 
             // then
             assertThat(result.getPaymentStatus()).isEqualTo("PAID");
@@ -492,7 +493,7 @@ class ReservationPaymentServiceImplTest {
             PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("100000"));
 
             // when & then
-            assertThatThrownBy(() -> service.processPayment(3L, request))
+            assertThatThrownBy(() -> service.processPayment(PROPERTY_ID, 3L, request))
                     .isInstanceOf(HolaException.class)
                     .extracting(e -> ((HolaException) e).getErrorCode())
                     .isEqualTo(ErrorCode.RESERVATION_MODIFY_NOT_ALLOWED);
@@ -527,7 +528,7 @@ class ReservationPaymentServiceImplTest {
             PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("100000"));
 
             // when
-            service.processPayment(RESERVATION_ID, request);
+            service.processPayment(PROPERTY_ID, RESERVATION_ID, request);
 
             // then
             ArgumentCaptor<PaymentTransaction> captor = ArgumentCaptor.forClass(PaymentTransaction.class);
@@ -576,7 +577,7 @@ class ReservationPaymentServiceImplTest {
                     .build();
 
             // when
-            PaymentAdjustmentResponse result = service.addAdjustment(RESERVATION_ID, request);
+            PaymentAdjustmentResponse result = service.addAdjustment(PROPERTY_ID, RESERVATION_ID, request);
 
             // then
             assertThat(result.getAdjustmentSign()).isEqualTo("+");
@@ -616,7 +617,7 @@ class ReservationPaymentServiceImplTest {
                     .build();
 
             // when
-            PaymentAdjustmentResponse result = service.addAdjustment(RESERVATION_ID, request);
+            PaymentAdjustmentResponse result = service.addAdjustment(PROPERTY_ID, RESERVATION_ID, request);
 
             // then
             assertThat(result.getAdjustmentSign()).isEqualTo("-");
@@ -646,7 +647,7 @@ class ReservationPaymentServiceImplTest {
                     .build();
 
             // when & then
-            assertThatThrownBy(() -> service.addAdjustment(4L, request))
+            assertThatThrownBy(() -> service.addAdjustment(PROPERTY_ID, 4L, request))
                     .isInstanceOf(HolaException.class)
                     .extracting(e -> ((HolaException) e).getErrorCode())
                     .isEqualTo(ErrorCode.RESERVATION_PAYMENT_MODIFY_NOT_ALLOWED);
@@ -685,7 +686,7 @@ class ReservationPaymentServiceImplTest {
                     .build();
 
             // when
-            service.addAdjustment(RESERVATION_ID, request);
+            service.addAdjustment(PROPERTY_ID, RESERVATION_ID, request);
 
             // then
             ArgumentCaptor<PaymentAdjustment> captor = ArgumentCaptor.forClass(PaymentAdjustment.class);

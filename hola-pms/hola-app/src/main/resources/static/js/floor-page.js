@@ -108,13 +108,13 @@ const FloorPage = {
     reload: function() {
         var propertyId = HolaPms.context.getPropertyId();
         if (!propertyId) {
-            $('#contextAlert').show();
+            $('#contextAlert').removeClass('d-none');
             $('#btnCreateWrap').hide();
             this.table.clear().draw();
             HolaPms.requireContext('property');
             return;
         }
-        $('#contextAlert').hide();
+        $('#contextAlert').addClass('d-none');
         $('#btnCreateWrap').show();
         this.table.ajax.url('/api/v1/properties/' + propertyId + '/floors').load();
     },

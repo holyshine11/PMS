@@ -32,7 +32,7 @@ public class ReservationPaymentApiController {
     public HolaResponse<PaymentSummaryResponse> getPaymentSummary(@PathVariable Long propertyId,
                                                                     @PathVariable Long reservationId) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(paymentService.getPaymentSummary(reservationId));
+        return HolaResponse.success(paymentService.getPaymentSummary(propertyId, reservationId));
     }
 
     /** 결제 처리 (카드/현금, 부분결제 지원) */
@@ -43,7 +43,7 @@ public class ReservationPaymentApiController {
                                                                  @PathVariable Long reservationId,
                                                                  @Valid @RequestBody PaymentProcessRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(paymentService.processPayment(reservationId, request));
+        return HolaResponse.success(paymentService.processPayment(propertyId, reservationId, request));
     }
 
     /** 금액 조정 추가 */
@@ -54,6 +54,6 @@ public class ReservationPaymentApiController {
                                                                    @PathVariable Long reservationId,
                                                                    @Valid @RequestBody PaymentAdjustmentRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(paymentService.addAdjustment(reservationId, request));
+        return HolaResponse.success(paymentService.addAdjustment(propertyId, reservationId, request));
     }
 }

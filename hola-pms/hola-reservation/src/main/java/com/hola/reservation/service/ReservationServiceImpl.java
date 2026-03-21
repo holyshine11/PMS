@@ -129,7 +129,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .collect(Collectors.toList());
 
         // 결제 정보
-        PaymentSummaryResponse paymentSummary = paymentService.getPaymentSummary(id);
+        PaymentSummaryResponse paymentSummary = paymentService.getPaymentSummary(propertyId, id);
 
         return ReservationDetailResponse.builder()
                 .id(response.getId())
@@ -360,13 +360,17 @@ public class ReservationServiceImpl implements ReservationService {
             }
         }
 
+        // rateCodeId null이면 기존 값 유지 (null로 덮어쓰기 방지)
+        Long effectiveRateCodeId = request.getRateCodeId() != null
+                ? request.getRateCodeId() : master.getRateCodeId();
+
         master.update(
                 request.getMasterCheckIn(), request.getMasterCheckOut(),
                 request.getGuestNameKo(), request.getGuestFirstNameEn(),
                 request.getGuestMiddleNameEn(), request.getGuestLastNameEn(),
                 request.getPhoneCountryCode(), request.getPhoneNumber(),
                 request.getEmail(), request.getBirthDate(), request.getGender(),
-                request.getNationality(), request.getRateCodeId(),
+                request.getNationality(), effectiveRateCodeId,
                 request.getMarketCodeId(), request.getReservationChannelId(),
                 request.getPromotionType(), request.getPromotionCode(),
                 request.getOtaReservationNo(), request.getIsOtaManaged(),
@@ -767,8 +771,15 @@ public class ReservationServiceImpl implements ReservationService {
             throw new HolaException(ErrorCode.FD_ROOM_ASSIGN_REQUIRED);
         }
         com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
-        if (room != null && "OOO".equals(room.getHkStatus())) {
-            throw new HolaException(ErrorCode.FD_ROOM_OUT_OF_ORDER);
+        if (room != null) {
+            String hkStatus = room.getHkStatus();
+            if ("OOO".equals(hkStatus) || "OOS".equals(hkStatus)) {
+                throw new HolaException(ErrorCode.FD_ROOM_OUT_OF_ORDER);
+            }
+            // 청소 미완료 객실 체크인 차단 (CLEAN 또는 INSPECTED만 허용)
+            if ("DIRTY".equals(hkStatus) || "PICKUP".equals(hkStatus)) {
+                throw new HolaException(ErrorCode.FD_ROOM_NOT_CLEAN);
+            }
         }
     }
 
@@ -1288,7 +1299,8 @@ public class ReservationServiceImpl implements ReservationService {
     private void updateGuests(SubReservation sub, List<ReservationGuestRequest> guestRequests) {
         if (guestRequests == null) return;
 
-        reservationGuestRepository.deleteAllBySubReservationId(sub.getId());
+        // orphanRemoval=true 컬렉션 → collection.clear() + flush() 방식 사용 (JPQL DELETE 금지)
+        sub.getGuests().clear();
         reservationGuestRepository.flush();
 
         for (ReservationGuestRequest guestReq : guestRequests) {
@@ -1301,7 +1313,8 @@ public class ReservationServiceImpl implements ReservationService {
      * 일별 요금 재계산
      */
     private void recalculateDailyCharges(SubReservation sub, Property property) {
-        dailyChargeRepository.deleteAllBySubReservationId(sub.getId());
+        // orphanRemoval=true 컬렉션 → collection.clear() + flush() 방식 사용 (JPQL DELETE 금지)
+        sub.getDailyCharges().clear();
         dailyChargeRepository.flush();
 
         Long rateCodeId = sub.getMasterReservation().getRateCodeId();

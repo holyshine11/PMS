@@ -44,8 +44,7 @@ const BluewaveAdminPage = {
         $('#pageSizeSelect').on('change', function() {
             self.table.page.len(parseInt($(this).val())).draw();
         });
-
-        this.reload();
+        // DataTable ajax 초기화 시 자동 로드됨 — reload() 중복 호출 제거
     },
 
     reload: function() {

@@ -287,7 +287,7 @@ public class ReservationMapper {
                 .totalPaidAmount(totalPaid)
                 .cancelFeeAmount(payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO)
                 .refundAmount(payment.getRefundAmount() != null ? payment.getRefundAmount() : BigDecimal.ZERO)
-                .remainingAmount(grandTotal.subtract(totalPaid))
+                .remainingAmount(grandTotal.subtract(totalPaid).max(BigDecimal.ZERO))
                 .paymentDate(payment.getPaymentDate())
                 .paymentMethod(payment.getPaymentMethod())
                 .adjustments(adjustmentResponses)

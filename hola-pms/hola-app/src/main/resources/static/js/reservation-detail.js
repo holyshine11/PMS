@@ -328,6 +328,9 @@ var ReservationDetail = {
             checkOut = $('#masterCheckOut').val() || '';
         }
 
+        // Leg별 상태 (얼리/레이트 체크박스 제어에 사용)
+        var legStatus = legData ? (legData.roomReservationStatus || '') : '';
+
         // 상태에 따른 얼리/레이트 체크박스 활성화 제어 (Leg 상태 기준)
         // RESERVED: 둘 다 편집 가능 (사전 요청)
         // CHECK_IN/INHOUSE: 얼리 읽기전용 (자동 판정 완료), 레이트 편집 가능
@@ -346,7 +349,6 @@ var ReservationDetail = {
         if (subNo) headerLabel += ' <span class="text-muted small ms-2">(' + HolaPms.escapeHtml(subNo) + ')</span>';
 
         // Leg별 상태 뱃지 + 액션 드롭다운 (허용 전이 전체 표시)
-        var legStatus = legData ? (legData.roomReservationStatus || '') : '';
         var legStatusBadge = legStatus ? HolaPms.reservationStatus.styledBadge(legStatus) : '';
         var legActionBtn = '';
         if (legId && legStatus && self.STATUS_TRANSITIONS[legStatus]) {

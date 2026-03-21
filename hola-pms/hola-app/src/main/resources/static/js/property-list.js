@@ -65,12 +65,12 @@ const PropertyListPage = {
     reload: function() {
         var hotelId = HolaPms.context.getHotelId();
         if (!hotelId) {
-            $('#contextAlert').show();
+            $('#contextAlert').removeClass('d-none');
             this.table.clear().draw();
             HolaPms.requireContext('hotel');
             return;
         }
-        $('#contextAlert').hide();
+        $('#contextAlert').addClass('d-none');
         this.table.ajax.url('/api/v1/hotels/' + hotelId + '/properties').load();
     },
 
@@ -78,7 +78,18 @@ const PropertyListPage = {
         // 클라이언트 사이드 검색
         var name = $('#searchPropertyName').val();
         var useYn = $('input[name="searchUseYn"]:checked').val();
-        this.table.search(name).draw();
+        this.table.search(name);
+
+        // 사용여부 컬럼(인덱스 4) 필터 - 렌더링된 뱃지 텍스트 기준 정규식 검색
+        if (useYn === 'true') {
+            this.table.column(4).search('^사용$', true, false);
+        } else if (useYn === 'false') {
+            this.table.column(4).search('미사용', true, false);
+        } else {
+            this.table.column(4).search('', true, false);
+        }
+
+        this.table.draw();
     },
 
     copyRegister: function(id) {

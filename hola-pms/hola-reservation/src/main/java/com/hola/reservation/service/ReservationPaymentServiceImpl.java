@@ -39,8 +39,9 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
     private final ReservationMapper reservationMapper;
 
     @Override
-    public PaymentSummaryResponse getPaymentSummary(Long reservationId) {
-        findMasterById(reservationId);
+    public PaymentSummaryResponse getPaymentSummary(Long propertyId, Long reservationId) {
+        MasterReservation master = findMasterById(reservationId);
+        validateReservationProperty(master, propertyId);
 
         ReservationPayment payment = paymentRepository
                 .findByMasterReservationId(reservationId)
@@ -72,8 +73,9 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
 
     @Override
     @Transactional
-    public PaymentSummaryResponse processPayment(Long reservationId, PaymentProcessRequest request) {
+    public PaymentSummaryResponse processPayment(Long propertyId, Long reservationId, PaymentProcessRequest request) {
         MasterReservation master = findMasterById(reservationId);
+        validateReservationProperty(master, propertyId);
 
         // 예약 상태 체크
         String reservationStatus = master.getReservationStatus();
@@ -148,8 +150,9 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
 
     @Override
     @Transactional
-    public PaymentAdjustmentResponse addAdjustment(Long reservationId, PaymentAdjustmentRequest request) {
+    public PaymentAdjustmentResponse addAdjustment(Long propertyId, Long reservationId, PaymentAdjustmentRequest request) {
         MasterReservation master = findMasterById(reservationId);
+        validateReservationProperty(master, propertyId);
 
         // 완료/취소 상태 예약은 금액 조정 불가
         String status = master.getReservationStatus();
@@ -205,6 +208,15 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
     private MasterReservation findMasterById(Long id) {
         return masterReservationRepository.findById(id)
                 .orElseThrow(() -> new HolaException(ErrorCode.RESERVATION_NOT_FOUND));
+    }
+
+    /**
+     * 예약이 해당 프로퍼티 소속인지 검증 (인가 우회 방지)
+     */
+    private void validateReservationProperty(MasterReservation master, Long propertyId) {
+        if (!master.getProperty().getId().equals(propertyId)) {
+            throw new HolaException(ErrorCode.RESERVATION_NOT_FOUND);
+        }
     }
 
     /**

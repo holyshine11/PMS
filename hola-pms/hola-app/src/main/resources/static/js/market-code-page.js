@@ -108,13 +108,13 @@ const MarketCodePage = {
     reload: function() {
         var propertyId = HolaPms.context.getPropertyId();
         if (!propertyId) {
-            $('#contextAlert').show();
+            $('#contextAlert').removeClass('d-none');
             $('#btnCreateWrap').hide();
             this.table.clear().draw();
             HolaPms.requireContext('property');
             return;
         }
-        $('#contextAlert').hide();
+        $('#contextAlert').addClass('d-none');
         $('#btnCreateWrap').show();
         this.table.ajax.url('/api/v1/properties/' + propertyId + '/market-codes').load();
     },
@@ -127,13 +127,13 @@ const MarketCodePage = {
         // 코드명/마켓코드명 전체 검색
         this.table.search(keyword);
 
-        // 사용여부 컬럼(인덱스 3) 필터
+        // 사용여부 컬럼(인덱스 3) 필터 - 렌더링된 뱃지 텍스트 기준 정규식 검색
         if (useYn === 'true') {
-            this.table.column(3).search('true');
+            this.table.column(3).search('^사용$', true, false);
         } else if (useYn === 'false') {
-            this.table.column(3).search('false');
+            this.table.column(3).search('미사용', true, false);
         } else {
-            this.table.column(3).search('');
+            this.table.column(3).search('', true, false);
         }
 
         this.table.draw();

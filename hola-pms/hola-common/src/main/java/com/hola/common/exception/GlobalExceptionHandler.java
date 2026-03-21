@@ -41,8 +41,9 @@ public class GlobalExceptionHandler {
                 .body(HolaResponse.error(ErrorCode.INVALID_INPUT.getCode(), message));
     }
 
-    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
-    public ResponseEntity<HolaResponse<Void>> handleOptimisticLockException(ObjectOptimisticLockingFailureException e) {
+    @ExceptionHandler({ObjectOptimisticLockingFailureException.class,
+            jakarta.persistence.OptimisticLockException.class})
+    public ResponseEntity<HolaResponse<Void>> handleOptimisticLockException(Exception e) {
         log.warn("동시성 충돌 발생: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)

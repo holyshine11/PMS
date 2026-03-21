@@ -483,7 +483,7 @@ public class BookingServiceImpl implements BookingService {
 
         // 9. 결제 정보 생성 (ReservationPayment + PaymentTransaction)
         reservationPaymentService.recalculatePayment(master.getId());
-        reservationPaymentService.processPayment(master.getId(),
+        reservationPaymentService.processPayment(master.getProperty().getId(), master.getId(),
                 new PaymentProcessRequest(paymentInfo.getMethod(), grandTotal,
                         "부킹엔진 결제 - 승인번호: " + paymentResult.getApprovalNo()));
 
@@ -802,7 +802,8 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 결제 정보 조회
-        var paymentSummary = reservationPaymentService.getPaymentSummary(master.getId());
+        var paymentSummary = reservationPaymentService.getPaymentSummary(
+                master.getProperty().getId(), master.getId());
         String approvalNo = null;
         if (paymentSummary.getTransactions() != null && !paymentSummary.getTransactions().isEmpty()) {
             approvalNo = paymentSummary.getTransactions().get(0).getMemo();

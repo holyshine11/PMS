@@ -11,13 +11,13 @@ import com.hola.reservation.dto.response.PaymentSummaryResponse;
 public interface ReservationPaymentService {
 
     /** 결제 정보 조회 */
-    PaymentSummaryResponse getPaymentSummary(Long reservationId);
+    PaymentSummaryResponse getPaymentSummary(Long propertyId, Long reservationId);
 
     /** 결제 처리 (카드/현금, 부분결제 지원) */
-    PaymentSummaryResponse processPayment(Long reservationId, PaymentProcessRequest request);
+    PaymentSummaryResponse processPayment(Long propertyId, Long reservationId, PaymentProcessRequest request);
 
     /** 금액 조정 추가 */
-    PaymentAdjustmentResponse addAdjustment(Long reservationId, PaymentAdjustmentRequest request);
+    PaymentAdjustmentResponse addAdjustment(Long propertyId, Long reservationId, PaymentAdjustmentRequest request);
 
     /** 결제 금액 재계산 */
     void recalculatePayment(Long reservationId);

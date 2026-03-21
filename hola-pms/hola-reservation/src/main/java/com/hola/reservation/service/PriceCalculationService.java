@@ -181,29 +181,40 @@ public class PriceCalculationService {
 
     /**
      * 날짜(기간+요일)에 맞는 요금표 찾기
+     * - 기간 중복 시 가장 좁은 기간(구체적 요금)을 우선 선택
+     * - Boolean null 안전 처리 (getDayXxx() null → false 취급)
      */
     private RatePricing findPricingForDate(List<RatePricing> pricingList, LocalDate date) {
         DayOfWeek dayOfWeek = date.getDayOfWeek();
+        RatePricing bestMatch = null;
+        long bestSpan = Long.MAX_VALUE;
+
         for (RatePricing pricing : pricingList) {
             // 기간 매칭
             if (date.isBefore(pricing.getStartDate()) || date.isAfter(pricing.getEndDate())) {
                 continue;
             }
-            // 요일 매칭
+            // 요일 매칭 (Boolean null 안전)
             boolean matches = switch (dayOfWeek) {
-                case MONDAY -> pricing.getDayMon();
-                case TUESDAY -> pricing.getDayTue();
-                case WEDNESDAY -> pricing.getDayWed();
-                case THURSDAY -> pricing.getDayThu();
-                case FRIDAY -> pricing.getDayFri();
-                case SATURDAY -> pricing.getDaySat();
-                case SUNDAY -> pricing.getDaySun();
+                case MONDAY -> Boolean.TRUE.equals(pricing.getDayMon());
+                case TUESDAY -> Boolean.TRUE.equals(pricing.getDayTue());
+                case WEDNESDAY -> Boolean.TRUE.equals(pricing.getDayWed());
+                case THURSDAY -> Boolean.TRUE.equals(pricing.getDayThu());
+                case FRIDAY -> Boolean.TRUE.equals(pricing.getDayFri());
+                case SATURDAY -> Boolean.TRUE.equals(pricing.getDaySat());
+                case SUNDAY -> Boolean.TRUE.equals(pricing.getDaySun());
             };
             if (matches) {
-                return pricing;
+                // 기간 폭이 좁을수록 구체적 요금 → 우선 선택
+                long span = java.time.temporal.ChronoUnit.DAYS.between(
+                        pricing.getStartDate(), pricing.getEndDate());
+                if (span < bestSpan) {
+                    bestSpan = span;
+                    bestMatch = pricing;
+                }
             }
         }
-        return null;
+        return bestMatch;
     }
 
     /**

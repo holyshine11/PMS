@@ -34,7 +34,20 @@ public class HotelServiceImpl implements HotelService {
 
     @Override
     public Page<HotelResponse> getHotels(String hotelName, Boolean useYn, Pageable pageable) {
-        Page<Hotel> hotels = hotelRepository.findAllByHotelNameAndUseYn(hotelName, useYn, pageable);
+        // JPQL null 파라미터 안티패턴 회피 — 조건 조합별 분기
+        boolean hasName = hotelName != null && !hotelName.isBlank();
+        boolean hasUseYn = useYn != null;
+
+        Page<Hotel> hotels;
+        if (hasName && hasUseYn) {
+            hotels = hotelRepository.findAllByHotelNameContainingAndUseYn(hotelName, useYn, pageable);
+        } else if (hasName) {
+            hotels = hotelRepository.findAllByHotelNameContaining(hotelName, pageable);
+        } else if (hasUseYn) {
+            hotels = hotelRepository.findAllByUseYn(useYn, pageable);
+        } else {
+            hotels = hotelRepository.findAllBy(pageable);
+        }
         return hotels.map(hotelMapper::toResponse);
     }
 

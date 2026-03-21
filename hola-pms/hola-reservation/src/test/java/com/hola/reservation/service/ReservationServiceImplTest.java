@@ -231,7 +231,7 @@ class ReservationServiceImplTest {
                 .thenReturn(Collections.emptyList());
         lenient().when(reservationMemoRepository.findByMasterReservationIdOrderByCreatedAtDesc(master.getId()))
                 .thenReturn(Collections.emptyList());
-        lenient().when(paymentService.getPaymentSummary(master.getId()))
+        lenient().when(paymentService.getPaymentSummary(PROPERTY_ID, master.getId()))
                 .thenReturn(PaymentSummaryResponse.builder().build());
     }
 
@@ -1244,7 +1244,7 @@ class ReservationServiceImplTest {
                     .thenReturn(Collections.emptyList());
             when(reservationMemoRepository.findByMasterReservationIdOrderByCreatedAtDesc(MASTER_ID))
                     .thenReturn(Collections.emptyList());
-            when(paymentService.getPaymentSummary(MASTER_ID))
+            when(paymentService.getPaymentSummary(PROPERTY_ID, MASTER_ID))
                     .thenReturn(PaymentSummaryResponse.builder().build());
 
             // when

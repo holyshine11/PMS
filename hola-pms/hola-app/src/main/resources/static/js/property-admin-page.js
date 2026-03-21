@@ -54,12 +54,12 @@ const PropertyAdminPage = {
     reload: function() {
         var propertyId = HolaPms.context.getPropertyId();
         if (!propertyId) {
-            $('#contextAlert').show();
+            $('#contextAlert').removeClass('d-none');
             this.table.clear().draw();
             HolaPms.requireContext('property');
             return;
         }
-        $('#contextAlert').hide();
+        $('#contextAlert').addClass('d-none');
 
         // 호텔명/프로퍼티명 표시
         var hotelName = HolaPms.context.getHotelName ? HolaPms.context.getHotelName() : '';

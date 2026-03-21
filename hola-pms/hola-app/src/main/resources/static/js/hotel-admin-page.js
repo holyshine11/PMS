@@ -56,12 +56,12 @@ const HotelAdminPage = {
     reload: function() {
         var hotelId = HolaPms.context.getHotelId();
         if (!hotelId) {
-            $('#contextAlert').show();
+            $('#contextAlert').removeClass('d-none');
             this.table.clear().draw();
             HolaPms.requireContext('hotel');
             return;
         }
-        $('#contextAlert').hide();
+        $('#contextAlert').addClass('d-none');
 
         // 호텔명 표시
         var hotelName = HolaPms.context.getHotelName ? HolaPms.context.getHotelName() : '';
