@@ -379,6 +379,22 @@ public class HkAssignmentServiceImpl implements HkAssignmentService {
         AdminUser user = adminUserRepository.findById(housekeeperId)
                 .orElseThrow(() -> new HolaException(ErrorCode.ADMIN_NOT_FOUND));
 
+        // 승인된 휴무가 있으면 DAY_OFF 상태 반환 (출근 버튼 미표시)
+        boolean isApprovedDayOff = hkDayOffRepository
+                .findByPropertyIdAndHousekeeperIdAndDayOffDate(propertyId, housekeeperId, today)
+                .map(d -> "APPROVED".equals(d.getStatus()))
+                .orElse(false);
+        if (isApprovedDayOff) {
+            return HkAttendanceResponse.AttendanceEntry.builder()
+                    .housekeeperId(housekeeperId)
+                    .userName(user.getUserName())
+                    .role(user.getRole())
+                    .isAvailable(false)
+                    .shiftType("DAY")
+                    .attendanceStatus("DAY_OFF")
+                    .build();
+        }
+
         HkDailyAttendance att = hkDailyAttendanceRepository
                 .findByPropertyIdAndAttendanceDateAndHousekeeperId(propertyId, today, housekeeperId)
                 .orElse(null);

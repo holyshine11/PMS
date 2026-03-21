@@ -357,7 +357,11 @@ var HkMobile = {
                     self.loadAttendanceStatus();
                 }
             },
-            error: function () { $('#btnClockIn').prop('disabled', false); }
+            error: function (xhr) {
+                $('#btnClockIn').prop('disabled', false);
+                var msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '출근 처리에 실패했습니다.';
+                HolaPms.alert('error', msg);
+            }
         });
     },
 
@@ -375,7 +379,11 @@ var HkMobile = {
                     self.loadAttendanceStatus();
                 }
             },
-            error: function () { $('#btnClockOut').prop('disabled', false); }
+            error: function (xhr) {
+                $('#btnClockOut').prop('disabled', false);
+                var msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '퇴근 처리에 실패했습니다.';
+                HolaPms.alert('error', msg);
+            }
         });
     }
 };
