@@ -16,6 +16,8 @@ import com.hola.room.entity.RoomType;
 import com.hola.room.entity.RoomTypeFloor;
 import com.hola.room.repository.RoomTypeFloorRepository;
 import com.hola.room.repository.RoomTypeRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 /**
  * Room Rack REST API (hotel + reservation 데이터 합성)
  */
+@Tag(name = "룸랙", description = "실시간 객실 현황 조회 API")
 @RestController
 @RequestMapping("/api/v1/properties/{propertyId}/room-rack")
 @RequiredArgsConstructor
@@ -42,6 +45,7 @@ public class RoomRackController {
     /**
      * Room Rack 전체 조회 (층별 그룹핑)
      */
+    @Operation(summary = "룸랙 조회", description = "전체 객실 현황 (점유/청소/OOO/OOS 상태)")
     @GetMapping
     public HolaResponse<List<RoomRackFloorGroupResponse>> getRoomRack(@PathVariable Long propertyId) {
         accessControlService.validatePropertyAccess(propertyId);
@@ -121,6 +125,7 @@ public class RoomRackController {
     /**
      * 개별 객실 상세
      */
+    @Operation(summary = "객실 상세 조회", description = "개별 객실 상세 현황")
     @GetMapping("/{roomNumberId}")
     public HolaResponse<RoomRackItemResponse> getRoomRackItem(
             @PathVariable Long propertyId, @PathVariable Long roomNumberId) {

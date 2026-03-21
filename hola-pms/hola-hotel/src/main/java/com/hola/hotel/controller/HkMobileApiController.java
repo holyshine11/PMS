@@ -16,6 +16,7 @@ import com.hola.hotel.repository.HkDailyAttendanceRepository;
 import com.hola.hotel.service.HkAssignmentService;
 import com.hola.hotel.service.HousekeeperService;
 import com.hola.hotel.service.HousekeepingService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -52,6 +53,7 @@ public class HkMobileApiController {
 
     // === 내 작업 ===
 
+    @Operation(summary = "내 작업 목록", description = "모바일 하우스키퍼 배정 작업 목록")
     @GetMapping("/my-tasks")
     public ResponseEntity<HolaResponse<List<HkTaskResponse>>> getMyTasks(
             @PathVariable Long propertyId,
@@ -61,6 +63,7 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.getMyTasks(userId, date)));
     }
 
+    @Operation(summary = "작업 상세", description = "개별 작업 상세 조회")
     @GetMapping("/my-tasks/{taskId}")
     public ResponseEntity<HolaResponse<HkTaskResponse>> getMyTask(
             @PathVariable Long propertyId,
@@ -71,6 +74,7 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTask(taskId)));
     }
 
+    @Operation(summary = "작업 시작", description = "청소 작업 시작")
     @PutMapping("/my-tasks/{taskId}/start")
     public ResponseEntity<HolaResponse<Void>> startTask(
             @PathVariable Long propertyId,
@@ -81,6 +85,7 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success());
     }
 
+    @Operation(summary = "작업 일시중지", description = "청소 작업 일시중지")
     @PutMapping("/my-tasks/{taskId}/pause")
     public ResponseEntity<HolaResponse<Void>> pauseTask(
             @PathVariable Long propertyId,
@@ -91,6 +96,7 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success());
     }
 
+    @Operation(summary = "작업 완료", description = "청소 작업 완료 처리")
     @PutMapping("/my-tasks/{taskId}/complete")
     public ResponseEntity<HolaResponse<Void>> completeTask(
             @PathVariable Long propertyId,
@@ -101,6 +107,7 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success());
     }
 
+    @Operation(summary = "예상 시간 수정", description = "작업 예상 완료 시간 수정")
     @PutMapping("/my-tasks/{taskId}/estimate")
     public ResponseEntity<HolaResponse<Void>> updateEstimate(
             @PathVariable Long propertyId,
@@ -112,6 +119,7 @@ public class HkMobileApiController {
 
     // === 이슈/메모 ===
 
+    @Operation(summary = "작업 이슈 목록", description = "작업 관련 이슈 조회")
     @GetMapping("/my-tasks/{taskId}/issues")
     public ResponseEntity<HolaResponse<List<HkTaskIssueResponse>>> getTaskIssues(
             @PathVariable Long propertyId,
@@ -122,6 +130,7 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTaskIssues(taskId)));
     }
 
+    @Operation(summary = "이슈 등록", description = "작업 중 이슈 등록")
     @PostMapping("/my-tasks/{taskId}/issues")
     public ResponseEntity<HolaResponse<HkTaskIssueResponse>> createIssue(
             @PathVariable Long propertyId,
@@ -138,6 +147,7 @@ public class HkMobileApiController {
 
     // === 일일 요약 ===
 
+    @Operation(summary = "내 작업 요약", description = "모바일 하우스키퍼 작업 요약")
     @GetMapping("/my-summary")
     public ResponseEntity<HolaResponse<HkMobileSummaryResponse>> getMySummary(
             @PathVariable Long propertyId,
@@ -149,6 +159,7 @@ public class HkMobileApiController {
 
     // === 휴무일 ===
 
+    @Operation(summary = "내 휴무 목록", description = "휴무 신청 목록 조회")
     @GetMapping("/my-dayoffs")
     public ResponseEntity<HolaResponse<List<HkDayOffResponse>>> getMyDayOffs(
             @PathVariable Long propertyId,
@@ -170,6 +181,7 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success(responses));
     }
 
+    @Operation(summary = "휴무 신청", description = "휴무일 신청")
     @Transactional
     @PostMapping("/my-dayoffs")
     public ResponseEntity<HolaResponse<HkDayOffResponse>> createMyDayOff(
@@ -205,6 +217,7 @@ public class HkMobileApiController {
         return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(response));
     }
 
+    @Operation(summary = "휴무 신청 취소", description = "휴무 신청 철회")
     @Transactional
     @DeleteMapping("/my-dayoffs/{dayOffId}")
     public ResponseEntity<HolaResponse<Void>> deleteMyDayOff(
@@ -223,6 +236,7 @@ public class HkMobileApiController {
 
     // === 프로필 ===
 
+    @Operation(summary = "내 정보 조회", description = "모바일 프로필 조회")
     @GetMapping("/my-profile")
     public ResponseEntity<HolaResponse<HousekeeperResponse>> getMyProfile(
             @PathVariable Long propertyId,
@@ -239,6 +253,7 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success(response));
     }
 
+    @Operation(summary = "내 정보 수정", description = "모바일 프로필 수정")
     @Transactional
     @PutMapping("/my-profile")
     public ResponseEntity<HolaResponse<Void>> updateMyProfile(
@@ -255,6 +270,7 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success());
     }
 
+    @Operation(summary = "비밀번호 변경", description = "모바일 비밀번호 변경")
     @Transactional
     @PutMapping("/my-profile/change-password")
     public ResponseEntity<HolaResponse<Void>> changeMyPassword(
@@ -284,6 +300,7 @@ public class HkMobileApiController {
 
     // === 근태 ===
 
+    @Operation(summary = "내 근태", description = "오늘 출퇴근 현황")
     @GetMapping("/my-attendance")
     public ResponseEntity<HolaResponse<HkAttendanceResponse.AttendanceEntry>> getMyAttendance(
             @PathVariable Long propertyId,
@@ -293,6 +310,7 @@ public class HkMobileApiController {
                 hkAssignmentService.getMyAttendanceStatus(propertyId, userId)));
     }
 
+    @Operation(summary = "출근", description = "하우스키퍼 출근 처리")
     @PostMapping("/clock-in")
     public ResponseEntity<HolaResponse<Void>> clockIn(
             @PathVariable Long propertyId,
@@ -302,6 +320,7 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success());
     }
 
+    @Operation(summary = "퇴근", description = "하우스키퍼 퇴근 처리")
     @PostMapping("/clock-out")
     public ResponseEntity<HolaResponse<Void>> clockOut(
             @PathVariable Long propertyId,
