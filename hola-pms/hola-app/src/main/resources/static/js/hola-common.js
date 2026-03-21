@@ -535,8 +535,8 @@ const HolaPms = {
 // dataTableLanguage alias (개별 JS에서 참조용)
 HolaPms.dataTableLanguage = HolaPms.dataTableDefaults.language;
 
-// DataTable 에러 글로벌 핸들링 (401/403은 사용자에게 안내, 나머지는 콘솔)
-$.fn.dataTable.ext.errMode = function(settings, techNote, message) {
+// DataTable 에러 글로벌 핸들링 (모바일 등 DataTables 미로드 환경 대비 가드)
+if ($.fn.dataTable) $.fn.dataTable.ext.errMode = function(settings, techNote, message) {
     if (settings && settings.jqXHR) {
         var status = settings.jqXHR.status;
         if (status === 401) {
