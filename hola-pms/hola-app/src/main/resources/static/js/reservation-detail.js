@@ -21,14 +21,15 @@ var ReservationDetail = {
     // 상태 배지 매핑 (HolaPms.reservationStatus 공통 참조)
     STATUS_BADGE: HolaPms.reservationStatus,
 
-    // 상태 전이 매트릭스
+    // 상태 전이 매트릭스 (체크인 → 바로 INHOUSE, 업계 표준)
     STATUS_TRANSITIONS: {
         RESERVED: [
-            { status: 'CHECK_IN', label: '체크인', icon: 'fa-sign-in-alt', cls: 'btn-info' },
+            { status: 'INHOUSE', label: '체크인', icon: 'fa-sign-in-alt', cls: 'btn-info' },
             { status: 'CANCELED', label: '취소', icon: 'fa-ban', cls: 'btn-danger' },
             { status: 'NO_SHOW', label: '노쇼', icon: 'fa-user-slash', cls: 'btn-warning' }
         ],
         CHECK_IN: [
+            // 하위 호환: 기존 CHECK_IN 데이터 → INHOUSE 전이
             { status: 'INHOUSE', label: '투숙중', icon: 'fa-door-open', cls: 'btn-success' },
             { status: 'CANCELED', label: '취소', icon: 'fa-ban', cls: 'btn-danger' }
         ],

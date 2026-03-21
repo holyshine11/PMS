@@ -79,9 +79,10 @@ public class ReservationServiceImpl implements ReservationService {
     private final com.hola.hotel.service.HousekeepingService housekeepingService;
 
     // 허용되는 상태 전이 매트릭스
+    // 체크인 액션 → 바로 INHOUSE (CHECK_IN 중간 상태 제거, 업계 표준)
     private static final Map<String, Set<String>> STATUS_TRANSITIONS = Map.of(
-            "RESERVED", Set.of("CHECK_IN", "CANCELED", "NO_SHOW"),
-            "CHECK_IN", Set.of("INHOUSE", "CANCELED"),
+            "RESERVED", Set.of("INHOUSE", "CANCELED", "NO_SHOW"),
+            "CHECK_IN", Set.of("INHOUSE", "CANCELED"),  // 하위 호환: 기존 CHECK_IN 데이터 → INHOUSE 전이 허용
             "INHOUSE", Set.of("CHECKED_OUT"),
             "CHECKED_OUT", Set.of(),
             "CANCELED", Set.of(),
@@ -439,7 +440,8 @@ public class ReservationServiceImpl implements ReservationService {
 
         // 취소/노쇼 가능 상태 확인
         String currentStatus = master.getReservationStatus();
-        if (!"RESERVED".equals(currentStatus) && !"CHECK_IN".equals(currentStatus)) {
+        if (!"RESERVED".equals(currentStatus) && !"CHECK_IN".equals(currentStatus)
+                && !"INHOUSE".equals(currentStatus)) {
             throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
         }
 
@@ -482,9 +484,9 @@ public class ReservationServiceImpl implements ReservationService {
     public void cancel(Long id, Long propertyId) {
         MasterReservation master = findMasterById(id, propertyId);
 
-        // RESERVED 또는 CHECK_IN 상태만 취소 가능 (STATUS_TRANSITIONS 매트릭스와 일관)
+        // RESERVED 상태만 취소 가능 (체크인 후에는 체크아웃 처리)
         String currentStatus = master.getReservationStatus();
-        if (!"RESERVED".equals(currentStatus) && !"CHECK_IN".equals(currentStatus)) {
+        if (!"RESERVED".equals(currentStatus)) {
             throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
         }
 
@@ -616,8 +618,8 @@ public class ReservationServiceImpl implements ReservationService {
                 throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
             }
 
-            // 체크인 전제조건: 객실 배정 + OOO 확인
-            if ("CHECK_IN".equals(newStatus)) {
+            // 체크인 전제조건: 객실 배정 + 청소상태 확인 (RESERVED→INHOUSE 직행)
+            if ("INHOUSE".equals(newStatus) && "RESERVED".equals(currentLegStatus)) {
                 validateCheckInPrerequisites(targetSub);
             }
 
@@ -650,7 +652,7 @@ public class ReservationServiceImpl implements ReservationService {
                 statusChanged = true;
             } else {
                 // 체크인/투숙중/체크아웃: 전이 가능한 Leg만 변경
-                if ("CHECK_IN".equals(newStatus)) {
+                if ("INHOUSE".equals(newStatus)) {
                     // 전체 체크인: 모든 RESERVED Leg의 전제조건 검증
                     for (SubReservation sub : master.getSubReservations()) {
                         if ("RESERVED".equals(sub.getRoomReservationStatus())) {
@@ -684,7 +686,7 @@ public class ReservationServiceImpl implements ReservationService {
         master.updateStatus(derivedStatus);
 
         // 얼리/레이트 요금 발생 시 결제 재계산
-        if ("CHECK_IN".equals(newStatus) || "CHECKED_OUT".equals(newStatus)) {
+        if ("INHOUSE".equals(newStatus) || "CHECKED_OUT".equals(newStatus)) {
             paymentService.recalculatePayment(master.getId());
         }
 
@@ -704,7 +706,8 @@ public class ReservationServiceImpl implements ReservationService {
         sub.updateStatus(newStatus);
         LocalDateTime now = LocalDateTime.now();
 
-        if ("CHECK_IN".equals(newStatus)) {
+        // INHOUSE: 체크인 부수효과 (RESERVED→INHOUSE 또는 CHECK_IN→INHOUSE)
+        if ("INHOUSE".equals(newStatus) && sub.getActualCheckInTime() == null) {
             BigDecimal earlyFee = earlyLateCheckService.calculateEarlyCheckInFee(sub, now);
             sub.recordCheckIn(now, earlyFee);
             if (sub.getRoomNumberId() != null) {
@@ -741,8 +744,9 @@ public class ReservationServiceImpl implements ReservationService {
      * - 활성 Leg(CANCELED/NO_SHOW 제외) 중 가장 진행된 상태를 마스터 상태로 설정
      * - 전부 CHECKED_OUT → CHECKED_OUT
      * - 하나라도 INHOUSE → INHOUSE
-     * - 하나라도 CHECK_IN → CHECK_IN
+     * - 전부 CHECKED_OUT → CHECKED_OUT
      * - 전부 CANCELED → CANCELED
+     * - CHECK_IN은 하위 호환 처리 (INHOUSE와 동급)
      */
     private String deriveMasterStatus(List<SubReservation> subs) {
         List<String> activeStatuses = subs.stream()
@@ -757,8 +761,8 @@ public class ReservationServiceImpl implements ReservationService {
             return allCanceled ? "CANCELED" : "NO_SHOW";
         }
 
-        if (activeStatuses.contains("INHOUSE")) return "INHOUSE";
-        if (activeStatuses.contains("CHECK_IN")) return "CHECK_IN";
+        // CHECK_IN은 하위 호환 — INHOUSE와 동급 취급
+        if (activeStatuses.contains("INHOUSE") || activeStatuses.contains("CHECK_IN")) return "INHOUSE";
         if (activeStatuses.stream().allMatch("CHECKED_OUT"::equals)) return "CHECKED_OUT";
         return "RESERVED";
     }

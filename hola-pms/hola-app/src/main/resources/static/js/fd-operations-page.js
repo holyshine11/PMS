@@ -3,8 +3,7 @@
  * 상태 필터 + DataTable + 예약 상세 팝업
  *
  * 상태 전이 매트릭스:
- *   예약(RESERVED) → 체크인(CHECK_IN), 취소(CANCELED), 노쇼(NO_SHOW)
- *   체크인(CHECK_IN) → 투숙중(INHOUSE), 취소(CANCELED)
+ *   예약(RESERVED) → 체크인(INHOUSE), 취소(CANCELED), 노쇼(NO_SHOW)
  *   투숙중(INHOUSE) → 체크아웃(CHECKED_OUT)
  *   체크아웃/취소/노쇼 → (종료 상태)
  */
@@ -63,7 +62,7 @@ var FdOperations = {
         // Quick Action — Leg 단위 상태 변경
         $(document).on('click', '.btn-checkin', function (e) {
             e.preventDefault(); e.stopPropagation();
-            self.changeStatus($(this).data('reservation-id'), 'CHECK_IN', '체크인 처리하시겠습니까?', $(this).data('sub-id'), $(this).data('current-status'));
+            self.changeStatus($(this).data('reservation-id'), 'INHOUSE', '체크인 처리하시겠습니까?', $(this).data('sub-id'), $(this).data('current-status'));
         });
         $(document).on('click', '.btn-inhouse', function (e) {
             e.preventDefault(); e.stopPropagation();
@@ -308,10 +307,10 @@ var FdOperations = {
         'NO_SHOW':     { label: '노쇼',     bg: '#ffc107', color: '#000' }
     },
 
-    // 상태 전환 매트릭스
+    // 상태 전환 매트릭스 (체크인 → 바로 INHOUSE)
     STATUS_TRANSITIONS: {
-        'RESERVED':    ['CHECK_IN', 'CANCELED', 'NO_SHOW'],
-        'CHECK_IN':    ['INHOUSE', 'CANCELED'],
+        'RESERVED':    ['INHOUSE', 'CANCELED', 'NO_SHOW'],
+        'CHECK_IN':    ['INHOUSE', 'CANCELED'],  // 하위 호환
         'INHOUSE':     ['CHECKED_OUT'],
         'CHECKED_OUT': [],
         'CANCELED':    [],
