@@ -30,8 +30,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.hola.rate.entity.RateCode;
+import com.hola.rate.entity.DayUseRate;
+import com.hola.rate.repository.DayUseRateRepository;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -75,6 +78,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationPaymentRepository reservationPaymentRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final RateIncludedServiceHelper rateIncludedServiceHelper;
+    private final DayUseRateRepository dayUseRateRepository;
     private final EntityManager entityManager;
     private final com.hola.hotel.service.HousekeepingService housekeepingService;
 
@@ -211,6 +215,7 @@ public class ReservationServiceImpl implements ReservationService {
                     .collect(Collectors.toMap(PaidServiceOption::getId, PaidServiceOption::getServiceNameKo));
 
         // 이름이 포함된 새 SubReservationResponse 생성
+        // toBuilder 패턴: 기존 필드 자동 유지, 이름만 resolve (새 필드 추가 시 누락 방지)
         return subs.stream().map(sub -> {
             // 서비스 항목에 서비스명 매핑
             List<ReservationServiceResponse> resolvedServices = sub.getServices() != null
@@ -227,28 +232,10 @@ public class ReservationServiceImpl implements ReservationService {
                         .build()).collect(Collectors.toList())
                     : Collections.emptyList();
 
-            return SubReservationResponse.builder()
-                .id(sub.getId())
-                .subReservationNo(sub.getSubReservationNo())
-                .roomReservationStatus(sub.getRoomReservationStatus())
-                .roomTypeId(sub.getRoomTypeId())
+            return sub.toBuilder()
                 .roomTypeName(sub.getRoomTypeId() != null ? roomTypeMap.get(sub.getRoomTypeId()) : null)
-                .floorId(sub.getFloorId())
                 .floorName(sub.getFloorId() != null ? floorMap.get(sub.getFloorId()) : null)
-                .roomNumberId(sub.getRoomNumberId())
                 .roomNumber(sub.getRoomNumberId() != null ? roomNumberMap.get(sub.getRoomNumberId()) : null)
-                .adults(sub.getAdults())
-                .children(sub.getChildren())
-                .checkIn(sub.getCheckIn())
-                .checkOut(sub.getCheckOut())
-                .earlyCheckIn(sub.getEarlyCheckIn())
-                .lateCheckOut(sub.getLateCheckOut())
-                .actualCheckInTime(sub.getActualCheckInTime())
-                .actualCheckOutTime(sub.getActualCheckOutTime())
-                .earlyCheckInFee(sub.getEarlyCheckInFee())
-                .lateCheckOutFee(sub.getLateCheckOutFee())
-                .guests(sub.getGuests())
-                .dailyCharges(sub.getDailyCharges())
                 .services(resolvedServices)
                 .build();
         }).collect(Collectors.toList());
@@ -260,17 +247,20 @@ public class ReservationServiceImpl implements ReservationService {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new HolaException(ErrorCode.PROPERTY_NOT_FOUND));
 
-        // 체크인/체크아웃 유효성
-        validateDates(request.getMasterCheckIn(), request.getMasterCheckOut());
+        // 레이트코드 필수 검증
+        if (request.getRateCodeId() == null) {
+            throw new HolaException(ErrorCode.RESERVATION_RATE_REQUIRED);
+        }
+
+        // Dayuse 여부 판별 (날짜 검증 전에 확인)
+        boolean isDayUse = isDayUseRateCode(request.getRateCodeId());
+
+        // 체크인/체크아웃 유효성 (dayuse는 같은 날짜 허용)
+        validateDates(request.getMasterCheckIn(), request.getMasterCheckOut(), isDayUse);
 
         // 신규 예약은 과거 날짜 체크인 불가
         if (request.getMasterCheckIn().isBefore(LocalDate.now())) {
             throw new HolaException(ErrorCode.RESERVATION_CHECKIN_PAST_DATE);
-        }
-
-        // 레이트코드 필수 검증
-        if (request.getRateCodeId() == null) {
-            throw new HolaException(ErrorCode.RESERVATION_RATE_REQUIRED);
         }
 
         // 레이트코드 판매기간/숙박일수 검증
@@ -342,7 +332,9 @@ public class ReservationServiceImpl implements ReservationService {
             throw new HolaException(ErrorCode.RESERVATION_OTA_EDIT_RESTRICTED);
         }
 
-        validateDates(request.getMasterCheckIn(), request.getMasterCheckOut());
+        // Dayuse 여부 판별
+        boolean isDayUse = isDayUseRateCode(master.getRateCodeId());
+        validateDates(request.getMasterCheckIn(), request.getMasterCheckOut(), isDayUse);
 
         // 수정 시에도 체크인 날짜가 과거인지 검증 (기존 체크인이 미래였다면 과거로 변경 불가)
         if (request.getMasterCheckIn().isBefore(LocalDate.now())
@@ -708,7 +700,9 @@ public class ReservationServiceImpl implements ReservationService {
 
         // INHOUSE: 체크인 부수효과 (RESERVED→INHOUSE 또는 CHECK_IN→INHOUSE)
         if ("INHOUSE".equals(newStatus) && sub.getActualCheckInTime() == null) {
-            BigDecimal earlyFee = earlyLateCheckService.calculateEarlyCheckInFee(sub, now);
+            // Dayuse는 얼리 체크인 요금 해당 없음
+            BigDecimal earlyFee = sub.isDayUse() ? BigDecimal.ZERO
+                    : earlyLateCheckService.calculateEarlyCheckInFee(sub, now);
             sub.recordCheckIn(now, earlyFee);
             if (sub.getRoomNumberId() != null) {
                 com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
@@ -717,7 +711,9 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         if ("CHECKED_OUT".equals(newStatus)) {
-            BigDecimal lateFee = earlyLateCheckService.calculateLateCheckOutFee(sub, now);
+            // Dayuse는 레이트 체크아웃 요금 해당 없음
+            BigDecimal lateFee = sub.isDayUse() ? BigDecimal.ZERO
+                    : earlyLateCheckService.calculateLateCheckOutFee(sub, now);
             sub.recordCheckOut(now, lateFee);
             if (sub.getRoomNumberId() != null) {
                 com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
@@ -1093,8 +1089,22 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     private void validateDates(LocalDate checkIn, LocalDate checkOut) {
-        if (checkIn != null && checkOut != null && !checkOut.isAfter(checkIn)) {
-            throw new HolaException(ErrorCode.SUB_RESERVATION_DATE_INVALID);
+        validateDates(checkIn, checkOut, false);
+    }
+
+    /**
+     * 날짜 유효성 검증 (dayuse 허용 시 같은 날짜 OK)
+     */
+    private void validateDates(LocalDate checkIn, LocalDate checkOut, boolean allowSameDay) {
+        if (checkIn == null || checkOut == null) return;
+        if (allowSameDay) {
+            if (checkOut.isBefore(checkIn)) {
+                throw new HolaException(ErrorCode.SUB_RESERVATION_DATE_INVALID);
+            }
+        } else {
+            if (!checkOut.isAfter(checkIn)) {
+                throw new HolaException(ErrorCode.SUB_RESERVATION_DATE_INVALID);
+            }
         }
     }
 
@@ -1110,7 +1120,12 @@ public class ReservationServiceImpl implements ReservationService {
             throw new HolaException(ErrorCode.RESERVATION_RATE_EXPIRED);
         }
 
-        // 숙박일수 검증
+        // Dayuse 레이트코드는 숙박일수/요금커버리지 검증 스킵 (DayUseRate 기반 요금 적용)
+        if (rateCode.isDayUse()) {
+            return;
+        }
+
+        // 숙박일수 검증 (Overnight만)
         long stayDays = ChronoUnit.DAYS.between(checkIn, checkOut);
         if (rateCode.getMinStayDays() != null && stayDays < rateCode.getMinStayDays()) {
             throw new HolaException(ErrorCode.RESERVATION_STAY_DAYS_VIOLATION);
@@ -1119,7 +1134,7 @@ public class ReservationServiceImpl implements ReservationService {
             throw new HolaException(ErrorCode.RESERVATION_STAY_DAYS_VIOLATION);
         }
 
-        // 요금 커버리지 검증: 모든 숙박일에 매칭되는 요금행이 있는지 확인
+        // 요금 커버리지 검증 (Overnight만)
         priceCalculationService.validatePricingCoverage(rateCodeId, checkIn, checkOut);
     }
 
@@ -1128,7 +1143,24 @@ public class ReservationServiceImpl implements ReservationService {
      */
     private SubReservation createSubReservation(MasterReservation master, SubReservationRequest request,
                                                  int legSeq, Property property) {
-        validateDates(request.getCheckIn(), request.getCheckOut());
+        // Dayuse 자동 감지: 레이트코드의 stayType으로 결정
+        String stayType = resolveStayType(request.getStayType(), master.getRateCodeId());
+        LocalDate effectiveCheckOut = request.getCheckOut();
+        java.time.LocalTime dayUseStart = null;
+        java.time.LocalTime dayUseEnd = null;
+
+        if ("DAY_USE".equals(stayType)) {
+            if (!Boolean.TRUE.equals(property.getDayUseEnabled())) {
+                throw new HolaException(ErrorCode.DAY_USE_NOT_ENABLED);
+            }
+            effectiveCheckOut = request.getCheckIn().plusDays(1);
+            int hours = request.getDayUseDurationHours() != null
+                    ? request.getDayUseDurationHours() : property.getDayUseDefaultHours();
+            dayUseStart = java.time.LocalTime.parse(property.getDayUseStartTime());
+            dayUseEnd = dayUseStart.plusHours(hours);
+        }
+
+        validateDates(request.getCheckIn(), effectiveCheckOut);
 
         // 서브예약도 과거 날짜 체크인 불가
         if (request.getCheckIn().isBefore(LocalDate.now())) {
@@ -1150,7 +1182,7 @@ public class ReservationServiceImpl implements ReservationService {
         // L1 객실 충돌 검사 (비관적 락으로 동시 예약 시 오버부킹 방지)
         if (request.getRoomNumberId() != null) {
             if (availabilityService.hasRoomConflictWithLock(request.getRoomNumberId(),
-                    request.getCheckIn(), request.getCheckOut(), null)) {
+                    request.getCheckIn(), effectiveCheckOut, null)) {
                 throw new HolaException(ErrorCode.SUB_RESERVATION_ROOM_CONFLICT);
             }
         }
@@ -1158,7 +1190,7 @@ public class ReservationServiceImpl implements ReservationService {
         // OOO/OOS 기간 체크 (roomNumberId가 있을 때)
         if (request.getRoomNumberId() != null) {
             List<RoomUnavailable> unavailable = roomUnavailableRepository.findOverlapping(
-                    request.getRoomNumberId(), request.getCheckIn(), request.getCheckOut());
+                    request.getRoomNumberId(), request.getCheckIn(), effectiveCheckOut);
             if (!unavailable.isEmpty()) {
                 throw new HolaException(ErrorCode.ROOM_UNAVAILABLE_FOR_RESERVATION);
             }
@@ -1167,7 +1199,7 @@ public class ReservationServiceImpl implements ReservationService {
         // L2 타입별 가용성 비관적 락 검증 (호수 미배정 시)
         if (request.getRoomNumberId() == null && request.getRoomTypeId() != null) {
             int available = availabilityService.getAvailableRoomCountWithLock(
-                    request.getRoomTypeId(), request.getCheckIn(), request.getCheckOut());
+                    request.getRoomTypeId(), request.getCheckIn(), effectiveCheckOut);
             if (available <= 0) {
                 log.warn("L2 타입별 가용 객실 부족: roomTypeId={}, 잔여={}", request.getRoomTypeId(), available);
             }
@@ -1185,13 +1217,16 @@ public class ReservationServiceImpl implements ReservationService {
                 .masterReservation(master)
                 .subReservationNo(subNo)
                 .roomReservationStatus(legStatus)
+                .stayType(stayType)
+                .dayUseStartTime(dayUseStart)
+                .dayUseEndTime(dayUseEnd)
                 .roomTypeId(request.getRoomTypeId())
                 .floorId(request.getFloorId())
                 .roomNumberId(request.getRoomNumberId())
                 .adults(request.getAdults() != null ? request.getAdults() : 1)
                 .children(request.getChildren() != null ? request.getChildren() : 0)
                 .checkIn(request.getCheckIn())
-                .checkOut(request.getCheckOut())
+                .checkOut(effectiveCheckOut)
                 .earlyCheckIn(request.getEarlyCheckIn() != null ? request.getEarlyCheckIn() : false)
                 .lateCheckOut(request.getLateCheckOut() != null ? request.getLateCheckOut() : false)
                 .build();
@@ -1324,12 +1359,18 @@ public class ReservationServiceImpl implements ReservationService {
         Long rateCodeId = sub.getMasterReservation().getRateCodeId();
         if (rateCodeId == null) return;
 
-        List<DailyCharge> charges = priceCalculationService.calculateDailyCharges(
-                rateCodeId, property,
-                sub.getCheckIn(), sub.getCheckOut(),
-                sub.getAdults(), sub.getChildren(), sub);
-
-        dailyChargeRepository.saveAll(charges);
+        if (sub.isDayUse()) {
+            // Dayuse 전용 요금 조회
+            DailyCharge charge = calculateDayUseCharge(sub, rateCodeId, property);
+            dailyChargeRepository.save(charge);
+        } else {
+            // 기존 숙박 요금 (변경 없음)
+            List<DailyCharge> charges = priceCalculationService.calculateDailyCharges(
+                    rateCodeId, property,
+                    sub.getCheckIn(), sub.getCheckOut(),
+                    sub.getAdults(), sub.getChildren(), sub);
+            dailyChargeRepository.saveAll(charges);
+        }
     }
 
     /**
@@ -1582,5 +1623,78 @@ public class ReservationServiceImpl implements ReservationService {
                 .roomInfo(roomInfo)
                 .roomTypeName(roomTypeName)
                 .build();
+    }
+
+    // ─── Dayuse 헬퍼 메서드 ──────────────────────────
+
+    /**
+     * 레이트코드가 Dayuse인지 확인
+     */
+    private boolean isDayUseRateCode(Long rateCodeId) {
+        if (rateCodeId == null) return false;
+        RateCode rc = rateCodeRepository.findById(rateCodeId).orElse(null);
+        return rc != null && rc.isDayUse();
+    }
+
+    /**
+     * 레이트코드 기반 stayType 자동 결정
+     */
+    private String resolveStayType(String requestStayType, Long rateCodeId) {
+        if (requestStayType != null) return requestStayType;
+        if (rateCodeId != null) {
+            RateCode rc = rateCodeRepository.findById(rateCodeId).orElse(null);
+            if (rc != null && rc.isDayUse()) return "DAY_USE";
+        }
+        return "OVERNIGHT";
+    }
+
+    /**
+     * Dayuse 요금 계산 — DayUseRate 테이블에서 이용시간에 맞는 요금 조회
+     */
+    private DailyCharge calculateDayUseCharge(SubReservation sub, Long rateCodeId, Property property) {
+        int hours = (int) java.time.Duration.between(
+                sub.getDayUseStartTime(), sub.getDayUseEndTime()).toHours();
+
+        DayUseRate rate = dayUseRateRepository.findByRateCodeIdAndDurationHoursAndUseYnTrue(rateCodeId, hours)
+                .orElseThrow(() -> new HolaException(ErrorCode.DAY_USE_RATE_NOT_FOUND));
+
+        BigDecimal supplyPrice = rate.getSupplyPrice();
+
+        // 봉사료 계산 (Property 반올림 설정 적용)
+        BigDecimal serviceChargeRate = property.getServiceChargeRate() != null
+                ? property.getServiceChargeRate() : BigDecimal.ZERO;
+        int scScale = property.getServiceChargeDecimalPlaces() != null ? property.getServiceChargeDecimalPlaces() : 0;
+        RoundingMode scRounding = parseRoundingMode(property.getServiceChargeRoundingMethod());
+        BigDecimal serviceCharge = supplyPrice.multiply(serviceChargeRate)
+                .divide(BigDecimal.valueOf(100), scScale, scRounding);
+
+        // 세금 계산: (공급가 + 봉사료) × taxRate (Property 반올림 설정 적용)
+        BigDecimal taxRate = property.getTaxRate() != null ? property.getTaxRate() : BigDecimal.ZERO;
+        int taxScale = property.getTaxDecimalPlaces() != null ? property.getTaxDecimalPlaces() : 0;
+        RoundingMode taxRounding = parseRoundingMode(property.getTaxRoundingMethod());
+        BigDecimal tax = supplyPrice.add(serviceCharge).multiply(taxRate)
+                .divide(BigDecimal.valueOf(100), taxScale, taxRounding);
+
+        BigDecimal total = supplyPrice.add(serviceCharge).add(tax);
+
+        return DailyCharge.builder()
+                .subReservation(sub)
+                .chargeDate(sub.getCheckIn())
+                .supplyPrice(supplyPrice)
+                .serviceCharge(serviceCharge)
+                .tax(tax)
+                .total(total)
+                .build();
+    }
+
+    private RoundingMode parseRoundingMode(String method) {
+        if (method == null) return RoundingMode.HALF_UP;
+        return switch (method) {
+            case "ROUND_UP" -> RoundingMode.UP;
+            case "ROUND_DOWN" -> RoundingMode.DOWN;
+            case "ROUND_FLOOR" -> RoundingMode.FLOOR;
+            case "ROUND_CEILING" -> RoundingMode.CEILING;
+            default -> RoundingMode.HALF_UP;
+        };
     }
 }

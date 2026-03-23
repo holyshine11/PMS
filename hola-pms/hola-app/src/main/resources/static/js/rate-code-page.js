@@ -71,6 +71,14 @@ var RateCodePage = {
                     }
                 },
                 {
+                    data: 'stayType',
+                    className: 'text-center',
+                    render: function(data) {
+                        if (data === 'DAY_USE') return '<span class="badge" style="background-color:#0582CA;">Dayuse</span>';
+                        return '<span class="badge bg-secondary">숙박</span>';
+                    }
+                },
+                {
                     data: 'marketCodeName',
                     render: function(data) {
                         return HolaPms.escapeHtml(data || '-');

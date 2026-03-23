@@ -564,7 +564,8 @@ var ReservationForm = {
                         render: function(d, t, row) {
                             return '<input type="radio" name="rateCodeSelect" value="' + row.id
                                 + '" data-code="' + HolaPms.escapeHtml(row.rateCode || '')
-                                + '" data-name="' + HolaPms.escapeHtml(row.rateNameKo || '') + '">';
+                                + '" data-name="' + HolaPms.escapeHtml(row.rateNameKo || '')
+                                + '" data-stay-type="' + (row.stayType || 'OVERNIGHT') + '">';
                         }
                     }
                 ]
@@ -588,6 +589,31 @@ var ReservationForm = {
         }
         $('#rateCodeId').val(selected.val());
         $('#rateCodeName').val(selected.data('code') + ' - ' + selected.data('name'));
+
+        // Dayuse 레이트코드 선택 시 checkOut 자동 설정
+        var stayType = selected.data('stay-type') || 'OVERNIGHT';
+        // stayType을 히든 필드에 저장 (collectFormData에서 참조)
+        if (!$('#rateCodeStayType').length) {
+            $('<input type="hidden" id="rateCodeStayType">').appendTo('form');
+        }
+        $('#rateCodeStayType').val(stayType);
+        if (stayType === 'DAY_USE') {
+            var checkIn = $('#masterCheckIn').val();
+            if (checkIn) {
+                // checkOut = checkIn + 1일 (서버에서도 보정하지만 UX 일관성)
+                var d = new Date(checkIn);
+                d.setDate(d.getDate() + 1);
+                var nextDay = d.toISOString().split('T')[0];
+                $('#masterCheckOut').val(nextDay).prop('readonly', true);
+                // 서브 예약 Leg의 체크아웃도 동기화
+                $('.leg-check-out').val(nextDay).prop('readonly', true);
+            }
+            HolaPms.alert('info', 'Dayuse 레이트코드가 선택되었습니다. 체크아웃이 자동 설정됩니다.');
+        } else {
+            $('#masterCheckOut').prop('readonly', false);
+            $('.leg-check-out').prop('readonly', false);
+        }
+
         HolaPms.modal.hide('#rateCodeModal');
     },
 
@@ -1085,6 +1111,10 @@ var ReservationForm = {
     collectFormData: function() {
         var self = this;
 
+        // 레이트코드 stayType 확인 (Dayuse 여부)
+        var rateCodeStayType = $('#rateCodeStayType').val() || 'OVERNIGHT';
+        var isDayUse = rateCodeStayType === 'DAY_USE';
+
         // 서브 예약 (객실 레그) 수집
         var subReservations = [];
         $('.room-leg-card').each(function() {
@@ -1102,7 +1132,7 @@ var ReservationForm = {
                 }
             });
 
-            subReservations.push({
+            var legData = {
                 roomTypeId: roomTypeId,
                 floorId: HolaPms.form.intVal($leg.find('.floor-id')),
                 roomNumberId: HolaPms.form.intVal($leg.find('.room-number-id')),
@@ -1113,7 +1143,20 @@ var ReservationForm = {
                 earlyCheckIn: $leg.find('.leg-early-checkin').val() === 'true',
                 lateCheckOut: $leg.find('.leg-late-checkout').val() === 'true',
                 services: services.length > 0 ? services : null
-            });
+            };
+
+            // Dayuse 레이트코드인 경우 stayType과 이용시간 포함
+            if (isDayUse) {
+                legData.stayType = 'DAY_USE';
+                // 레이트코드명에서 시간 추출 (예: DU-3H → 3, DU-5H → 5)
+                var rcName = $('#rateCodeName').val() || '';
+                var hoursMatch = rcName.match(/DU-(\d+)H/i);
+                if (hoursMatch) {
+                    legData.dayUseDurationHours = parseInt(hoursMatch[1]);
+                }
+            }
+
+            subReservations.push(legData);
         });
 
         // 예치금 정보

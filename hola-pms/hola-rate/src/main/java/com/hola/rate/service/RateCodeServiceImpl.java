@@ -75,6 +75,8 @@ public class RateCodeServiceImpl implements RateCodeService {
                     return true;
                 })
                 .filter(rc -> {
+                    // Dayuse 레이트코드는 DayUseRate 사용 → RatePricing 커버리지 스킵
+                    if (rc.isDayUse()) return true;
                     // 요금행이 체크인~체크아웃 전일까지 모든 날짜를 커버하는지 확인
                     List<RatePricing> pricings = ratePricingRepository.findAllByRateCodeIdOrderByIdAsc(rc.getId());
                     if (pricings.isEmpty()) return false;
@@ -134,6 +136,8 @@ public class RateCodeServiceImpl implements RateCodeService {
         validateSalePeriod(request.getSaleStartDate(), request.getSaleEndDate());
         // 숙박일수 검증
         validateStayDays(request.getMinStayDays(), request.getMaxStayDays());
+        // 숙박유형 검증
+        String stayType = validateAndNormalizeStayType(request.getStayType());
 
         RateCode rateCode = RateCode.builder()
                 .propertyId(propertyId)
@@ -147,6 +151,7 @@ public class RateCodeServiceImpl implements RateCodeService {
                 .saleEndDate(request.getSaleEndDate())
                 .minStayDays(request.getMinStayDays())
                 .maxStayDays(request.getMaxStayDays())
+                .stayType(stayType)
                 .build();
 
         // 사용여부 설정
@@ -179,6 +184,8 @@ public class RateCodeServiceImpl implements RateCodeService {
         validateSalePeriod(request.getSaleStartDate(), request.getSaleEndDate());
         // 숙박일수 검증
         validateStayDays(request.getMinStayDays(), request.getMaxStayDays());
+        // 숙박유형 검증
+        String stayType = validateAndNormalizeStayType(request.getStayType());
 
         rateCode.update(
                 request.getRateNameKo(),
@@ -189,7 +196,8 @@ public class RateCodeServiceImpl implements RateCodeService {
                 request.getSaleStartDate(),
                 request.getSaleEndDate(),
                 request.getMinStayDays(),
-                request.getMaxStayDays()
+                request.getMaxStayDays(),
+                stayType
         );
 
         // 사용여부 토글
@@ -247,6 +255,19 @@ public class RateCodeServiceImpl implements RateCodeService {
         if (minDays != null && maxDays != null && maxDays < minDays) {
             throw new HolaException(ErrorCode.RATE_INVALID_STAY_DAYS);
         }
+    }
+
+    private static final java.util.Set<String> VALID_STAY_TYPES = java.util.Set.of("OVERNIGHT", "DAY_USE");
+
+    /**
+     * 숙박유형 검증 및 정규화 (null → OVERNIGHT, 유효하지 않은 값 → 에러)
+     */
+    private String validateAndNormalizeStayType(String stayType) {
+        if (stayType == null || stayType.isBlank()) return "OVERNIGHT";
+        if (!VALID_STAY_TYPES.contains(stayType)) {
+            throw new HolaException(ErrorCode.RATE_INVALID_STAY_TYPE);
+        }
+        return stayType;
     }
 
     private void saveRoomTypeMappings(Long rateCodeId, List<Long> roomTypeIds) {

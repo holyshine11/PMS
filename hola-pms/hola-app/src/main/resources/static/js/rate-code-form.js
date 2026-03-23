@@ -16,6 +16,27 @@ var RateCodeForm = {
         this.updateHotelPropertyName();
         this.loadTaxRate();
 
+        // stayType 라디오 변경 시 Dayuse 탭 표시/숨김
+        $('input[name="stayType"]').on('change', function() {
+            RateCodeForm.toggleDayUseTab();
+        });
+
+        // Dayuse 요금 모달: 공급가 콤마 자동 포맷
+        $('#dayUsePriceInput').on('input', function() {
+            var raw = $(this).val().replace(/[^\d]/g, '');
+            if (raw) {
+                $(this).val(Number(raw).toLocaleString('ko-KR'));
+            }
+        });
+
+        // Dayuse 요금 모달: Enter 키로 등록
+        $('#dayUseRateModal').on('keydown', 'input', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                RateCodeForm.saveDayUseRate();
+            }
+        });
+
         if (this.editId) {
             this.loadData();
             this.loadPricingData();
@@ -186,6 +207,13 @@ var RateCodeForm = {
                     $('#minStayDays').val(d.minStayDays);
                     $('#maxStayDays').val(d.maxStayDays);
                     $('input[name="useYn"][value="' + d.useYn + '"]').prop('checked', true);
+                    if (d.stayType) {
+                        $('input[name="stayType"][value="' + d.stayType + '"]').prop('checked', true);
+                    }
+                    self.toggleDayUseTab();
+                    if (d.stayType === 'DAY_USE') {
+                        self.loadDayUseRates();
+                    }
 
                     // 매핑된 객실 타입 로드
                     if (d.roomTypeIds && d.roomTypeIds.length > 0) {
@@ -285,6 +313,7 @@ var RateCodeForm = {
         var minStayDays = parseInt($('#minStayDays').val()) || 1;
         var maxStayDays = parseInt($('#maxStayDays').val()) || 365;
         var useYn = $('input[name="useYn"]:checked').val() === 'true';
+        var stayType = $('input[name="stayType"]:checked').val() || 'OVERNIGHT';
         var roomTypeIds = self.selectedRoomTypes.map(function(rt) { return rt.id; });
 
         // 필수 검증
@@ -331,6 +360,7 @@ var RateCodeForm = {
                 saleEndDate: saleEndDate,
                 minStayDays: minStayDays,
                 maxStayDays: maxStayDays,
+                stayType: stayType,
                 useYn: useYn,
                 roomTypeIds: roomTypeIds
             };
@@ -348,6 +378,7 @@ var RateCodeForm = {
                 saleEndDate: saleEndDate,
                 minStayDays: minStayDays,
                 maxStayDays: maxStayDays,
+                stayType: stayType,
                 useYn: useYn,
                 roomTypeIds: roomTypeIds
             };
@@ -1324,6 +1355,138 @@ var RateCodeForm = {
             error: function(xhr) {
                 HolaPms.handleAjaxError(xhr);
             }
+        });
+    },
+
+    // ===== Dayuse 요금 관리 =====
+
+    toggleDayUseTab: function() {
+        var stayType = $('input[name="stayType"]:checked').val();
+        if (stayType === 'DAY_USE') {
+            $('#tab-dayuse-li').show();
+            // Dayuse: 숙박일수 고정 1/1
+            $('#minStayDays').val(1).prop('readonly', true);
+            $('#maxStayDays').val(1).prop('readonly', true);
+        } else {
+            $('#tab-dayuse-li').hide();
+            $('#minStayDays').prop('readonly', false);
+            $('#maxStayDays').prop('readonly', false);
+        }
+    },
+
+    loadDayUseRates: function() {
+        var self = this;
+        var propertyId = HolaPms.context.getPropertyId();
+        if (!propertyId || !self.editId) return;
+
+        $.ajax({
+            url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId + '/dayuse-rates',
+            method: 'GET',
+            success: function(res) {
+                if (res.success) {
+                    self.renderDayUseRates(res.data || []);
+                }
+            }
+        });
+    },
+
+    renderDayUseRates: function(rates) {
+        var $tbody = $('#dayUseRateTable tbody');
+        $tbody.empty();
+        if (rates.length === 0) {
+            $('#dayUseRateEmpty').show();
+            return;
+        }
+        $('#dayUseRateEmpty').hide();
+        rates.forEach(function(r) {
+            var row = '<tr data-id="' + r.id + '">'
+                + '<td>' + r.durationHours + '시간</td>'
+                + '<td>' + RateCodeForm.formatNumber(r.supplyPrice) + '원</td>'
+                + '<td>' + HolaPms.escapeHtml(r.description || '-') + '</td>'
+                + '<td><button type="button" class="btn btn-outline-danger btn-sm" '
+                + 'onclick="RateCodeForm.deleteDayUseRate(' + r.id + ')"><i class="fas fa-trash"></i></button></td>'
+                + '</tr>';
+            $tbody.append(row);
+        });
+    },
+
+    openDayUseRateModal: function() {
+        if (!this.editId) {
+            HolaPms.alert('warning', '레이트코드를 먼저 저장해주세요.');
+            return;
+        }
+        // 입력 필드 초기화
+        $('#dayUseHoursInput').val('').removeClass('is-invalid');
+        $('#dayUsePriceInput').val('').removeClass('is-invalid');
+        $('#dayUseDescInput').val('');
+        $('#dayUseHoursError, #dayUsePriceError').text('');
+        HolaPms.modal.show('#dayUseRateModal');
+        // 첫 번째 입력 필드에 포커스
+        setTimeout(function() { $('#dayUseHoursInput').focus(); }, 300);
+    },
+
+    saveDayUseRate: function() {
+        var self = this;
+        var propertyId = HolaPms.context.getPropertyId();
+        var valid = true;
+
+        // 이용시간 검증
+        var hoursVal = $('#dayUseHoursInput').val().trim();
+        var hours = parseInt(hoursVal, 10);
+        if (!hoursVal || isNaN(hours) || hours < 1 || hours > 24) {
+            $('#dayUseHoursInput').addClass('is-invalid');
+            $('#dayUseHoursError').text('1~24 사이의 정수를 입력해주세요.').show();
+            valid = false;
+        } else {
+            $('#dayUseHoursInput').removeClass('is-invalid');
+        }
+
+        // 공급가 검증 (콤마 제거 후 숫자 파싱)
+        var priceRaw = $('#dayUsePriceInput').val().replace(/,/g, '').trim();
+        var price = parseFloat(priceRaw);
+        if (!priceRaw || isNaN(price) || price < 0) {
+            $('#dayUsePriceInput').addClass('is-invalid');
+            $('#dayUsePriceError').text('0 이상의 금액을 입력해주세요.').show();
+            valid = false;
+        } else {
+            $('#dayUsePriceInput').removeClass('is-invalid');
+        }
+
+        if (!valid) return;
+
+        var desc = $('#dayUseDescInput').val().trim() || '';
+
+        $.ajax({
+            url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId + '/dayuse-rates',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ durationHours: hours, supplyPrice: price, description: desc }),
+            success: function(res) {
+                if (res.success) {
+                    HolaPms.modal.hide('#dayUseRateModal');
+                    HolaPms.alert('success', 'Dayuse 요금이 등록되었습니다.');
+                    self.loadDayUseRates();
+                }
+            },
+            error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+        });
+    },
+
+    deleteDayUseRate: function(rateId) {
+        var self = this;
+        var propertyId = HolaPms.context.getPropertyId();
+        HolaPms.confirm('이 요금을 삭제하시겠습니까?', function() {
+            $.ajax({
+                url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId + '/dayuse-rates/' + rateId,
+                method: 'DELETE',
+                success: function(res) {
+                    if (res.success) {
+                        HolaPms.alert('success', '삭제되었습니다.');
+                        self.loadDayUseRates();
+                    }
+                },
+                error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+            });
         });
     }
 };

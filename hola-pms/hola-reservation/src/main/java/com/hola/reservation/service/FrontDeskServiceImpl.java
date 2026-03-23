@@ -71,6 +71,8 @@ public class FrontDeskServiceImpl implements FrontDeskService {
         summary.put("arrivals", subReservationRepository.countArrivals(propertyId, today));
         summary.put("inHouse", subReservationRepository.countInHouse(propertyId, today));
         summary.put("departures", subReservationRepository.countDepartures(propertyId, today));
+        summary.put("checkedInToday", subReservationRepository.countCheckedInToday(propertyId, today));
+        summary.put("checkedOutToday", subReservationRepository.countCheckedOutToday(propertyId, today));
         return summary;
     }
 
@@ -148,7 +150,8 @@ public class FrontDeskServiceImpl implements FrontDeskService {
                     .children(sub.getChildren())
                     .checkIn(sub.getCheckIn())
                     .checkOut(sub.getCheckOut())
-                    .nights((int) ChronoUnit.DAYS.between(sub.getCheckIn(), sub.getCheckOut()))
+                    .stayType(sub.getStayType())
+                    .nights(sub.isDayUse() ? 0 : (int) ChronoUnit.DAYS.between(sub.getCheckIn(), sub.getCheckOut()))
                     .eta(sub.getEta())
                     .etd(sub.getEtd())
                     .actualCheckInTime(sub.getActualCheckInTime())

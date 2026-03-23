@@ -55,20 +55,31 @@
             $('#dailyDateLabel').text(date);
         }
 
-        // 컨텍스트 변경 이벤트
-        $(document).on('hola:contextChange', function() {
-            ReservationDaily.reload();
-        });
-
-        // 프로퍼티 확인
+        // 프로퍼티 확인 후 초기화 (init은 무조건 호출하여 bindEvents 누락 방지)
         var propertyId = HolaPms.context.getPropertyId();
-        if (!propertyId) {
+        if (propertyId) {
+            $('#dailyTableCard').show();
+            ReservationDaily.init(propertyId, date);
+        } else {
             $('#contextAlert').removeClass('d-none');
-            return;
         }
 
-        $('#dailyTableCard').show();
-        ReservationDaily.init(propertyId, date);
+        // 컨텍스트 변경 이벤트 (init 이후 등록하여 항상 동작)
+        $(document).on('hola:contextChange', function() {
+            var newPropertyId = HolaPms.context.getPropertyId();
+            if (newPropertyId) {
+                $('#contextAlert').addClass('d-none');
+                $('#dailyTableCard').show();
+                if (!ReservationDaily.dataTable) {
+                    ReservationDaily.init(newPropertyId, date);
+                } else {
+                    ReservationDaily.reload();
+                }
+            } else {
+                $('#contextAlert').removeClass('d-none');
+                $('#dailyTableCard').hide();
+            }
+        });
     });
     </script>
 </th:block>

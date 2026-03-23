@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 public class DashboardPropertyKpiResponse {
 
     private Long propertyId;
+    private Long hotelId;
     private String propertyName;
 
     // 객실 현황
@@ -31,4 +32,14 @@ public class DashboardPropertyKpiResponse {
     private BigDecimal occupancyRate; // OCC% = 판매객실/판매가능객실×100
     private BigDecimal adr;           // ADR = 총매출/판매객실
     private BigDecimal revPar;        // RevPAR = 총매출/판매가능객실
+
+    // Dayuse
+    private long dayUseRooms;
+    private BigDecimal dayUseRevenue;
+
+    // 전일 대비 (어제 KPI)
+    private BigDecimal yesterdayOccupancyRate;
+    private BigDecimal yesterdayAdr;
+    private BigDecimal yesterdayRevPar;
+    private BigDecimal yesterdayRevenue;
 }

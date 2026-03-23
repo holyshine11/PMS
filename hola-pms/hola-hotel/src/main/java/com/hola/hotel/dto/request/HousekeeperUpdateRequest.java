@@ -1,5 +1,6 @@
 package com.hola.hotel.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,6 +13,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class HousekeeperUpdateRequest {
 
+    @NotBlank(message = "이름은 필수입니다.")
     private String userName;
     private String email;
     private String phone;

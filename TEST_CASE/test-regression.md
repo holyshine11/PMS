@@ -1,117 +1,136 @@
-# test-regression
+# Hola PMS Regression 테스트 — Dayuse + 리팩토링 사이드이펙트 점검
 
-## 목적
-기능 수정 이후 기존 기능이 깨지지 않았는지 확인하기 위한 회귀 테스트 케이스 모음입니다.  
-Claude Code의 `/test-regression` 스킬이 참고할 수 있도록 변경 범위별 핵심 점검 항목을 정리합니다.
+> 테스트일: 2026-03-23 | 테스터: QC팀 | 버전: 2.0
+> 대상 커밋: 5f6bddb ~ 현재 unstaged (63개 파일 변경)
 
 ---
 
-## RG-001 호텔 CRUD 회귀
-- **테스트케이스**: 호텔 관련 코드 수정 후 목록/상세/수정/삭제 정책이 정상 동작해야 한다.
-- **사전조건**:
-  - 호텔 데이터가 1건 이상 존재해야 한다.
-  - 관리자 로그인 상태여야 한다.
-- **절차**:
-  1. 호텔 목록을 조회한다.
-  2. 호텔 상세를 조회한다.
-  3. 호텔 수정 기능을 수행한다.
-  4. 호텔 삭제 정책을 확인한다.
-- **기대결과**:
-  - 목록/상세 데이터가 정상 표시되어야 한다.
-  - 수정 결과가 반영되어야 한다.
-  - 삭제 정책이 기존 기준대로 동작해야 한다.
+## 테스트 범례
+- ✅ PASS  ❌ FAIL  ⚠️ WARNING
 
-## RG-002 프로퍼티 상세 탭 회귀
-- **테스트케이스**: 프로퍼티 화면 수정 후 층/호수/마켓코드 탭 기능이 정상 유지되어야 한다.
-- **사전조건**:
-  - 프로퍼티 데이터가 존재해야 한다.
-- **절차**:
-  1. 프로퍼티 상세 페이지에 진입한다.
-  2. `층 관리` 탭을 확인한다.
-  3. `호수 관리` 탭을 확인한다.
-  4. `마켓코드` 탭을 확인한다.
-- **기대결과**:
-  - 모든 탭이 정상 전환되어야 한다.
-  - 탭별 목록과 버튼이 정상 노출되어야 한다.
-  - 탭 간 데이터 혼선이 없어야 한다.
+---
 
-## RG-003 층/호수 참조 회귀
-- **테스트케이스**: 층 등록/삭제 로직 수정 후 호수 참조 관계와 삭제 제약이 유지되어야 한다.
-- **사전조건**:
-  - 프로퍼티, 층, 호수 데이터가 존재해야 한다.
-- **절차**:
-  1. 층을 등록한다.
-  2. 해당 층에 호수를 등록한다.
-  3. 하위 호수가 있는 상태에서 층 삭제를 시도한다.
-- **기대결과**:
-  - 층 등록과 호수 등록이 정상이어야 한다.
-  - 하위 호수가 있는 층 삭제는 차단되어야 한다.
-  - 참조 관계가 깨지지 않아야 한다.
+## 변경 범위 요약
 
-## RG-004 호수 관리 영향 회귀
-- **테스트케이스**: 호수 관련 로직 수정 후 목록/집계/예약 연계 기능이 정상이어야 한다.
-- **사전조건**:
-  - 호수 및 프로퍼티 데이터가 존재해야 한다.
-- **절차**:
-  1. 호수 목록을 조회한다.
-  2. roomCount, floorCount 등 관련 집계를 확인한다.
-  3. 예약 검색 또는 객실 선택 연계 기능을 점검한다.
-- **기대결과**:
-  - 호수 목록이 정상 표시되어야 한다.
-  - 집계 값이 정확해야 한다.
-  - 예약 관련 화면에 영향이 없어야 한다.
+| 영역 | 변경 파일 수 | 핵심 변경 |
+|------|------------|----------|
+| Entity | 5 | Property (dayuse 4필드), RateCode (stayType), SubReservation (stayType/dayuse시간), DayUseRate (신규), BookingApiKey |
+| DTO | 11 | Request/Response에 stayType, dayuse 필드 추가 |
+| Service | 5 | RateCodeServiceImpl, ReservationServiceImpl, DashboardServiceImpl, FrontDeskServiceImpl, BookingServiceImpl |
+| Controller | 8 | RateCodeApiController (dayuse 3 EP 추가), 기타 Swagger 어노테이션 |
+| Mapper | 3 | RateCodeMapper, ReservationMapper, HotelMapper |
+| Frontend | 10 | rate-code-form/page.js, reservation-form.js, fd-operations.js, dashboard.js, hola-common.js |
+| Template | 12 | rate-code/form.html, booking/rooms.html, dashboard.html 등 |
+| DB | 1 | V4_19_0__add_dayuse_support.sql |
 
-## RG-005 마켓코드 회귀
-- **테스트케이스**: 마켓코드 기능 수정 후 등록/조회/수정/삭제가 기존대로 동작해야 한다.
-- **사전조건**:
-  - 프로퍼티 데이터가 존재해야 한다.
-- **절차**:
-  1. 마켓코드 목록을 조회한다.
-  2. 신규 마켓코드를 등록한다.
-  3. 수정 기능을 수행한다.
-  4. 삭제 기능을 수행한다.
-- **기대결과**:
-  - 등록/조회/수정/삭제가 모두 정상 동작해야 한다.
-  - 중복 및 검증 정책이 기존과 동일해야 한다.
+---
 
-## RG-006 인증/게스트 경로 회귀
-- **테스트케이스**: 인증 또는 보안 로직 수정 후 관리자 경로와 게스트 경로의 접근 정책이 유지되어야 한다.
-- **사전조건**:
-  - 관리자 계정과 게스트 접근 URL이 준비되어 있어야 한다.
-- **절차**:
-  1. 관리자 로그인 경로를 점검한다.
-  2. 인증이 필요한 API를 토큰 없이 호출한다.
-  3. 부킹엔진 공개 API를 호출한다.
-- **기대결과**:
-  - 보호 자원은 인증 없이는 접근이 차단되어야 한다.
-  - 게스트 공개 API는 정상 접근 가능해야 한다.
-  - 경로별 접근 정책이 섞이지 않아야 한다.
+# Regression #1: Dayuse 기능 회귀
 
-## RG-007 예약 End-to-End 회귀
-- **테스트케이스**: 예약 관련 로직 수정 후 검색부터 예약 완료, 관리자 적재까지 전체 흐름이 유지되어야 한다.
-- **사전조건**:
-  - 테스트용 프로퍼티, 객실, 요금 데이터가 존재해야 한다.
-- **절차**:
-  1. 예약 검색을 수행한다.
-  2. 객실과 요금을 선택한다.
-  3. 체크아웃 화면에서 예약자 정보를 입력한다.
-  4. 예약 완료 후 확인번호를 확인한다.
-  5. 관리자 예약 목록에서 해당 예약을 조회한다.
-- **기대결과**:
-  - 전체 흐름이 정상 완료되어야 한다.
-  - 확인번호가 정상 발급되어야 한다.
-  - 관리자 화면에도 동일 예약이 적재되어야 한다.
+| # | 시나리오 | 결과 | 상세 |
+|---|---------|------|------|
+| R1-01 | DayUseRate DB 정합성 | ✅ | DU-3H(3h/60K), DU-5H(5h/80K), DU-6H(6h/95K), DU-8H(8h/120K) |
+| R1-02 | stayType 필드 일관성 | ✅ | DAY_USE 4개, OVERNIGHT 14개, MISSING 0개 |
+| R1-03 | Property dayuse 설정 | ✅ | P4: 10:00~20:00/5h, P5: 10:00~20:00/5h, P6: 09:00~21:00/6h |
+| R1-04 | DayUseRate CRUD | ✅ | 생성(201)/조회(200)/삭제(200) 모두 정상 (API 테스트에서 검증) |
+| R1-05 | Dayuse ErrorCode | ✅ | HOLA-4026, HOLA-4027 정상 정의 |
 
-## RG-008 하우스키퍼 권한 회귀
-- **테스트케이스**: 모바일 또는 권한 로직 수정 후 하우스키퍼 계정의 접근 범위가 정상 유지되어야 한다.
-- **사전조건**:
-  - 하우스키퍼 계정이 존재해야 한다.
-  - 모바일 로그인 URL 접근이 가능해야 한다.
-- **절차**:
-  1. 하우스키퍼 계정으로 로그인한다.
-  2. 접근 가능한 메뉴를 확인한다.
-  3. 관리자 전용 화면 또는 메뉴 접근 여부를 확인한다.
-- **기대결과**:
-  - 하우스키퍼 권한 범위 내 기능만 노출되어야 한다.
-  - 관리자 전용 메뉴는 노출되거나 접근되지 않아야 한다.
-  - 권한 분리가 유지되어야 한다.
+**Regression #1 결과: ✅ PASS**
+
+---
+
+# Regression #2: 예약 로직 회귀
+
+| # | 시나리오 | 결과 | 상세 |
+|---|---------|------|------|
+| R2-01 | Overnight 예약 생성 | ✅ | HTTP 201, stayType=OVERNIGHT, 2박 dailyCharge 정상 |
+| R2-02 | 예약 상세 조회 (legs) | ✅ | stayType=OVERNIGHT, dailyCharges 2건 정상 |
+| R2-03 | 레그 추가 (서브예약) | ✅ | HTTP 201, 새 leg stayType=OVERNIGHT |
+| R2-04 | 예약 수정 | ✅ | HTTP 200, guestName 변경 정상 |
+| R2-05 | 예약 취소 | ✅ | HTTP 200 |
+| R2-06 | Dayuse 예약 생성 (API) | ✅ | stayType=DAY_USE, dayUseStartTime/EndTime 정상 |
+| R2-07 | Dayuse 예약 취소 | ✅ | HTTP 200, 정상 soft delete |
+| R2-08 | 예약 메모 CRUD | ✅ | GET 200, POST 201 |
+
+**Regression #2 결과: ✅ PASS (기존 예약 CRUD에 사이드이펙트 없음)**
+
+---
+
+# Regression #3: 요금 계산 회귀
+
+| # | 시나리오 | 기대값 | 실제값 | 결과 |
+|---|---------|--------|--------|------|
+| R3-01 | Overnight 2박 (RACK, STD-S) | 일별 분리 계산 | 6/10: 150K+16.5K+15K=181.5K, 6/11: 동일 | ✅ |
+| R3-02 | Dayuse 3시간 (DU-3H) | supply=60K, tax=6.6K, svc=6K | supply=60,000 tax=6,600 svc=6,000 total=72,600 | ✅ |
+| R3-03 | 세금 계산 (supply→tax→svc) | tax=(supply+svc)*10% | 6,600 = (60,000+6,000)*10% | ✅ |
+| R3-04 | Dayuse 5시간 (DU-5H) | supply=80K | supply=80,000 tax=8,800 svc=8,000 total=96,800 | ✅ |
+| R3-05 | Overnight 요금 변동 없음 | 기존 RACK 요금 유지 | STD-S: 150K/일 → 변동 없음 | ✅ |
+
+**Regression #3 결과: ✅ PASS (요금 계산 정합성 확인)**
+
+---
+
+# Regression #4: 예약 상태값 전반
+
+| # | 시나리오 | 결과 | 상세 |
+|---|---------|------|------|
+| R4-01 | INHOUSE 카운트 | ✅ | 9건 모두 INHOUSE 상태 |
+| R4-02 | FD Summary 정합 | ✅ | arrivals=0, inHouse=9, departures=0, checkedIn=2, checkedOut=3 |
+| R4-03 | FD all 상태 분포 | ✅ | INHOUSE:9, CHECKED_OUT:3, NO_SHOW:2, CANCELED:1 = 총 15건 |
+| R4-04 | stayType 분포 | ✅ | 오늘 운영: OVERNIGHT 15건 (dayuse 예약은 4/15이므로 미포함) |
+| R4-05 | 상태 전이 규칙 | ✅ | RESERVED→INHOUSE: 객실 배정 필요 (HOLA-5001), INHOUSE→CHECKED_OUT: 결제 확인 (HOLA-4029) |
+
+**Regression #4 결과: ✅ PASS (상태 관리 사이드이펙트 없음)**
+
+---
+
+# Regression #5: 리팩토링 점검
+
+| # | 시나리오 | 결과 | 상세 |
+|---|---------|------|------|
+| R5-01 | 전체 컴파일 | ✅ | BUILD SUCCESSFUL (10 tasks UP-TO-DATE) |
+| R5-02 | 대시보드 API (3 프로퍼티) | ✅ | P4/5/6 모두 success=True |
+| R5-03 | PropertyResponse 필드 완전성 | ✅ | dayuse 4필드 포함 15개 필수 필드 모두 존재 |
+| R5-04 | RateCode List→Detail 일관성 | ✅ | 목록/상세 모두 stayType 포함 |
+| R5-05 | ReservationMapper dayuse 매핑 | ✅ | stayType, dayUseStartTime, dayUseEndTime 모두 매핑 |
+| R5-06 | FD Response stayType 매핑 | ✅ | FrontDeskOperationResponse에 stayType 포함 |
+| R5-07 | ErrorCode 추가 | ✅ | HOLA-4026, HOLA-4027 정상 정의 |
+| R5-08 | Flyway 마이그레이션 | ✅ | V4_19_0 적용 완료 (서버 정상 구동) |
+
+**Regression #5 결과: ✅ PASS**
+
+---
+
+# 종합 결과
+
+## 테스트 통계
+
+| Regression 영역 | 시나리오 수 | PASS | FAIL | WARNING |
+|-----------------|-----------|------|------|---------|
+| #1 Dayuse 기능 | 5 | 5 | 0 | 0 |
+| #2 예약 로직 | 8 | 8 | 0 | 0 |
+| #3 요금 계산 | 5 | 5 | 0 | 0 |
+| #4 상태값 전반 | 5 | 5 | 0 | 0 |
+| #5 리팩토링 점검 | 8 | 8 | 0 | 0 |
+| **합계** | **31** | **31** | **0** | **0** |
+
+## 사이드이펙트 판정: **없음**
+
+63개 파일 변경에 대해 31개 회귀 시나리오 전량 PASS.
+기존 기능 (Overnight 예약/요금/상태/FD/대시보드)에 영향 없음 확인.
+
+## 이전 테스트 (API/Web Flow)에서 발견된 이슈 재확인
+
+| # | 이슈 | 심각도 | 영역 | 설명 |
+|---|------|--------|------|------|
+| F-1 | Dayuse 당일 checkIn=checkOut 차단 | HIGH | ReservationServiceImpl:251 | `validateDates`에서 dayuse 예외 처리 필요 |
+| F-2 | stayType 값 검증 누락 | MEDIUM | RateCodeCreate/UpdateRequest | enum 검증 추가 필요 |
+| F-3 | 관리자 예약폼 dayuse 생성 불가 | HIGH | reservation-form.js:1126 | stayType/durationHours 미전송 |
+
+## 잔여 리스크
+
+| 리스크 | 영향도 | 대응 |
+|--------|--------|------|
+| 관리자 UI에서 Dayuse 예약 불가 | HIGH | reservation-form.js에 stayType/dayUseDurationHours 전송 로직 추가 필요 |
+| stayType 검증 없음 | MEDIUM | 서버 사이드 enum 검증 추가 |
+| 부킹엔진 Dayuse 선택 후 예약 완료 미검증 | MEDIUM | 부킹엔진 예약 완료 플로우 별도 테스트 필요 |

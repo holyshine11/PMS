@@ -64,6 +64,18 @@ public class SubReservation extends BaseEntity {
     @Column(name = "check_out", nullable = false)
     private LocalDate checkOut;
 
+    // 숙박유형: OVERNIGHT(숙박), DAY_USE(데이유즈)
+    @Column(name = "stay_type", nullable = false, length = 20)
+    @Builder.Default
+    private String stayType = "OVERNIGHT";
+
+    // Dayuse 이용 시간 범위
+    @Column(name = "day_use_start_time")
+    private LocalTime dayUseStartTime;
+
+    @Column(name = "day_use_end_time")
+    private LocalTime dayUseEndTime;
+
     // 예상 도착/출발 시간
     @Column(name = "eta")
     private LocalTime eta;
@@ -153,6 +165,13 @@ public class SubReservation extends BaseEntity {
             this.earlyCheckIn = true;
             this.earlyCheckInFee = earlyFee;
         }
+    }
+
+    /**
+     * Dayuse 여부 판단 헬퍼
+     */
+    public boolean isDayUse() {
+        return "DAY_USE".equals(this.stayType);
     }
 
     /**

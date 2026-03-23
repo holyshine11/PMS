@@ -2,12 +2,16 @@ package com.hola.rate.controller;
 
 import com.hola.common.dto.HolaResponse;
 import com.hola.common.security.AccessControlService;
+import com.hola.rate.dto.request.DayUseRateRequest;
 import com.hola.rate.dto.request.RateCodeCreateRequest;
 import com.hola.rate.dto.request.RateCodeUpdateRequest;
 import com.hola.rate.dto.request.RatePricingRequest;
+import com.hola.rate.dto.response.DayUseRateResponse;
 import com.hola.rate.dto.response.RateCodeListResponse;
 import com.hola.rate.dto.response.RateCodeResponse;
 import com.hola.rate.dto.response.RatePricingResponse;
+import com.hola.rate.entity.DayUseRate;
+import com.hola.rate.repository.DayUseRateRepository;
 import com.hola.rate.service.RateCodeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +37,7 @@ public class RateCodeApiController {
 
     private final AccessControlService accessControlService;
     private final RateCodeService rateCodeService;
+    private final DayUseRateRepository dayUseRateRepository;
 
     @Operation(summary = "레이트코드 목록 조회", description = "프로퍼티 레이트코드 전체 목록 (체크인/아웃 기간 필터 가능)")
     @GetMapping
@@ -116,7 +121,7 @@ public class RateCodeApiController {
     public ResponseEntity<HolaResponse<RatePricingResponse>> saveRatePricing(
             @PathVariable Long propertyId,
             @PathVariable Long id,
-            @RequestBody RatePricingRequest request) {
+            @Valid @RequestBody RatePricingRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.saveRatePricing(id, request)));
     }
@@ -141,6 +146,59 @@ public class RateCodeApiController {
             @PathVariable Long id) {
         accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(rateCodeService.getOptionPricing(id)));
+    }
+
+    // ===== Dayuse 요금 API =====
+
+    @Operation(summary = "Dayuse 요금 조회", description = "레이트코드의 Dayuse 시간별 요금 목록")
+    @GetMapping("/{id}/dayuse-rates")
+    public ResponseEntity<HolaResponse<List<DayUseRateResponse>>> getDayUseRates(
+            @PathVariable Long propertyId,
+            @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
+        List<DayUseRateResponse> rates = dayUseRateRepository.findByRateCodeIdAndUseYnTrueOrderBySortOrderAsc(id)
+                .stream().map(r -> DayUseRateResponse.builder()
+                        .id(r.getId()).rateCodeId(r.getRateCodeId())
+                        .durationHours(r.getDurationHours()).supplyPrice(r.getSupplyPrice())
+                        .description(r.getDescription()).sortOrder(r.getSortOrder()).useYn(r.getUseYn())
+                        .build()).toList();
+        return ResponseEntity.ok(HolaResponse.success(rates));
+    }
+
+    @Operation(summary = "Dayuse 요금 등록", description = "Dayuse 시간별 요금 추가")
+    @PostMapping("/{id}/dayuse-rates")
+    public ResponseEntity<HolaResponse<DayUseRateResponse>> createDayUseRate(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @Valid @RequestBody DayUseRateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
+        DayUseRate rate = DayUseRate.builder()
+                .rateCodeId(id)
+                .durationHours(request.getDurationHours())
+                .supplyPrice(request.getSupplyPrice())
+                .description(request.getDescription())
+                .build();
+        rate = dayUseRateRepository.save(rate);
+        DayUseRateResponse resp = DayUseRateResponse.builder()
+                .id(rate.getId()).rateCodeId(rate.getRateCodeId())
+                .durationHours(rate.getDurationHours()).supplyPrice(rate.getSupplyPrice())
+                .description(rate.getDescription()).sortOrder(rate.getSortOrder()).useYn(rate.getUseYn())
+                .build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(resp));
+    }
+
+    @Operation(summary = "Dayuse 요금 삭제", description = "Dayuse 시간별 요금 soft delete")
+    @DeleteMapping("/{id}/dayuse-rates/{rateId}")
+    public ResponseEntity<HolaResponse<Void>> deleteDayUseRate(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @PathVariable Long rateId) {
+        accessControlService.validatePropertyAccess(propertyId);
+        dayUseRateRepository.findById(rateId).ifPresent(r -> {
+            r.softDelete();
+            dayUseRateRepository.save(r);
+        });
+        return ResponseEntity.ok(HolaResponse.success());
     }
 
     @Operation(summary = "옵션요금 저장", description = "레이트코드에 유료 서비스 옵션 연결 저장")

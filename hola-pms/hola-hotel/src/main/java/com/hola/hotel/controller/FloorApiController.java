@@ -1,6 +1,7 @@
 package com.hola.hotel.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.security.AccessControlService;
 import com.hola.hotel.dto.request.FloorRequest;
 import com.hola.hotel.dto.response.FloorResponse;
 import com.hola.hotel.service.FloorService;
@@ -23,16 +24,19 @@ import java.util.Map;
 public class FloorApiController {
 
     private final FloorService floorService;
+    private final AccessControlService accessControlService;
 
     @Operation(summary = "층 목록 조회", description = "프로퍼티 층코드 전체 목록")
     @GetMapping
     public ResponseEntity<HolaResponse<List<FloorResponse>>> getFloors(@PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(floorService.getFloors(propertyId)));
     }
 
     @Operation(summary = "층 상세 조회", description = "층코드 ID로 상세 정보 조회")
     @GetMapping("/{id}")
-    public ResponseEntity<HolaResponse<FloorResponse>> getFloor(@PathVariable Long id) {
+    public ResponseEntity<HolaResponse<FloorResponse>> getFloor(@PathVariable Long propertyId, @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(floorService.getFloor(id)));
     }
 
@@ -40,6 +44,7 @@ public class FloorApiController {
     @PostMapping
     public ResponseEntity<HolaResponse<FloorResponse>> createFloor(
             @PathVariable Long propertyId, @Valid @RequestBody FloorRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(HolaResponse.success(floorService.createFloor(propertyId, request)));
     }
@@ -47,13 +52,15 @@ public class FloorApiController {
     @Operation(summary = "층 수정", description = "층코드 정보 수정")
     @PutMapping("/{id}")
     public ResponseEntity<HolaResponse<FloorResponse>> updateFloor(
-            @PathVariable Long id, @Valid @RequestBody FloorRequest request) {
+            @PathVariable Long propertyId, @PathVariable Long id, @Valid @RequestBody FloorRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(floorService.updateFloor(id, request)));
     }
 
     @Operation(summary = "층 삭제", description = "층코드 소프트 삭제")
     @DeleteMapping("/{id}")
-    public ResponseEntity<HolaResponse<Void>> deleteFloor(@PathVariable Long id) {
+    public ResponseEntity<HolaResponse<Void>> deleteFloor(@PathVariable Long propertyId, @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         floorService.deleteFloor(id);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -64,6 +71,7 @@ public class FloorApiController {
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkFloorCode(
             @PathVariable Long propertyId,
             @RequestParam String floorNumber) {
+        accessControlService.validatePropertyAccess(propertyId);
         boolean duplicate = floorService.existsFloorNumber(propertyId, floorNumber);
         return ResponseEntity.ok(HolaResponse.success(Collections.singletonMap("duplicate", duplicate)));
     }

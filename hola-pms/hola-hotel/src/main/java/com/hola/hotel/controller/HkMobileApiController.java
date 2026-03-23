@@ -299,12 +299,18 @@ public class HkMobileApiController {
         // 현재 비밀번호 검증
         if (currentPassword == null || !passwordEncoder.matches(currentPassword, user.getPassword())) {
             return ResponseEntity.badRequest()
-                    .body(HolaResponse.error("HOLA-0801", "현재 비밀번호가 일치하지 않습니다."));
+                    .body(HolaResponse.error("HOLA-0800", "현재 비밀번호가 일치하지 않습니다."));
         }
 
+        // 비밀번호 형식 검증: 영문+숫자+특수문자 포함, 10~20자
+        String passwordPattern = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]).{10,20}$";
         if (newPassword == null || newPassword.length() < 10) {
             return ResponseEntity.badRequest()
                     .body(HolaResponse.error("HOLA-0802", "비밀번호는 10자 이상이어야 합니다."));
+        }
+        if (!newPassword.matches(passwordPattern)) {
+            return ResponseEntity.badRequest()
+                    .body(HolaResponse.error("HOLA-0802", "비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다."));
         }
         user.resetPassword(passwordEncoder.encode(newPassword));
         return ResponseEntity.ok(HolaResponse.success());

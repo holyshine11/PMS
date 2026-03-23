@@ -124,6 +124,23 @@ public class Property extends BaseEntity {
     @Column(name = "service_charge_rounding_method", length = 20)
     private String serviceChargeRoundingMethod;
 
+    // ─── Dayuse 설정 ────────────────────────────
+    @Column(name = "day_use_enabled", nullable = false)
+    @Builder.Default
+    private Boolean dayUseEnabled = false;
+
+    @Column(name = "day_use_start_time", length = 10)
+    @Builder.Default
+    private String dayUseStartTime = "10:00";
+
+    @Column(name = "day_use_end_time", length = 10)
+    @Builder.Default
+    private String dayUseEndTime = "20:00";
+
+    @Column(name = "day_use_default_hours")
+    @Builder.Default
+    private Integer dayUseDefaultHours = 5;
+
     @OneToMany(mappedBy = "property", fetch = FetchType.LAZY)
     @Builder.Default
     private List<Floor> floors = new ArrayList<>();
@@ -165,6 +182,15 @@ public class Property extends BaseEntity {
         this.description = description;
         this.bizLicensePath = bizLicensePath;
         this.logoPath = logoPath;
+    }
+
+    /** Dayuse 설정 수정 */
+    public void updateDayUse(Boolean dayUseEnabled, String dayUseStartTime,
+                              String dayUseEndTime, Integer dayUseDefaultHours) {
+        this.dayUseEnabled = dayUseEnabled != null ? dayUseEnabled : false;
+        this.dayUseStartTime = dayUseStartTime != null ? dayUseStartTime : "10:00";
+        this.dayUseEndTime = dayUseEndTime != null ? dayUseEndTime : "20:00";
+        this.dayUseDefaultHours = dayUseDefaultHours != null ? dayUseDefaultHours : 5;
     }
 
     /** TAX/봉사료 정보 수정 */

@@ -30,4 +30,15 @@ public interface DailyChargeRepository extends JpaRepository<DailyCharge, Long> 
            "AND d.subReservation.roomReservationStatus NOT IN ('CANCELED', 'NO_SHOW')")
     BigDecimal sumRevenueByPropertyAndDate(@Param("propertyId") Long propertyId,
                                            @Param("chargeDate") LocalDate chargeDate);
+
+    /**
+     * Dayuse 매출 합계 (취소/노쇼 제외)
+     */
+    @Query("SELECT COALESCE(SUM(d.total), 0) FROM DailyCharge d " +
+           "WHERE d.subReservation.masterReservation.property.id = :propertyId " +
+           "AND d.chargeDate = :chargeDate " +
+           "AND d.subReservation.stayType = 'DAY_USE' " +
+           "AND d.subReservation.roomReservationStatus NOT IN ('CANCELED', 'NO_SHOW')")
+    BigDecimal sumDayUseRevenueByPropertyAndDate(@Param("propertyId") Long propertyId,
+                                                  @Param("chargeDate") LocalDate chargeDate);
 }

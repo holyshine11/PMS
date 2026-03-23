@@ -1,6 +1,7 @@
 package com.hola.hotel.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.security.AccessControlService;
 import com.hola.hotel.dto.request.MarketCodeRequest;
 import com.hola.hotel.dto.response.MarketCodeResponse;
 import com.hola.hotel.service.MarketCodeService;
@@ -23,16 +24,19 @@ import java.util.Map;
 public class MarketCodeApiController {
 
     private final MarketCodeService marketCodeService;
+    private final AccessControlService accessControlService;
 
     @Operation(summary = "마켓코드 목록 조회", description = "프로퍼티 마켓코드 전체 목록")
     @GetMapping
     public ResponseEntity<HolaResponse<List<MarketCodeResponse>>> getMarketCodes(@PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(marketCodeService.getMarketCodes(propertyId)));
     }
 
     @Operation(summary = "마켓코드 상세 조회", description = "마켓코드 ID로 상세 정보 조회")
     @GetMapping("/{id}")
-    public ResponseEntity<HolaResponse<MarketCodeResponse>> getMarketCode(@PathVariable Long id) {
+    public ResponseEntity<HolaResponse<MarketCodeResponse>> getMarketCode(@PathVariable Long propertyId, @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(marketCodeService.getMarketCode(id)));
     }
 
@@ -40,6 +44,7 @@ public class MarketCodeApiController {
     @PostMapping
     public ResponseEntity<HolaResponse<MarketCodeResponse>> createMarketCode(
             @PathVariable Long propertyId, @Valid @RequestBody MarketCodeRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(HolaResponse.success(marketCodeService.createMarketCode(propertyId, request)));
     }
@@ -47,13 +52,15 @@ public class MarketCodeApiController {
     @Operation(summary = "마켓코드 수정", description = "마켓코드 정보 수정")
     @PutMapping("/{id}")
     public ResponseEntity<HolaResponse<MarketCodeResponse>> updateMarketCode(
-            @PathVariable Long id, @Valid @RequestBody MarketCodeRequest request) {
+            @PathVariable Long propertyId, @PathVariable Long id, @Valid @RequestBody MarketCodeRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(marketCodeService.updateMarketCode(id, request)));
     }
 
     @Operation(summary = "마켓코드 삭제", description = "마켓코드 소프트 삭제")
     @DeleteMapping("/{id}")
-    public ResponseEntity<HolaResponse<Void>> deleteMarketCode(@PathVariable Long id) {
+    public ResponseEntity<HolaResponse<Void>> deleteMarketCode(@PathVariable Long propertyId, @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         marketCodeService.deleteMarketCode(id);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -64,6 +71,7 @@ public class MarketCodeApiController {
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkMarketCode(
             @PathVariable Long propertyId,
             @RequestParam String marketCode) {
+        accessControlService.validatePropertyAccess(propertyId);
         boolean duplicate = marketCodeService.existsMarketCode(propertyId, marketCode);
         return ResponseEntity.ok(HolaResponse.success(Collections.singletonMap("duplicate", duplicate)));
     }

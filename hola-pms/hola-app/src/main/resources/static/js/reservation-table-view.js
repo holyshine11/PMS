@@ -63,16 +63,18 @@ var ReservationTableView = {
                     className: 'text-center'
                 },
                 {
-                    // 예약자
+                    // 예약자 (마스킹)
                     data: 'guestNameKo',
                     render: function(data) {
-                        return HolaPms.escapeHtml(data || '-');
+                        return HolaPms.escapeHtml(HolaPms.maskName(data) || '-');
                     }
                 },
                 {
-                    // 전화번호
+                    // 전화번호 (마스킹)
                     data: 'phoneNumber',
-                    render: HolaPms.renders.dashIfEmpty
+                    render: function(data) {
+                        return data ? HolaPms.escapeHtml(HolaPms.maskPhone(data)) : '-';
+                    }
                 },
                 {
                     // 체크인

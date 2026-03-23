@@ -51,6 +51,9 @@ public class FrontDeskOperationResponse {
     private LocalDateTime actualCheckInTime;
     private LocalDateTime actualCheckOutTime;
 
+    // 숙박유형
+    private String stayType;
+
     // 결제
     private String paymentStatus;
 

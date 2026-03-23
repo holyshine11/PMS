@@ -55,13 +55,26 @@ public class RateCode extends BaseEntity {
     @Column(name = "max_stay_days", nullable = false)
     private Integer maxStayDays;
 
+    // 숙박유형: OVERNIGHT(숙박), DAY_USE(데이유즈)
+    @Column(name = "stay_type", nullable = false, length = 20)
+    @Builder.Default
+    private String stayType = "OVERNIGHT";
+
+    /**
+     * Dayuse 여부 판단 헬퍼
+     */
+    public boolean isDayUse() {
+        return "DAY_USE".equals(this.stayType);
+    }
+
     /**
      * 레이트 코드 정보 수정
      */
     public void update(String rateNameKo, String rateNameEn, String rateCategory,
                        Long marketCodeId, String currency,
                        LocalDate saleStartDate, LocalDate saleEndDate,
-                       Integer minStayDays, Integer maxStayDays) {
+                       Integer minStayDays, Integer maxStayDays,
+                       String stayType) {
         this.rateNameKo = rateNameKo;
         this.rateNameEn = rateNameEn;
         this.rateCategory = rateCategory;
@@ -71,6 +84,7 @@ public class RateCode extends BaseEntity {
         this.saleEndDate = saleEndDate;
         this.minStayDays = minStayDays;
         this.maxStayDays = maxStayDays;
+        this.stayType = stayType != null ? stayType : "OVERNIGHT";
     }
 
 }

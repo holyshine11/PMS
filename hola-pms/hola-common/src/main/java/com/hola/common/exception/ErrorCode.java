@@ -94,6 +94,7 @@ public enum ErrorCode {
     RATE_CODE_HAS_PRICING("HOLA-3002", "하위 요금 정보가 존재하여 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
     RATE_INVALID_STAY_DAYS("HOLA-3003", "최대 숙박일수는 최소 숙박일수보다 크거나 같아야 합니다.", HttpStatus.BAD_REQUEST),
     RATE_INVALID_SALE_PERIOD("HOLA-3004", "판매 종료일은 판매 시작일보다 같거나 이후여야 합니다.", HttpStatus.BAD_REQUEST),
+    RATE_INVALID_STAY_TYPE("HOLA-3009", "숙박유형은 OVERNIGHT 또는 DAY_USE만 허용됩니다.", HttpStatus.BAD_REQUEST),
     RATE_PRICING_PERIOD_REQUIRED("HOLA-3005", "요금 설정 기간은 필수 입력 항목입니다.", HttpStatus.BAD_REQUEST),
     RATE_INVALID_PRICING_PERIOD("HOLA-3006", "요금 설정 기간의 종료일은 시작일보다 같거나 이후여야 합니다.", HttpStatus.BAD_REQUEST),
     RATE_PRICING_PERIOD_OUT_OF_SALE("HOLA-3007", "요금 설정 기간은 판매기간 내에 있어야 합니다.", HttpStatus.BAD_REQUEST),
@@ -125,6 +126,8 @@ public enum ErrorCode {
     RESERVATION_STAY_DAYS_VIOLATION("HOLA-4023", "숙박 일수가 레이트코드의 최소/최대 범위를 벗어납니다.", HttpStatus.BAD_REQUEST),
     RESERVATION_RATE_REQUIRED("HOLA-4024", "레이트코드를 선택해야 예약을 생성할 수 있습니다.", HttpStatus.BAD_REQUEST),
     RESERVATION_PAYMENT_MODIFY_NOT_ALLOWED("HOLA-4025", "완료된 결제는 수정할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    DAY_USE_NOT_ENABLED("HOLA-4026", "이 프로퍼티에서는 Dayuse가 허용되지 않습니다.", HttpStatus.BAD_REQUEST),
+    DAY_USE_RATE_NOT_FOUND("HOLA-4027", "해당 이용시간에 맞는 Dayuse 요금이 없습니다.", HttpStatus.BAD_REQUEST),
 
     // 예약채널 (HOLA-403x)
     RESERVATION_CHANNEL_NOT_FOUND("HOLA-4030", "예약채널을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

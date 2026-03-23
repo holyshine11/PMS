@@ -84,6 +84,16 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
     // === 대시보드 집계 쿼리 ===
 
     /**
+     * 오늘 Dayuse 객실 수
+     */
+    @Query("SELECT COUNT(s) FROM SubReservation s " +
+           "WHERE s.masterReservation.property.id = :propertyId " +
+           "AND s.stayType = 'DAY_USE' " +
+           "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
+           "AND s.checkIn <= :today AND s.checkOut > :today")
+    long countDayUseRooms(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
+
+    /**
      * 오늘 투숙중 객실 수 (CHECK_IN 또는 INHOUSE 상태)
      */
     @Query("SELECT COUNT(s) FROM SubReservation s " +
@@ -102,12 +112,12 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
     long countArrivals(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 
     /**
-     * 현재 투숙중 (CHECK_IN/INHOUSE, 체크아웃 날짜 >= 오늘)
+     * 현재 투숙중 (CHECK_IN/INHOUSE, 체크인 <= 오늘, 체크아웃 >= 오늘)
      */
     @Query("SELECT COUNT(s) FROM SubReservation s " +
            "WHERE s.masterReservation.property.id = :propertyId " +
            "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
-           "AND s.checkOut >= :today")
+           "AND s.checkIn <= :today AND s.checkOut >= :today")
     long countInHouse(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 
     /**
@@ -120,26 +130,24 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
     long countDepartures(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 
     /**
-     * 오늘 실제 체크인 완료
+     * 오늘 도착 중 체크인 완료 건수 (checkIn = today AND 체크인 처리 완료)
      */
     @Query("SELECT COUNT(s) FROM SubReservation s " +
            "WHERE s.masterReservation.property.id = :propertyId " +
            "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE', 'CHECKED_OUT') " +
-           "AND s.actualCheckInTime >= :startOfDay AND s.actualCheckInTime < :endOfDay")
+           "AND s.checkIn = :today")
     long countCheckedInToday(@Param("propertyId") Long propertyId,
-                             @Param("startOfDay") LocalDateTime startOfDay,
-                             @Param("endOfDay") LocalDateTime endOfDay);
+                             @Param("today") LocalDate today);
 
     /**
-     * 오늘 실제 체크아웃 완료
+     * 오늘 출발 중 체크아웃 완료 건수 (checkOut = today AND 체크아웃 처리 완료)
      */
     @Query("SELECT COUNT(s) FROM SubReservation s " +
            "WHERE s.masterReservation.property.id = :propertyId " +
            "AND s.roomReservationStatus = 'CHECKED_OUT' " +
-           "AND s.actualCheckOutTime >= :startOfDay AND s.actualCheckOutTime < :endOfDay")
+           "AND s.checkOut = :today")
     long countCheckedOutToday(@Param("propertyId") Long propertyId,
-                              @Param("startOfDay") LocalDateTime startOfDay,
-                              @Param("endOfDay") LocalDateTime endOfDay);
+                              @Param("today") LocalDate today);
 
     /**
      * 7일 추이: 특정 날짜에 체류 중인 예약 수 (checkIn <= date AND checkOut > date)
@@ -163,12 +171,12 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
     List<SubReservation> findArrivals(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 
     /**
-     * 현재 투숙중 리스트 (CHECK_IN/INHOUSE, 체크아웃 날짜 >= 오늘)
+     * 현재 투숙중 리스트 (CHECK_IN/INHOUSE, 체크인 ≤ 오늘, 체크아웃 ≥ 오늘)
      */
     @Query("SELECT s FROM SubReservation s JOIN FETCH s.masterReservation m " +
            "WHERE m.property.id = :propertyId " +
            "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
-           "AND s.checkOut >= :today " +
+           "AND s.checkIn <= :today AND s.checkOut >= :today " +
            "ORDER BY s.checkOut ASC, m.guestNameKo ASC")
     List<SubReservation> findInHouse(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 

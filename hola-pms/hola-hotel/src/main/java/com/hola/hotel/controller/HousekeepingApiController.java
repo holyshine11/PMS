@@ -39,6 +39,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<HkDashboardResponse>> getDashboard(
             @PathVariable Long propertyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.getDashboard(propertyId, date)));
     }
 
@@ -52,6 +53,7 @@ public class HousekeepingApiController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long assignedTo,
             @RequestParam(required = false) String taskType) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(
                 housekeepingService.getTasks(propertyId, date, status, assignedTo, taskType)));
     }
@@ -61,6 +63,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<HkTaskResponse>> getTask(
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTask(taskId)));
     }
 
@@ -69,6 +72,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<HkTaskResponse>> createTask(
             @PathVariable Long propertyId,
             @Valid @RequestBody HkTaskCreateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(HolaResponse.success(housekeepingService.createTask(propertyId, request)));
     }
@@ -78,7 +82,8 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<HkTaskResponse>> updateTask(
             @PathVariable Long propertyId,
             @PathVariable Long taskId,
-            @RequestBody HkTaskUpdateRequest request) {
+            @Valid @RequestBody HkTaskUpdateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.updateTask(taskId, request)));
     }
 
@@ -88,6 +93,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long taskId,
             @RequestBody Map<String, Long> body) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeepingService.assignTask(taskId, body.get("assignedTo"));
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -97,6 +103,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Void>> unassignTask(
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeepingService.unassignTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -106,6 +113,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Void>> batchAssignTasks(
             @PathVariable Long propertyId,
             @Valid @RequestBody HkBatchAssignRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeepingService.batchAssignTasks(propertyId, request);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -115,6 +123,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Void>> inspectTask(
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeepingService.inspectTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -124,6 +133,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Void>> cancelTask(
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeepingService.cancelTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -135,6 +145,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Void>> startTask(
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeepingService.startTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -144,6 +155,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Void>> pauseTask(
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeepingService.pauseTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -153,6 +165,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Void>> completeTask(
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeepingService.completeTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -164,6 +177,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<List<HkTaskSheetResponse>>> getTaskSheets(
             @PathVariable Long propertyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTaskSheets(propertyId, date)));
     }
 
@@ -172,6 +186,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<HkTaskSheetResponse>> generateTaskSheet(
             @PathVariable Long propertyId,
             @RequestBody Map<String, Object> body) {
+        accessControlService.validatePropertyAccess(propertyId);
         LocalDate date = body.get("date") != null ? LocalDate.parse(body.get("date").toString()) : LocalDate.now();
         Long assignedTo = body.get("assignedTo") != null ? Long.valueOf(body.get("assignedTo").toString()) : null;
         String sheetName = body.get("sheetName") != null ? body.get("sheetName").toString() : null;
@@ -185,6 +200,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Void>> deleteTaskSheet(
             @PathVariable Long propertyId,
             @PathVariable Long sheetId) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeepingService.deleteTaskSheet(sheetId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -194,6 +210,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Void>> redistributeTaskSheets(
             @PathVariable Long propertyId,
             @RequestBody(required = false) Map<String, String> body) {
+        accessControlService.validatePropertyAccess(propertyId);
         LocalDate date = (body != null && body.get("date") != null)
                 ? LocalDate.parse(body.get("date")) : LocalDate.now();
         housekeepingService.redistributeTaskSheets(propertyId, date);
@@ -208,6 +225,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long taskId,
             @Valid @RequestBody HkTaskIssueCreateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         HkTaskResponse task = housekeepingService.getTask(taskId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(HolaResponse.success(
@@ -219,6 +237,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<List<HkTaskIssueResponse>>> getTaskIssues(
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTaskIssues(taskId)));
     }
 
@@ -227,6 +246,7 @@ public class HousekeepingApiController {
     @Operation(summary = "설정 조회", description = "프로퍼티별 하우스키핑 설정 조회")
     @GetMapping("/config")
     public ResponseEntity<HolaResponse<HkConfigResponse>> getConfig(@PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.getConfig(propertyId)));
     }
 
@@ -234,7 +254,8 @@ public class HousekeepingApiController {
     @PutMapping("/config")
     public ResponseEntity<HolaResponse<HkConfigResponse>> updateConfig(
             @PathVariable Long propertyId,
-            @RequestBody HkConfigUpdateRequest request) {
+            @Valid @RequestBody HkConfigUpdateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.updateConfig(propertyId, request)));
     }
 
@@ -244,6 +265,7 @@ public class HousekeepingApiController {
     @GetMapping("/housekeepers")
     public ResponseEntity<HolaResponse<List<HkDashboardResponse.HousekeeperSummary>>> getHousekeepers(
             @PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.getHousekeepers(propertyId)));
     }
 
@@ -256,6 +278,7 @@ public class HousekeepingApiController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Long assignedTo) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(
                 housekeepingService.getHistory(propertyId, from, to, assignedTo)));
     }
@@ -268,6 +291,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @RequestParam int year,
             @RequestParam int month) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(
                 hkAssignmentService.getMonthlyAttendance(propertyId, year, month)));
     }
@@ -278,6 +302,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long attendanceId,
             @RequestBody Map<String, String> body) {
+        accessControlService.validatePropertyAccess(propertyId);
         String status = body.get("attendanceStatus");
         String clockIn = body.get("clockInAt");
         String clockOut = body.get("clockOutAt");
@@ -292,6 +317,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<List<HkDayOffResponse>>> getMonthlyDayOffs(
             @PathVariable Long propertyId,
             @RequestParam int year, @RequestParam int month) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(
                 hkAssignmentService.getMonthlyDayOffs(propertyId, year, month)));
     }
@@ -300,6 +326,7 @@ public class HousekeepingApiController {
     @PostMapping("/day-offs")
     public ResponseEntity<HolaResponse<HkDayOffResponse>> createDayOff(
             @PathVariable Long propertyId, @RequestBody Map<String, String> body) {
+        accessControlService.validatePropertyAccess(propertyId);
         Long hkId = Long.parseLong(body.get("housekeeperId"));
         LocalDate date = LocalDate.parse(body.get("date"));
         String note = body.get("note");
@@ -312,6 +339,7 @@ public class HousekeepingApiController {
     @DeleteMapping("/day-offs/{dayOffId}")
     public ResponseEntity<HolaResponse<Void>> deleteDayOff(
             @PathVariable Long propertyId, @PathVariable Long dayOffId) {
+        accessControlService.validatePropertyAccess(propertyId);
         hkAssignmentService.deleteDayOff(dayOffId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -320,6 +348,7 @@ public class HousekeepingApiController {
     @PutMapping("/day-offs/{dayOffId}/approve")
     public ResponseEntity<HolaResponse<Void>> approveDayOff(
             @PathVariable Long propertyId, @PathVariable Long dayOffId) {
+        accessControlService.validatePropertyAccess(propertyId);
         hkAssignmentService.approveDayOff(dayOffId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -328,6 +357,7 @@ public class HousekeepingApiController {
     @PutMapping("/day-offs/{dayOffId}/reject")
     public ResponseEntity<HolaResponse<Void>> rejectDayOff(
             @PathVariable Long propertyId, @PathVariable Long dayOffId) {
+        accessControlService.validatePropertyAccess(propertyId);
         hkAssignmentService.rejectDayOff(dayOffId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -337,6 +367,7 @@ public class HousekeepingApiController {
     @Operation(summary = "구역 목록 조회", description = "프로퍼티의 하우스키핑 구역 목록 (층/담당자 포함)")
     @GetMapping("/sections")
     public ResponseEntity<HolaResponse<List<HkSectionResponse>>> getSections(@PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(hkAssignmentService.getSections(propertyId)));
     }
 
@@ -344,6 +375,7 @@ public class HousekeepingApiController {
     @GetMapping("/sections/{sectionId}")
     public ResponseEntity<HolaResponse<HkSectionResponse>> getSection(
             @PathVariable Long propertyId, @PathVariable Long sectionId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(hkAssignmentService.getSection(sectionId)));
     }
 
@@ -351,6 +383,7 @@ public class HousekeepingApiController {
     @PostMapping("/sections")
     public ResponseEntity<HolaResponse<HkSectionResponse>> createSection(
             @PathVariable Long propertyId, @Valid @RequestBody HkSectionRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(HolaResponse.success(hkAssignmentService.createSection(propertyId, request)));
     }
@@ -359,7 +392,8 @@ public class HousekeepingApiController {
     @PutMapping("/sections/{sectionId}")
     public ResponseEntity<HolaResponse<HkSectionResponse>> updateSection(
             @PathVariable Long propertyId, @PathVariable Long sectionId,
-            @RequestBody HkSectionRequest request) {
+            @Valid @RequestBody HkSectionRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(hkAssignmentService.updateSection(sectionId, request)));
     }
 
@@ -367,6 +401,7 @@ public class HousekeepingApiController {
     @DeleteMapping("/sections/{sectionId}")
     public ResponseEntity<HolaResponse<Void>> deleteSection(
             @PathVariable Long propertyId, @PathVariable Long sectionId) {
+        accessControlService.validatePropertyAccess(propertyId);
         hkAssignmentService.deleteSection(sectionId);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -378,6 +413,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<HkAttendanceResponse>> getAttendance(
             @PathVariable Long propertyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(hkAssignmentService.getAttendance(propertyId, date)));
     }
 
@@ -385,6 +421,7 @@ public class HousekeepingApiController {
     @PostMapping("/attendance")
     public ResponseEntity<HolaResponse<Void>> saveAttendance(
             @PathVariable Long propertyId, @Valid @RequestBody HkAttendanceRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         hkAssignmentService.saveAttendance(propertyId, request);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -396,6 +433,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Map<String, Object>>> generateDailyTasks(
             @PathVariable Long propertyId,
             @RequestBody(required = false) Map<String, String> body) {
+        accessControlService.validatePropertyAccess(propertyId);
         LocalDate date = (body != null && body.get("date") != null)
                 ? LocalDate.parse(body.get("date")) : LocalDate.now();
         int count = housekeepingService.generateDailyTasks(propertyId, date);
@@ -409,6 +447,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Map<String, Object>>> autoAssign(
             @PathVariable Long propertyId,
             @RequestBody(required = false) Map<String, String> body) {
+        accessControlService.validatePropertyAccess(propertyId);
         LocalDate date = (body != null && body.get("date") != null)
                 ? LocalDate.parse(body.get("date")) : LocalDate.now();
         int count = hkAssignmentService.autoAssign(propertyId, date);

@@ -47,6 +47,9 @@ public class RateCodeCreateRequest {
     @Min(value = 1, message = "최대 숙박일수는 1 이상이어야 합니다.")
     private Integer maxStayDays;
 
+    // 숙박유형: OVERNIGHT(기본), DAY_USE
+    private String stayType;
+
     private Boolean useYn;
     private Integer sortOrder;
 

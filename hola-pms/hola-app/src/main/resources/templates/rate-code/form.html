@@ -24,6 +24,10 @@
             <button class="nav-link" id="tab-pricing" data-bs-toggle="tab" data-bs-target="#pane-pricing"
                     type="button" role="tab" aria-controls="pane-pricing">요금정보</button>
         </li>
+        <li class="nav-item" role="presentation" id="tab-dayuse-li" style="display:none;">
+            <button class="nav-link" id="tab-dayuse" data-bs-toggle="tab" data-bs-target="#pane-dayuse"
+                    type="button" role="tab" aria-controls="pane-dayuse">Dayuse 요금</button>
+        </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-option" data-bs-toggle="tab" data-bs-target="#pane-option"
                     type="button" role="tab" aria-controls="pane-option">옵션요금</button>
@@ -137,6 +141,19 @@
                         </div>
                     </div>
 
+                    <!-- 숙박유형 -->
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label required">숙박유형</label>
+                        <div class="col-sm-3">
+                            <div class="btn-group mt-1" role="group">
+                                <input type="radio" class="btn-check" name="stayType" id="stayTypeOvernight" value="OVERNIGHT" checked>
+                                <label class="btn btn-outline-primary btn-sm" for="stayTypeOvernight">숙박</label>
+                                <input type="radio" class="btn-check" name="stayType" id="stayTypeDayUse" value="DAY_USE">
+                                <label class="btn btn-outline-primary btn-sm" for="stayTypeDayUse">Dayuse</label>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 숙박일수 -->
                     <div class="row mb-3">
                         <label class="col-sm-2 col-form-label required">숙박일수</label>
@@ -216,6 +233,36 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- Dayuse 요금 탭 -->
+        <div class="tab-pane fade" id="pane-dayuse" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0"><i class="fas fa-sun me-1 text-primary" style="font-size:8px;"></i> Dayuse 시간별 요금</h6>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="RateCodeForm.openDayUseRateModal()">
+                            <i class="fas fa-plus me-1"></i>요금 추가
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover text-center" id="dayUseRateTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-center" style="width:120px">이용시간</th>
+                                    <th class="text-center" style="width:180px">공급가(원)</th>
+                                    <th class="text-center">설명</th>
+                                    <th class="text-center" style="width:80px">삭제</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div id="dayUseRateEmpty" class="text-center text-muted py-3">
+                        <i class="fas fa-info-circle me-1"></i>등록된 Dayuse 요금이 없습니다.
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- 옵션요금 탭 -->
@@ -337,6 +384,50 @@
             </div>
         </div>
     </div>
+    <!-- Dayuse 요금 등록 모달 -->
+    <div class="modal fade" id="dayUseRateModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Dayuse 요금 등록</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label required">이용시간</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="dayUseHoursInput"
+                                   min="1" max="24" step="1" placeholder="예: 5">
+                            <span class="input-group-text">시간</span>
+                        </div>
+                        <div class="invalid-feedback" id="dayUseHoursError"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label required">공급가</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="dayUsePriceInput"
+                                   placeholder="예: 80,000" inputmode="numeric">
+                            <span class="input-group-text">원</span>
+                        </div>
+                        <small class="text-muted">VAT 미포함 금액</small>
+                        <div class="invalid-feedback" id="dayUsePriceError"></div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">설명</label>
+                        <input type="text" class="form-control" id="dayUseDescInput"
+                               maxlength="200" placeholder="예: Dayuse 5시간 패키지">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="RateCodeForm.saveDayUseRate()">
+                        <i class="fas fa-save me-1"></i>등록
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 유료 옵션 선택 모달 -->
     <div class="modal fade" id="paidOptionModal" tabindex="-1">
         <div class="modal-dialog modal-xl">

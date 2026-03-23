@@ -22,6 +22,7 @@ public class SubReservationRequest {
     /** 기존 서브 예약 ID (수정 시 사용, 신규 시 null) */
     private Long id;
 
+    @NotNull(message = "객실 타입은 필수입니다.")
     private Long roomTypeId;
     private Long floorId;
     private Long roomNumberId;
@@ -40,6 +41,10 @@ public class SubReservationRequest {
 
     private Boolean earlyCheckIn;
     private Boolean lateCheckOut;
+
+    // Dayuse 관련 (null이면 레이트코드에서 자동 결정)
+    private String stayType;
+    private Integer dayUseDurationHours;
 
     // 동반 투숙객
     private List<ReservationGuestRequest> guests;

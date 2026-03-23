@@ -209,6 +209,16 @@ const PropertyForm = {
                     $('#useYnY').prop('checked', true);
                 }
 
+                // Dayuse 설정
+                if (d.dayUseEnabled) {
+                    $('#dayUseEnabledY').prop('checked', true);
+                } else {
+                    $('#dayUseEnabledN').prop('checked', true);
+                }
+                $('#dayUseStartTime').val(d.dayUseStartTime || '10:00');
+                $('#dayUseEndTime').val(d.dayUseEndTime || '20:00');
+                $('#dayUseDefaultHours').val(d.dayUseDefaultHours || 5);
+
                 // 주소
                 $('#zipCode').val(d.zipCode || '');
                 $('#address').val(d.address || '');
@@ -466,7 +476,11 @@ const PropertyForm = {
             introduction: $.trim($('#introduction').val()),
             bizLicensePath: $('#bizLicensePath').val() || null,
             logoPath: $('#logoPath').val() || null,
-            useYn: $('input[name="useYn"]:checked').val() === 'true'
+            useYn: $('input[name="useYn"]:checked').val() === 'true',
+            dayUseEnabled: $('input[name="dayUseEnabled"]:checked').val() === 'true',
+            dayUseStartTime: $('#dayUseStartTime').val() || '10:00',
+            dayUseEndTime: $('#dayUseEndTime').val() || '20:00',
+            dayUseDefaultHours: parseInt($('#dayUseDefaultHours').val()) || 5
         };
 
         var url, method;

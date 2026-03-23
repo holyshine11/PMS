@@ -7,6 +7,7 @@ import com.hola.hotel.dto.response.RoomUnavailableResponse;
 import com.hola.hotel.service.RoomUnavailableService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,7 +45,7 @@ public class RoomUnavailableApiController {
     @Operation(summary = "OOO/OOS 등록", description = "객실 사용불가 기간 등록")
     @PostMapping
     public HolaResponse<RoomUnavailableResponse> create(
-            @PathVariable Long propertyId, @RequestBody RoomUnavailableRequest request) {
+            @PathVariable Long propertyId, @Valid @RequestBody RoomUnavailableRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
         return HolaResponse.success(roomUnavailableService.create(propertyId, request));
     }
@@ -53,7 +54,7 @@ public class RoomUnavailableApiController {
     @PutMapping("/{id}")
     public HolaResponse<RoomUnavailableResponse> update(
             @PathVariable Long propertyId, @PathVariable Long id,
-            @RequestBody RoomUnavailableRequest request) {
+            @Valid @RequestBody RoomUnavailableRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
         return HolaResponse.success(roomUnavailableService.update(id, propertyId, request));
     }

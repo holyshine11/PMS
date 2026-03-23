@@ -14,8 +14,16 @@ var FdOperations = {
     specialFilter: null,
     summaryData: null,
     pollInterval: null,
+    ACTIVE_STATUSES: ['RESERVED', 'CHECK_IN', 'INHOUSE'],
 
     init: function () {
+        // URL 파라미터로 초기 필터 설정 (대시보드에서 클릭 시)
+        var urlParams = new URLSearchParams(window.location.search);
+        var initFilter = urlParams.get('filter');
+        if (initFilter && ['arrivals', 'inhouse', 'departures'].indexOf(initFilter) >= 0) {
+            this.specialFilter = initFilter;
+        }
+
         this.bindEvents();
         this.reload();
     },
@@ -150,8 +158,22 @@ var FdOperations = {
             $('#summaryArrivals').text(this.summaryData.arrivals || 0);
             $('#summaryInHouse').text(this.summaryData.inHouse || 0);
             $('#summaryDepartures').text(this.summaryData.departures || 0);
+            $('#summaryCheckedIn').text(this.summaryData.checkedInToday || 0);
+            $('#summaryCheckedOut').text(this.summaryData.checkedOutToday || 0);
         }
+        // "오늘 전체"는 allData 전체 건수 (오늘 관련 모든 예약)
         $('#summaryTotal').text(this.allData.length);
+    },
+
+    /**
+     * 활성 상태(RESERVED, CHECK_IN, INHOUSE) 데이터만 필터
+     */
+    getActiveData: function () {
+        var active = this.ACTIVE_STATUSES;
+        return this.allData.filter(function (d) {
+            var s = d.roomReservationStatus || d.reservationStatus || '';
+            return active.indexOf(s) >= 0;
+        });
     },
 
     /**
@@ -164,9 +186,9 @@ var FdOperations = {
         var pid = this.propertyId;
         if (!pid) return;
 
-        // "전체" 클릭 시 specialFilter 해제 → allData 표시
+        // "전체" 클릭 시 오늘 관련 전체 표시
         if (filter === 'all') {
-            self.specialFilter = null;
+            self.specialFilter = 'all';
             self.renderTable(self.allData);
             return;
         }
@@ -197,11 +219,15 @@ var FdOperations = {
         if (this.specialFilter) return;
 
         var status = $('#statusFilterGroup button.active').data('status') || '';
-        var filtered = this.allData.slice();
+        var filtered;
         if (status) {
-            filtered = filtered.filter(function (d) {
+            // 특정 상태 필터 선택 시 → 전체 데이터에서 해당 상태만
+            filtered = this.allData.filter(function (d) {
                 return d.roomReservationStatus === status || d.reservationStatus === status;
             });
+        } else {
+            // "전체" 필터 (기본) → 오늘 관련 전체
+            filtered = this.allData.slice();
         }
 
         var keyword = $.trim($('#keyword').val()).toLowerCase();
@@ -238,13 +264,18 @@ var FdOperations = {
             data: data,
             columns: [
                 { data: 'masterReservationNo', render: this.renderConfirmNo, className: 'text-center' },
-                { data: 'guestNameKo', render: HolaPms.renders.dashIfEmpty, className: 'text-center' },
+                { data: 'guestNameKo', render: function(data) { return HolaPms.escapeHtml(HolaPms.maskName(data) || '-'); }, className: 'text-center' },
                 { data: 'roomTypeName', render: HolaPms.renders.dashIfEmpty, className: 'text-center' },
                 { data: 'roomNumber', render: this.renderRoomNumber, className: 'text-center' },
                 { data: null, render: this.renderPersons, className: 'text-center' },
                 { data: 'checkIn', className: 'text-center' },
                 { data: 'checkOut', className: 'text-center' },
-                { data: 'nights', className: 'text-center' },
+                { data: 'nights', className: 'text-center', render: function(data, type, row) {
+                    if (row.stayType === 'DAY_USE') {
+                        return '<span class="badge" style="background-color:#0582CA;">Dayuse</span>';
+                    }
+                    return data + '박';
+                }},
                 { data: 'roomReservationStatus', render: this.renderStatusBadge, className: 'text-center' },
                 { data: 'paymentStatus', render: this.renderPaymentBadge, className: 'text-center' }
             ],

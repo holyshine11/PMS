@@ -3,6 +3,7 @@ package com.hola.common.auth.entity;
 import com.hola.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLRestriction;
 
 /**
  * 권한 마스터 엔티티
@@ -10,6 +11,7 @@ import lombok.*;
 @Entity
 @Table(name = "sys_role",
         uniqueConstraints = @UniqueConstraint(columnNames = {"role_name", "hotel_id", "property_id"}))
+@SQLRestriction("deleted_at IS NULL")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

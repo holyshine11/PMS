@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 /**
@@ -16,12 +17,15 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 public class SubReservationResponse {
 
     private Long id;
     private String subReservationNo;
     private String roomReservationStatus;
+    private String stayType;
+    private LocalTime dayUseStartTime;
+    private LocalTime dayUseEndTime;
 
     private Long roomTypeId;
     private String roomTypeName;

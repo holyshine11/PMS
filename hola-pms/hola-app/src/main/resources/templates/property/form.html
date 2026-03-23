@@ -53,7 +53,7 @@
                                     <option value="">호텔을 선택해주세요</option>
                                 </select>
                                 <!-- 수정 시 읽기전용 표시 -->
-                                <span id="hotelReadonly" class="form-control-plaintext fw-bold" style="display:none;"></span>
+                                <span id="hotelReadonly" class="form-control-plaintext" style="display:none;"></span>
                             </div>
                             <label class="col-sm-2 col-form-label required">프로퍼티 시간대</label>
                             <div class="col-sm-4">
@@ -180,13 +180,44 @@
                             </div>
                         </div>
 
+                        <!-- Dayuse 설정 -->
+                        <h6 class="fw-bold mt-4 mb-3"><i class="fas fa-sun me-2"></i>Dayuse 설정</h6>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">Dayuse 허용</label>
+                            <div class="col-sm-2">
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="dayUseEnabled" id="dayUseEnabledY" value="true">
+                                    <label class="btn btn-outline-primary btn-sm" for="dayUseEnabledY">Y</label>
+                                    <input type="radio" class="btn-check" name="dayUseEnabled" id="dayUseEnabledN" value="false" checked>
+                                    <label class="btn btn-outline-primary btn-sm" for="dayUseEnabledN">N</label>
+                                </div>
+                            </div>
+                            <label class="col-sm-2 col-form-label">기본 이용시간</label>
+                            <div class="col-sm-2">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="dayUseDefaultHours" value="5" min="1" max="12">
+                                    <span class="input-group-text">시간</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <label class="col-sm-2 col-form-label">운영 시작</label>
+                            <div class="col-sm-2">
+                                <input type="time" class="form-control" id="dayUseStartTime" value="10:00">
+                            </div>
+                            <label class="col-sm-2 col-form-label">운영 종료</label>
+                            <div class="col-sm-2">
+                                <input type="time" class="form-control" id="dayUseEndTime" value="20:00">
+                            </div>
+                        </div>
+
                         <!-- 프로퍼티 주소 -->
                         <div class="row mb-3">
                             <label class="col-sm-2 col-form-label required">프로퍼티 주소</label>
                             <div class="col-sm-10">
                                 <!-- 국문 주소 -->
                                 <div class="border rounded p-3 mb-2">
-                                    <div class="small fw-bold text-muted mb-2">
+                                    <div class="small text-muted mb-2">
                                         <i class="fas fa-map-marker-alt me-1"></i>국문 주소
                                     </div>
                                     <div class="d-flex gap-2 mb-2">
@@ -208,7 +239,7 @@
                                 </div>
                                 <!-- 영문 주소 -->
                                 <div class="border rounded p-3">
-                                    <div class="small fw-bold text-muted mb-2">
+                                    <div class="small text-muted mb-2">
                                         <i class="fas fa-globe me-1"></i>영문 주소
                                     </div>
                                     <div class="mb-2">
@@ -466,7 +497,7 @@
                                             <input type="number" id="taxRate" class="form-control"
                                                    style="width:180px;" min="0" max="100" step="0.01"
                                                    placeholder="0~100 숫자 + '.' 만 입력 가능">
-                                            <span class="fw-bold">%</span>
+                                            <span>%</span>
                                             <span class="ms-2">소수 점 :</span>
                                             <input type="number" id="taxDecimalPlaces" class="form-control"
                                                    style="width:100px;" min="0" max="10" step="1"
@@ -493,7 +524,7 @@
                                             <input type="number" id="serviceChargeRate" class="form-control"
                                                    style="width:180px;" min="0" max="100" step="0.01"
                                                    placeholder="0~100 숫자만 입력 가능">
-                                            <span class="fw-bold">%</span>
+                                            <span>%</span>
                                             <span class="ms-2">소수 점 :</span>
                                             <input type="number" id="serviceChargeDecimalPlaces" class="form-control"
                                                    style="width:100px;" min="0" max="10" step="1"

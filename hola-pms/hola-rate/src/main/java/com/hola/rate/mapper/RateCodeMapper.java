@@ -34,6 +34,7 @@ public class RateCodeMapper {
                 .saleEndDate(rateCode.getSaleEndDate())
                 .minStayDays(rateCode.getMinStayDays())
                 .maxStayDays(rateCode.getMaxStayDays())
+                .stayType(rateCode.getStayType())
                 .sortOrder(rateCode.getSortOrder())
                 .useYn(rateCode.getUseYn())
                 .createdAt(rateCode.getCreatedAt())
@@ -55,6 +56,7 @@ public class RateCodeMapper {
                 .saleStartDate(rateCode.getSaleStartDate())
                 .saleEndDate(rateCode.getSaleEndDate())
                 .roomTypeCount(roomTypeCount)
+                .stayType(rateCode.getStayType())
                 .useYn(rateCode.getUseYn())
                 .updatedAt(rateCode.getUpdatedAt())
                 .build();

@@ -1,0 +1,13 @@
+[   64848ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ http://localhost:8080/favicon.ico:0
+[   86646ms] [WARNING] Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.
+Element with focus: <div.modal fade#paidOptionModal>
+Ancestor with aria-hidden: <div.modal fade#paidOptionModal> @ http://localhost:8080/admin/rate-codes/37:0
+[  166449ms] [WARNING] Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.
+Element with focus: <div.modal fade#reservationChannelModal>
+Ancestor with aria-hidden: <div.modal fade#reservationChannelModal> @ http://localhost:8080/admin/reservation-channels:0
+[  177789ms] [WARNING] Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.
+Element with focus: <div.modal fade#roomNumberModal>
+Ancestor with aria-hidden: <div.modal fade#roomNumberModal> @ http://localhost:8080/admin/room-numbers:0
+[  182529ms] [WARNING] Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.
+Element with focus: <div.modal fade#floorModal>
+Ancestor with aria-hidden: <div.modal fade#floorModal> @ http://localhost:8080/admin/floors:0

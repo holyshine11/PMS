@@ -46,6 +46,11 @@ public class PropertyResponse {
     private BigDecimal serviceChargeRate;
     private Integer serviceChargeDecimalPlaces;
     private String serviceChargeRoundingMethod;
+    // Dayuse 설정
+    private Boolean dayUseEnabled;
+    private String dayUseStartTime;
+    private String dayUseEndTime;
+    private Integer dayUseDefaultHours;
     private Integer sortOrder;
     private Boolean useYn;
     private long floorCount;

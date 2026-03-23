@@ -11,6 +11,7 @@ import com.hola.reservation.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +22,7 @@ import java.util.List;
 /**
  * 대시보드 컨트롤러 (View + REST API)
  */
+@Slf4j
 @Tag(name = "대시보드", description = "프로퍼티 KPI, 운영 현황, 픽업 조회 API")
 @Controller
 @RequiredArgsConstructor
@@ -85,6 +87,11 @@ public class DashboardController {
     public HolaResponse<DashboardPickupResponse> getPickup(
             @PathVariable Long propertyId) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(dashboardService.getPickup(propertyId));
+        try {
+            return HolaResponse.success(dashboardService.getPickup(propertyId));
+        } catch (Exception e) {
+            log.error("Dashboard pickup 조회 실패 - propertyId: {}", propertyId, e);
+            throw e;
+        }
     }
 }

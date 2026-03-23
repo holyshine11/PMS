@@ -34,6 +34,12 @@ public class PropertyCreateRequest {
     private String description;
     private String bizLicensePath;
     private String logoPath;
+    // Dayuse 설정
+    private Boolean dayUseEnabled;
+    private String dayUseStartTime;
+    private String dayUseEndTime;
+    private Integer dayUseDefaultHours;
+
     private Boolean useYn;
     private Integer sortOrder;
 }

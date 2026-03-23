@@ -1,6 +1,7 @@
 package com.hola.hotel.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.security.AccessControlService;
 import com.hola.hotel.dto.request.RoomNumberRequest;
 import com.hola.hotel.dto.response.RoomNumberResponse;
 import com.hola.hotel.service.RoomNumberService;
@@ -23,16 +24,19 @@ import java.util.Map;
 public class RoomNumberApiController {
 
     private final RoomNumberService roomNumberService;
+    private final AccessControlService accessControlService;
 
     @Operation(summary = "호수 목록 조회", description = "프로퍼티 호수 전체 목록")
     @GetMapping
     public ResponseEntity<HolaResponse<List<RoomNumberResponse>>> getRoomNumbers(@PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(roomNumberService.getRoomNumbers(propertyId)));
     }
 
     @Operation(summary = "호수 상세 조회", description = "호수 ID로 상세 정보 조회")
     @GetMapping("/{id}")
-    public ResponseEntity<HolaResponse<RoomNumberResponse>> getRoomNumber(@PathVariable Long id) {
+    public ResponseEntity<HolaResponse<RoomNumberResponse>> getRoomNumber(@PathVariable Long propertyId, @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(roomNumberService.getRoomNumber(id)));
     }
 
@@ -40,6 +44,7 @@ public class RoomNumberApiController {
     @PostMapping
     public ResponseEntity<HolaResponse<RoomNumberResponse>> createRoomNumber(
             @PathVariable Long propertyId, @Valid @RequestBody RoomNumberRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(HolaResponse.success(roomNumberService.createRoomNumber(propertyId, request)));
     }
@@ -47,13 +52,15 @@ public class RoomNumberApiController {
     @Operation(summary = "호수 수정", description = "호수 정보 수정")
     @PutMapping("/{id}")
     public ResponseEntity<HolaResponse<RoomNumberResponse>> updateRoomNumber(
-            @PathVariable Long id, @Valid @RequestBody RoomNumberRequest request) {
+            @PathVariable Long propertyId, @PathVariable Long id, @Valid @RequestBody RoomNumberRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(roomNumberService.updateRoomNumber(id, request)));
     }
 
     @Operation(summary = "호수 삭제", description = "호수 소프트 삭제")
     @DeleteMapping("/{id}")
-    public ResponseEntity<HolaResponse<Void>> deleteRoomNumber(@PathVariable Long id) {
+    public ResponseEntity<HolaResponse<Void>> deleteRoomNumber(@PathVariable Long propertyId, @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         roomNumberService.deleteRoomNumber(id);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -64,6 +71,7 @@ public class RoomNumberApiController {
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkRoomNumberCode(
             @PathVariable Long propertyId,
             @RequestParam String roomNumber) {
+        accessControlService.validatePropertyAccess(propertyId);
         boolean duplicate = roomNumberService.existsRoomNumber(propertyId, roomNumber);
         return ResponseEntity.ok(HolaResponse.success(Collections.singletonMap("duplicate", duplicate)));
     }

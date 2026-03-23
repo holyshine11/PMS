@@ -31,6 +31,7 @@ public class RateCodeResponse {
     private LocalDate saleEndDate;
     private Integer minStayDays;
     private Integer maxStayDays;
+    private String stayType;
     private Integer sortOrder;
     private Boolean useYn;
     private LocalDateTime createdAt;

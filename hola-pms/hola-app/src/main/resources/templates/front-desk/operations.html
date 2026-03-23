@@ -23,37 +23,53 @@
     <div class="row mb-3" id="summaryCards">
         <div class="col-md-3">
             <div class="card border-0 shadow-sm" style="cursor:pointer;" data-filter="arrivals">
-                <div class="card-body text-center py-3">
-                    <div class="text-secondary mb-1"><i class="fas fa-key me-1"></i>오늘 도착</div>
-                    <div class="small text-muted">체크인일=오늘 &amp; 예약상태</div>
-                    <div id="summaryArrivals" style="font-size: 2.5rem; font-weight: 700; color: #0582CA; line-height: 1.2;">0</div>
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-secondary mb-1" style="font-size:0.8125rem;"><i class="fas fa-key me-1"></i>오늘 도착</div>
+                            <div class="small text-muted">체크인 대기</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="text-muted" style="font-size:0.6875rem;">체크인 완료</span>
+                            <span class="badge bg-primary ms-1" id="summaryCheckedIn">0</span>
+                        </div>
+                    </div>
+                    <div id="summaryArrivals" style="font-size: 2.25rem; font-weight: 700; color: #0582CA; line-height: 1.2;">0</div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card border-0 shadow-sm" style="cursor:pointer;" data-filter="inhouse">
-                <div class="card-body text-center py-3">
-                    <div class="text-secondary mb-1"><i class="fas fa-bed me-1"></i>투숙중</div>
-                    <div class="small text-muted">체크인/투숙중 상태</div>
-                    <div id="summaryInHouse" style="font-size: 2.5rem; font-weight: 700; color: #003554; line-height: 1.2;">0</div>
+                <div class="card-body py-3">
+                    <div class="text-secondary mb-1" style="font-size:0.8125rem;"><i class="fas fa-bed me-1"></i>투숙중</div>
+                    <div class="small text-muted">현재 체크인 상태</div>
+                    <div id="summaryInHouse" style="font-size: 2.25rem; font-weight: 700; color: #003554; line-height: 1.2;">0</div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card border-0 shadow-sm" style="cursor:pointer;" data-filter="departures">
-                <div class="card-body text-center py-3">
-                    <div class="text-secondary mb-1"><i class="fas fa-door-closed me-1"></i>오늘 출발</div>
-                    <div class="small text-muted">체크아웃일=오늘 &amp; 투숙중</div>
-                    <div id="summaryDepartures" style="font-size: 2.5rem; font-weight: 700; color: #EF476F; line-height: 1.2;">0</div>
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-secondary mb-1" style="font-size:0.8125rem;"><i class="fas fa-door-closed me-1"></i>오늘 출발</div>
+                            <div class="small text-muted">퇴실 대기</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="text-muted" style="font-size:0.6875rem;">체크아웃 완료</span>
+                            <span class="badge bg-danger ms-1" id="summaryCheckedOut">0</span>
+                        </div>
+                    </div>
+                    <div id="summaryDepartures" style="font-size: 2.25rem; font-weight: 700; color: #EF476F; line-height: 1.2;">0</div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card border-0 shadow-sm" style="cursor:pointer;" data-filter="all">
-                <div class="card-body text-center py-3">
-                    <div class="text-secondary mb-1"><i class="fas fa-hotel me-1"></i>전체</div>
-                    <div class="small text-muted">도착+투숙+출발 전체</div>
-                    <div id="summaryTotal" style="font-size: 2.5rem; font-weight: 700; color: #051923; line-height: 1.2;">0</div>
+                <div class="card-body py-3">
+                    <div class="text-secondary mb-1" style="font-size:0.8125rem;"><i class="fas fa-hotel me-1"></i>오늘 전체</div>
+                    <div class="small text-muted">오늘 관련 모든 예약</div>
+                    <div id="summaryTotal" style="font-size: 2.25rem; font-weight: 700; color: #051923; line-height: 1.2;">0</div>
                 </div>
             </div>
         </div>
@@ -162,7 +178,7 @@
 </div>
 
 <th:block layout:fragment="scripts">
-    <script th:src="@{/js/fd-operations-page.js}"></script>
+    <script th:src="@{/js/fd-operations-page.js(v=2)}"></script>
 </th:block>
 </body>
 </html>

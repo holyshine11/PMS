@@ -27,6 +27,7 @@ public class RateCodeListResponse {
     private LocalDate saleStartDate;
     private LocalDate saleEndDate;
     private long roomTypeCount;
+    private String stayType;
     private Boolean useYn;
     private LocalDateTime updatedAt;
 }

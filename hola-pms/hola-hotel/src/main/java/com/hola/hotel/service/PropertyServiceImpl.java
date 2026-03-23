@@ -98,6 +98,10 @@ public class PropertyServiceImpl implements PropertyService {
                 .description(request.getDescription())
                 .bizLicensePath(request.getBizLicensePath())
                 .logoPath(request.getLogoPath())
+                .dayUseEnabled(request.getDayUseEnabled() != null ? request.getDayUseEnabled() : false)
+                .dayUseStartTime(request.getDayUseStartTime() != null ? request.getDayUseStartTime() : "10:00")
+                .dayUseEndTime(request.getDayUseEndTime() != null ? request.getDayUseEndTime() : "20:00")
+                .dayUseDefaultHours(request.getDayUseDefaultHours() != null ? request.getDayUseDefaultHours() : 5)
                 .build();
 
         if (request.getUseYn() != null && !request.getUseYn()) {
@@ -126,6 +130,10 @@ public class PropertyServiceImpl implements PropertyService {
                 request.getZipCode(), request.getAddress(), request.getAddressDetail(),
                 request.getAddressEn(), request.getAddressDetailEn(), request.getDescription(),
                 request.getBizLicensePath(), request.getLogoPath());
+
+        property.updateDayUse(
+                request.getDayUseEnabled(), request.getDayUseStartTime(),
+                request.getDayUseEndTime(), request.getDayUseDefaultHours());
 
         if (request.getUseYn() != null) {
             if (request.getUseYn()) {

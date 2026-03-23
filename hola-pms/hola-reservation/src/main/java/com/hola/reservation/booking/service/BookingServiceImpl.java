@@ -18,6 +18,8 @@ import com.hola.rate.entity.RateCode;
 import com.hola.rate.entity.RateCodePaidService;
 import com.hola.rate.entity.RateCodeRoomType;
 import com.hola.rate.entity.PromotionCode;
+import com.hola.rate.entity.DayUseRate;
+import com.hola.rate.repository.DayUseRateRepository;
 import com.hola.rate.repository.RateCodePaidServiceRepository;
 import com.hola.rate.repository.PromotionCodeRepository;
 import com.hola.rate.repository.RateCodeRepository;
@@ -106,6 +108,7 @@ public class BookingServiceImpl implements BookingService {
     private final com.hola.reservation.service.RateIncludedServiceHelper rateIncludedServiceHelper;
     private final ReservationServiceItemRepository reservationServiceItemRepository;
     private final RateCodePaidServiceRepository rateCodePaidServiceRepository;
+    private final DayUseRateRepository dayUseRateRepository;
     private final CancellationPolicyService cancellationPolicyService;
     private final com.hola.hotel.repository.CancellationFeeRepository cancellationFeeRepository;
     private final com.hola.reservation.repository.ReservationPaymentRepository reservationPaymentRepository;
@@ -603,27 +606,47 @@ public class BookingServiceImpl implements BookingService {
             }
 
             try {
-                // 일별 요금 계산 (subReservation = null)
-                List<DailyCharge> dailyCharges = priceCalculationService.calculateDailyCharges(
-                        rc.getId(), property,
-                        request.getCheckIn(), request.getCheckOut(),
-                        request.getAdults(),
-                        request.getChildren() != null ? request.getChildren() : 0,
-                        null);
+                BigDecimal totalAmount;
+                List<AvailableRoomTypeResponse.DailyPrice> dailyPrices;
 
-                BigDecimal totalAmount = dailyCharges.stream()
-                        .map(DailyCharge::getTotal)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                // Dayuse 레이트코드: DayUseRate에서 요금 조회 (PriceCalculationService 사용 안 함)
+                if ("DAY_USE".equals(rc.getStayType())) {
+                    List<DayUseRate> dayUseRates = dayUseRateRepository
+                            .findByRateCodeIdAndUseYnTrueOrderBySortOrderAsc(rc.getId());
+                    if (dayUseRates.isEmpty()) continue;
+                    // 첫 번째(기본) 요금 사용
+                    DayUseRate rate = dayUseRates.get(0);
+                    totalAmount = rate.getSupplyPrice();
+                    dailyPrices = List.of(AvailableRoomTypeResponse.DailyPrice.builder()
+                            .date(request.getCheckIn().toString())
+                            .supplyPrice(rate.getSupplyPrice())
+                            .tax(BigDecimal.ZERO)
+                            .serviceCharge(BigDecimal.ZERO)
+                            .total(rate.getSupplyPrice())
+                            .build());
+                } else {
+                    // 숙박: 기존 일별 요금 계산
+                    List<DailyCharge> dailyCharges = priceCalculationService.calculateDailyCharges(
+                            rc.getId(), property,
+                            request.getCheckIn(), request.getCheckOut(),
+                            request.getAdults(),
+                            request.getChildren() != null ? request.getChildren() : 0,
+                            null);
 
-                List<AvailableRoomTypeResponse.DailyPrice> dailyPrices = dailyCharges.stream()
-                        .map(dc -> AvailableRoomTypeResponse.DailyPrice.builder()
-                                .date(dc.getChargeDate().toString())
-                                .supplyPrice(dc.getSupplyPrice())
-                                .tax(dc.getTax())
-                                .serviceCharge(dc.getServiceCharge())
-                                .total(dc.getTotal())
-                                .build())
-                        .toList();
+                    totalAmount = dailyCharges.stream()
+                            .map(DailyCharge::getTotal)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    dailyPrices = dailyCharges.stream()
+                            .map(dc -> AvailableRoomTypeResponse.DailyPrice.builder()
+                                    .date(dc.getChargeDate().toString())
+                                    .supplyPrice(dc.getSupplyPrice())
+                                    .tax(dc.getTax())
+                                    .serviceCharge(dc.getServiceCharge())
+                                    .total(dc.getTotal())
+                                    .build())
+                            .toList();
+                }
 
                 // 포함 서비스 조회 (벌크 캐시에서)
                 List<RateCodePaidService> serviceMappings = rateToPaidServiceMap.getOrDefault(rc.getId(), List.of());
@@ -1083,13 +1106,14 @@ public class BookingServiceImpl implements BookingService {
                     newAdults, newChildren, request.getCheckIn(), request.getCheckOut(),
                     sub.getEarlyCheckIn(), sub.getLateCheckOut());
 
-            // 기존 일별 요금 삭제 후 재계산
-            dailyChargeRepository.deleteAllBySubReservationId(sub.getId());
+            // 기존 일별 요금 삭제 후 재계산 (orphanRemoval=true이므로 clear()+flush() 패턴 사용)
+            sub.getDailyCharges().clear();
+            dailyChargeRepository.flush();
             List<DailyCharge> newCharges = priceCalculationService.calculateDailyCharges(
                     master.getRateCodeId(), property,
                     request.getCheckIn(), request.getCheckOut(),
                     newAdults, newChildren, sub);
-            dailyChargeRepository.saveAll(newCharges);
+            sub.getDailyCharges().addAll(newCharges);
 
             BigDecimal subTotal = newCharges.stream()
                     .map(DailyCharge::getTotal)

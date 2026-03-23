@@ -26,6 +26,20 @@ const HolaPms = {
         return s.charAt(0) + '**' + s.charAt(len - 1);
     },
 
+    maskPhone: function(phone) {
+        if (!phone) return phone;
+        var s = phone.replace(/[^0-9-]/g, '');
+        // 010-1234-5678 → 010-****-5678
+        if (s.indexOf('-') >= 0) {
+            var parts = s.split('-');
+            if (parts.length === 3) return parts[0] + '-****-' + parts[2];
+            if (parts.length === 2) return parts[0] + '-****';
+        }
+        // 01012345678 → 010****5678
+        if (s.length >= 8) return s.substring(0, 3) + '****' + s.substring(s.length - 4);
+        return s;
+    },
+
     /**
      * Ajax 에러 공통 핸들러
      */
@@ -427,26 +441,26 @@ const HolaPms = {
      * 예약 상태 매핑 (공통 정의 - 모든 예약 관련 JS에서 참조)
      */
     reservationStatus: {
-        RESERVED:    { label: '예약',     cls: 'bg-primary',          bg: '#0582CA', color: '#fff' },
-        CHECK_IN:    { label: '체크인',   cls: 'bg-info',             bg: '#17a2b8', color: '#fff' },
-        INHOUSE:     { label: '투숙중',   cls: 'bg-success',          bg: '#003554', color: '#fff' },
-        CHECKED_OUT: { label: '체크아웃', cls: 'bg-secondary',        bg: '#6c757d', color: '#fff' },
-        CANCELED:    { label: '취소',     cls: 'bg-danger',           bg: '#EF476F', color: '#fff' },
-        NO_SHOW:     { label: '노쇼',     cls: 'bg-warning text-dark', bg: '#ffc107', color: '#000' },
+        RESERVED:    { label: '예약',     cls: 'bg-primary',          bg: '#0582CA', color: '#fff', softBg: 'rgba(5,130,202,0.1)',    softColor: '#0572b0' },
+        CHECK_IN:    { label: '체크인',   cls: 'bg-info',             bg: '#17a2b8', color: '#fff', softBg: 'rgba(23,162,184,0.12)',  softColor: '#0c5460' },
+        INHOUSE:     { label: '투숙중',   cls: 'bg-success',          bg: '#003554', color: '#fff', softBg: 'rgba(0,53,84,0.12)',     softColor: '#003554' },
+        CHECKED_OUT: { label: '체크아웃', cls: 'bg-secondary',        bg: '#6c757d', color: '#fff', softBg: 'rgba(108,117,125,0.08)', softColor: '#6c757d' },
+        CANCELED:    { label: '취소',     cls: 'bg-danger',           bg: '#EF476F', color: '#fff', softBg: 'rgba(239,71,111,0.08)',  softColor: '#d03058' },
+        NO_SHOW:     { label: '노쇼',     cls: 'bg-warning text-dark', bg: '#ffc107', color: '#000', softBg: 'rgba(255,193,7,0.15)',  softColor: '#856404' },
 
-        /** Bootstrap 배지 HTML 반환 */
+        /** Soft 배지 HTML 반환 (테이블/리스트용) */
         badge: function(status) {
-            var info = this[status] || { label: status || '-', cls: 'bg-secondary' };
-            return '<span class="badge ' + info.cls + '">' + info.label + '</span>';
+            var info = this[status] || { label: status || '-', softBg: 'rgba(108,117,125,0.08)', softColor: '#6c757d' };
+            return '<span class="badge" style="background-color:' + info.softBg + '; color:' + info.softColor + '">' + info.label + '</span>';
         },
-        /** 인라인 스타일 배지 HTML 반환 (캘린더/일별 뷰용) */
+        /** Solid 배지 HTML 반환 (캘린더/일별 뷰용) */
         styledBadge: function(status) {
             var info = this[status] || { label: status || '-', bg: '#6c757d', color: '#fff' };
             return '<span class="badge" style="background-color:' + info.bg + '; color:' + (info.color || '#fff') + '">' + info.label + '</span>';
         },
         /** 상태 정보 객체 반환 */
         get: function(status) {
-            return this[status] || { label: status || '-', cls: 'bg-secondary', bg: '#6c757d', color: '#fff' };
+            return this[status] || { label: status || '-', cls: 'bg-secondary', bg: '#6c757d', color: '#fff', softBg: 'rgba(108,117,125,0.08)', softColor: '#6c757d' };
         }
     },
 

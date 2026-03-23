@@ -3,6 +3,7 @@ package com.hola.reservation.booking.entity;
 import com.hola.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "rsv_booking_api_key",
         uniqueConstraints = @UniqueConstraint(columnNames = "vendor_id"))
+@SQLRestriction("deleted_at IS NULL")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

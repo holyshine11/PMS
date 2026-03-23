@@ -40,6 +40,28 @@
                 </li>
             </div>
 
+            <!-- 2. 예약관리 -->
+            <li class="nav-item mt-2" sec:authorize="hasAnyRole('SUPER_ADMIN', 'HOTEL_ADMIN', 'PROPERTY_ADMIN')">
+                <div class="nav-link text-secondary small text-uppercase fw-bold sidebar-section" data-bs-toggle="collapse" data-bs-target="#menu-reservation" role="button" aria-expanded="true">
+                    <i class="fas fa-calendar-alt me-2"></i>예약관리
+                    <i class="fas fa-chevron-down sidebar-arrow ms-auto"></i>
+                </div>
+            </li>
+            <div class="collapse show" id="menu-reservation" sec:authorize="hasAnyRole('SUPER_ADMIN', 'HOTEL_ADMIN', 'PROPERTY_ADMIN')">
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/reservations}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/reservations')} ? 'active' : ''">
+                        <i class="fas fa-clipboard-list me-2"></i>예약 목록
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white ps-4" th:href="@{/admin/reservation-channels}"
+                       th:classappend="${#strings.startsWith(currentURI, '/admin/reservation-channels')} ? 'active' : ''">
+                        <i class="fas fa-broadcast-tower me-2"></i>예약채널 관리
+                    </a>
+                </li>
+            </div>
+
             <!-- 1-1. 하우스키핑 -->
             <li class="nav-item mt-2" sec:authorize="hasAnyRole('SUPER_ADMIN', 'HOTEL_ADMIN', 'PROPERTY_ADMIN', 'HOUSEKEEPING_SUPERVISOR')">
                 <div class="nav-link text-secondary small text-uppercase fw-bold sidebar-section" data-bs-toggle="collapse" data-bs-target="#menu-housekeeping" role="button" aria-expanded="true">
@@ -94,28 +116,6 @@
                     <a class="nav-link text-white ps-4" th:href="@{/admin/housekeeping/settings}"
                        th:classappend="${currentURI == '/admin/housekeeping/settings'} ? 'active' : ''">
                         <i class="fas fa-cog me-2"></i>설정
-                    </a>
-                </li>
-            </div>
-
-            <!-- 2. 예약관리 -->
-            <li class="nav-item mt-2" sec:authorize="hasAnyRole('SUPER_ADMIN', 'HOTEL_ADMIN', 'PROPERTY_ADMIN')">
-                <div class="nav-link text-secondary small text-uppercase fw-bold sidebar-section" data-bs-toggle="collapse" data-bs-target="#menu-reservation" role="button" aria-expanded="true">
-                    <i class="fas fa-calendar-alt me-2"></i>예약관리
-                    <i class="fas fa-chevron-down sidebar-arrow ms-auto"></i>
-                </div>
-            </li>
-            <div class="collapse show" id="menu-reservation" sec:authorize="hasAnyRole('SUPER_ADMIN', 'HOTEL_ADMIN', 'PROPERTY_ADMIN')">
-                <li class="nav-item">
-                    <a class="nav-link text-white ps-4" th:href="@{/admin/reservations}"
-                       th:classappend="${#strings.startsWith(currentURI, '/admin/reservations')} ? 'active' : ''">
-                        <i class="fas fa-clipboard-list me-2"></i>예약 목록
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white ps-4" th:href="@{/admin/reservation-channels}"
-                       th:classappend="${#strings.startsWith(currentURI, '/admin/reservation-channels')} ? 'active' : ''">
-                        <i class="fas fa-broadcast-tower me-2"></i>예약채널 관리
                     </a>
                 </li>
             </div>

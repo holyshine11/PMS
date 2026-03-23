@@ -1,6 +1,7 @@
 package com.hola.hotel.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.security.AccessControlService;
 import com.hola.hotel.dto.request.HousekeeperCreateRequest;
 import com.hola.hotel.dto.request.HousekeeperUpdateRequest;
 import com.hola.hotel.dto.response.HousekeeperResponse;
@@ -26,11 +27,13 @@ import java.util.Map;
 public class HousekeeperApiController {
 
     private final HousekeeperService housekeeperService;
+    private final AccessControlService accessControlService;
 
     @Operation(summary = "하우스키퍼 목록", description = "하우스키퍼 담당자 목록 조회")
     @GetMapping
     public ResponseEntity<HolaResponse<List<HousekeeperResponse>>> getList(
             @PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeeperService.getList(propertyId)));
     }
 
@@ -38,6 +41,7 @@ public class HousekeeperApiController {
     @GetMapping("/{id}")
     public ResponseEntity<HolaResponse<HousekeeperResponse>> getDetail(
             @PathVariable Long propertyId, @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeeperService.getDetail(propertyId, id)));
     }
 
@@ -46,6 +50,7 @@ public class HousekeeperApiController {
     public ResponseEntity<HolaResponse<HousekeeperResponse>> create(
             @PathVariable Long propertyId,
             @Valid @RequestBody HousekeeperCreateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(HolaResponse.success(housekeeperService.create(propertyId, request)));
     }
@@ -54,7 +59,8 @@ public class HousekeeperApiController {
     @PutMapping("/{id}")
     public ResponseEntity<HolaResponse<HousekeeperResponse>> update(
             @PathVariable Long propertyId, @PathVariable Long id,
-            @RequestBody HousekeeperUpdateRequest request) {
+            @Valid @RequestBody HousekeeperUpdateRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(housekeeperService.update(propertyId, id, request)));
     }
 
@@ -62,6 +68,7 @@ public class HousekeeperApiController {
     @DeleteMapping("/{id}")
     public ResponseEntity<HolaResponse<Void>> delete(
             @PathVariable Long propertyId, @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeeperService.delete(propertyId, id);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -70,19 +77,28 @@ public class HousekeeperApiController {
     @PutMapping("/{id}/reset-password")
     public ResponseEntity<HolaResponse<Void>> resetPassword(
             @PathVariable Long propertyId, @PathVariable Long id) {
+        accessControlService.validatePropertyAccess(propertyId);
         housekeeperService.resetPassword(propertyId, id);
         return ResponseEntity.ok(HolaResponse.success());
     }
+
+    // 비밀번호 형식 검증 패턴: 영문+숫자+특수문자 포함, 10~20자
+    private static final String PASSWORD_PATTERN = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]).{10,20}$";
 
     @Operation(summary = "비밀번호 변경", description = "하우스키퍼 비밀번호 변경")
     @PutMapping("/{id}/change-password")
     public ResponseEntity<HolaResponse<Void>> changePassword(
             @PathVariable Long propertyId, @PathVariable Long id,
             @RequestBody Map<String, String> body) {
+        accessControlService.validatePropertyAccess(propertyId);
         String newPassword = body.get("newPassword");
         if (newPassword == null || newPassword.length() < 10) {
             return ResponseEntity.badRequest()
                     .body(HolaResponse.error("HOLA-0802", "비밀번호는 10자 이상이어야 합니다."));
+        }
+        if (!newPassword.matches(PASSWORD_PATTERN)) {
+            return ResponseEntity.badRequest()
+                    .body(HolaResponse.error("HOLA-0802", "비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다."));
         }
         housekeeperService.changePassword(propertyId, id, newPassword);
         return ResponseEntity.ok(HolaResponse.success());
@@ -92,6 +108,7 @@ public class HousekeeperApiController {
     @GetMapping("/check-login-id")
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkLoginId(
             @PathVariable Long propertyId, @RequestParam String loginId) {
+        accessControlService.validatePropertyAccess(propertyId);
         boolean available = housekeeperService.checkLoginIdAvailable(loginId);
         return ResponseEntity.ok(HolaResponse.success(Map.of("available", available)));
     }
