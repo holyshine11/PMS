@@ -389,6 +389,19 @@ public class HousekeepingApiController {
         return ResponseEntity.ok(HolaResponse.success());
     }
 
+    // === 일일 작업 생성 ===
+
+    @Operation(summary = "일일 작업 생성", description = "DIRTY 상태 객실을 스캔하여 HK 작업 일괄 생성 (VD→CHECKOUT, OD→STAYOVER)")
+    @PostMapping("/generate-daily-tasks")
+    public ResponseEntity<HolaResponse<Map<String, Object>>> generateDailyTasks(
+            @PathVariable Long propertyId,
+            @RequestBody(required = false) Map<String, String> body) {
+        LocalDate date = (body != null && body.get("date") != null)
+                ? LocalDate.parse(body.get("date")) : LocalDate.now();
+        int count = housekeepingService.generateDailyTasks(propertyId, date);
+        return ResponseEntity.ok(HolaResponse.success(Map.of("createdCount", count)));
+    }
+
     // === 자동 배정 ===
 
     @Operation(summary = "자동 배정", description = "구역 기반 자동 배정 (가용 인력 → 구역 매핑 → 크레딧 균등 폴백)")

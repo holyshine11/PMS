@@ -150,6 +150,7 @@ var HkAttendance = {
                         case 'BEFORE_WORK':
                             bg = '#fff3cd'; symbol = '<span style="color:#856404;">○</span>';
                             tooltip = '출근전 (미출근)';
+                            cntNone++;
                             break;
                         default:
                             bg = '#fff'; symbol = '';

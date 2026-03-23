@@ -24,9 +24,27 @@ public class HkDashboardResponse {
     private int completedTasks;
     private int inspectedTasks;
     private int cancelledTasks;
+    private int unassignedTasks;    // 미배정 작업 수
     private double completionRate;  // 완료율 (%)
 
     private List<HousekeeperSummary> housekeeperSummaries;
+
+    // 객실 상태 요약 (VD, OD 등 청소 필요 객실 현황)
+    private RoomStatusSummary roomStatusSummary;
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class RoomStatusSummary {
+        private int totalRooms;
+        private int vacantClean;    // VC: 빈방+청소완료 (판매 가능)
+        private int vacantDirty;    // VD: 빈방+청소필요
+        private int occupiedClean;  // OC: 투숙중+청소완료
+        private int occupiedDirty;  // OD: 투숙중+청소필요
+        private int ooo;            // Out of Order
+        private int oos;            // Out of Service
+    }
 
     @Getter
     @NoArgsConstructor

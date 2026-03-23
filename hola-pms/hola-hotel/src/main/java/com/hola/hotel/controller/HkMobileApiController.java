@@ -74,14 +74,26 @@ public class HkMobileApiController {
         return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTask(taskId)));
     }
 
-    @Operation(summary = "작업 시작", description = "청소 작업 시작")
+    @Operation(summary = "작업 시작", description = "청소 작업 시작 (미배정 작업은 시작한 사용자에게 자동 배정)")
     @PutMapping("/my-tasks/{taskId}/start")
     public ResponseEntity<HolaResponse<Void>> startTask(
             @PathVariable Long propertyId,
             @PathVariable Long taskId,
             HttpSession session) {
-        validateTaskOwnership(taskId, session);
-        housekeepingService.startTask(taskId);
+        Long userId = getSessionUserId(session);
+        String role = (String) session.getAttribute("hkUserRole");
+
+        HkTaskResponse task = housekeepingService.getTask(taskId);
+
+        // HOUSEKEEPER: 본인 배정 작업만 시작 가능 / SUPERVISOR: 전체 가능 (미배정 포함)
+        if (!"HOUSEKEEPING_SUPERVISOR".equals(role)) {
+            if (!userId.equals(task.getAssignedTo())) {
+                throw new HolaException(ErrorCode.HK_TASK_ACCESS_DENIED);
+            }
+        }
+
+        // 미배정 작업은 시작한 사용자에게 자동 배정
+        housekeepingService.startTask(taskId, userId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 

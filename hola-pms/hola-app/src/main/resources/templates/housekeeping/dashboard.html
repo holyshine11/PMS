@@ -17,6 +17,9 @@
         <i class="fas fa-exclamation-circle me-1"></i>호텔과 프로퍼티를 먼저 선택해주세요.
     </div>
 
+    <!-- 미배정 작업 경고 -->
+    <div id="unassignedAlert" class="alert alert-warning d-none mb-2" role="alert"></div>
+
     <!-- 요약 카드 -->
     <div class="row g-3 mb-2" id="summaryRow">
         <div class="col-md-2">
@@ -80,6 +83,33 @@
                  style="width: 0%; background-color: #28a745;"></div>
             <div class="progress-bar" role="progressbar" id="pgInspected"
                  style="width: 0%; background-color: #20c997;"></div>
+        </div>
+    </div>
+
+    <!-- 객실 현황 -->
+    <div class="card border-0 shadow-sm mb-4" id="roomStatusCard">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <span class="text-muted">객실 현황:</span>
+                    <span>판매가능(VC) <span class="badge bg-success" id="rsVC">0</span></span>
+                    <span class="text-muted">·</span>
+                    <span>청소필요(VD) <span class="badge bg-danger" id="rsVD">0</span></span>
+                    <span class="text-muted">·</span>
+                    <span>투숙중(OC) <span class="badge bg-primary" id="rsOC">0</span></span>
+                    <span class="text-muted">·</span>
+                    <span>투숙+청소(OD) <span class="badge bg-warning text-dark" id="rsOD">0</span></span>
+                    <span class="text-muted">·</span>
+                    <span>OOO <span class="badge bg-secondary" id="rsOOO">0</span></span>
+                    <span class="text-muted">·</span>
+                    <span>OOS <span class="badge bg-secondary" id="rsOOS">0</span></span>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-danger" id="btnGenerateTasks">
+                        <i class="fas fa-plus-circle me-1"></i>일일 작업 생성
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

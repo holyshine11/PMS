@@ -99,6 +99,10 @@ public class FloorServiceImpl implements FloorService {
     @Transactional
     public void deleteFloor(Long id) {
         Floor floor = findFloorById(id);
+        // 하위 호수가 매핑된 층은 삭제 불가
+        if (floorRepository.existsRoomMappingByFloorId(id)) {
+            throw new HolaException(ErrorCode.FLOOR_HAS_ROOMS);
+        }
         floor.softDelete();
         log.info("층 삭제: {}", floor.getFloorNumber());
     }

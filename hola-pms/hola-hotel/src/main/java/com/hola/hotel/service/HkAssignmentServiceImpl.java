@@ -238,7 +238,10 @@ public class HkAssignmentServiceImpl implements HkAssignmentService {
         // 1) 가용 인력 조회
         List<Long> availableHkIds = getAvailableHousekeeperIds(propertyId, targetDate);
         if (availableHkIds.isEmpty()) {
-            throw new HolaException(ErrorCode.HK_NO_AVAILABLE_HOUSEKEEPER);
+            log.warn("HK 자동 배정: 가용 인력 없음 (propertyId={}, date={}). " +
+                    "하우스키핑 > 인력관리에서 하우스키퍼를 등록하거나, 출근부에서 가용 설정을 확인해주세요.",
+                    propertyId, targetDate);
+            return 0;
         }
 
         // 2) 미배정 + 활성 작업 조회

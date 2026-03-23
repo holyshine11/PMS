@@ -27,6 +27,8 @@ public interface HousekeepingService {
 
     // === 작업 상태 변경 (모바일) ===
     void startTask(Long taskId);
+    /** 미배정 작업 시작 시 startedByUserId에게 자동 배정 */
+    void startTask(Long taskId, Long startedByUserId);
     void pauseTask(Long taskId);
     void completeTask(Long taskId);
 
@@ -52,6 +54,9 @@ public interface HousekeepingService {
 
     // === 자동화 ===
     void createTaskOnCheckout(Long propertyId, Long roomNumberId, Long reservationId);
+
+    /** DIRTY 상태 객실을 스캔하여 미생성 작업을 일괄 생성. 생성된 작업 수 반환 */
+    int generateDailyTasks(Long propertyId, LocalDate date);
 
     // === 이력 조회 ===
     List<HkTaskResponse> getHistory(Long propertyId, LocalDate from, LocalDate to, Long assignedTo);

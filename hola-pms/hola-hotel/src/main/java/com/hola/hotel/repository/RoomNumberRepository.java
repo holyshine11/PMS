@@ -39,6 +39,22 @@ public interface RoomNumberRepository extends JpaRepository<RoomNumber, Long> {
            "ORDER BY r.roomNumber ASC")
     List<RoomNumber> findVacantCleanRooms(@Param("propertyId") Long propertyId);
 
+    /**
+     * VD(빈방+청소필요) 객실 목록 - 하우스키핑 일일 작업 생성용
+     */
+    @Query("SELECT r FROM RoomNumber r WHERE r.property.id = :propertyId " +
+           "AND r.foStatus = 'VACANT' AND r.hkStatus = 'DIRTY' " +
+           "ORDER BY r.roomNumber ASC")
+    List<RoomNumber> findVacantDirtyRooms(@Param("propertyId") Long propertyId);
+
+    /**
+     * OD(투숙중+청소필요) 객실 목록 - 스테이오버 작업 생성용
+     */
+    @Query("SELECT r FROM RoomNumber r WHERE r.property.id = :propertyId " +
+           "AND r.foStatus = 'OCCUPIED' AND r.hkStatus = 'DIRTY' " +
+           "ORDER BY r.roomNumber ASC")
+    List<RoomNumber> findOccupiedDirtyRooms(@Param("propertyId") Long propertyId);
+
     // === 하우스키핑 구역 배정용: 객실→층 매핑 ===
 
     /** 특정 객실의 층 ID 조회 (rm_room_type_floor 테이블 활용) */

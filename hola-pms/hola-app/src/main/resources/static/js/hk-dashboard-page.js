@@ -32,17 +32,24 @@ var HkDashboard = {
                 self.redistribute();
             }
         });
+
+        // 일일 작업 생성
+        $('#btnGenerateTasks').on('click', function () {
+            if (confirm('DIRTY 상태 객실에 대해 청소 작업을 일괄 생성하시겠습니까?')) {
+                self.generateDailyTasks();
+            }
+        });
     },
 
     reload: function () {
         var propertyId = HolaPms.context.getPropertyId();
         if (!propertyId) {
             $('#contextAlert').removeClass('d-none');
-            $('#summaryRow, #progressArea, #assignmentCard, #housekeeperCard').hide();
+            $('#summaryRow, #progressArea, #roomStatusCard, #assignmentCard, #housekeeperCard').hide();
             return;
         }
         $('#contextAlert').addClass('d-none');
-        $('#summaryRow, #progressArea, #assignmentCard, #housekeeperCard').show();
+        $('#summaryRow, #progressArea, #roomStatusCard, #assignmentCard, #housekeeperCard').show();
         this.propertyId = propertyId;
         // 출근부 먼저 로드 → 완료 후 대시보드 로드 (병합 렌더링 위해)
         this.loadAttendanceThenDashboard();
@@ -111,6 +118,30 @@ var HkDashboard = {
     },
 
     renderSummary: function (data) {
+        // 미배정 작업 경고
+        var unassigned = data.unassignedTasks || 0;
+        if (unassigned > 0) {
+            $('#unassignedAlert').removeClass('d-none')
+                .html('<i class="fas fa-exclamation-triangle me-1"></i>' +
+                    '미배정 작업 <strong>' + unassigned + '</strong>건이 있습니다. 자동 배정 또는 수동 배정을 진행해주세요.');
+        } else {
+            $('#unassignedAlert').addClass('d-none');
+        }
+
+        // 객실 현황 요약 렌더링
+        var rs = data.roomStatusSummary;
+        if (rs) {
+            $('#rsVC').text(rs.vacantClean || 0);
+            $('#rsVD').text(rs.vacantDirty || 0);
+            $('#rsOC').text(rs.occupiedClean || 0);
+            $('#rsOD').text(rs.occupiedDirty || 0);
+            $('#rsOOO').text(rs.ooo || 0);
+            $('#rsOOS').text(rs.oos || 0);
+            // 청소 필요 객실이 없으면 작업 생성 버튼 비활성
+            var dirtyCount = (rs.vacantDirty || 0) + (rs.occupiedDirty || 0);
+            $('#btnGenerateTasks').prop('disabled', dirtyCount === 0);
+        }
+
         var total = data.totalTasks || 0;
         var pending = data.pendingTasks || 0;
         var inProgress = data.inProgressTasks || 0;
@@ -394,8 +425,32 @@ var HkDashboard = {
             success: function (res) {
                 if (res.success) {
                     var count = res.data.assignedCount || 0;
-                    HolaPms.alert('success', count + '건이 자동 배정되었습니다.');
-                    self.loadDashboard();
+                    if (count > 0) {
+                        HolaPms.alert('success', count + '건이 자동 배정되었습니다.');
+                    } else {
+                        HolaPms.alert('warning', '배정할 수 없습니다. 가용 인력 또는 미배정 작업이 없습니다. 출근부와 인력관리를 확인해주세요.');
+                    }
+                    self.loadAttendanceThenDashboard();
+                }
+            }
+        });
+    },
+
+    generateDailyTasks: function () {
+        var self = this;
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/housekeeping/generate-daily-tasks',
+            method: 'POST',
+            data: JSON.stringify({}),
+            success: function (res) {
+                if (res.success) {
+                    var count = res.data.createdCount || 0;
+                    if (count > 0) {
+                        HolaPms.alert('success', count + '건의 청소 작업이 생성되었습니다.');
+                    } else {
+                        HolaPms.alert('info', '생성할 작업이 없습니다. (이미 작업이 존재하거나 DIRTY 객실이 없음)');
+                    }
+                    self.loadAttendanceThenDashboard();
                 }
             }
         });

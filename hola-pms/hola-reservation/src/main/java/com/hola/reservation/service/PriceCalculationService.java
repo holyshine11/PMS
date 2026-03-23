@@ -32,9 +32,9 @@ import java.util.List;
  *    c. 기본 요금 = baseSupplyPrice
  *    d. 인원 추가 요금 = RatePricingPerson에서 ADULT/CHILD별 추가분 합산
  *    e. 소계 = 기본 + 인원추가
- *    f. 세금 = 소계 × Property.taxRate
- *    g. 봉사료 = 소계 × Property.serviceChargeRate
- *    h. 합계 = 소계 + 세금 + 봉사료
+ *    f. 봉사료 = 소계 × Property.serviceChargeRate
+ *    g. 세금 = (소계 + 봉사료) × Property.taxRate  ← 봉사료에도 VAT 적용 (업계 표준)
+ *    h. 합계 = 소계 + 봉사료 + 세금
  * 3. DailyCharge 리스트 반환
  */
 @Slf4j
@@ -107,18 +107,19 @@ public class PriceCalculationService {
             throw new HolaException(ErrorCode.RESERVATION_RATE_NOT_APPLICABLE);
         }
 
-        // 세금 계산 (프로퍼티 세율 기반)
-        BigDecimal taxRate = property.getTaxRate() != null ? property.getTaxRate() : BigDecimal.ZERO;
-        BigDecimal tax = supplyPrice.multiply(taxRate)
-                .divide(BigDecimal.valueOf(100), getRoundingScale(property.getTaxDecimalPlaces()),
-                        getRoundingMode(property.getTaxRoundingMethod()));
-
-        // 봉사료 계산
+        // 봉사료 계산 (먼저 — 세금 과세표준에 포함되므로)
         BigDecimal serviceChargeRate = property.getServiceChargeRate() != null ?
                 property.getServiceChargeRate() : BigDecimal.ZERO;
         BigDecimal serviceCharge = supplyPrice.multiply(serviceChargeRate)
                 .divide(BigDecimal.valueOf(100), getRoundingScale(property.getServiceChargeDecimalPlaces()),
                         getRoundingMode(property.getServiceChargeRoundingMethod()));
+
+        // 세금 계산: (공급가 + 봉사료)에 VAT 적용 (업계 표준)
+        BigDecimal taxRate = property.getTaxRate() != null ? property.getTaxRate() : BigDecimal.ZERO;
+        BigDecimal taxBase = supplyPrice.add(serviceCharge);
+        BigDecimal tax = taxBase.multiply(taxRate)
+                .divide(BigDecimal.valueOf(100), getRoundingScale(property.getTaxDecimalPlaces()),
+                        getRoundingMode(property.getTaxRoundingMethod()));
 
         BigDecimal total = supplyPrice.add(tax).add(serviceCharge);
 

@@ -73,6 +73,16 @@ public class HousekeepingServiceImpl implements HousekeepingService {
         // 하우스키퍼별 집계
         List<HkDashboardResponse.HousekeeperSummary> summaries = buildHousekeeperSummaries(propertyId, targetDate);
 
+        // 미배정 작업 수 (CANCELLED, INSPECTED 제외)
+        List<HkTask> allTasks = hkTaskRepository.findByPropertyIdAndTaskDate(propertyId, targetDate);
+        int unassigned = (int) allTasks.stream()
+                .filter(t -> t.getAssignedTo() == null)
+                .filter(t -> !"CANCELLED".equals(t.getStatus()) && !"INSPECTED".equals(t.getStatus()))
+                .count();
+
+        // 객실 상태 요약
+        HkDashboardResponse.RoomStatusSummary roomStatus = buildRoomStatusSummary(propertyId);
+
         return HkDashboardResponse.builder()
                 .totalTasks((int) total)
                 .pendingTasks(pending)
@@ -80,8 +90,10 @@ public class HousekeepingServiceImpl implements HousekeepingService {
                 .completedTasks(completed)
                 .inspectedTasks(inspected)
                 .cancelledTasks(cancelled)
+                .unassignedTasks(unassigned)
                 .completionRate(Math.round(completionRate * 10) / 10.0)
                 .housekeeperSummaries(summaries)
+                .roomStatusSummary(roomStatus)
                 .build();
     }
 
@@ -235,7 +247,18 @@ public class HousekeepingServiceImpl implements HousekeepingService {
     @Override
     @Transactional
     public void startTask(Long taskId) {
+        startTask(taskId, null);
+    }
+
+    @Override
+    @Transactional
+    public void startTask(Long taskId, Long startedByUserId) {
         HkTask task = findTaskById(taskId);
+        // 미배정 작업 시작 시 해당 사용자에게 자동 배정
+        if (task.getAssignedTo() == null && startedByUserId != null) {
+            task.assign(startedByUserId, startedByUserId);
+            log.info("HK 작업 시작 시 자동 배정: taskId={}, userId={}", taskId, startedByUserId);
+        }
         if (!"PENDING".equals(task.getStatus()) && !"PAUSED".equals(task.getStatus())) {
             throw new HolaException(ErrorCode.HK_TASK_STATUS_CHANGE_NOT_ALLOWED);
         }
@@ -535,6 +558,60 @@ public class HousekeepingServiceImpl implements HousekeepingService {
                 propertyId, roomNumberId, task.getPriority());
     }
 
+    @Override
+    @Transactional
+    public int generateDailyTasks(Long propertyId, LocalDate date) {
+        accessControlService.validatePropertyAccess(propertyId);
+        LocalDate targetDate = date != null ? date : LocalDate.now();
+
+        HkConfig config = hkConfigRepository.findByPropertyId(propertyId).orElse(null);
+        BigDecimal checkoutCredit = config != null ? config.getDefaultCheckoutCredit() : new BigDecimal("1.0");
+        BigDecimal stayoverCredit = config != null ? config.getDefaultStayoverCredit() : new BigDecimal("0.5");
+
+        int createdCount = 0;
+
+        // 1) VD(빈방+청소필요) 객실 → CHECKOUT 타입 작업 생성
+        List<RoomNumber> vacantDirtyRooms = roomNumberRepository.findVacantDirtyRooms(propertyId);
+        for (RoomNumber room : vacantDirtyRooms) {
+            if (hkTaskRepository.existsByRoomNumberIdAndTaskDate(room.getId(), targetDate)) {
+                continue; // 이미 오늘 작업이 있으면 스킵
+            }
+            HkTask task = HkTask.builder()
+                    .propertyId(propertyId)
+                    .roomNumberId(room.getId())
+                    .taskType("CHECKOUT")
+                    .taskDate(targetDate)
+                    .priority("NORMAL")
+                    .credit(checkoutCredit)
+                    .build();
+            applyRushPriority(task, propertyId);
+            hkTaskRepository.save(task);
+            createdCount++;
+        }
+
+        // 2) OD(투숙중+청소필요) 객실 → STAYOVER 타입 작업 생성
+        List<RoomNumber> occupiedDirtyRooms = roomNumberRepository.findOccupiedDirtyRooms(propertyId);
+        for (RoomNumber room : occupiedDirtyRooms) {
+            if (hkTaskRepository.existsByRoomNumberIdAndTaskDate(room.getId(), targetDate)) {
+                continue;
+            }
+            HkTask task = HkTask.builder()
+                    .propertyId(propertyId)
+                    .roomNumberId(room.getId())
+                    .taskType("STAYOVER")
+                    .taskDate(targetDate)
+                    .priority("NORMAL")
+                    .credit(stayoverCredit)
+                    .build();
+            hkTaskRepository.save(task);
+            createdCount++;
+        }
+
+        log.info("HK 일일 작업 생성: propertyId={}, date={}, 생성={}건 (VD={}, OD={})",
+                propertyId, targetDate, createdCount, vacantDirtyRooms.size(), occupiedDirtyRooms.size());
+        return createdCount;
+    }
+
     // === 이력 조회 ===
 
     @Override
@@ -788,5 +865,28 @@ public class HousekeepingServiceImpl implements HousekeepingService {
         }
 
         return summaries;
+    }
+
+    /**
+     * 객실 상태 요약 집계 (대시보드용)
+     */
+    private HkDashboardResponse.RoomStatusSummary buildRoomStatusSummary(Long propertyId) {
+        long vc = roomNumberRepository.countByPropertyIdAndHkStatusAndFoStatus(propertyId, "CLEAN", "VACANT");
+        long vd = roomNumberRepository.countByPropertyIdAndHkStatusAndFoStatus(propertyId, "DIRTY", "VACANT");
+        long oc = roomNumberRepository.countByPropertyIdAndHkStatusAndFoStatus(propertyId, "CLEAN", "OCCUPIED");
+        long od = roomNumberRepository.countByPropertyIdAndHkStatusAndFoStatus(propertyId, "DIRTY", "OCCUPIED");
+        long ooo = roomNumberRepository.countByPropertyIdAndHkStatus(propertyId, "OOO");
+        long oos = roomNumberRepository.countByPropertyIdAndHkStatus(propertyId, "OOS");
+        long total = roomNumberRepository.countByPropertyId(propertyId);
+
+        return HkDashboardResponse.RoomStatusSummary.builder()
+                .totalRooms((int) total)
+                .vacantClean((int) vc)
+                .vacantDirty((int) vd)
+                .occupiedClean((int) oc)
+                .occupiedDirty((int) od)
+                .ooo((int) ooo)
+                .oos((int) oos)
+                .build();
     }
 }
