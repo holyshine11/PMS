@@ -89,12 +89,16 @@ public class RoomRackController {
                 builder.guestName(NameMaskingUtil.maskKoreanName(sub.getMasterReservation().getGuestNameKo()))
                        .checkOut(sub.getCheckOut())
                        .reservationId(sub.getMasterReservation().getId());
+            } else if (sub == null && "OCCUPIED".equals(item.getFoStatus())) {
+                // 고아 OC: foStatus=OCCUPIED인데 매칭 투숙 예약 없음 (체크아웃 미처리)
+                builder.orphanOccupied(true);
             }
 
             // HK 작업 오버레이
             if (hkTask != null && !"CANCELLED".equals(hkTask.getStatus())) {
                 builder.hkTaskStatus(hkTask.getStatus());
                 if (hkTask.getAssignedTo() != null) {
+                    builder.hkAssigneeId(hkTask.getAssignedTo());
                     builder.hkAssigneeName(getUserName(hkTask.getAssignedTo()));
                 }
                 if (hkTask.getStartedAt() != null) {
@@ -164,6 +168,8 @@ public class RoomRackController {
             }
         }
 
+        // 고아 OC 감지
+        boolean orphan = "OCCUPIED".equals(item.getFoStatus());
         return HolaResponse.success(RoomRackItemResponse.builder()
                 .roomNumberId(item.getRoomNumberId())
                 .roomNumber(item.getRoomNumber())
@@ -172,6 +178,7 @@ public class RoomRackController {
                 .statusCode(item.getStatusCode())
                 .roomTypeName(typeName)
                 .hkMemo(item.getHkMemo())
+                .orphanOccupied(orphan ? true : null)
                 .build());
     }
 

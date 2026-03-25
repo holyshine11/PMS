@@ -25,15 +25,23 @@ public class RoomStatusApiController {
     /**
      * 객실 HK/FO 상태 변경
      */
-    @Operation(summary = "객실 상태 변경", description = "개별 객실 HK/FO 상태 수동 변경")
+    @Operation(summary = "객실 상태 변경", description = "개별 객실 HK/FO 상태 수동 변경. VD 객실은 assigneeId로 담당자 배정 가능")
     @PutMapping("/{roomNumberId}")
     public HolaResponse<Void> updateStatus(
             @PathVariable Long propertyId,
             @PathVariable Long roomNumberId,
             @RequestBody Map<String, String> request) {
         accessControlService.validatePropertyAccess(propertyId);
+
+        // assigneeId 파싱 (선택 파라미터)
+        Long assigneeId = null;
+        String assigneeIdStr = request.get("assigneeId");
+        if (assigneeIdStr != null && !assigneeIdStr.isEmpty()) {
+            assigneeId = Long.parseLong(assigneeIdStr);
+        }
+
         roomStatusService.updateRoomStatus(roomNumberId, propertyId,
-                request.get("hkStatus"), request.get("foStatus"), request.get("memo"));
+                request.get("hkStatus"), request.get("foStatus"), request.get("memo"), assigneeId);
         return HolaResponse.success();
     }
 

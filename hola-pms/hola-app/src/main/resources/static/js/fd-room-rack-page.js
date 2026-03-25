@@ -8,6 +8,7 @@ var FdRoomRack = {
     pollInterval: null,
     selectedRoomId: null,
     activeFilter: 'ALL',
+    housekeepers: [], // 하우스키퍼 목록 캐시
 
     init: function () {
         this.bindEvents();
@@ -17,10 +18,16 @@ var FdRoomRack = {
     bindEvents: function () {
         var self = this;
         $(document).on('hola:contextChange', function () {
+            self.housekeepers = []; // 프로퍼티 변경 시 캐시 초기화
             self.reload();
         });
         $('#refreshBtn').on('click', function () { self.loadRoomRack(); });
         $('#hkSaveBtn').on('click', function () { self.saveHkStatus(); });
+
+        // HK 상태 변경 시 담당자 영역 표시/숨김
+        $('#hkStatusSelect').on('change', function () {
+            self.toggleAssigneeArea();
+        });
 
         // 요약 카드 클릭 → 상태 필터
         $('#summaryRow').on('click', '.room-summary-card', function () {
@@ -55,6 +62,7 @@ var FdRoomRack = {
         self.propertyId = propertyId;
         self.loadRoomRack();
         self.loadSummary();
+        self.loadHousekeepers();
         self.startPolling();
     },
 
@@ -97,6 +105,20 @@ var FdRoomRack = {
                 $('#cntOOO').text(ooo);
                 $('#cntOOS').text(oos);
                 $('#cntTotal').text(vc + vd + oc + od + ooo + oos);
+            }
+        });
+    },
+
+    // 하우스키퍼 목록 조회 (프로퍼티 변경 시 + 최초 로드 시)
+    loadHousekeepers: function () {
+        var self = this;
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/housekeeping/housekeepers',
+            method: 'GET',
+            success: function (res) {
+                if (res.success) {
+                    self.housekeepers = res.data || [];
+                }
             }
         });
     },
@@ -157,6 +179,9 @@ var FdRoomRack = {
         var cssClass = 'room-card-' + room.statusCode.toLowerCase();
         var isOccupied = room.foStatus === 'OCCUPIED';
 
+        // 고아 OC 카드에 경고 스타일 추가
+        if (room.orphanOccupied) cssClass += ' room-card-orphan-flag';
+
         var html = '<div class="room-card ' + cssClass + '" data-room-id="' + room.roomNumberId + '"'
             + ' data-occupied="' + isOccupied + '"'
             + (isOccupied && room.reservationId ? ' data-reservation-id="' + room.reservationId + '"' : '')
@@ -170,8 +195,11 @@ var FdRoomRack = {
             html += '<div class="room-card-type">' + HolaPms.escapeHtml(room.roomTypeName) + '</div>';
         }
 
-        // 투숙중이면 투숙객 + 체크아웃일
-        if (isOccupied && room.guestName) {
+        // 고아 OC: 투숙객 없이 OCCUPIED → 경고 표시
+        if (room.orphanOccupied) {
+            html += '<div class="room-card-orphan"><i class="fas fa-exclamation-triangle me-1"></i>투숙객 없음</div>';
+            html += '<div class="room-card-status" style="font-size:0.55rem;">체크아웃 미처리</div>';
+        } else if (isOccupied && room.guestName) {
             html += '<div class="room-card-guest">' + HolaPms.escapeHtml(room.guestName) + '</div>';
             if (room.checkOut) {
                 html += '<div class="room-card-co"><i class="fas fa-sign-out-alt me-1"></i>' + room.checkOut + '</div>';
@@ -181,12 +209,16 @@ var FdRoomRack = {
             html += '<div class="room-card-status">' + room.statusCode + '</div>';
         }
 
-        // HK 작업 오버레이
-        if (room.hkTaskStatus && room.hkTaskStatus !== 'CANCELLED') {
+        // HK 작업 오버레이 (진행중 작업만 표시, 완료/검수/취소된 작업은 숨김)
+        var showHkOverlay = room.hkTaskStatus
+            && room.hkTaskStatus !== 'CANCELLED'
+            && room.hkTaskStatus !== 'INSPECTED'
+            && room.hkTaskStatus !== 'COMPLETED';
+        if (showHkOverlay) {
             var hkLabel = this.getHkTaskLabel(room.hkTaskStatus);
             html += '<div class="room-card-hk">' + hkLabel + '</div>';
             if (room.hkAssigneeName) {
-                html += '<div class="room-card-assignee">' + HolaPms.escapeHtml(room.hkAssigneeName) + '</div>';
+                html += '<div class="room-card-assignee">' + HolaPms.escapeHtml(HolaPms.maskName(room.hkAssigneeName)) + '</div>';
             }
             if (room.hkTaskStartedAt) {
                 html += '<div class="room-card-time">' + room.hkTaskStartedAt + '~</div>';
@@ -205,6 +237,12 @@ var FdRoomRack = {
     // ========== 카드 클릭 핸들러 ==========
 
     handleCardClick: function (roomId, isOccupied, reservationId) {
+        // 고아 OC → HK 모달 (상태 보정용)
+        var room = this.findRoom(roomId);
+        if (room && room.orphanOccupied) {
+            this.openHkModal(roomId);
+            return;
+        }
         if (isOccupied && reservationId) {
             // 투숙중 → 예약 상세 팝업
             HolaPms.popup.openReservationDetail(reservationId);
@@ -217,15 +255,25 @@ var FdRoomRack = {
     // ========== HK 상태 변경 모달 ==========
 
     openHkModal: function (roomId) {
+        var self = this;
         var room = this.findRoom(roomId);
         if (!room) return;
         this.selectedRoomId = roomId;
 
+        // 모달 기본 정보 설정
         $('#hkRoom').text(room.roomNumber);
         $('#hkCurrentStatus').html(this.getStatusBadge(room.statusCode));
         $('#hkRoomType').text(room.roomTypeName || '-');
         $('#hkStatusSelect').val(room.hkStatus);
         $('#hkMemoInput').val(room.hkMemo || '');
+        $('#hkAssigneeSelect').val('');
+
+        // 고아 OC 경고 표시
+        if (room.orphanOccupied) {
+            $('#hkOrphanWarning').removeClass('d-none');
+        } else {
+            $('#hkOrphanWarning').addClass('d-none');
+        }
 
         // OOO/OOS 경고 표시
         var isOooOos = room.statusCode === 'OOO' || room.statusCode === 'OOS';
@@ -237,22 +285,112 @@ var FdRoomRack = {
             warningEl.addClass('d-none');
         }
 
+        // 진행중 작업 안내 초기화
+        $('#hkInProgressAlert').addClass('d-none');
+
+        // 진행중 작업 감지 (IN_PROGRESS/COMPLETED/INSPECTED)
+        var hasActiveNonPending = room.hkTaskStatus &&
+            room.hkTaskStatus !== 'CANCELLED' &&
+            room.hkTaskStatus !== 'PENDING';
+        if (hasActiveNonPending && room.hkAssigneeName) {
+            var statusLabel = { 'IN_PROGRESS': '청소 진행중', 'COMPLETED': '청소 완료', 'PAUSED': '일시 중단', 'INSPECTED': '검수 완료' };
+            $('#hkInProgressText').text(
+                (statusLabel[room.hkTaskStatus] || room.hkTaskStatus) +
+                ' (담당: ' + HolaPms.maskName(room.hkAssigneeName) + ')'
+            );
+            $('#hkInProgressAlert').removeClass('d-none');
+        }
+
+        // 담당자 영역: VD 조건 판정 + 드롭다운 채움
+        self.toggleAssigneeArea(room);
+
         HolaPms.modal.show('#roomHkModal');
+    },
+
+    /**
+     * 담당자 배정 영역 표시/숨김
+     * VD 조건: (현재 VD이고 DIRTY 유지) 또는 (DIRTY로 변경 + foStatus VACANT)
+     */
+    toggleAssigneeArea: function (room) {
+        var self = this;
+        if (!room) {
+            room = this.findRoom(this.selectedRoomId);
+        }
+        if (!room) return;
+
+        var selectedHkStatus = $('#hkStatusSelect').val();
+        var isVacant = room.foStatus === 'VACANT';
+        var isDirty = selectedHkStatus === 'DIRTY';
+        var showAssignee = isVacant && isDirty;
+
+        // 진행중 작업이 있으면 담당자 배정 차단
+        var hasActiveNonPending = room.hkTaskStatus &&
+            room.hkTaskStatus !== 'CANCELLED' &&
+            room.hkTaskStatus !== 'PENDING';
+        if (hasActiveNonPending) {
+            showAssignee = false;
+        }
+
+        if (showAssignee) {
+            self.populateAssigneeSelect();
+            $('#hkAssigneeArea').removeClass('d-none');
+        } else {
+            $('#hkAssigneeArea').addClass('d-none');
+            $('#hkAssigneeSelect').val('');
+        }
+    },
+
+    // 하우스키퍼 드롭다운 채우기 + 기존 배정자 선택
+    populateAssigneeSelect: function () {
+        var room = this.findRoom(this.selectedRoomId);
+        var currentAssigneeId = room ? room.hkAssigneeId : null;
+        var options = '<option value="">미지정</option>';
+
+        if (this.housekeepers.length === 0) {
+            $('#hkAssigneeEmpty').removeClass('d-none');
+        } else {
+            $('#hkAssigneeEmpty').addClass('d-none');
+            for (var i = 0; i < this.housekeepers.length; i++) {
+                var hk = this.housekeepers[i];
+                options += '<option value="' + hk.userId + '">'
+                    + HolaPms.escapeHtml(HolaPms.maskName(hk.userName))
+                    + '</option>';
+            }
+        }
+
+        $('#hkAssigneeSelect').html(options);
+
+        // 기존 배정자가 있으면 선택
+        if (currentAssigneeId) {
+            $('#hkAssigneeSelect').val(String(currentAssigneeId));
+        }
     },
 
     saveHkStatus: function () {
         var self = this;
         var hkStatus = $('#hkStatusSelect').val();
         var memo = $('#hkMemoInput').val().trim();
+        var assigneeId = $('#hkAssigneeSelect').val() || '';
+
+        var payload = { hkStatus: hkStatus, memo: memo };
+        if (assigneeId) {
+            payload.assigneeId = assigneeId;
+        }
+        // 고아 OC: 상태 변경 시 foStatus도 VACANT으로 자동 전환
+        var room = this.findRoom(this.selectedRoomId);
+        if (room && room.orphanOccupied) {
+            payload.foStatus = 'VACANT';
+        }
 
         HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/room-status/' + self.selectedRoomId,
             method: 'PUT',
-            data: JSON.stringify({ hkStatus: hkStatus, memo: memo }),
+            data: JSON.stringify(payload),
             success: function (res) {
                 if (res.success) {
                     HolaPms.modal.hide('#roomHkModal');
-                    HolaPms.alert('success', '객실 상태 변경 완료');
+                    var msg = assigneeId ? '객실 상태 변경 + 담당자 배정 완료' : '객실 상태 변경 완료';
+                    HolaPms.alert('success', msg);
                     self.loadRoomRack();
                     self.loadSummary();
                 }
@@ -284,11 +422,11 @@ var FdRoomRack = {
 
     getHkTaskLabel: function (status) {
         var map = {
-            'PENDING': '<span class="badge bg-warning text-dark" style="font-size:10px;">대기</span>',
-            'IN_PROGRESS': '<span class="badge bg-primary" style="font-size:10px;">청소중</span>',
-            'PAUSED': '<span class="badge bg-secondary" style="font-size:10px;">중단</span>',
-            'COMPLETED': '<span class="badge bg-success" style="font-size:10px;">완료</span>',
-            'INSPECTED': '<span class="badge" style="font-size:10px;background:#20c997;">검수</span>'
+            'PENDING': '<span class="badge hk-badge-pending">대기</span>',
+            'IN_PROGRESS': '<span class="badge hk-badge-progress">청소중</span>',
+            'PAUSED': '<span class="badge hk-badge-paused">중단</span>',
+            'COMPLETED': '<span class="badge hk-badge-completed">완료</span>',
+            'INSPECTED': '<span class="badge hk-badge-inspected">검수</span>'
         };
         return map[status] || '';
     },

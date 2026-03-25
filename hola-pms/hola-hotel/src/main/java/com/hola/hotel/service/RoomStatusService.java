@@ -14,6 +14,9 @@ public interface RoomStatusService {
     /** HK/FO 상태 변경 */
     void updateRoomStatus(Long roomNumberId, Long propertyId, String hkStatus, String foStatus, String memo);
 
+    /** HK/FO 상태 변경 + 하우스키퍼 담당자 배정 (VD 객실) */
+    void updateRoomStatus(Long roomNumberId, Long propertyId, String hkStatus, String foStatus, String memo, Long assigneeId);
+
     /** 상태별 객실 수 집계 (VC, VD, OC, OD, OOO, OOS) */
     Map<String, Long> getStatusSummary(Long propertyId);
 

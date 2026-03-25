@@ -29,6 +29,10 @@ public class RoomRackItemResponse {
 
     // HK 작업 오버레이 (Phase 3)
     private String hkTaskStatus;       // HK 작업 상태 (PENDING, IN_PROGRESS, COMPLETED 등)
+    private Long hkAssigneeId;         // 배정된 하우스키퍼 ID
     private String hkAssigneeName;     // 배정된 하우스키퍼 이름
     private String hkTaskStartedAt;    // 작업 시작 시간 (HH:mm)
+
+    // 고아 OC 감지: foStatus=OCCUPIED인데 매칭 투숙 예약 없음
+    private Boolean orphanOccupied;
 }

@@ -58,6 +58,12 @@
                         <i class="fas fa-exclamation-triangle me-1"></i>
                         <span id="hkOooOosWarningText"></span>
                     </div>
+                    <!-- 고아 OC 경고 -->
+                    <div id="hkOrphanWarning" class="alert alert-danger d-none mb-3">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <strong>투숙객 미확인 객실</strong><br>
+                        <small>OCCUPIED 상태이지만 매칭 예약이 없습니다. 상태 변경 시 자동으로 빈방(VACANT)으로 전환됩니다.</small>
+                    </div>
                     <div class="row mb-2"><div class="col-4 text-muted">호수</div><div class="col-8" id="hkRoom">-</div></div>
                     <div class="row mb-2"><div class="col-4 text-muted">현재 상태</div><div class="col-8" id="hkCurrentStatus">-</div></div>
                     <div class="row mb-2"><div class="col-4 text-muted">객실타입</div><div class="col-8" id="hkRoomType">-</div></div>
@@ -70,6 +76,21 @@
                             <option value="OOO">OOO (사용불가)</option>
                             <option value="OOS">OOS (일시중단)</option>
                         </select>
+                    </div>
+                    <!-- 담당자 배정 (VD 상태일 때만 표시) -->
+                    <div id="hkAssigneeArea" class="mb-2 d-none">
+                        <label class="form-label text-muted">담당자 배정</label>
+                        <select class="form-select" id="hkAssigneeSelect">
+                            <option value="">미지정</option>
+                        </select>
+                        <div id="hkAssigneeEmpty" class="form-text text-warning d-none">
+                            <i class="fas fa-info-circle me-1"></i>등록된 하우스키퍼가 없습니다. 하우스키핑 > 인력관리에서 등록해주세요.
+                        </div>
+                    </div>
+                    <!-- 진행중 작업 안내 -->
+                    <div id="hkInProgressAlert" class="alert alert-info d-none mb-2" style="font-size: 0.85rem;">
+                        <i class="fas fa-spinner fa-spin me-1"></i>
+                        <span id="hkInProgressText"></span>
                     </div>
                     <div class="mb-2">
                         <label class="form-label text-muted">메모</label>
