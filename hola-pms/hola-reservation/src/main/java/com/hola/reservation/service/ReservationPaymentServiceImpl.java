@@ -2,6 +2,7 @@ package com.hola.reservation.service;
 
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
+import com.hola.reservation.booking.gateway.PaymentResult;
 import com.hola.reservation.dto.request.PaymentAdjustmentRequest;
 import com.hola.reservation.dto.request.PaymentProcessRequest;
 import com.hola.reservation.dto.response.PaymentAdjustmentResponse;
@@ -140,6 +141,95 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
 
         log.info("결제 처리: reservationId={}, method={}, amount={}, totalPaid={}",
                 reservationId, request.getPaymentMethod(), payAmount, payment.getTotalPaidAmount());
+
+        List<PaymentAdjustment> adjustments = adjustmentRepository
+                .findByMasterReservationIdOrderByAdjustmentSeqAsc(reservationId);
+        List<PaymentTransaction> transactions = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
+        return reservationMapper.toPaymentSummaryResponse(payment, adjustments, transactions);
+    }
+
+    @Override
+    @Transactional
+    public PaymentSummaryResponse processPaymentWithPgResult(Long propertyId, Long reservationId,
+                                                              PaymentProcessRequest request, PaymentResult pgResult) {
+        MasterReservation master = findMasterById(reservationId);
+        validateReservationProperty(master, propertyId);
+
+        String reservationStatus = master.getReservationStatus();
+        if ("CHECKED_OUT".equals(reservationStatus) || "CANCELED".equals(reservationStatus) || "NO_SHOW".equals(reservationStatus)) {
+            throw new HolaException(ErrorCode.RESERVATION_MODIFY_NOT_ALLOWED);
+        }
+
+        ReservationPayment payment = getOrCreatePayment(master);
+
+        String paymentStatus = payment.getPaymentStatus();
+        if ("PAID".equals(paymentStatus) || "OVERPAID".equals(paymentStatus)) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED);
+        }
+
+        recalculateAmounts(payment, reservationId);
+
+        BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
+        BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+        BigDecimal remaining = grandTotal.subtract(totalPaid);
+
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED);
+        }
+
+        BigDecimal payAmount = request.getAmount() != null ? request.getAmount() : remaining;
+
+        if (payAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_AMOUNT_INVALID);
+        }
+        if (payAmount.compareTo(remaining) > 0) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_AMOUNT_EXCEEDED);
+        }
+
+        List<PaymentTransaction> existingTxns = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
+        int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
+
+        // PG 결과 포함 PaymentTransaction 생성
+        PaymentTransaction.PaymentTransactionBuilder txnBuilder = PaymentTransaction.builder()
+                .masterReservationId(reservationId)
+                .transactionSeq(nextSeq)
+                .paymentMethod(request.getPaymentMethod())
+                .amount(payAmount)
+                .memo(request.getMemo());
+
+        // PG 필드 매핑
+        if (pgResult != null) {
+            txnBuilder
+                    .pgProvider(pgResult.getPgProvider() != null ? pgResult.getPgProvider() : pgResult.getGatewayId())
+                    .pgCno(pgResult.getPgCno())
+                    .pgTransactionId(pgResult.getPgTransactionId())
+                    .pgStatusCode(pgResult.getPgStatusCode())
+                    .pgApprovalNo(pgResult.getPgApprovalNo())
+                    .pgApprovalDate(pgResult.getPgApprovalDate())
+                    .pgCardNo(pgResult.getPgCardNo())
+                    .pgIssuerName(pgResult.getPgIssuerName())
+                    .pgAcquirerName(pgResult.getPgAcquirerName())
+                    .pgInstallmentMonth(pgResult.getInstallmentMonth())
+                    .pgCardType(pgResult.getPgCardType())
+                    .pgRawResponse(pgResult.getPgRawResponse());
+
+            // approvalNo도 PG 승인번호로 설정
+            if (pgResult.getApprovalNo() != null) {
+                txnBuilder.approvalNo(pgResult.getApprovalNo());
+            }
+        }
+
+        transactionRepository.save(txnBuilder.build());
+
+        payment.addPaidAmount(payAmount);
+
+        log.info("PG 결제 처리: reservationId={}, pgProvider={}, pgCno={}, amount={}",
+                reservationId,
+                pgResult != null ? pgResult.getPgProvider() : "N/A",
+                pgResult != null ? pgResult.getPgCno() : "N/A",
+                payAmount);
 
         List<PaymentAdjustment> adjustments = adjustmentRepository
                 .findByMasterReservationIdOrderByAdjustmentSeqAsc(reservationId);

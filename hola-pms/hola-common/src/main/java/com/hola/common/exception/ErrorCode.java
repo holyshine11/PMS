@@ -214,7 +214,15 @@ public enum ErrorCode {
     ROOM_UNAVAILABLE_OVERLAP("HOLA-5004", "해당 기간에 이미 OOO/OOS가 등록된 객실입니다.", HttpStatus.BAD_REQUEST),
     ROOM_UNAVAILABLE_FOR_RESERVATION("HOLA-5005", "해당 기간에 OOO/OOS 상태인 객실입니다. 다른 객실을 선택해주세요.", HttpStatus.BAD_REQUEST),
     FD_UNPAID_BALANCE("HOLA-5010", "미결제 잔액이 있습니다.", HttpStatus.BAD_REQUEST),
-    FD_STATUS_CHANGE_NOT_ALLOWED("HOLA-5020", "해당 상태로 변경할 수 없습니다.", HttpStatus.BAD_REQUEST);
+    FD_STATUS_CHANGE_NOT_ALLOWED("HOLA-5020", "해당 상태로 변경할 수 없습니다.", HttpStatus.BAD_REQUEST),
+
+    // PG 결제 (HOLA-42xx)
+    PG_REGISTER_FAILED("HOLA-4200", "PG 거래등록에 실패했습니다.", HttpStatus.BAD_GATEWAY),
+    PG_APPROVAL_FAILED("HOLA-4201", "PG 결제승인에 실패했습니다.", HttpStatus.BAD_GATEWAY),
+    PG_CANCEL_FAILED("HOLA-4202", "PG 결제취소에 실패했습니다.", HttpStatus.BAD_GATEWAY),
+    PG_AMOUNT_MISMATCH("HOLA-4203", "PG 승인금액이 요청금액과 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
+    PG_AUTH_VERIFY_FAILED("HOLA-4204", "PG 메시지 인증값 검증에 실패했습니다.", HttpStatus.BAD_REQUEST),
+    PG_COMMUNICATION_ERROR("HOLA-4205", "PG 통신 중 오류가 발생했습니다.", HttpStatus.BAD_GATEWAY);
 
     private final String code;
     private final String message;

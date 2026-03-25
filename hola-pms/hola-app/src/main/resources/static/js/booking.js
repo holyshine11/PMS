@@ -744,38 +744,19 @@ var HolaBooking = (function() {
                 return;
             }
 
-            var data = this.bookingData;
-            var room = data.rooms[0];
+            // CARD 결제: KICC 3단계 플로우
+            if (this.paymentMethod === 'CARD') {
+                this.initiateKiccPayment();
+                return;
+            }
 
-            // BookingCreateRequest 생성
-            var requestBody = {
-                idempotencyKey: this.generateUUID(),
-                guest: {
-                    guestNameKo: guestNameKo,
-                    guestFirstNameEn: $('#guestFirstNameEn').val().trim() || null,
-                    guestLastNameEn: $('#guestLastNameEn').val().trim() || null,
-                    phoneCountryCode: $('#phoneCountryCode').val(),
-                    phoneNumber: phoneNumber,
-                    email: email,
-                    nationality: $('#nationality').val()
-                },
-                rooms: [{
-                    roomTypeId: room.roomTypeId,
-                    rateCodeId: room.rateCodeId,
-                    checkIn: data.checkIn,
-                    checkOut: data.checkOut,
-                    adults: data.adults,
-                    children: data.children
-                }],
-                payment: {
-                    method: this.paymentMethod,
-                    cardNumber: this.paymentMethod === 'CARD' ? ($('#cardNumber').val() || null) : null,
-                    expiryDate: this.paymentMethod === 'CARD' ? ($('#expiryDate').val() || null) : null,
-                    cvv: this.paymentMethod === 'CARD' ? ($('#cvv').val() || null) : null
-                },
-                agreedTerms: true
-            };
+            // CASH 결제: 기존 동기식 플로우
+            this.submitCashBooking();
+        },
 
+        /** CASH 결제 — 기존 동기식 플로우 */
+        submitCashBooking: function() {
+            var requestBody = this.buildBookingRequest();
             this.submitting = true;
             var $btn = $('#btnSubmitBooking');
             $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> 예약 처리 중...');
@@ -787,7 +768,6 @@ var HolaBooking = (function() {
                 data: JSON.stringify(requestBody)
             }).done(function(res) {
                 if (res.data) {
-                    // 예약 성공 → 확인 페이지 이동
                     sessionStorage.removeItem('hola_booking');
                     sessionStorage.setItem('hola_booking_confirmation', JSON.stringify(res.data));
                     window.location.href = '/booking/' + self.propertyCode
@@ -797,6 +777,109 @@ var HolaBooking = (function() {
                 self.submitting = false;
                 $btn.prop('disabled', false).html('<i class="fas fa-lock me-1"></i> 예약 완료');
             });
+        },
+
+        /** CARD 결제 — KICC 3단계 플로우 */
+        initiateKiccPayment: function() {
+            var requestBody = this.buildBookingRequest();
+            this.submitting = true;
+            var $btn = $('#btnSubmitBooking');
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> 결제창 준비 중...');
+
+            var self = this;
+
+            // KICC postMessage 수신 리스너
+            window.addEventListener('message', function onKiccMessage(e) {
+                if (e.data && e.data.type === 'KICC_PAYMENT_COMPLETE') {
+                    window.removeEventListener('message', onKiccMessage);
+
+                    if (e.data.success) {
+                        // 결제+예약 성공 → confirmation 이동
+                        sessionStorage.removeItem('hola_booking');
+                        window.location.href = '/booking/' + self.propertyCode
+                            + '/confirmation/' + e.data.confirmationNo;
+                    } else {
+                        // 결제 실패
+                        self.submitting = false;
+                        $btn.prop('disabled', false).html('<i class="fas fa-lock me-1"></i> 예약 완료');
+                        showError(e.data.errorMessage || '결제에 실패했습니다. 다시 시도해주세요.');
+                    }
+                }
+            });
+
+            // 거래등록 API 호출
+            $.ajax({
+                url: API_BASE + '/payment/register?propertyCode=' + this.propertyCode,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(requestBody)
+            }).done(function(res) {
+                if (res.success && res.authPageUrl) {
+                    // PC: 팝업, Mobile: 리다이렉트
+                    if (self.isMobile()) {
+                        // 모바일: 현재 페이지에서 리다이렉트
+                        sessionStorage.setItem('hola_kicc_shopOrderNo', res.shopOrderNo);
+                        window.location.href = res.authPageUrl;
+                    } else {
+                        // PC: 결제창 팝업
+                        var popup = window.open(res.authPageUrl, 'kiccPayment',
+                            'width=720,height=680,scrollbars=yes,resizable=yes');
+                        if (!popup || popup.closed) {
+                            showError('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
+                            self.submitting = false;
+                            $btn.prop('disabled', false).html('<i class="fas fa-lock me-1"></i> 예약 완료');
+                        }
+                    }
+                } else {
+                    showError('결제 준비에 실패했습니다.');
+                    self.submitting = false;
+                    $btn.prop('disabled', false).html('<i class="fas fa-lock me-1"></i> 예약 완료');
+                }
+            }).fail(function(xhr) {
+                var msg = '결제 준비에 실패했습니다.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                showError(msg);
+                self.submitting = false;
+                $btn.prop('disabled', false).html('<i class="fas fa-lock me-1"></i> 예약 완료');
+            });
+        },
+
+        /** BookingCreateRequest JSON 조립 */
+        buildBookingRequest: function() {
+            var data = this.bookingData;
+            var room = data.rooms[0];
+
+            return {
+                idempotencyKey: this.generateUUID(),
+                guest: {
+                    guestNameKo: $('#guestNameKo').val().trim(),
+                    guestFirstNameEn: $('#guestFirstNameEn').val().trim() || null,
+                    guestLastNameEn: $('#guestLastNameEn').val().trim() || null,
+                    phoneCountryCode: $('#phoneCountryCode').val(),
+                    phoneNumber: $('#phoneNumber').val().trim(),
+                    email: $('#email').val().trim(),
+                    nationality: $('#nationality').val()
+                },
+                rooms: [{
+                    roomTypeId: room.roomTypeId,
+                    rateCodeId: room.rateCodeId,
+                    checkIn: data.checkIn,
+                    checkOut: data.checkOut,
+                    adults: data.adults,
+                    children: data.children
+                }],
+                payment: {
+                    method: this.paymentMethod
+                },
+                agreedTerms: true
+            };
+        },
+
+        /** 모바일 디바이스 감지 */
+        isMobile: function() {
+            return /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent);
         },
 
         /** UUID v4 생성 */

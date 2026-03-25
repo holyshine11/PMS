@@ -314,6 +314,15 @@ public class ReservationMapper {
                 .memo(transaction.getMemo())
                 .createdAt(transaction.getCreatedAt())
                 .createdBy(transaction.getCreatedBy())
+                // PG 확장 필드
+                .pgProvider(transaction.getPgProvider())
+                .pgCno(transaction.getPgCno())
+                .pgApprovalNo(transaction.getPgApprovalNo())
+                .pgCardNo(transaction.getPgCardNo())
+                .pgIssuerName(transaction.getPgIssuerName())
+                .pgAcquirerName(transaction.getPgAcquirerName())
+                .pgInstallmentMonth(transaction.getPgInstallmentMonth())
+                .pgCardType(transaction.getPgCardType())
                 .build();
     }
 

@@ -31,9 +31,7 @@ import com.hola.reservation.booking.dto.request.BookingSearchRequest;
 import com.hola.reservation.booking.dto.request.PriceCheckRequest;
 import com.hola.reservation.booking.dto.response.*;
 import com.hola.reservation.booking.entity.BookingAuditLog;
-import com.hola.reservation.booking.gateway.PaymentGateway;
-import com.hola.reservation.booking.gateway.PaymentRequest;
-import com.hola.reservation.booking.gateway.PaymentResult;
+import com.hola.reservation.booking.gateway.*;
 import com.hola.reservation.booking.repository.BookingAuditLogRepository;
 import com.hola.reservation.dto.request.PaymentProcessRequest;
 import com.hola.reservation.entity.DailyCharge;
@@ -314,25 +312,18 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    @Transactional
-    public BookingConfirmationResponse createBooking(String propertyCode, BookingCreateRequest request,
-                                                      String clientIp, String userAgent) {
+    @Transactional(readOnly = true)
+    public BookingValidationResult validateBookingRequest(String propertyCode, BookingCreateRequest request) {
         // 1. 이용약관 동의 확인
         if (!request.isAgreedTerms()) {
             throw new HolaException(ErrorCode.BOOKING_TERMS_NOT_AGREED);
         }
 
-        // 2. 멱등성 체크 (동일 idempotencyKey로 이미 생성된 예약이 있으면 해당 결과 반환)
+        // 2. 멱등성 체크
         var existingLog = bookingAuditLogRepository
                 .findByIdempotencyKeyAndEventType(request.getIdempotencyKey(), "BOOKING_CREATED");
         if (existingLog.isPresent()) {
-            Long existingReservationId = existingLog.get().getMasterReservationId();
-            String existingConfirmationNo = existingLog.get().getConfirmationNo();
-            log.info("멱등성 중복 요청 감지: idempotencyKey={}, confirmationNo={}",
-                    request.getIdempotencyKey(), existingConfirmationNo);
-            MasterReservation existingMaster = masterReservationRepository.findById(existingReservationId)
-                    .orElseThrow(() -> new HolaException(ErrorCode.RESERVATION_NOT_FOUND));
-            return buildConfirmationResponse(existingMaster);
+            throw new HolaException(ErrorCode.BOOKING_DUPLICATE_REQUEST);
         }
 
         // 3. 프로퍼티 조회 + WEBSITE 채널 조회
@@ -342,35 +333,113 @@ public class BookingServiceImpl implements BookingService {
                 .orElse(null);
 
         // 4. 객실 선택별 날짜/가용성/가격 재검증
+        return doValidateRooms(request, property, websiteChannel);
+    }
+
+    @Override
+    @Transactional
+    public BookingConfirmationResponse createBooking(String propertyCode, BookingCreateRequest request,
+                                                      String clientIp, String userAgent) {
+        // 1~4. 검증
+        if (!request.isAgreedTerms()) {
+            throw new HolaException(ErrorCode.BOOKING_TERMS_NOT_AGREED);
+        }
+
+        var existingLog = bookingAuditLogRepository
+                .findByIdempotencyKeyAndEventType(request.getIdempotencyKey(), "BOOKING_CREATED");
+        if (existingLog.isPresent()) {
+            Long existingReservationId = existingLog.get().getMasterReservationId();
+            log.info("멱등성 중복 요청 감지: idempotencyKey={}", request.getIdempotencyKey());
+            MasterReservation existingMaster = masterReservationRepository.findById(existingReservationId)
+                    .orElseThrow(() -> new HolaException(ErrorCode.RESERVATION_NOT_FOUND));
+            return buildConfirmationResponse(existingMaster);
+        }
+
+        Property property = findPropertyByCode(propertyCode);
+        ReservationChannel websiteChannel = reservationChannelRepository
+                .findByPropertyIdAndChannelCode(property.getId(), "WEBSITE")
+                .orElse(null);
+
+        BookingValidationResult validation = doValidateRooms(request, property, websiteChannel);
+
+        // 5. Mock 결제 처리 (CASH 또는 테스트 환경)
+        BookingCreateRequest.PaymentInfo paymentInfo = request.getPayment();
+        PaymentResult paymentResult = paymentGateway.authorize(PaymentRequest.builder()
+                .orderId(request.getIdempotencyKey())
+                .amount(validation.getGrandTotal())
+                .currency("KRW")
+                .paymentMethod(paymentInfo.getMethod())
+                .cardNumber(paymentInfo.getCardNumber())
+                .expiryDate(paymentInfo.getExpiryDate())
+                .cvv(paymentInfo.getCvv())
+                .customerName(request.getGuest().getGuestNameKo())
+                .customerEmail(request.getGuest().getEmail())
+                .build());
+
+        if (!paymentResult.isSuccess()) {
+            throw new HolaException(ErrorCode.BOOKING_PAYMENT_FAILED,
+                    paymentResult.getErrorMessage());
+        }
+
+        // 6~11. 예약 생성 + 결제 기록
+        return createBookingInternal(request, validation, paymentResult, clientIp, userAgent);
+    }
+
+    @Override
+    @Transactional
+    public BookingConfirmationResponse createBookingWithPaymentResult(String propertyCode, BookingCreateRequest request,
+                                                                       PaymentResult paymentResult,
+                                                                       String clientIp, String userAgent) {
+        // 멱등성 체크
+        var existingLog = bookingAuditLogRepository
+                .findByIdempotencyKeyAndEventType(request.getIdempotencyKey(), "BOOKING_CREATED");
+        if (existingLog.isPresent()) {
+            Long existingReservationId = existingLog.get().getMasterReservationId();
+            log.info("멱등성 중복 요청 감지(PG): idempotencyKey={}", request.getIdempotencyKey());
+            MasterReservation existingMaster = masterReservationRepository.findById(existingReservationId)
+                    .orElseThrow(() -> new HolaException(ErrorCode.RESERVATION_NOT_FOUND));
+            return buildConfirmationResponse(existingMaster);
+        }
+
+        Property property = findPropertyByCode(propertyCode);
+        ReservationChannel websiteChannel = reservationChannelRepository
+                .findByPropertyIdAndChannelCode(property.getId(), "WEBSITE")
+                .orElse(null);
+
+        BookingValidationResult validation = doValidateRooms(request, property, websiteChannel);
+
+        return createBookingInternal(request, validation, paymentResult, clientIp, userAgent);
+    }
+
+    /**
+     * 객실 검증 + 가격 계산 (Steps 3-4 공통)
+     */
+    private BookingValidationResult doValidateRooms(BookingCreateRequest request,
+                                                     Property property,
+                                                     ReservationChannel websiteChannel) {
         List<BookingCreateRequest.RoomSelection> rooms = request.getRooms();
         LocalDate earliestCheckIn = null;
         LocalDate latestCheckOut = null;
         BigDecimal grandTotal = BigDecimal.ZERO;
 
-        // 각 객실의 일별 요금을 사전 계산
         List<List<DailyCharge>> roomDailyChargesList = new ArrayList<>();
         List<RateCode> roomRateCodes = new ArrayList<>();
 
         for (BookingCreateRequest.RoomSelection room : rooms) {
             validateDateRange(room.getCheckIn(), room.getCheckOut());
-
-            // 레이트코드 숙박일수 검증
             validateRateCodeStayDays(room.getRateCodeId(), room.getCheckIn(), room.getCheckOut());
 
-            // 가용성 재검증
             int available = roomAvailabilityService.getAvailableRoomCount(
                     room.getRoomTypeId(), room.getCheckIn(), room.getCheckOut());
             if (available <= 0) {
                 throw new HolaException(ErrorCode.BOOKING_NO_AVAILABILITY);
             }
 
-            // 가격 재계산 (Dayuse 레이트코드 분기)
             RateCode roomRateCode = rateCodeRepository.findById(room.getRateCodeId())
                     .orElseThrow(() -> new HolaException(ErrorCode.RATE_CODE_NOT_FOUND));
 
             List<DailyCharge> dailyCharges;
             if (roomRateCode.isDayUse()) {
-                // Dayuse: DayUseRate에서 요금 조회
                 List<DayUseRate> dayUseRates = dayUseRateRepository
                         .findByRateCodeIdAndUseYnTrueOrderBySortOrderAsc(room.getRateCodeId());
                 if (dayUseRates.isEmpty()) {
@@ -380,7 +449,6 @@ public class BookingServiceImpl implements BookingService {
                 dailyCharges = List.of(buildDayUseDailyCharge(
                         rate.getSupplyPrice(), property, room.getCheckIn()));
             } else {
-                // 숙박: 기존 일별 요금 계산
                 dailyCharges = priceCalculationService.calculateDailyCharges(
                         room.getRateCodeId(), property,
                         room.getCheckIn(), room.getCheckOut(),
@@ -396,7 +464,6 @@ public class BookingServiceImpl implements BookingService {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             grandTotal = grandTotal.add(roomTotal);
 
-            // 전체 체크인/체크아웃 범위 계산
             if (earliestCheckIn == null || room.getCheckIn().isBefore(earliestCheckIn)) {
                 earliestCheckIn = room.getCheckIn();
             }
@@ -405,24 +472,26 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // 5. Mock 결제 처리
-        BookingCreateRequest.PaymentInfo paymentInfo = request.getPayment();
-        PaymentResult paymentResult = paymentGateway.authorize(PaymentRequest.builder()
-                .orderId(request.getIdempotencyKey())
-                .amount(grandTotal)
-                .currency("KRW")
-                .paymentMethod(paymentInfo.getMethod())
-                .cardNumber(paymentInfo.getCardNumber())
-                .expiryDate(paymentInfo.getExpiryDate())
-                .cvv(paymentInfo.getCvv())
-                .customerName(request.getGuest().getGuestNameKo())
-                .customerEmail(request.getGuest().getEmail())
-                .build());
+        return BookingValidationResult.builder()
+                .property(property)
+                .websiteChannel(websiteChannel)
+                .earliestCheckIn(earliestCheckIn)
+                .latestCheckOut(latestCheckOut)
+                .grandTotal(grandTotal)
+                .roomDailyChargesList(roomDailyChargesList)
+                .roomRateCodes(roomRateCodes)
+                .build();
+    }
 
-        if (!paymentResult.isSuccess()) {
-            throw new HolaException(ErrorCode.BOOKING_PAYMENT_FAILED,
-                    paymentResult.getErrorMessage());
-        }
+    /**
+     * 예약 생성 내부 로직 (Steps 6-11 공통)
+     */
+    private BookingConfirmationResponse createBookingInternal(BookingCreateRequest request,
+                                                               BookingValidationResult validation,
+                                                               PaymentResult paymentResult,
+                                                               String clientIp, String userAgent) {
+        Property property = validation.getProperty();
+        List<BookingCreateRequest.RoomSelection> rooms = request.getRooms();
 
         // 6. 예약번호 + 확인번호 생성
         String masterReservationNo = reservationNumberGenerator.generateMasterReservationNo(property);
@@ -435,8 +504,8 @@ public class BookingServiceImpl implements BookingService {
                 .masterReservationNo(masterReservationNo)
                 .confirmationNo(confirmationNo)
                 .reservationStatus("RESERVED")
-                .masterCheckIn(earliestCheckIn)
-                .masterCheckOut(latestCheckOut)
+                .masterCheckIn(validation.getEarliestCheckIn())
+                .masterCheckOut(validation.getLatestCheckOut())
                 .guestNameKo(guest.getGuestNameKo())
                 .guestFirstNameEn(guest.getGuestFirstNameEn())
                 .guestLastNameEn(guest.getGuestLastNameEn())
@@ -445,7 +514,7 @@ public class BookingServiceImpl implements BookingService {
                 .email(guest.getEmail())
                 .nationality(guest.getNationality())
                 .rateCodeId(rooms.get(0).getRateCodeId())
-                .reservationChannelId(websiteChannel != null ? websiteChannel.getId() : null)
+                .reservationChannelId(validation.getWebsiteChannel() != null ? validation.getWebsiteChannel().getId() : null)
                 .build();
         master = masterReservationRepository.save(master);
 
@@ -453,7 +522,6 @@ public class BookingServiceImpl implements BookingService {
         for (int i = 0; i < rooms.size(); i++) {
             BookingCreateRequest.RoomSelection room = rooms.get(i);
 
-            // 비관적 락으로 가용성 최종 재검증 (TOCTOU 방지)
             int lockedAvailable = roomAvailabilityService.getAvailableRoomCountWithLock(
                     room.getRoomTypeId(), room.getCheckIn(), room.getCheckOut());
             if (lockedAvailable <= 0) {
@@ -462,8 +530,7 @@ public class BookingServiceImpl implements BookingService {
 
             String subNo = reservationNumberGenerator.generateSubReservationNo(masterReservationNo, i + 1);
 
-            // Dayuse stayType/시간 설정 (첫 번째 루프에서 조회한 rateCode 재사용)
-            RateCode cachedRateCode = roomRateCodes.get(i);
+            RateCode cachedRateCode = validation.getRoomRateCodes().get(i);
             StayType stayType = cachedRateCode.isDayUse() ? StayType.DAY_USE : StayType.OVERNIGHT;
             DayUseTimeSlot timeSlot = null;
             if (cachedRateCode.isDayUse()) {
@@ -490,8 +557,7 @@ public class BookingServiceImpl implements BookingService {
             sub = subReservationRepository.save(sub);
             final SubReservation savedSub = sub;
 
-            // DailyCharge 벌크 저장 (subReservation 연결)
-            List<DailyCharge> dailyCharges = roomDailyChargesList.get(i);
+            List<DailyCharge> dailyCharges = validation.getRoomDailyChargesList().get(i);
             List<DailyCharge> chargesToSave = dailyCharges.stream()
                     .map(dc -> DailyCharge.builder()
                             .subReservation(savedSub)
@@ -504,10 +570,8 @@ public class BookingServiceImpl implements BookingService {
                     .toList();
             dailyChargeRepository.saveAll(chargesToSave);
 
-            // 레이트코드 포함 서비스 자동 추가
             rateIncludedServiceHelper.addRateIncludedServices(sub, room.getRateCodeId());
 
-            // 선택 서비스(Add-on) 추가
             if (room.getServices() != null && !room.getServices().isEmpty()) {
                 for (BookingCreateRequest.ServiceSelection sel : room.getServices()) {
                     PaidServiceOption option = paidServiceOptionRepository.findById(sel.getServiceOptionId())
@@ -531,7 +595,6 @@ public class BookingServiceImpl implements BookingService {
                             .transactionCodeId(option.getTransactionCodeId())
                             .build());
 
-                    // 재고 아이템 연결 시 재고 차감
                     if (option.getInventoryItemId() != null) {
                         boolean reserved = inventoryService.reserveInventory(
                                 option.getInventoryItemId(), room.getCheckIn(), room.getCheckOut(), qty);
@@ -543,18 +606,19 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // 9. 결제 정보 생성 (ReservationPayment + PaymentTransaction)
+        // 9. 결제 정보 생성 (PG 필드 포함)
         reservationPaymentService.recalculatePayment(master.getId());
-        reservationPaymentService.processPayment(master.getProperty().getId(), master.getId(),
-                new PaymentProcessRequest(paymentInfo.getMethod(), grandTotal,
-                        "부킹엔진 결제 - 승인번호: " + paymentResult.getApprovalNo()));
+        String paymentMethod = request.getPayment() != null ? request.getPayment().getMethod() : "CARD";
+        String memo = "부킹엔진 결제 - 승인번호: " + paymentResult.getApprovalNo();
+        reservationPaymentService.processPaymentWithPgResult(master.getProperty().getId(), master.getId(),
+                new PaymentProcessRequest(paymentMethod, validation.getGrandTotal(), memo), paymentResult);
 
         // 10. BookingAuditLog 기록
         saveAuditLog(master.getId(), confirmationNo, "BOOKING_CREATED",
                 "WEBSITE", request, null, clientIp, userAgent, request.getIdempotencyKey());
 
         log.info("부킹엔진 예약 생성 완료: confirmationNo={}, masterNo={}, 총액={}",
-                confirmationNo, masterReservationNo, grandTotal);
+                confirmationNo, masterReservationNo, validation.getGrandTotal());
 
         // 11. 응답 빌드
         return buildConfirmationResponse(master);

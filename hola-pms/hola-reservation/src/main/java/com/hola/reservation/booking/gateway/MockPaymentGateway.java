@@ -1,17 +1,19 @@
 package com.hola.reservation.booking.gateway;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
 /**
  * Mock 결제 게이트웨이
+ * - 테스트 환경에서만 활성화
  * - 항상 결제 성공 처리
- * - 향후 KICC/PayPal 연동 시 이 클래스를 대체
  */
 @Slf4j
 @Component
+@Profile("test")
 public class MockPaymentGateway implements PaymentGateway {
 
     private static final String GATEWAY_ID = "MOCK";

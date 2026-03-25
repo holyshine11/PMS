@@ -384,6 +384,8 @@ var ReservationTimelineView = {
         var be = co > viewEnd ? viewEnd : co;
         var sIdx = this.daysBetween(this.viewDate, this.parseDate(bs));
         var eIdx = this.daysBetween(this.viewDate, this.parseDate(be));
+        // 체크아웃 당일 컬럼 포함 (호텔 테이프차트 표준)
+        if (co <= viewEnd) eIdx += 1;
         if (sIdx < 0) sIdx = 0;
         if (eIdx > dates.length) eIdx = dates.length;
         if (eIdx <= sIdx) return '';
@@ -489,6 +491,8 @@ var ReservationTimelineView = {
         var be = co > viewEnd ? viewEnd : co;
         var sIdx = this.daysBetween(this.viewDate, this.parseDate(bs));
         var eIdx = this.daysBetween(this.viewDate, this.parseDate(be));
+        // 체크아웃 당일 컬럼 포함 (호텔 테이프차트 표준)
+        if (co <= viewEnd) eIdx += 1;
         if (sIdx < 0) sIdx = 0;
         if (eIdx > dates.length) eIdx = dates.length;
         if (eIdx <= sIdx) return '';
@@ -553,7 +557,19 @@ var ReservationTimelineView = {
         });
         $('#tlExpandAll').off('click').on('click', function() { self.toggleAll(false); });
         $('#tlCollapseAll').off('click').on('click', function() { self.toggleAll(true); });
-        HolaPms.popup.onChildMessage(function() { self.load(); });
+        // 팝업 메시지 리스너: 중복 등록 방지 + 스크롤 위치 보존 + 캐시 클리어
+        if (!self._popupListenerBound) {
+            HolaPms.popup.onChildMessage(function() {
+                var vp = document.getElementById('tlViewport');
+                if (vp) {
+                    self._pendingScrollLeft = vp.scrollLeft;
+                    self._pendingScrollTop = vp.scrollTop;
+                }
+                self._cache = {};
+                self.load();
+            });
+            self._popupListenerBound = true;
+        }
         $(window).off('resize.tl').on('resize.tl', function() {
             if (self._resizeTimer) clearTimeout(self._resizeTimer);
             self._resizeTimer = setTimeout(function() {

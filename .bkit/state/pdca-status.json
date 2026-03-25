@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-03-25T06:30:18.326Z",
+  "lastUpdated": "2026-03-25T13:00:55.250Z",
   "activeFeatures": [
     "hola",
     "web",
@@ -18,7 +18,10 @@
     ".claude",
     "payment",
     "vo",
-    "enums"
+    "enums",
+    "kicc",
+    "dto",
+    "gateway"
   ],
   "primaryFeature": "hola",
   "features": {
@@ -59,9 +62,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-17T11:55:28.938Z",
-        "lastUpdated": "2026-03-25T04:15:39.778Z"
+        "lastUpdated": "2026-03-25T12:37:06.596Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-hotel/src/main/java/com/hola/hotel/service/RoomStatusServiceImpl.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationPaymentServiceImpl.java"
     },
     "repository": {
       "phase": "do",
@@ -85,9 +88,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-17T11:57:13.724Z",
-        "lastUpdated": "2026-03-25T06:30:18.326Z"
+        "lastUpdated": "2026-03-25T12:40:10.536Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/resources/static/js/fd-room-rack-page.js"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/resources/static/js/reservation-payment.js"
     },
     "exception": {
       "phase": "do",
@@ -98,7 +101,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-17T11:57:52.496Z",
-        "lastUpdated": "2026-03-24T01:55:07.009Z"
+        "lastUpdated": "2026-03-25T12:17:12.174Z"
       },
       "lastFile": "/Users/Dev/PMS/hola-pms/hola-common/src/main/java/com/hola/common/exception/ErrorCode.java"
     },
@@ -111,9 +114,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-17T12:25:06.108Z",
-        "lastUpdated": "2026-03-25T04:52:31.683Z"
+        "lastUpdated": "2026-03-25T12:40:30.998Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-hotel/src/main/java/com/hola/hotel/dto/response/RoomRackItemResponse.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/dto/response/PaymentTransactionResponse.java"
     },
     "controller": {
       "phase": "do",
@@ -124,9 +127,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-17T12:53:44.722Z",
-        "lastUpdated": "2026-03-25T04:53:02.923Z"
+        "lastUpdated": "2026-03-25T12:38:13.249Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/controller/RoomRackController.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/controller/KiccPaymentApiController.java"
     },
     "security": {
       "phase": "do",
@@ -150,9 +153,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-18T02:03:32.258Z",
-        "lastUpdated": "2026-03-24T03:16:04.825Z"
+        "lastUpdated": "2026-03-25T12:19:21.298Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-rate/src/main/java/com/hola/rate/entity/RateCode.java"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/entity/PaymentTransaction.java"
     },
     "request": {
       "phase": "do",
@@ -189,7 +192,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-19T09:50:52.220Z",
-        "lastUpdated": "2026-03-24T03:17:56.350Z"
+        "lastUpdated": "2026-03-25T12:41:07.066Z"
       },
       "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/mapper/ReservationMapper.java"
     },
@@ -244,6 +247,45 @@
         "lastUpdated": "2026-03-24T03:15:06.914Z"
       },
       "lastFile": "/Users/Dev/PMS/hola-pms/hola-common/src/main/java/com/hola/common/enums/StayType.java"
+    },
+    "kicc": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-25T12:14:24.087Z",
+        "lastUpdated": "2026-03-25T13:00:55.250Z"
+      },
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccPaymentGateway.java"
+    },
+    "dto": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-25T12:15:04.378Z",
+        "lastUpdated": "2026-03-25T12:37:29.312Z"
+      },
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/dto/KiccBookingTempData.java"
+    },
+    "gateway": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-25T12:17:34.366Z",
+        "lastUpdated": "2026-03-25T12:18:18.433Z"
+      },
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/gateway/MockPaymentGateway.java"
     }
   },
   "pipeline": {
@@ -254,7 +296,7 @@
   "session": {
     "startedAt": "2026-03-03T00:54:55.026Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-03-25T06:30:18.326Z"
+    "lastActivity": "2026-03-25T13:00:55.250Z"
   },
   "history": [
     {
@@ -7628,6 +7670,294 @@
     {
       "timestamp": "2026-03-25T06:30:18.326Z",
       "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T10:39:03.035Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T11:16:41.999Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T11:16:58.888Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:14:24.087Z",
+      "feature": "kicc",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:14:44.041Z",
+      "feature": "kicc",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:04.379Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:06.976Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:11.068Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:15.891Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:20.796Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:27.477Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:31.009Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:33.708Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:35.482Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:37.779Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:40.028Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:15:44.016Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:16:03.210Z",
+      "feature": "kicc",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:16:55.945Z",
+      "feature": "kicc",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:17:12.174Z",
+      "feature": "exception",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:17:34.366Z",
+      "feature": "gateway",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:17:44.499Z",
+      "feature": "gateway",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:17:47.907Z",
+      "feature": "gateway",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:17:50.411Z",
+      "feature": "gateway",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:17:53.649Z",
+      "feature": "gateway",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:18:10.325Z",
+      "feature": "gateway",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:18:18.433Z",
+      "feature": "gateway",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:19:07.236Z",
+      "feature": "kicc",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:19:21.298Z",
+      "feature": "entity",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:34:02.707Z",
+      "feature": "response",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:34:11.108Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:34:21.863Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:36:00.512Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:36:07.700Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:36:23.529Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:36:47.164Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:37:06.596Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:37:29.312Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:38:13.249Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:39:37.220Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:40:10.536Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:40:30.998Z",
+      "feature": "response",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:41:07.066Z",
+      "feature": "mapper",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:43:23.617Z",
+      "feature": "kicc",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:43:29.472Z",
+      "feature": "kicc",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:43:46.244Z",
+      "feature": "kicc",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T12:57:39.734Z",
+      "feature": "kicc",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T13:00:55.250Z",
+      "feature": "kicc",
       "phase": "do",
       "action": "updated"
     }

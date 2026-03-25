@@ -1082,6 +1082,7 @@ body.popup-mode .btn-popup-close { display: inline-block !important; }
     border-right: 1px solid #d8dce2;
     letter-spacing: 0.02em;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 .tl-corner--month {
     height: 28px;
@@ -1117,6 +1118,7 @@ body.popup-mode .btn-popup-close { display: inline-block !important; }
     border-right: 1px solid #e2e5e9;
     text-transform: uppercase;
     letter-spacing: 0.1em;
+    box-sizing: border-box;
 }
 
 /* ── 날짜 헤더 셀 ── */
@@ -1129,6 +1131,7 @@ body.popup-mode .btn-popup-close { display: inline-block !important; }
     border-right: 1px solid #f0f1f3;
     gap: 1px;
     background: #f8f9fb;
+    box-sizing: border-box;
 }
 .tl-month {
     font-size: 0.58rem;
@@ -1187,6 +1190,7 @@ body.popup-mode .btn-popup-close { display: inline-block !important; }
     padding: 0 14px;
     background: inherit;
     border-right: 1px solid #e2e5e9;
+    box-sizing: border-box;
 }
 .tl-floor-cell--warn { background: #fef7f7; }
 .tl-chevron {
@@ -1243,6 +1247,7 @@ body.popup-mode .btn-popup-close { display: inline-block !important; }
     border-right: 1px solid #e2e5e9;
     box-shadow: 2px 0 6px -2px rgba(0,0,0,0.04);
     transition: background 0.1s ease;
+    box-sizing: border-box;
 }
 .tl-room-num {
     font-size: 0.88rem;

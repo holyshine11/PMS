@@ -28,4 +28,14 @@ public class PaymentTransactionResponse {
     private String memo;
     private LocalDateTime createdAt;
     private String createdBy;
+
+    // PG 확장 필드
+    private String pgProvider;
+    private String pgCno;
+    private String pgApprovalNo;
+    private String pgCardNo;
+    private String pgIssuerName;
+    private String pgAcquirerName;
+    private Integer pgInstallmentMonth;
+    private String pgCardType;
 }

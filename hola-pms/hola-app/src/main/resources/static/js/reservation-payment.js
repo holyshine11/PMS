@@ -406,14 +406,22 @@ var ReservationPayment = {
             CANCEL_FEE: 'text-danger'
         };
 
+        // PG 결제 정보가 하나라도 있는지 확인
+        var hasPgInfo = transactions.some(function(t) { return t.pgProvider && t.pgProvider !== 'MOCK'; });
+
         var html = '<table class="table table-bordered table-sm mb-0 align-middle">'
             + '<thead class="table-light">'
             + '<tr>'
             + '  <th style="width:50px" class="text-center">NO</th>'
             + '  <th style="width:80px" class="text-center">유형</th>'
             + '  <th style="width:80px" class="text-center">결제수단</th>'
-            + '  <th style="width:120px" class="text-end">금액</th>'
-            + '  <th class="text-center">메모</th>'
+            + '  <th style="width:120px" class="text-end">금액</th>';
+        if (hasPgInfo) {
+            html += '  <th style="width:100px" class="text-center">PG승인번호</th>'
+                + '  <th style="width:100px" class="text-center">카드사</th>'
+                + '  <th style="width:60px" class="text-center">할부</th>';
+        }
+        html += '  <th class="text-center">메모</th>'
             + '  <th style="width:80px" class="text-center">처리자</th>'
             + '  <th style="width:180px" class="text-center">처리일시</th>'
             + '</tr>'
@@ -429,8 +437,14 @@ var ReservationPayment = {
                 + '<td class="text-center">' + (idx + 1) + '</td>'
                 + '<td class="text-center ' + typeStyle + '">' + typeLabel + '</td>'
                 + '<td class="text-center">' + methodLabel + '</td>'
-                + '<td class="text-end">' + self.formatCurrency(txn.amount) + '</td>'
-                + '<td class="text-center">' + HolaPms.escapeHtml(txn.memo || '-') + '</td>'
+                + '<td class="text-end">' + self.formatCurrency(txn.amount) + '</td>';
+            if (hasPgInfo) {
+                var installment = txn.pgInstallmentMonth ? (txn.pgInstallmentMonth === 0 ? '일시불' : txn.pgInstallmentMonth + '개월') : '-';
+                html += '<td class="text-center">' + HolaPms.escapeHtml(txn.pgApprovalNo || txn.approvalNo || '-') + '</td>'
+                    + '<td class="text-center">' + HolaPms.escapeHtml(txn.pgIssuerName || '-') + '</td>'
+                    + '<td class="text-center">' + installment + '</td>';
+            }
+            html += '<td class="text-center">' + HolaPms.escapeHtml(txn.memo || '-') + '</td>'
                 + '<td class="text-center">' + HolaPms.escapeHtml(txn.createdBy || '-') + '</td>'
                 + '<td class="text-center text-nowrap">' + HolaPms.escapeHtml(createdAt) + '</td>'
                 + '</tr>';

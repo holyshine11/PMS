@@ -5,6 +5,7 @@ import com.hola.reservation.booking.dto.request.BookingModifyRequest;
 import com.hola.reservation.booking.dto.request.BookingSearchRequest;
 import com.hola.reservation.booking.dto.request.PriceCheckRequest;
 import com.hola.reservation.booking.dto.response.*;
+import com.hola.reservation.booking.gateway.PaymentResult;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -53,10 +54,24 @@ public interface BookingService {
     PriceCheckResponse calculatePrice(String propertyCode, PriceCheckRequest request);
 
     /**
-     * 예약 생성 + Mock 결제 처리
+     * 예약 생성 + Mock 결제 처리 (CASH 또는 Mock 환경)
      */
     BookingConfirmationResponse createBooking(String propertyCode, BookingCreateRequest request,
                                               String clientIp, String userAgent);
+
+    /**
+     * 부킹 요청 검증 (Steps 1-4: 약관/멱등성/가용성/가격 재계산)
+     * - KICC 결제 플로우에서 거래등록 전 사전 검증용
+     */
+    BookingValidationResult validateBookingRequest(String propertyCode, BookingCreateRequest request);
+
+    /**
+     * PG 결제 결과 기반 예약 생성 (KICC 3단계 플로우용)
+     * - PG 승인 완료 후 예약 + 결제 내역 저장
+     */
+    BookingConfirmationResponse createBookingWithPaymentResult(String propertyCode, BookingCreateRequest request,
+                                                                PaymentResult paymentResult,
+                                                                String clientIp, String userAgent);
 
     /**
      * 예약 확인 조회 (확인번호 + 2차 검증)

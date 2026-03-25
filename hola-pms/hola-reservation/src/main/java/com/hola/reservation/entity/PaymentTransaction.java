@@ -52,12 +52,63 @@ public class PaymentTransaction {
     @Builder.Default
     private String transactionStatus = "COMPLETED";
 
-    /** VAN 승인번호 (추후 연동) */
+    /** VAN 승인번호 */
     @Column(name = "approval_no", length = 50)
     private String approvalNo;
 
     @Column(name = "memo", columnDefinition = "TEXT")
     private String memo;
+
+    // === PG 확장 필드 ===
+
+    /** PG 제공자 ("KICC", "MOCK") */
+    @Column(name = "pg_provider", length = 20)
+    private String pgProvider;
+
+    /** PG 거래고유번호 */
+    @Column(name = "pg_cno", length = 20)
+    private String pgCno;
+
+    /** 멱등성 키 (UUID) */
+    @Column(name = "pg_transaction_id", length = 60)
+    private String pgTransactionId;
+
+    /** PG 거래상태 코드 */
+    @Column(name = "pg_status_code", length = 10)
+    private String pgStatusCode;
+
+    /** PG 승인번호 */
+    @Column(name = "pg_approval_no", length = 100)
+    private String pgApprovalNo;
+
+    /** PG 승인일시 (yyyyMMddHHmmss) */
+    @Column(name = "pg_approval_date", length = 14)
+    private String pgApprovalDate;
+
+    /** 마스킹 카드번호 */
+    @Column(name = "pg_card_no", length = 20)
+    private String pgCardNo;
+
+    /** 발급사명 */
+    @Column(name = "pg_issuer_name", length = 50)
+    private String pgIssuerName;
+
+    /** 매입사명 */
+    @Column(name = "pg_acquirer_name", length = 50)
+    private String pgAcquirerName;
+
+    /** 할부개월 (0=일시불) */
+    @Column(name = "pg_installment_month")
+    @Builder.Default
+    private Integer pgInstallmentMonth = 0;
+
+    /** 카드종류 (신용/체크/기프트) */
+    @Column(name = "pg_card_type", length = 10)
+    private String pgCardType;
+
+    /** 원본 응답 JSON (감사 추적용) */
+    @Column(name = "pg_raw_response", columnDefinition = "TEXT")
+    private String pgRawResponse;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)
