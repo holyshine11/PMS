@@ -52,4 +52,12 @@ public interface HkTaskRepository extends JpaRepository<HkTask, Long> {
 
     // 특정 객실의 오늘 작업 존재 여부
     boolean existsByRoomNumberIdAndTaskDate(Long roomNumberId, LocalDate taskDate);
+
+    // 특정 객실의 오늘 활성 작업 존재 여부 (CANCELLED 제외)
+    @Query("SELECT CASE WHEN COUNT(t) > 0 THEN true ELSE false END FROM HkTask t " +
+           "WHERE t.roomNumberId = :roomNumberId AND t.taskDate = :taskDate " +
+           "AND t.status <> 'CANCELLED'")
+    boolean existsActiveTaskByRoomNumberIdAndTaskDate(
+            @Param("roomNumberId") Long roomNumberId,
+            @Param("taskDate") LocalDate taskDate);
 }

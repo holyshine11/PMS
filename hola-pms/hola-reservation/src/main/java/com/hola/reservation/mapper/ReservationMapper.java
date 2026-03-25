@@ -168,7 +168,7 @@ public class ReservationMapper {
                 .id(sub.getId())
                 .subReservationNo(sub.getSubReservationNo())
                 .roomReservationStatus(sub.getRoomReservationStatus())
-                .stayType(sub.getStayType())
+                .stayType(sub.getStayType() != null ? sub.getStayType().name() : null)
                 .dayUseStartTime(sub.getDayUseStartTime())
                 .dayUseEndTime(sub.getDayUseEndTime())
                 .roomTypeId(sub.getRoomTypeId())

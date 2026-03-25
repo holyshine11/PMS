@@ -2,6 +2,17 @@
  * 예약 상세/수정 페이지
  */
 var ReservationDetail = {
+    // 객실 HK 상태 배지 렌더링 (중복 제거용)
+    _roomStatusBadge: function(unavailableType, defaultLabel) {
+        switch (unavailableType) {
+            case 'OOO': return '<span class="badge bg-secondary">OOO</span>';
+            case 'OOS': return '<span class="badge" style="background:#e9ecef;color:#333">OOS</span>';
+            case 'DIRTY': return '<span class="badge" style="background:#ffc107;color:#000">DIRTY</span>';
+            case 'PICKUP': return '<span class="badge" style="background:#fd7e14;color:#fff">PICKUP</span>';
+            default: return '<span class="badge bg-danger">' + (defaultLabel || '불가') + '</span>';
+        }
+    },
+
     propertyId: null,
     reservationId: null,
     reservationData: null,   // API 응답 전체 저장
@@ -270,6 +281,18 @@ var ReservationDetail = {
      */
     renderLegs: function(legs) {
         var self = this;
+
+        // 재렌더링 전 collapse 상태 저장 (Leg 접힘 + 서비스 접힘)
+        var legCollapseState = {};
+        var serviceCollapseState = {};
+        $('.room-leg-card').each(function() {
+            var seq = $(this).data('leg-seq');
+            var $legBody = $('#roomLegBody_' + seq);
+            var $svcCollapse = $('#serviceCollapse_' + seq);
+            if ($legBody.length) legCollapseState[seq] = $legBody.hasClass('show');
+            if ($svcCollapse.length) serviceCollapseState[seq] = $svcCollapse.hasClass('show');
+        });
+
         $('#roomLegsContainer').empty();
         self.roomLegSeq = 0;
 
@@ -282,6 +305,35 @@ var ReservationDetail = {
         legs.forEach(function(leg) {
             self.addRoomLeg(leg);
         });
+
+        // 저장된 collapse 상태 복원
+        if (Object.keys(legCollapseState).length > 0) {
+            $('.room-leg-card').each(function() {
+                var seq = $(this).data('leg-seq');
+                var $legBody = $('#roomLegBody_' + seq);
+                var $header = $(this).find('.card-header[data-bs-toggle="collapse"]');
+                if (legCollapseState.hasOwnProperty(seq)) {
+                    if (legCollapseState[seq]) {
+                        $legBody.addClass('show');
+                        $header.removeClass('collapsed');
+                    } else {
+                        $legBody.removeClass('show');
+                        $header.addClass('collapsed');
+                    }
+                }
+                var $svcCollapse = $('#serviceCollapse_' + seq);
+                var $svcToggle = $svcCollapse.closest('.card-body').find('[data-bs-target="#serviceCollapse_' + seq + '"]');
+                if (serviceCollapseState.hasOwnProperty(seq)) {
+                    if (serviceCollapseState[seq]) {
+                        $svcCollapse.addClass('show');
+                        $svcToggle.removeClass('collapsed');
+                    } else {
+                        $svcCollapse.removeClass('show');
+                        $svcToggle.addClass('collapsed');
+                    }
+                }
+            });
+        }
     },
 
     /**
@@ -366,17 +418,27 @@ var ReservationDetail = {
                 + '<ul class="dropdown-menu">' + items + '</ul></div>';
         }
 
+        // 헤더 요약 정보 (접힌 상태에서도 보이는 객실타입/호수)
+        var summaryParts = [];
+        if (roomTypeName) summaryParts.push(HolaPms.escapeHtml(roomTypeName));
+        if (roomDisplay && roomDisplay !== '미배정') summaryParts.push(HolaPms.escapeHtml(roomDisplay));
+        var summaryInfo = summaryParts.length > 0
+            ? '<span class="text-muted small ms-2 leg-summary">' + summaryParts.join(' | ') + '</span>'
+            : '';
+
         var legHtml = ''
             + '<div class="card border shadow-sm mb-3 room-leg-card" id="roomLeg_' + seq + '" data-leg-seq="' + seq + '" data-leg-id="' + legId + '">'
-            + '  <div class="card-header d-flex justify-content-between align-items-center">'
-            + '    <span>' + headerLabel + ' ' + legStatusBadge + legActionBtn + '</span>'
-            + '    <div>'
+            + '  <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#roomLegBody_' + seq + '">'
+            + '    <span>' + headerLabel + ' ' + legStatusBadge + summaryInfo + legActionBtn + '</span>'
+            + '    <div class="d-flex align-items-center">'
             + (legId && self.isUpgradeable() ? '    <button class="btn btn-outline-primary btn-sm me-1 upgrade-btn" data-leg-id="' + legId + '" data-room-type-id="' + roomTypeId + '" data-room-type-name="' + HolaPms.escapeHtml(roomTypeName) + '"><i class="fas fa-arrow-up me-1"></i>업그레이드</button>' : '')
-            + '    <button class="btn btn-outline-danger btn-sm remove-leg-btn" data-leg="' + seq + '" data-leg-id="' + legId + '">'
+            + '    <button class="btn btn-outline-danger btn-sm remove-leg-btn me-2" data-leg="' + seq + '" data-leg-id="' + legId + '">'
             + '      <i class="fas fa-times"></i>'
             + '    </button>'
+            + '    <i class="fas fa-chevron-down collapse-arrow"></i>'
             + '    </div>'
             + '  </div>'
+            + '  <div class="collapse show" id="roomLegBody_' + seq + '">'
             + '  <div class="card-body">'
             + '    <div class="row mb-3">'
             + '      <label class="col-sm-2 col-form-label required">객실타입</label>'
@@ -436,13 +498,19 @@ var ReservationDetail = {
             + '    </div>'
             + '    <hr class="my-2">'
             + '    <div class="d-flex justify-content-between align-items-center mb-2">'
-            + '      <span class="text-muted small"><i class="fas fa-concierge-bell me-1"></i>유료 서비스</span>'
+            + '      <span class="text-muted small collapsed" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#serviceCollapse_' + seq + '">'
+            + '        <i class="fas fa-concierge-bell me-1"></i>유료 서비스'
+            + '        <span class="service-count-badge" id="serviceCount_' + seq + '">' + (legData && legData.services && legData.services.length > 0 ? ' (' + legData.services.length + '건)' : '') + '</span>'
+            + '        <i class="fas fa-chevron-down collapse-arrow ms-1" style="font-size:10px;"></i>'
+            + '      </span>'
             + '      <button class="btn btn-outline-primary btn-sm add-service-btn" data-leg="' + seq + '" data-leg-id="' + legId + '" type="button">'
             + '        <i class="fas fa-plus me-1"></i>서비스 추가'
             + '      </button>'
             + '    </div>'
+            + '    <div class="collapse" id="serviceCollapse_' + seq + '">'
             + '    <div class="service-list" id="serviceList_' + seq + '">'
             + self.renderServiceItems(legData ? legData.services : [], seq, legId)
+            + '    </div>'
             + '    </div>'
             + '    <div class="service-add-form d-none" id="serviceAddForm_' + seq + '">'
             + '      <div class="row g-2 align-items-end">'
@@ -467,6 +535,7 @@ var ReservationDetail = {
             + '      </div>'
             + '    </div>'
             + (legId ? '    <div class="upgrade-history mt-3" id="upgradeHistory_' + seq + '" data-leg-id="' + legId + '"></div>' : '')
+            + '  </div>'
             + '  </div>'
             + '</div>';
 
@@ -1016,9 +1085,15 @@ var ReservationDetail = {
             self.reload();
         });
 
+        // card-header 내 dropdown 버튼 클릭 시 collapse 토글 방지
+        $(document).on('click', '.room-leg-card .card-header .dropdown-toggle', function(e) {
+            e.stopPropagation();
+        });
+
         // Leg별 상태 변경 (이벤트 위임)
         $(document).on('click', '.leg-status-change', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             var legId = $(this).data('leg-id');
             var newStatus = $(this).data('new-status');
             var label = $(this).text().trim();
@@ -1047,7 +1122,8 @@ var ReservationDetail = {
         });
 
         // 업그레이드 버튼 클릭
-        $(document).on('click', '.upgrade-btn', function() {
+        $(document).on('click', '.upgrade-btn', function(e) {
+            e.stopPropagation();
             var legId = $(this).data('leg-id');
             var roomTypeName = $(this).data('room-type-name');
             self.openUpgradeModal(legId, roomTypeName);
@@ -1143,7 +1219,8 @@ var ReservationDetail = {
         $('#btnApplyRoomAssign').on('click', function() { self.applyRoomAssign(); });
 
         // 객실 레그 삭제 (이벤트 위임)
-        $(document).on('click', '.remove-leg-btn', function() {
+        $(document).on('click', '.remove-leg-btn', function(e) {
+            e.stopPropagation();
             var $btn = $(this);
             var legSeq = $btn.data('leg');
             var legId = $btn.data('leg-id');
@@ -1645,14 +1722,7 @@ var ReservationDetail = {
                         if (available) {
                             html += '<td><span class="badge bg-success">가용</span></td><td>-</td>';
                         } else {
-                            var statusBadge;
-                            if (r.unavailableType === 'OOO') {
-                                statusBadge = '<span class="badge bg-secondary">OOO</span>';
-                            } else if (r.unavailableType === 'OOS') {
-                                statusBadge = '<span class="badge" style="background:#e9ecef;color:#333">OOS</span>';
-                            } else {
-                                statusBadge = '<span class="badge bg-danger">불가</span>';
-                            }
+                            var statusBadge = ReservationDetail._roomStatusBadge(r.unavailableType, '불가');
                             var conflictInfo = '';
                             if (r.conflictReservationNo) {
                                 conflictInfo = HolaPms.escapeHtml(r.conflictReservationNo);
@@ -1836,16 +1906,9 @@ var ReservationDetail = {
                         html += disabled + '></td>';
                         html += '<td class="text-center">' + HolaPms.escapeHtml(room.roomNumber) + '</td>';
                         html += '<td class="text-center">' + (room.descriptionKo ? HolaPms.escapeHtml(room.descriptionKo) : '-') + '</td>';
-                        var badge;
-                        if (room.available) {
-                            badge = '<span class="badge bg-success">가용</span>';
-                        } else if (room.unavailableType === 'OOO') {
-                            badge = '<span class="badge bg-secondary">OOO</span>';
-                        } else if (room.unavailableType === 'OOS') {
-                            badge = '<span class="badge" style="background:#e9ecef;color:#333">OOS</span>';
-                        } else {
-                            badge = '<span class="badge bg-danger">사용중</span>';
-                        }
+                        var badge = room.available
+                            ? '<span class="badge bg-success">가용</span>'
+                            : ReservationDetail._roomStatusBadge(room.unavailableType, '사용중');
                         html += '<td class="text-center">' + badge + '</td>';
                         html += '<td class="text-center">';
                         if (!room.available && room.conflictReservationNumber) {

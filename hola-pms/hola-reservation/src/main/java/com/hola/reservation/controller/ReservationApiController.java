@@ -44,6 +44,19 @@ public class ReservationApiController {
         return HolaResponse.success(reservationService.getCalendarData(propertyId, startDate, endDate, status, keyword));
     }
 
+    /** 타임라인뷰: 기간 내 예약 객실별 그룹핑 조회 */
+    @Operation(summary = "타임라인뷰 데이터 조회", description = "기간 내 예약을 객실별로 그룹핑 조회 (Y축=객실, X축=날짜)")
+    @GetMapping("/timeline")
+    public HolaResponse<ReservationTimelineResponse> getTimelineData(
+            @PathVariable Long propertyId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(reservationService.getTimelineData(propertyId, startDate, endDate, status, keyword));
+    }
+
     /** 예약 리스트 조회 */
     @Operation(summary = "예약 목록 조회", description = "예약 리스트 (상태/체크인날짜/키워드 필터)")
     @GetMapping

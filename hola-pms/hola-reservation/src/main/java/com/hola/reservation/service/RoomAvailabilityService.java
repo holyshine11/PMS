@@ -1,7 +1,9 @@
 package com.hola.reservation.service;
 
+import com.hola.common.enums.StayType;
 import com.hola.reservation.entity.SubReservation;
 import com.hola.reservation.repository.SubReservationRepository;
+import com.hola.reservation.vo.DayUseTimeSlot;
 import com.hola.room.repository.RoomTypeFloorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,6 +66,97 @@ public class RoomAvailabilityService {
         }
 
         return !conflicts.isEmpty();
+    }
+
+    /**
+     * L1: Dayuse 시간 슬롯 인식 충돌 검사
+     * 양쪽 모두 DAY_USE이고 같은 날이면 시간 겹침만 충돌로 판단
+     */
+    public boolean hasRoomConflict(Long roomNumberId, LocalDate checkIn, LocalDate checkOut,
+                                    Long excludeSubId, StayType stayType,
+                                    DayUseTimeSlot timeSlot) {
+        if (roomNumberId == null) {
+            return false;
+        }
+
+        List<SubReservation> conflicts = subReservationRepository
+                .findByRoomNumberIdAndCheckInLessThanAndCheckOutGreaterThanAndRoomReservationStatusNotIn(
+                        roomNumberId, checkOut, checkIn, RELEASED_STATUSES);
+
+        if (excludeSubId != null) {
+            conflicts = conflicts.stream()
+                    .filter(sub -> !sub.getId().equals(excludeSubId))
+                    .toList();
+        }
+
+        // Dayuse 시간 슬롯 필터링
+        if (stayType != null && stayType.isDayUse() && timeSlot != null) {
+            conflicts = filterDayUseTimeConflicts(conflicts, checkIn, timeSlot);
+        }
+
+        if (!conflicts.isEmpty()) {
+            log.warn("L1 객실 충돌 감지: roomNumberId={}, checkIn={}, checkOut={}, stayType={}, 충돌건수={}",
+                    roomNumberId, checkIn, checkOut, stayType, conflicts.size());
+        }
+
+        return !conflicts.isEmpty();
+    }
+
+    /**
+     * L1 비관적 락: Dayuse 시간 슬롯 인식
+     */
+    @Transactional
+    public boolean hasRoomConflictWithLock(Long roomNumberId, LocalDate checkIn, LocalDate checkOut,
+                                            Long excludeSubId, StayType stayType,
+                                            DayUseTimeSlot timeSlot) {
+        if (roomNumberId == null) {
+            return false;
+        }
+
+        List<SubReservation> conflicts = subReservationRepository
+                .findConflictsWithLock(roomNumberId, checkIn, checkOut, RELEASED_STATUSES);
+
+        if (excludeSubId != null) {
+            conflicts = conflicts.stream()
+                    .filter(sub -> !sub.getId().equals(excludeSubId))
+                    .toList();
+        }
+
+        // Dayuse 시간 슬롯 필터링
+        if (stayType != null && stayType.isDayUse() && timeSlot != null) {
+            conflicts = filterDayUseTimeConflicts(conflicts, checkIn, timeSlot);
+        }
+
+        if (!conflicts.isEmpty()) {
+            log.warn("L1 비관적 락 충돌 감지: roomNumberId={}, stayType={}, 충돌건수={}",
+                    roomNumberId, stayType, conflicts.size());
+        }
+        return !conflicts.isEmpty();
+    }
+
+    /**
+     * Dayuse 시간 슬롯 충돌 필터링
+     * 기존 예약이 DAY_USE이고 같은 날이면 시간 겹침만 충돌로 판단
+     * 기존 예약이 숙박(OVERNIGHT)이면 무조건 충돌
+     */
+    public List<SubReservation> filterDayUseTimeConflicts(List<SubReservation> conflicts,
+                                                           LocalDate newCheckIn,
+                                                           DayUseTimeSlot newSlot) {
+        return conflicts.stream()
+                .filter(existing -> {
+                    // 기존 예약이 숙박이면 무조건 충돌
+                    if (!existing.isDayUse()) {
+                        return true;
+                    }
+                    // 기존 Dayuse가 다른 날이면 날짜 기반 충돌 유지
+                    if (!existing.getCheckIn().equals(newCheckIn)) {
+                        return true;
+                    }
+                    // 같은 날 Dayuse → 시간 겹침 검사 (VO 위임)
+                    DayUseTimeSlot existingSlot = existing.getDayUseTimeSlot();
+                    return newSlot.overlapsWith(existingSlot);
+                })
+                .toList();
     }
 
     /**

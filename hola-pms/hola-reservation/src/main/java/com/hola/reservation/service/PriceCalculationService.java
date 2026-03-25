@@ -107,21 +107,11 @@ public class PriceCalculationService {
             throw new HolaException(ErrorCode.RESERVATION_RATE_NOT_APPLICABLE);
         }
 
-        // 봉사료 계산 (먼저 — 세금 과세표준에 포함되므로)
-        BigDecimal serviceChargeRate = property.getServiceChargeRate() != null ?
-                property.getServiceChargeRate() : BigDecimal.ZERO;
-        BigDecimal serviceCharge = supplyPrice.multiply(serviceChargeRate)
-                .divide(BigDecimal.valueOf(100), getRoundingScale(property.getServiceChargeDecimalPlaces()),
-                        getRoundingMode(property.getServiceChargeRoundingMethod()));
-
-        // 세금 계산: (공급가 + 봉사료)에 VAT 적용 (업계 표준)
-        BigDecimal taxRate = property.getTaxRate() != null ? property.getTaxRate() : BigDecimal.ZERO;
-        BigDecimal taxBase = supplyPrice.add(serviceCharge);
-        BigDecimal tax = taxBase.multiply(taxRate)
-                .divide(BigDecimal.valueOf(100), getRoundingScale(property.getTaxDecimalPlaces()),
-                        getRoundingMode(property.getTaxRoundingMethod()));
-
-        BigDecimal total = supplyPrice.add(tax).add(serviceCharge);
+        // 봉사료/세금 계산 (공통 유틸 사용)
+        TaxCalculationResult taxResult = calculateTaxAndServiceCharge(supplyPrice, property);
+        BigDecimal serviceCharge = taxResult.serviceCharge();
+        BigDecimal tax = taxResult.tax();
+        BigDecimal total = taxResult.total();
 
         return DailyCharge.builder()
                 .subReservation(subReservation)
@@ -256,17 +246,44 @@ public class PriceCalculationService {
         return extra;
     }
 
+    // ─── 세금/봉사료 계산 공통 유틸 (Dayuse/숙박 공용) ───
+
     /**
-     * 반올림 자릿수
+     * 공급가에 Property 봉사료/세금을 적용한 결과 반환
+     * 숙박(일별 계산)과 Dayuse(고정가 계산) 모두에서 사용 가능
      */
-    private int getRoundingScale(Integer decimalPlaces) {
-        return decimalPlaces != null ? decimalPlaces : 0;
+    public TaxCalculationResult calculateTaxAndServiceCharge(BigDecimal supplyPrice, Property property) {
+        BigDecimal serviceCharge = supplyPrice
+                .multiply(nullToZero(property.getServiceChargeRate()))
+                .divide(BigDecimal.valueOf(100),
+                        getRoundingScale(property.getServiceChargeDecimalPlaces()),
+                        parseRoundingMode(property.getServiceChargeRoundingMethod()));
+
+        BigDecimal tax = supplyPrice.add(serviceCharge)
+                .multiply(nullToZero(property.getTaxRate()))
+                .divide(BigDecimal.valueOf(100),
+                        getRoundingScale(property.getTaxDecimalPlaces()),
+                        parseRoundingMode(property.getTaxRoundingMethod()));
+
+        BigDecimal total = supplyPrice.add(serviceCharge).add(tax);
+
+        return new TaxCalculationResult(supplyPrice, serviceCharge, tax, total);
     }
 
     /**
-     * 반올림 방법 변환
+     * 세금/봉사료 계산 결과
      */
-    private RoundingMode getRoundingMode(String method) {
+    public record TaxCalculationResult(
+            BigDecimal supplyPrice,
+            BigDecimal serviceCharge,
+            BigDecimal tax,
+            BigDecimal total
+    ) {}
+
+    /**
+     * 반올림 방법 변환 (3곳에서 중복 사용되던 로직을 통합)
+     */
+    public static RoundingMode parseRoundingMode(String method) {
         if (method == null) {
             return RoundingMode.HALF_UP;
         }
@@ -277,5 +294,15 @@ public class PriceCalculationService {
             case "ROUND_CEILING" -> RoundingMode.CEILING;
             default -> RoundingMode.HALF_UP;
         };
+    }
+
+    // ─── private 헬퍼 ───
+
+    private int getRoundingScale(Integer decimalPlaces) {
+        return decimalPlaces != null ? decimalPlaces : 0;
+    }
+
+    private static BigDecimal nullToZero(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 }

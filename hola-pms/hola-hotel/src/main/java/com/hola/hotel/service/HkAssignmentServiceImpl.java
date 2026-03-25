@@ -47,6 +47,7 @@ public class HkAssignmentServiceImpl implements HkAssignmentService {
     private final AdminUserPropertyRepository adminUserPropertyRepository;
     private final AccessControlService accessControlService;
     private final EntityManager entityManager;
+    private final HousekeepingService housekeepingService;
 
     // === 구역 관리 ===
 
@@ -250,6 +251,20 @@ public class HkAssignmentServiceImpl implements HkAssignmentService {
                 .filter(t -> t.getAssignedTo() == null)
                 .filter(t -> !"CANCELLED".equals(t.getStatus()) && !"INSPECTED".equals(t.getStatus()))
                 .collect(Collectors.toList());
+
+        // 미배정 작업 없으면 일일 작업 자동 생성 후 재조회
+        if (unassigned.isEmpty()) {
+            int generated = housekeepingService.generateDailyTasks(propertyId, targetDate);
+            if (generated > 0) {
+                log.info("HK 자동 배정: 미배정 작업 없어 일일 작업 {}건 자동 생성", generated);
+                entityManager.flush();
+                allTasks = hkTaskRepository.findByPropertyIdAndTaskDate(propertyId, targetDate);
+                unassigned = allTasks.stream()
+                        .filter(t -> t.getAssignedTo() == null)
+                        .filter(t -> !"CANCELLED".equals(t.getStatus()) && !"INSPECTED".equals(t.getStatus()))
+                        .collect(Collectors.toList());
+            }
+        }
 
         if (unassigned.isEmpty()) {
             log.info("HK 자동 배정: 미배정 작업 없음 (propertyId={}, date={})", propertyId, targetDate);

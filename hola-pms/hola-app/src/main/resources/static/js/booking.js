@@ -9,6 +9,11 @@ var HolaBooking = (function() {
 
     // ─── 공통 유틸 ───
 
+    /** Dayuse 이용시간 라벨 생성 */
+    function formatDayUseLabel(hours) {
+        return hours ? 'Dayuse ' + hours + '시간' : 'Dayuse';
+    }
+
     /** API 호출 래퍼 (BookingResponse 래핑 해제) */
     function api(options) {
         var defaults = {
@@ -365,6 +370,7 @@ var HolaBooking = (function() {
             var rateOptionsHtml = '';
             if (room.rateOptions && room.rateOptions.length > 0) {
                 $.each(room.rateOptions, function(ri, rate) {
+                    var isDayUse = rate.stayType === 'DAY_USE';
                     var perNight = nights > 0 ? Math.round(rate.totalAmount / nights) : rate.totalAmount;
                     // 포함 서비스 태그 렌더링
                     var includedSvcHtml = '';
@@ -378,6 +384,11 @@ var HolaBooking = (function() {
                         includedSvcHtml += '</div>';
                     }
 
+                    // Dayuse: "1박 평균" 대신 이용시간 표시
+                    var priceUnitHtml = isDayUse
+                        ? ''
+                        : '<div class="rate-price-unit">1박 평균 ' + formatCurrency(perNight, rate.currency) + '</div>';
+
                     rateOptionsHtml += ''
                         + '<div class="rate-option" data-room-idx="' + idx + '" data-rate-idx="' + ri + '"'
                         + '     data-room-type-id="' + room.roomTypeId + '"'
@@ -388,6 +399,8 @@ var HolaBooking = (function() {
                         + '     data-rate-name="' + escapeHtml(rate.rateNameKo) + '"'
                         + '     data-total-amount="' + rate.totalAmount + '"'
                         + '     data-currency="' + (rate.currency || 'KRW') + '"'
+                        + '     data-stay-type="' + (rate.stayType || 'OVERNIGHT') + '"'
+                        + '     data-dayuse-hours="' + (rate.dayUseDurationHours || '') + '"'
                         + '     data-included-services="' + escapeHtml(JSON.stringify(rate.includedServices || [])) + '">'
                         + '  <div class="d-flex justify-content-between align-items-center">'
                         + '    <div>'
@@ -397,7 +410,7 @@ var HolaBooking = (function() {
                         + '    </div>'
                         + '    <div class="text-end">'
                         + '      <div class="rate-price">' + formatCurrency(rate.totalAmount, rate.currency) + '</div>'
-                        + '      <div class="rate-price-unit">1박 평균 ' + formatCurrency(perNight, rate.currency) + '</div>'
+                        + priceUnitHtml
                         + '    </div>'
                         + '  </div>'
                         + '  <div class="daily-prices-toggle mt-2" style="display:none;">'
@@ -435,7 +448,8 @@ var HolaBooking = (function() {
                 + '      </div>'
                 + '      <div class="col-md-7">'
                 + '        <p class="small text-muted mb-2">'
-                + '          <i class="fas fa-tag me-1"></i>요금 선택 <span class="text-muted">(' + nights + '박 기준)</span>'
+                + '          <i class="fas fa-tag me-1"></i>요금 선택'
+                + (nights > 0 ? ' <span class="text-muted">(' + nights + '박 기준)</span>' : '')
                 + '        </p>'
                 + '        ' + rateOptionsHtml
                 + '      </div>'
@@ -475,7 +489,9 @@ var HolaBooking = (function() {
                     rateNameKo: $this.data('rate-name'),
                     totalAmount: parseFloat($this.data('total-amount')),
                     currency: $this.data('currency') || 'KRW',
-                    includedServices: includedSvcs
+                    includedServices: includedSvcs,
+                    stayType: $this.data('stay-type') || 'OVERNIGHT',
+                    dayUseDurationHours: parseInt($this.data('dayuse-hours')) || null
                 };
 
                 self.updateBottomBar();
@@ -514,6 +530,8 @@ var HolaBooking = (function() {
                 checkOut: this.checkOut,
                 adults: this.adults,
                 children: this.children,
+                stayType: this.selectedRoom.stayType || 'OVERNIGHT',
+                dayUseDurationHours: this.selectedRoom.dayUseDurationHours,
                 rooms: [{
                     roomTypeId: this.selectedRoom.roomTypeId,
                     roomTypeCode: this.selectedRoom.roomTypeCode,
@@ -524,6 +542,8 @@ var HolaBooking = (function() {
                     totalAmount: this.selectedRoom.totalAmount,
                     currency: this.selectedRoom.currency,
                     includedServices: this.selectedRoom.includedServices || [],
+                    stayType: this.selectedRoom.stayType || 'OVERNIGHT',
+                    dayUseDurationHours: this.selectedRoom.dayUseDurationHours,
                     checkIn: this.checkIn,
                     checkOut: this.checkOut,
                     adults: this.adults,
@@ -609,6 +629,7 @@ var HolaBooking = (function() {
             var data = this.bookingData;
             var room = data.rooms[0];
             var nights = calcNights(data.checkIn, data.checkOut);
+            var isDayUse = (data.stayType === 'DAY_USE') || (room.stayType === 'DAY_USE');
 
             // 객실 정보 + 포함 서비스
             var includedHtml = '';
@@ -621,17 +642,28 @@ var HolaBooking = (function() {
                 includedHtml += '</div>';
             }
 
+            var dayUseLabel = isDayUse
+                ? formatDayUseLabel(data.dayUseDurationHours || room.dayUseDurationHours) : '';
+
             $('#summaryRoomInfo').html(
                 '<div class="p-2 rounded" style="background:rgba(5,130,202,0.05);">'
                 + '<div class="fw-bold">' + escapeHtml(room.roomClassName) + '</div>'
-                + '<div class="small text-muted">' + escapeHtml(room.rateNameKo) + '</div>'
+                + '<div class="small text-muted">' + (isDayUse ? dayUseLabel : escapeHtml(room.rateNameKo)) + '</div>'
                 + includedHtml
                 + '</div>'
             );
 
             $('#summaryCheckIn').text(formatDate(data.checkIn));
-            $('#summaryCheckOut').text(formatDate(data.checkOut));
-            $('#summaryNights').text(nights + '박 ' + (nights + 1) + '일');
+            if (isDayUse) {
+                // Dayuse: 체크아웃 행을 이용일로 변경, 숙박→이용
+                $('#summaryCheckOut').text(formatDate(data.checkIn));
+                $('#summaryNightsLabel').text('이용');
+                $('#summaryNights').text(dayUseLabel);
+            } else {
+                $('#summaryCheckOut').text(formatDate(data.checkOut));
+                $('#summaryNightsLabel').text('숙박');
+                $('#summaryNights').text(nights + '박 ' + (nights + 1) + '일');
+            }
 
             var guestsText = '성인 ' + data.adults + '명';
             if (data.children > 0) guestsText += ', 아동 ' + data.children + '명';
@@ -883,11 +915,18 @@ var HolaBooking = (function() {
             var roomsHtml = '';
             if (data.rooms && data.rooms.length > 0) {
                 $.each(data.rooms, function(i, room) {
+                    var isRoomDayUse = room.stayType === 'DAY_USE';
+                    var stayLabel = isRoomDayUse
+                        ? formatDayUseLabel(room.dayUseDurationHours)
+                        : room.nights + '박';
+                    var dateDisplay = isRoomDayUse
+                        ? formatDate(room.checkIn)
+                        : formatDate(room.checkIn) + ' ~ ' + formatDate(room.checkOut);
+
                     roomsHtml += '<div class="confirm-detail-row">'
                         + '<span class="confirm-label">' + escapeHtml(room.roomTypeName) + '</span>'
                         + '<span class="confirm-value">'
-                        + formatDate(room.checkIn) + ' ~ ' + formatDate(room.checkOut)
-                        + ' (' + room.nights + '박)'
+                        + dateDisplay + ' (' + stayLabel + ')'
                         + '</span>'
                         + '</div>'
                         + '<div class="confirm-detail-row">'

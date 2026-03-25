@@ -1,9 +1,12 @@
 package com.hola.reservation.entity;
 
 import com.hola.common.entity.BaseEntity;
+import com.hola.common.enums.StayType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
+
+import com.hola.reservation.vo.DayUseTimeSlot;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -65,9 +68,10 @@ public class SubReservation extends BaseEntity {
     private LocalDate checkOut;
 
     // 숙박유형: OVERNIGHT(숙박), DAY_USE(데이유즈)
+    @Enumerated(EnumType.STRING)
     @Column(name = "stay_type", nullable = false, length = 20)
     @Builder.Default
-    private String stayType = "OVERNIGHT";
+    private StayType stayType = StayType.OVERNIGHT;
 
     // Dayuse 이용 시간 범위
     @Column(name = "day_use_start_time")
@@ -141,6 +145,15 @@ public class SubReservation extends BaseEntity {
     }
 
     /**
+     * Dayuse 전용 필드 갱신 (stayType/시간)
+     */
+    public void updateDayUseInfo(StayType stayType, java.time.LocalTime dayUseStartTime, java.time.LocalTime dayUseEndTime) {
+        this.stayType = stayType;
+        this.dayUseStartTime = dayUseStartTime;
+        this.dayUseEndTime = dayUseEndTime;
+    }
+
+    /**
      * 객실타입 변경 (업그레이드용) - 기존 배정 초기화
      */
     public void changeRoomType(Long newRoomTypeId) {
@@ -171,7 +184,14 @@ public class SubReservation extends BaseEntity {
      * Dayuse 여부 판단 헬퍼
      */
     public boolean isDayUse() {
-        return "DAY_USE".equals(this.stayType);
+        return this.stayType != null && this.stayType.isDayUse();
+    }
+
+    /**
+     * Dayuse 시간 슬롯 VO 반환 (숙박이면 null)
+     */
+    public DayUseTimeSlot getDayUseTimeSlot() {
+        return DayUseTimeSlot.ofNullable(this.dayUseStartTime, this.dayUseEndTime);
     }
 
     /**

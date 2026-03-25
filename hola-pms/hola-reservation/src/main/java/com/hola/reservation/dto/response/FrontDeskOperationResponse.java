@@ -53,6 +53,8 @@ public class FrontDeskOperationResponse {
 
     // 숙박유형
     private String stayType;
+    private LocalTime dayUseStartTime;
+    private LocalTime dayUseEndTime;
 
     // 결제
     private String paymentStatus;

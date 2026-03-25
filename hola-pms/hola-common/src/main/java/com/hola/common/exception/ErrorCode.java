@@ -126,8 +126,8 @@ public enum ErrorCode {
     RESERVATION_STAY_DAYS_VIOLATION("HOLA-4023", "숙박 일수가 레이트코드의 최소/최대 범위를 벗어납니다.", HttpStatus.BAD_REQUEST),
     RESERVATION_RATE_REQUIRED("HOLA-4024", "레이트코드를 선택해야 예약을 생성할 수 있습니다.", HttpStatus.BAD_REQUEST),
     RESERVATION_PAYMENT_MODIFY_NOT_ALLOWED("HOLA-4025", "완료된 결제는 수정할 수 없습니다.", HttpStatus.BAD_REQUEST),
-    DAY_USE_NOT_ENABLED("HOLA-4026", "이 프로퍼티에서는 Dayuse가 허용되지 않습니다.", HttpStatus.BAD_REQUEST),
-    DAY_USE_RATE_NOT_FOUND("HOLA-4027", "해당 이용시간에 맞는 Dayuse 요금이 없습니다.", HttpStatus.BAD_REQUEST),
+    DAY_USE_NOT_ENABLED("HOLA-4032", "이 프로퍼티에서는 Dayuse가 허용되지 않습니다.", HttpStatus.BAD_REQUEST),
+    DAY_USE_RATE_NOT_FOUND("HOLA-4033", "해당 이용시간에 맞는 Dayuse 요금이 없습니다.", HttpStatus.NOT_FOUND),
 
     // 예약채널 (HOLA-403x)
     RESERVATION_CHANNEL_NOT_FOUND("HOLA-4030", "예약채널을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

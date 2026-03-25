@@ -36,7 +36,9 @@ import com.hola.reservation.repository.DailyChargeRepository;
 import com.hola.reservation.repository.MasterReservationRepository;
 import com.hola.reservation.repository.PaymentTransactionRepository;
 import com.hola.reservation.repository.ReservationPaymentRepository;
+import com.hola.reservation.repository.ReservationServiceItemRepository;
 import com.hola.reservation.repository.SubReservationRepository;
+import com.hola.rate.repository.RateCodePaidServiceRepository;
 import com.hola.reservation.service.PriceCalculationService;
 import com.hola.reservation.service.ReservationNumberGenerator;
 import com.hola.reservation.service.ReservationPaymentService;
@@ -44,6 +46,7 @@ import com.hola.reservation.service.RoomAvailabilityService;
 import com.hola.room.entity.RoomClass;
 import com.hola.room.entity.RoomType;
 import com.hola.room.repository.FreeServiceOptionRepository;
+import com.hola.room.repository.PaidServiceOptionRepository;
 import com.hola.room.repository.RoomClassRepository;
 import com.hola.room.repository.RoomTypeFreeServiceRepository;
 import com.hola.room.repository.RoomTypeRepository;
@@ -99,10 +102,19 @@ class BookingServiceImplTest {
     @Mock private PaymentGateway paymentGateway;
     @Mock private BookingAuditLogRepository bookingAuditLogRepository;
     @Mock private ObjectMapper objectMapper;
+    @Mock private com.hola.reservation.service.RateIncludedServiceHelper rateIncludedServiceHelper;
+    @Mock private ReservationServiceItemRepository reservationServiceItemRepository;
+    @Mock private RateCodePaidServiceRepository rateCodePaidServiceRepository;
+    @Mock private com.hola.rate.repository.DayUseRateRepository dayUseRateRepository;
     @Mock private CancellationPolicyService cancellationPolicyService;
     @Mock private CancellationFeeRepository cancellationFeeRepository;
     @Mock private ReservationPaymentRepository reservationPaymentRepository;
     @Mock private PaymentTransactionRepository paymentTransactionRepository;
+    @Mock private com.hola.room.service.InventoryService inventoryService;
+    @Mock private com.hola.hotel.repository.PropertyImageRepository propertyImageRepository;
+    @Mock private com.hola.hotel.repository.PropertyTermsRepository propertyTermsRepository;
+    @Mock private PaidServiceOptionRepository paidServiceOptionRepository;
+    @Mock private com.hola.rate.repository.PromotionCodeRepository promotionCodeRepository;
 
     // 공통 테스트 데이터
     private static final String PROPERTY_CODE = "GMP";
@@ -137,6 +149,14 @@ class BookingServiceImplTest {
                 .address("서울시 강남구")
                 .build();
         ReflectionTestUtils.setField(property, "id", PROPERTY_ID);
+
+        // Phase 1에서 추가된 벌크 조회 메서드 기본 스텁 (NPE 방지)
+        lenient().when(rateCodeRoomTypeRepository.findAllByRateCodeIdIn(any()))
+                .thenReturn(Collections.emptyList());
+        lenient().when(rateCodePaidServiceRepository.findAllByRateCodeIdIn(any()))
+                .thenReturn(Collections.emptyList());
+        lenient().when(reservationServiceItemRepository.findBySubReservationId(any()))
+                .thenReturn(Collections.emptyList());
     }
 
     // ===== 헬퍼 메서드 =====
@@ -342,8 +362,8 @@ class BookingServiceImplTest {
                     .thenReturn(List.of(rateCode));
             when(roomAvailabilityService.getAvailableRoomCount(eq(ROOM_TYPE_ID), any(), any()))
                     .thenReturn(5);
-            // 레이트코드-객실타입 매핑 없음
-            when(rateCodeRoomTypeRepository.findAllByRateCodeId(RATE_CODE_ID))
+            // 레이트코드-객실타입 매핑 없음 (벌크 조회)
+            when(rateCodeRoomTypeRepository.findAllByRateCodeIdIn(any()))
                     .thenReturn(Collections.emptyList());
 
             BookingSearchRequest req = createSearchRequest(checkIn, checkOut, 2, 0);
@@ -376,7 +396,8 @@ class BookingServiceImplTest {
                     .thenReturn(List.of(rateCode));
             when(roomAvailabilityService.getAvailableRoomCount(eq(ROOM_TYPE_ID), any(), any()))
                     .thenReturn(5);
-            when(rateCodeRoomTypeRepository.findAllByRateCodeId(RATE_CODE_ID))
+            // 벌크 조회로 매핑 반환
+            when(rateCodeRoomTypeRepository.findAllByRateCodeIdIn(any()))
                     .thenReturn(List.of(mapping));
             // 요금 계산 시 예외 발생
             when(priceCalculationService.calculateDailyCharges(eq(RATE_CODE_ID), eq(property),
@@ -517,12 +538,20 @@ class BookingServiceImplTest {
                     .roomClassName("디럭스")
                     .build();
 
+            // Dayuse 여부 확인용 레이트코드 (Overnight)
+            RateCode overnightRate = RateCode.builder()
+                    .propertyId(PROPERTY_ID).rateCode("BAR").rateNameKo("기본요금")
+                    .currency("KRW").minStayDays(1).maxStayDays(30).build();
+            ReflectionTestUtils.setField(overnightRate, "id", RATE_CODE_ID);
+
             when(propertyRepository.findByPropertyCodeAndUseYnTrue(PROPERTY_CODE))
                     .thenReturn(Optional.of(property));
             when(roomTypeRepository.findById(ROOM_TYPE_ID))
                     .thenReturn(Optional.of(roomType));
             when(rateCodeRoomTypeRepository.findAllByRateCodeId(RATE_CODE_ID))
                     .thenReturn(List.of(mapping));
+            when(rateCodeRepository.findById(RATE_CODE_ID))
+                    .thenReturn(Optional.of(overnightRate));
             when(priceCalculationService.calculateDailyCharges(eq(RATE_CODE_ID), eq(property),
                     eq(checkIn), eq(checkOut), eq(2), eq(0), isNull()))
                     .thenReturn(List.of(dc1, dc2));
@@ -653,7 +682,7 @@ class BookingServiceImplTest {
                     .thenReturn(savedMaster);
             when(subReservationRepository.save(any(SubReservation.class)))
                     .thenReturn(savedSub);
-            when(dailyChargeRepository.save(any(DailyCharge.class)))
+            when(dailyChargeRepository.saveAll(anyList()))
                     .thenAnswer(inv -> inv.getArgument(0));
 
             // buildConfirmationResponse용 스텁

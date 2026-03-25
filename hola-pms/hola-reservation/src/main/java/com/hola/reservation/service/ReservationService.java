@@ -71,4 +71,9 @@ public interface ReservationService {
     Map<String, List<ReservationCalendarResponse>> getCalendarData(
             Long propertyId, LocalDate startDate, LocalDate endDate,
             String status, String keyword);
+
+    /** 타임라인뷰: 기간 내 예약을 객실별로 그룹핑하여 반환 (Y축=객실, X축=날짜) */
+    ReservationTimelineResponse getTimelineData(
+            Long propertyId, LocalDate startDate, LocalDate endDate,
+            String status, String keyword);
 }

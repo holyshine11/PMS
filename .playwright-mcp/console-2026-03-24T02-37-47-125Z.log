@@ -1,0 +1,5 @@
+[    7692ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ http://localhost:8080/favicon.ico:0
+[   51182ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ http://localhost:8080/api/v1/properties/null/rate-codes?checkIn=2026-03-25&checkOut=2026-03-26&dayUseEnabled=true:0
+[   51187ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ http://localhost:8080/api/v1/properties/null/rate-codes?checkIn=2026-03-25&checkOut=2026-03-26&dayUseEnabled=false:0
+[   57411ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ http://localhost:8080/api/v1/properties/null/rate-codes?checkIn=2026-03-25&checkOut=2026-03-26&dayUseEnabled=true:0
+[   57414ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ http://localhost:8080/api/v1/properties/null/rate-codes?checkIn=2026-03-25&checkOut=2026-03-26&dayUseEnabled=false:0

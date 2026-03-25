@@ -39,17 +39,18 @@ public class RateCodeApiController {
     private final RateCodeService rateCodeService;
     private final DayUseRateRepository dayUseRateRepository;
 
-    @Operation(summary = "레이트코드 목록 조회", description = "프로퍼티 레이트코드 전체 목록 (체크인/아웃 기간 필터 가능)")
+    @Operation(summary = "레이트코드 목록 조회", description = "프로퍼티 레이트코드 전체 목록 (체크인/아웃 기간 필터 가능, dayUseEnabled=false 시 Dayuse 제외)")
     @GetMapping
     public ResponseEntity<HolaResponse<List<RateCodeListResponse>>> getRateCodes(
             @PathVariable Long propertyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkIn,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkOut) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkOut,
+            @RequestParam(required = false, defaultValue = "true") boolean dayUseEnabled) {
         accessControlService.validatePropertyAccess(propertyId);
         List<RateCodeListResponse> list;
         if (checkIn != null && checkOut != null) {
             // 체크인~체크아웃 기간을 요금으로 100% 커버하는 레이트코드만 반환
-            list = rateCodeService.getAvailableRateCodes(propertyId, checkIn, checkOut);
+            list = rateCodeService.getAvailableRateCodes(propertyId, checkIn, checkOut, dayUseEnabled);
         } else {
             list = rateCodeService.getRateCodes(propertyId);
         }

@@ -170,17 +170,16 @@ var ReservationCalendarView = {
         var html = '';
 
         // 헤더: 월 이동 + 오늘 + 상태 범례
-        html += '<div class="d-flex align-items-center justify-content-between mb-3">';
+        html += '<div class="d-flex align-items-center justify-content-between mb-2">';
         html += '<div class="d-flex align-items-center">';
         html += '<button class="btn btn-outline-secondary btn-sm me-2" id="calPrevBtn"><i class="fas fa-chevron-left"></i></button>';
-        html += '<h5 class="fw-bold mb-0">' + this.currentYear + '.' + this.padZero(this.currentMonth) + '</h5>';
+        html += '<span class="fw-bold" style="font-size:0.95rem;">' + this.currentYear + '.' + this.padZero(this.currentMonth) + '</span>';
         html += '<button class="btn btn-outline-secondary btn-sm ms-2" id="calNextBtn"><i class="fas fa-chevron-right"></i></button>';
         html += '<button class="btn btn-outline-primary btn-sm ms-3" id="calTodayBtn">오늘</button>';
         html += '</div>';
         html += '<div class="d-flex align-items-center gap-2 flex-wrap" style="font-size:0.75rem;">';
         var legendItems = [
             { label: '예약', status: 'RESERVED' },
-            { label: '체크인', status: 'CHECK_IN' },
             { label: '투숙중', status: 'INHOUSE' },
             { label: '체크아웃', status: 'CHECKED_OUT' },
             { label: '취소', status: 'CANCELED' },
@@ -203,7 +202,7 @@ var ReservationCalendarView = {
         var nextMonth = this.currentMonth + 1;
         var nextYear = this.currentYear;
         if (nextMonth > 12) { nextMonth = 1; nextYear++; }
-        html += '<div class="mt-4"></div>';
+        html += '<div class="mt-3"></div>';
         html += this.renderMonth(nextYear, nextMonth);
 
         $('#calendarViewContainer').html(html);

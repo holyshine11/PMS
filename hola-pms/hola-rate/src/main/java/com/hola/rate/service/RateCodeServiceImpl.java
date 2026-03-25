@@ -1,5 +1,6 @@
 package com.hola.rate.service;
 
+import com.hola.common.enums.StayType;
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
 import com.hola.rate.dto.request.RateCodeCreateRequest;
@@ -62,9 +63,17 @@ public class RateCodeServiceImpl implements RateCodeService {
 
     @Override
     public List<RateCodeListResponse> getAvailableRateCodes(Long propertyId, LocalDate checkIn, LocalDate checkOut) {
+        // 기존 호환: dayUseEnabled 미지정 시 DAY_USE 레이트코드 포함
+        return getAvailableRateCodes(propertyId, checkIn, checkOut, true);
+    }
+
+    @Override
+    public List<RateCodeListResponse> getAvailableRateCodes(Long propertyId, LocalDate checkIn, LocalDate checkOut, boolean dayUseEnabled) {
         List<RateCode> rateCodes = rateCodeRepository.findAllByPropertyIdOrderBySortOrderAscRateCodeAsc(propertyId);
         return rateCodes.stream()
                 .filter(rc -> Boolean.TRUE.equals(rc.getUseYn()))
+                // 프로퍼티 Dayuse 미허용 시 DAY_USE 레이트코드 제외
+                .filter(rc -> dayUseEnabled || !rc.isDayUse())
                 .filter(rc -> rc.getSaleStartDate() != null && rc.getSaleEndDate() != null)
                 .filter(rc -> !checkIn.isBefore(rc.getSaleStartDate()) && !checkIn.isAfter(rc.getSaleEndDate()))
                 // 숙박일수(min/max) 범위 필터링
@@ -137,7 +146,7 @@ public class RateCodeServiceImpl implements RateCodeService {
         // 숙박일수 검증
         validateStayDays(request.getMinStayDays(), request.getMaxStayDays());
         // 숙박유형 검증
-        String stayType = validateAndNormalizeStayType(request.getStayType());
+        StayType stayType = validateAndNormalizeStayType(request.getStayType());
 
         RateCode rateCode = RateCode.builder()
                 .propertyId(propertyId)
@@ -185,7 +194,7 @@ public class RateCodeServiceImpl implements RateCodeService {
         // 숙박일수 검증
         validateStayDays(request.getMinStayDays(), request.getMaxStayDays());
         // 숙박유형 검증
-        String stayType = validateAndNormalizeStayType(request.getStayType());
+        StayType stayType = validateAndNormalizeStayType(request.getStayType());
 
         rateCode.update(
                 request.getRateNameKo(),
@@ -257,17 +266,16 @@ public class RateCodeServiceImpl implements RateCodeService {
         }
     }
 
-    private static final java.util.Set<String> VALID_STAY_TYPES = java.util.Set.of("OVERNIGHT", "DAY_USE");
-
     /**
      * 숙박유형 검증 및 정규화 (null → OVERNIGHT, 유효하지 않은 값 → 에러)
      */
-    private String validateAndNormalizeStayType(String stayType) {
-        if (stayType == null || stayType.isBlank()) return "OVERNIGHT";
-        if (!VALID_STAY_TYPES.contains(stayType)) {
+    private StayType validateAndNormalizeStayType(String stayType) {
+        if (stayType == null || stayType.isBlank()) return StayType.OVERNIGHT;
+        try {
+            return StayType.valueOf(stayType);
+        } catch (IllegalArgumentException e) {
             throw new HolaException(ErrorCode.RATE_INVALID_STAY_TYPE);
         }
-        return stayType;
     }
 
     private void saveRoomTypeMappings(Long rateCodeId, List<Long> roomTypeIds) {

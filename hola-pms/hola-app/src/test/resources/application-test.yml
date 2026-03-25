@@ -15,10 +15,10 @@ spring:
         format_sql: false
         default_batch_fetch_size: 100
 
-  # Flyway - 스키마 + 기본 테스트 데이터만 (V5_9_0+ 테스트 데이터 배치 제외)
+  # Flyway - 스키마(~V5_8_0) + 테스트 패치(version 컬럼 등 DDL)
   flyway:
     enabled: true
-    locations: classpath:db/migration
+    locations: classpath:db/migration,classpath:db/testpatch
     baseline-on-migrate: true
     out-of-order: true
     target: 5.8.0

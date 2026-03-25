@@ -40,6 +40,10 @@ public class AvailableRoomTypeResponse {
         private final List<DailyPrice> dailyPrices;
         /** 레이트코드에 포함된 유료 서비스 */
         private final List<IncludedServiceInfo> includedServices;
+        /** 숙박유형: OVERNIGHT 또는 DAY_USE */
+        private final String stayType;
+        /** Dayuse 이용시간 (시간 단위, DAY_USE일 때만) */
+        private final Integer dayUseDurationHours;
     }
 
     @Getter

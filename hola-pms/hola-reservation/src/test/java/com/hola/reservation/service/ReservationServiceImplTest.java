@@ -1,6 +1,7 @@
 package com.hola.reservation.service;
 
 import com.hola.common.auth.entity.AdminUser;
+import com.hola.common.enums.StayType;
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
 import com.hola.common.security.AccessControlService;
@@ -78,6 +79,12 @@ class ReservationServiceImplTest {
     @Mock private CancellationPolicyService cancellationPolicyService;
     @Mock private ReservationPaymentRepository reservationPaymentRepository;
     @Mock private PaymentTransactionRepository paymentTransactionRepository;
+    @Mock private RateIncludedServiceHelper rateIncludedServiceHelper;
+    @Mock private com.hola.rate.repository.DayUseRateRepository dayUseRateRepository;
+    @Mock private jakarta.persistence.EntityManager entityManager;
+    @Mock private com.hola.hotel.service.HousekeepingService housekeepingService;
+    @Mock private com.hola.hotel.repository.RoomUnavailableRepository roomUnavailableRepository;
+    @Mock private com.hola.room.service.InventoryService inventoryService;
 
     @InjectMocks
     private ReservationServiceImpl reservationService;
@@ -106,6 +113,10 @@ class ReservationServiceImplTest {
                 .minStayDays(1)
                 .maxStayDays(30)
                 .build();
+
+        // Phase 1에서 추가된 OOO/OOS 기간 체크 기본 스텁 (NPE 방지)
+        lenient().when(roomUnavailableRepository.findOverlapping(any(), any(), any()))
+                .thenReturn(Collections.emptyList());
     }
 
     // ──────────────────────────────────────────────
@@ -416,8 +427,9 @@ class ReservationServiceImplTest {
             when(numberGenerator.generateConfirmationNo()).thenReturn("HK4F29XP");
             MasterReservation savedMaster = createMaster("RESERVED");
             when(masterReservationRepository.save(any(MasterReservation.class))).thenReturn(savedMaster);
-            // 객실 충돌 발생 (비관적 락 사용)
-            when(availabilityService.hasRoomConflictWithLock(eq(1L), eq(CHECK_IN), eq(CHECK_OUT), isNull()))
+            // 객실 충돌 발생 (비관적 락 사용, Dayuse 시간 슬롯 인식 6-arg)
+            when(availabilityService.hasRoomConflictWithLock(eq(1L), eq(CHECK_IN), eq(CHECK_OUT), isNull(),
+                    eq(StayType.OVERNIGHT), isNull()))
                     .thenReturn(true);
 
             // when & then
@@ -458,8 +470,11 @@ class ReservationServiceImplTest {
             ReservationUpdateRequest request = updateRequest();
 
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            // update() → isDayUseRateCode() → rateCodeRepository.findById()
+            lenient().when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(rateCode));
             when(subReservationRepository.findById(SUB_ID)).thenReturn(Optional.of(sub));
-            when(availabilityService.hasRoomConflict(eq(1L), any(), any(), eq(SUB_ID))).thenReturn(false);
+            when(availabilityService.hasRoomConflict(eq(1L), any(), any(), eq(SUB_ID),
+                    any(), any())).thenReturn(false);
             stubGetById(master);
 
             // when
@@ -551,16 +566,20 @@ class ReservationServiceImplTest {
                     .build();
 
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            // isDayUseRateCode(기존 rateCodeId=10) → rateCodeRepository.findById(10L)
+            lenient().when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(rateCode));
+            // validateRateCode(새 rateCodeId=20) → rateCodeRepository.findById(20L)
             when(rateCodeRepository.findById(newRateCodeId)).thenReturn(Optional.of(rateCode));
             when(subReservationRepository.findById(SUB_ID)).thenReturn(Optional.of(sub));
-            when(availabilityService.hasRoomConflict(eq(1L), any(), any(), eq(SUB_ID))).thenReturn(false);
+            when(availabilityService.hasRoomConflict(eq(1L), any(), any(), eq(SUB_ID),
+                    any(), any())).thenReturn(false);
             stubGetById(master);
 
             // when
             reservationService.update(MASTER_ID, PROPERTY_ID, request);
 
             // then - 레이트코드 변경이므로 validateRateCode 호출됨
-            verify(rateCodeRepository).findById(newRateCodeId);
+            verify(rateCodeRepository, atLeastOnce()).findById(newRateCodeId);
         }
     }
 
@@ -572,15 +591,19 @@ class ReservationServiceImplTest {
     class StatusChangeTests {
 
         @Test
-        @DisplayName("RESERVED → CHECK_IN 정상 전이")
-        void changeStatus_RESERVED_to_CHECK_IN() {
+        @DisplayName("RESERVED → INHOUSE 정상 전이 (체크인 → 바로 INHOUSE)")
+        void changeStatus_RESERVED_to_INHOUSE() {
             // given
             MasterReservation master = createMaster("RESERVED");
             SubReservation sub = createSub(master, SUB_ID, "RESERVED");
             ReservationStatusRequest request = ReservationStatusRequest.builder()
-                    .newStatus("CHECK_IN").build();
+                    .newStatus("INHOUSE").build();
 
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            // validateCheckInPrerequisites: roomNumberId=1L → roomNumber 조회
+            com.hola.hotel.entity.RoomNumber roomNumber = com.hola.hotel.entity.RoomNumber.builder()
+                    .hkStatus("CLEAN").build();
+            when(roomNumberRepository.findById(1L)).thenReturn(Optional.of(roomNumber));
             when(earlyLateCheckService.calculateEarlyCheckInFee(eq(sub), any(LocalDateTime.class)))
                     .thenReturn(BigDecimal.ZERO);
 
@@ -588,8 +611,8 @@ class ReservationServiceImplTest {
             reservationService.changeStatus(MASTER_ID, PROPERTY_ID, request);
 
             // then
-            assertThat(master.getReservationStatus()).isEqualTo("CHECK_IN");
-            assertThat(sub.getRoomReservationStatus()).isEqualTo("CHECK_IN");
+            assertThat(master.getReservationStatus()).isEqualTo("INHOUSE");
+            assertThat(sub.getRoomReservationStatus()).isEqualTo("INHOUSE");
             verify(paymentService).recalculatePayment(MASTER_ID);
         }
 
@@ -603,6 +626,12 @@ class ReservationServiceImplTest {
                     .newStatus("INHOUSE").build();
 
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            // applyStatusChange → INHOUSE 부수효과: 얼리체크인 요금 + 객실 상태 변경
+            com.hola.hotel.entity.RoomNumber roomNumber = com.hola.hotel.entity.RoomNumber.builder()
+                    .hkStatus("CLEAN").build();
+            when(roomNumberRepository.findById(1L)).thenReturn(Optional.of(roomNumber));
+            when(earlyLateCheckService.calculateEarlyCheckInFee(eq(sub), any(LocalDateTime.class)))
+                    .thenReturn(BigDecimal.ZERO);
 
             // when
             reservationService.changeStatus(MASTER_ID, PROPERTY_ID, request);
@@ -625,6 +654,10 @@ class ReservationServiceImplTest {
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
             when(earlyLateCheckService.calculateLateCheckOutFee(eq(sub), any(LocalDateTime.class)))
                     .thenReturn(lateFee);
+            // applyStatusChange → CHECKED_OUT 부수효과: 객실 상태 변경
+            com.hola.hotel.entity.RoomNumber roomNumber = com.hola.hotel.entity.RoomNumber.builder()
+                    .hkStatus("CLEAN").build();
+            when(roomNumberRepository.findById(1L)).thenReturn(Optional.of(roomNumber));
 
             // when
             reservationService.changeStatus(MASTER_ID, PROPERTY_ID, request);
@@ -661,9 +694,13 @@ class ReservationServiceImplTest {
             SubReservation activeSub = createSub(master, SUB_ID, "RESERVED");
             SubReservation canceledSub = createSub(master, 201L, "CANCELED");
             ReservationStatusRequest request = ReservationStatusRequest.builder()
-                    .newStatus("CHECK_IN").build();
+                    .newStatus("INHOUSE").build();
 
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            // validateCheckInPrerequisites: roomNumberId=1L → roomNumber 조회
+            com.hola.hotel.entity.RoomNumber roomNumber = com.hola.hotel.entity.RoomNumber.builder()
+                    .hkStatus("CLEAN").build();
+            when(roomNumberRepository.findById(1L)).thenReturn(Optional.of(roomNumber));
             when(earlyLateCheckService.calculateEarlyCheckInFee(eq(activeSub), any(LocalDateTime.class)))
                     .thenReturn(BigDecimal.ZERO);
 
@@ -671,21 +708,25 @@ class ReservationServiceImplTest {
             reservationService.changeStatus(MASTER_ID, PROPERTY_ID, request);
 
             // then
-            assertThat(activeSub.getRoomReservationStatus()).isEqualTo("CHECK_IN");
+            assertThat(activeSub.getRoomReservationStatus()).isEqualTo("INHOUSE");
             assertThat(canceledSub.getRoomReservationStatus()).isEqualTo("CANCELED"); // 변경 안 됨
         }
 
         @Test
-        @DisplayName("CHECK_IN 시 얼리 체크인 요금 계산")
+        @DisplayName("INHOUSE 전이 시 얼리 체크인 요금 계산")
         void changeStatus_얼리체크인요금() {
             // given
             MasterReservation master = createMaster("RESERVED");
             SubReservation sub = createSub(master, SUB_ID, "RESERVED");
             ReservationStatusRequest request = ReservationStatusRequest.builder()
-                    .newStatus("CHECK_IN").build();
+                    .newStatus("INHOUSE").build();
             BigDecimal earlyFee = new BigDecimal("25000");
 
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            // validateCheckInPrerequisites: roomNumberId=1L → roomNumber 조회
+            com.hola.hotel.entity.RoomNumber roomNumber = com.hola.hotel.entity.RoomNumber.builder()
+                    .hkStatus("CLEAN").build();
+            when(roomNumberRepository.findById(1L)).thenReturn(Optional.of(roomNumber));
             when(earlyLateCheckService.calculateEarlyCheckInFee(eq(sub), any(LocalDateTime.class)))
                     .thenReturn(earlyFee);
 
@@ -710,6 +751,10 @@ class ReservationServiceImplTest {
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
             when(earlyLateCheckService.calculateLateCheckOutFee(eq(sub), any(LocalDateTime.class)))
                     .thenReturn(lateFee);
+            // applyStatusChange → CHECKED_OUT 부수효과: 객실 상태 변경
+            com.hola.hotel.entity.RoomNumber roomNumber = com.hola.hotel.entity.RoomNumber.builder()
+                    .hkStatus("CLEAN").build();
+            when(roomNumberRepository.findById(1L)).thenReturn(Optional.of(roomNumber));
 
             // when
             reservationService.changeStatus(MASTER_ID, PROPERTY_ID, request);
@@ -805,31 +850,17 @@ class ReservationServiceImplTest {
         }
 
         @Test
-        @DisplayName("CHECK_IN 상태 취소 가능")
-        void cancel_CHECK_IN() {
+        @DisplayName("CHECK_IN 상태 취소 불가 - RESERVATION_STATUS_CHANGE_NOT_ALLOWED (RESERVED만 취소 가능)")
+        void cancel_CHECK_IN_불가() {
             // given
             MasterReservation master = createMaster("CHECK_IN");
-            SubReservation sub = createSub(master, SUB_ID, "CHECK_IN");
-
-            CancelFeeResult cancelResult = new CancelFeeResult(
-                    new BigDecimal("50000"), new BigDecimal("50"), "당일 취소 수수료 50%");
-
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
-            when(subReservationRepository.findByMasterReservationId(MASTER_ID))
-                    .thenReturn(List.of(sub));
-            when(dailyChargeRepository.findBySubReservationId(SUB_ID))
-                    .thenReturn(Collections.emptyList());
-            when(cancellationPolicyService.calculateCancelFee(
-                    eq(PROPERTY_ID), eq(CHECK_IN), any(BigDecimal.class)))
-                    .thenReturn(cancelResult);
-            when(reservationPaymentRepository.findByMasterReservationId(MASTER_ID))
-                    .thenReturn(Optional.empty());
 
-            // when
-            reservationService.cancel(MASTER_ID, PROPERTY_ID);
-
-            // then
-            assertThat(master.getReservationStatus()).isEqualTo("CANCELED");
+            // when & then
+            assertThatThrownBy(() -> reservationService.cancel(MASTER_ID, PROPERTY_ID))
+                    .isInstanceOf(HolaException.class)
+                    .satisfies(ex -> assertThat(((HolaException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED));
         }
 
         @Test
@@ -1110,10 +1141,13 @@ class ReservationServiceImplTest {
                     .build();
 
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            // resolveStayType() → rateCodeRepository.findById(RATE_CODE_ID)
+            when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(rateCode));
             when(subReservationRepository.countAllIncludingDeleted(MASTER_ID)).thenReturn(0);
             when(numberGenerator.generateSubReservationNo("GMP260601-0001", 1))
                     .thenReturn("GMP260601-0001-02");
-            when(availabilityService.hasRoomConflictWithLock(eq(2L), any(), any(), isNull())).thenReturn(false);
+            when(availabilityService.hasRoomConflictWithLock(eq(2L), any(), any(), isNull(),
+                    eq(StayType.OVERNIGHT), isNull())).thenReturn(false);
             when(subReservationRepository.save(any(SubReservation.class))).thenReturn(newSub);
             when(reservationMapper.toSubReservationResponse(any(SubReservation.class))).thenReturn(subResponse);
 
@@ -1144,7 +1178,8 @@ class ReservationServiceImplTest {
 
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
             when(subReservationRepository.findById(SUB_ID)).thenReturn(Optional.of(sub));
-            when(availabilityService.hasRoomConflict(eq(5L), any(), any(), eq(SUB_ID))).thenReturn(true);
+            when(availabilityService.hasRoomConflict(eq(5L), any(), any(), eq(SUB_ID),
+                    any(), any())).thenReturn(true);
 
             // when & then
             assertThatThrownBy(() -> reservationService.updateLeg(MASTER_ID, PROPERTY_ID, SUB_ID, request))

@@ -6,6 +6,9 @@ var ReservationForm = {
     roomLegSeq: 0,          // 객실 레그 시퀀스
     currentLegSeq: null,     // 현재 모달 대상 레그 시퀀스
 
+    // 프로퍼티 Dayuse 허용 여부
+    dayUseEnabled: false,
+
     // 유료 서비스 옵션 캐시 (roomTypeId별)
     serviceOptionsCache: {},
 
@@ -21,12 +24,32 @@ var ReservationForm = {
         if (self.propertyId) {
             self.showForm();
             self.loadReservationChannels();
+            self.loadPropertyDayUseInfo();
         } else {
             self.hideForm();
         }
 
         self.bindEvents();
         self.setDefaultDates();
+    },
+
+    /**
+     * 프로퍼티의 Dayuse 허용 여부 조회
+     */
+    loadPropertyDayUseInfo: function() {
+        var self = this;
+        var hotelId = HolaPms.context.getHotelId();
+        if (!hotelId || !self.propertyId) return;
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId,
+            method: 'GET',
+            success: function(res) {
+                if (res.data) {
+                    self.dayUseEnabled = Boolean(res.data.dayUseEnabled);
+                }
+            }
+        });
     },
 
     /**
@@ -163,8 +186,10 @@ var ReservationForm = {
             if (self.propertyId) {
                 self.showForm();
                 self.loadReservationChannels();
+                self.loadPropertyDayUseInfo();
             } else {
                 self.hideForm();
+                self.dayUseEnabled = false;
             }
         });
 
@@ -512,12 +537,12 @@ var ReservationForm = {
             return;
         }
 
-        // 체크인/체크아웃 날짜 기반 필터링 URL 구성
+        // 체크인/체크아웃 날짜 기반 필터링 URL 구성 (Dayuse 미허용 시 DAY_USE 레이트코드 제외)
         var checkIn = $('#masterCheckIn').val();
         var checkOut = $('#masterCheckOut').val();
         var url = '/api/v1/properties/' + self.propertyId + '/rate-codes';
         if (checkIn && checkOut) {
-            url += '?checkIn=' + checkIn + '&checkOut=' + checkOut;
+            url += '?checkIn=' + checkIn + '&checkOut=' + checkOut + '&dayUseEnabled=' + self.dayUseEnabled;
         }
 
         $('#rateCodeSearchKeyword').val('');

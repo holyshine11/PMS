@@ -272,7 +272,10 @@ var FdOperations = {
                 { data: 'checkOut', className: 'text-center' },
                 { data: 'nights', className: 'text-center', render: function(data, type, row) {
                     if (row.stayType === 'DAY_USE') {
-                        return '<span class="badge" style="background-color:#0582CA;">Dayuse</span>';
+                        var startTime = row.dayUseStartTime ? row.dayUseStartTime.substring(0, 5) : '';
+                        var endTime = row.dayUseEndTime ? row.dayUseEndTime.substring(0, 5) : '';
+                        var label = (startTime && endTime) ? startTime + '~' + endTime : 'Dayuse';
+                        return '<span class="badge" style="background-color:#0582CA;">' + label + '</span>';
                     }
                     return data + '박';
                 }},

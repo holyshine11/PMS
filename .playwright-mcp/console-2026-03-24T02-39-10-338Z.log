@@ -1,0 +1,3 @@
+[   17408ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ http://localhost:8080/api/v1/booking/properties/GMP/rooms?checkIn=2026-03-25&checkOut=2026-03-26&adults=2&children=0:0
+[   41679ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ http://localhost:8080/api/v1/booking/properties/GMP/rooms?checkIn=2026-03-25&checkOut=2026-03-26&adults=2&children=0:0
+[   57662ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ http://localhost:8080/api/v1/booking/properties/GMP/rooms?checkIn=2026-03-25&checkOut=2026-03-26&adults=2&children=0:0

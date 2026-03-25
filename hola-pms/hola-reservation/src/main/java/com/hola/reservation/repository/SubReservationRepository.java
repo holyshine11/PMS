@@ -121,12 +121,12 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
     long countInHouse(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 
     /**
-     * 오늘 출발 예정 (checkOut = today, CHECK_IN/INHOUSE)
+     * 오늘 출발 예정 (숙박: checkOut = today, Dayuse: checkIn = today)
      */
     @Query("SELECT COUNT(s) FROM SubReservation s " +
            "WHERE s.masterReservation.property.id = :propertyId " +
            "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
-           "AND s.checkOut = :today")
+           "AND (s.checkOut = :today OR (s.stayType = 'DAY_USE' AND s.checkIn = :today))")
     long countDepartures(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 
     /**
@@ -140,12 +140,12 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
                              @Param("today") LocalDate today);
 
     /**
-     * 오늘 출발 중 체크아웃 완료 건수 (checkOut = today AND 체크아웃 처리 완료)
+     * 오늘 출발 중 체크아웃 완료 건수 (숙박: checkOut = today, Dayuse: checkIn = today)
      */
     @Query("SELECT COUNT(s) FROM SubReservation s " +
            "WHERE s.masterReservation.property.id = :propertyId " +
            "AND s.roomReservationStatus = 'CHECKED_OUT' " +
-           "AND s.checkOut = :today")
+           "AND (s.checkOut = :today OR (s.stayType = 'DAY_USE' AND s.checkIn = :today))")
     long countCheckedOutToday(@Param("propertyId") Long propertyId,
                               @Param("today") LocalDate today);
 
@@ -181,12 +181,12 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
     List<SubReservation> findInHouse(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 
     /**
-     * 오늘 출발 예정 리스트 (checkOut=today, CHECK_IN/INHOUSE)
+     * 오늘 출발 예정 리스트 (숙박: checkOut=today, Dayuse: checkIn=today)
      */
     @Query("SELECT s FROM SubReservation s JOIN FETCH s.masterReservation m " +
            "WHERE m.property.id = :propertyId " +
            "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
-           "AND s.checkOut = :today " +
+           "AND (s.checkOut = :today OR (s.stayType = 'DAY_USE' AND s.checkIn = :today)) " +
            "ORDER BY m.guestNameKo ASC")
     List<SubReservation> findDepartures(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
 

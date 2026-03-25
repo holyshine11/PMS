@@ -1,6 +1,7 @@
 package com.hola.rate.entity;
 
 import com.hola.common.entity.BaseEntity;
+import com.hola.common.enums.StayType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -56,15 +57,16 @@ public class RateCode extends BaseEntity {
     private Integer maxStayDays;
 
     // 숙박유형: OVERNIGHT(숙박), DAY_USE(데이유즈)
+    @Enumerated(EnumType.STRING)
     @Column(name = "stay_type", nullable = false, length = 20)
     @Builder.Default
-    private String stayType = "OVERNIGHT";
+    private StayType stayType = StayType.OVERNIGHT;
 
     /**
      * Dayuse 여부 판단 헬퍼
      */
     public boolean isDayUse() {
-        return "DAY_USE".equals(this.stayType);
+        return this.stayType != null && this.stayType.isDayUse();
     }
 
     /**
@@ -74,7 +76,7 @@ public class RateCode extends BaseEntity {
                        Long marketCodeId, String currency,
                        LocalDate saleStartDate, LocalDate saleEndDate,
                        Integer minStayDays, Integer maxStayDays,
-                       String stayType) {
+                       StayType stayType) {
         this.rateNameKo = rateNameKo;
         this.rateNameEn = rateNameEn;
         this.rateCategory = rateCategory;
@@ -84,7 +86,7 @@ public class RateCode extends BaseEntity {
         this.saleEndDate = saleEndDate;
         this.minStayDays = minStayDays;
         this.maxStayDays = maxStayDays;
-        this.stayType = stayType != null ? stayType : "OVERNIGHT";
+        this.stayType = stayType != null ? stayType : StayType.OVERNIGHT;
     }
 
 }

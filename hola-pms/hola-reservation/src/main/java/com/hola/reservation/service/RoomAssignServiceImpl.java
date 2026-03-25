@@ -20,6 +20,7 @@ import com.hola.reservation.dto.response.RoomNumberAvailabilityResponse;
 import com.hola.reservation.entity.DailyCharge;
 import com.hola.reservation.entity.SubReservation;
 import com.hola.reservation.repository.SubReservationRepository;
+import com.hola.reservation.vo.DayUseTimeSlot;
 import com.hola.room.entity.RoomClass;
 import com.hola.room.entity.RoomType;
 import com.hola.room.entity.RoomTypeFloor;
@@ -58,9 +59,13 @@ public class RoomAssignServiceImpl implements RoomAssignService {
     private final SubReservationRepository subReservationRepository;
     private final PriceCalculationService priceCalculationService;
     private final RoomUnavailableRepository roomUnavailableRepository;
+    private final RoomAvailabilityService roomAvailabilityService;
 
     /** 해제된(비활성) 예약 상태 */
     private static final List<String> RELEASED_STATUSES = List.of("CANCELED", "NO_SHOW", "CHECKED_OUT");
+
+    /** 객실 준비 안 됨 상태 (배정 불가) */
+    private static final List<String> NOT_READY_STATUSES = List.of("OOO", "OOS", "DIRTY", "PICKUP");
 
     @Override
     public RoomAssignAvailabilityResponse getAvailability(
@@ -146,9 +151,23 @@ public class RoomAssignServiceImpl implements RoomAssignService {
                 : subReservationRepository.findConflictsByRoomNumberIds(
                         new ArrayList<>(allRoomNumberIds), checkIn, checkOut, RELEASED_STATUSES);
 
-        // 자기 자신 제외 + roomNumberId별 그룹핑
-        Map<Long, List<SubReservation>> conflictMap = allConflicts.stream()
+        // 현재 예약이 Dayuse인지 확인 (시간 슬롯 필터링용)
+        SubReservation currentSub = excludeSubId != null
+                ? subReservationRepository.findById(excludeSubId).orElse(null) : null;
+        DayUseTimeSlot timeSlot = currentSub != null ? currentSub.getDayUseTimeSlot() : null;
+
+        // 자기 자신 제외 + Dayuse 시간 슬롯 필터링 + roomNumberId별 그룹핑
+        List<SubReservation> filteredConflicts = allConflicts.stream()
                 .filter(sub -> excludeSubId == null || !sub.getId().equals(excludeSubId))
+                .toList();
+
+        if (timeSlot != null) {
+            filteredConflicts = roomAvailabilityService.filterDayUseTimeConflicts(
+                    filteredConflicts, checkIn, timeSlot);
+        }
+
+        Map<Long, List<SubReservation>> conflictMap = filteredConflicts.stream()
+                .filter(sub -> sub.getRoomNumberId() != null)
                 .collect(Collectors.groupingBy(SubReservation::getRoomNumberId));
 
         // Floor, RoomNumber 벌크 조회 → Map 캐싱
@@ -224,10 +243,11 @@ public class RoomAssignServiceImpl implements RoomAssignService {
                     if (rn == null) continue;
 
                     List<SubReservation> conflicts = conflictMap.getOrDefault(rn.getId(), List.of());
-                    boolean isOooOos = "OOO".equals(rn.getHkStatus()) || "OOS".equals(rn.getHkStatus());
-                    boolean isAvailable = conflicts.isEmpty() && !isOooOos;
+                    String hkStatus = rn.getHkStatus();
+                    boolean isNotReady = NOT_READY_STATUSES.contains(hkStatus);
+                    boolean isAvailable = conflicts.isEmpty() && !isNotReady;
 
-                    String unavailableType = isOooOos ? rn.getHkStatus() : null;
+                    String unavailableType = isNotReady ? hkStatus : null;
                     RoomAvailabilityItem.RoomAvailabilityItemBuilder itemBuilder = RoomAvailabilityItem.builder()
                             .roomNumberId(rn.getId())
                             .roomNumber(rn.getRoomNumber())
@@ -358,30 +378,46 @@ public class RoomAssignServiceImpl implements RoomAssignService {
         List<SubReservation> allConflicts = subReservationRepository
                 .findConflictsByRoomNumberIds(roomNumberIds, checkIn, checkOut, RELEASED_STATUSES);
 
-        Map<Long, List<SubReservation>> conflictMap = allConflicts.stream()
+        // 현재 예약이 Dayuse인지 확인 (시간 슬롯 필터링용)
+        SubReservation currentSub = excludeSubId != null
+                ? subReservationRepository.findById(excludeSubId).orElse(null) : null;
+        DayUseTimeSlot floorSlot = currentSub != null ? currentSub.getDayUseTimeSlot() : null;
+
+        List<SubReservation> filteredConflicts = allConflicts.stream()
                 .filter(sub -> excludeSubId == null || !sub.getId().equals(excludeSubId))
+                .toList();
+
+        if (floorSlot != null) {
+            filteredConflicts = roomAvailabilityService.filterDayUseTimeConflicts(
+                    filteredConflicts, checkIn, floorSlot);
+        }
+
+        Map<Long, List<SubReservation>> conflictMap = filteredConflicts.stream()
+                .filter(sub -> sub.getRoomNumberId() != null)
                 .collect(Collectors.groupingBy(SubReservation::getRoomNumberId));
 
         List<RoomNumberAvailabilityResponse> responses = new ArrayList<>();
         for (RoomNumber room : rooms) {
             List<SubReservation> conflicts = conflictMap.getOrDefault(room.getId(), List.of());
-            boolean isOooOos = "OOO".equals(room.getHkStatus()) || "OOS".equals(room.getHkStatus());
+            String hkStatus = room.getHkStatus();
+            boolean isNotReady = "OOO".equals(hkStatus) || "OOS".equals(hkStatus)
+                    || "DIRTY".equals(hkStatus) || "PICKUP".equals(hkStatus);
 
-            if (conflicts.isEmpty() && !isOooOos) {
+            if (conflicts.isEmpty() && !isNotReady) {
                 responses.add(RoomNumberAvailabilityResponse.builder()
                         .id(room.getId())
                         .roomNumber(room.getRoomNumber())
                         .descriptionKo(room.getDescriptionKo())
                         .available(true)
                         .build());
-            } else if (isOooOos && conflicts.isEmpty()) {
-                // OOO/OOS 상태 객실 (예약 충돌은 없지만 사용 불가)
+            } else if (isNotReady && conflicts.isEmpty()) {
+                // 준비 안 된 객실 (OOO/OOS/DIRTY/PICKUP — 예약 충돌은 없지만 사용 불가)
                 responses.add(RoomNumberAvailabilityResponse.builder()
                         .id(room.getId())
                         .roomNumber(room.getRoomNumber())
                         .descriptionKo(room.getDescriptionKo())
                         .available(false)
-                        .unavailableType(room.getHkStatus())
+                        .unavailableType(hkStatus)
                         .build());
             } else {
                 SubReservation conflict = conflicts.get(0);

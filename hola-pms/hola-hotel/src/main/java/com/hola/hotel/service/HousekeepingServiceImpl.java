@@ -533,8 +533,8 @@ public class HousekeepingServiceImpl implements HousekeepingService {
             return; // 자동 생성 비활성
         }
 
-        // 같은 객실에 오늘 이미 작업이 있으면 스킵
-        if (hkTaskRepository.existsByRoomNumberIdAndTaskDate(roomNumberId, LocalDate.now())) {
+        // 같은 객실에 오늘 이미 활성 작업이 있으면 스킵 (취소된 작업은 제외)
+        if (hkTaskRepository.existsActiveTaskByRoomNumberIdAndTaskDate(roomNumberId, LocalDate.now())) {
             return;
         }
 
@@ -573,8 +573,8 @@ public class HousekeepingServiceImpl implements HousekeepingService {
         // 1) VD(빈방+청소필요) 객실 → CHECKOUT 타입 작업 생성
         List<RoomNumber> vacantDirtyRooms = roomNumberRepository.findVacantDirtyRooms(propertyId);
         for (RoomNumber room : vacantDirtyRooms) {
-            if (hkTaskRepository.existsByRoomNumberIdAndTaskDate(room.getId(), targetDate)) {
-                continue; // 이미 오늘 작업이 있으면 스킵
+            if (hkTaskRepository.existsActiveTaskByRoomNumberIdAndTaskDate(room.getId(), targetDate)) {
+                continue; // 이미 오늘 활성 작업이 있으면 스킵 (취소된 작업 제외)
             }
             HkTask task = HkTask.builder()
                     .propertyId(propertyId)
@@ -592,8 +592,8 @@ public class HousekeepingServiceImpl implements HousekeepingService {
         // 2) OD(투숙중+청소필요) 객실 → STAYOVER 타입 작업 생성
         List<RoomNumber> occupiedDirtyRooms = roomNumberRepository.findOccupiedDirtyRooms(propertyId);
         for (RoomNumber room : occupiedDirtyRooms) {
-            if (hkTaskRepository.existsByRoomNumberIdAndTaskDate(room.getId(), targetDate)) {
-                continue;
+            if (hkTaskRepository.existsActiveTaskByRoomNumberIdAndTaskDate(room.getId(), targetDate)) {
+                continue; // 이미 오늘 활성 작업이 있으면 스킵 (취소된 작업 제외)
             }
             HkTask task = HkTask.builder()
                     .propertyId(propertyId)

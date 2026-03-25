@@ -303,11 +303,11 @@ class PriceCalculationServiceTest {
             List<DailyCharge> charges = service.calculateDailyCharges(
                     RATE_CODE_ID, property, checkIn, checkOut, 1, 0, null);
 
-            // supply=100000, tax=10000, service=5000, total=115000
+            // supply=100000, service=5000, tax=(100000+5000)*10%=10500, total=115500
             assertThat(charges.get(0).getSupplyPrice()).isEqualByComparingTo(new BigDecimal("100000"));
-            assertThat(charges.get(0).getTax()).isEqualByComparingTo(new BigDecimal("10000"));
+            assertThat(charges.get(0).getTax()).isEqualByComparingTo(new BigDecimal("10500"));
             assertThat(charges.get(0).getServiceCharge()).isEqualByComparingTo(new BigDecimal("5000"));
-            assertThat(charges.get(0).getTotal()).isEqualByComparingTo(new BigDecimal("115000"));
+            assertThat(charges.get(0).getTotal()).isEqualByComparingTo(new BigDecimal("115500"));
         }
 
         @Test

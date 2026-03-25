@@ -59,6 +59,10 @@ public class BookingConfirmationResponse {
         private final List<AvailableRoomTypeResponse.DailyPrice> dailyCharges;
         /** 포함/추가 서비스 내역 */
         private final List<ServiceDetail> services;
+        /** 숙박유형: OVERNIGHT 또는 DAY_USE */
+        private final String stayType;
+        /** Dayuse 이용시간 (시간 단위, DAY_USE일 때만) */
+        private final Integer dayUseDurationHours;
     }
 
     @Getter

@@ -20,6 +20,9 @@ public interface RateCodeService {
     /** 체크인~체크아웃 기간을 요금으로 100% 커버하는 레이트코드 목록 */
     List<RateCodeListResponse> getAvailableRateCodes(Long propertyId, LocalDate checkIn, LocalDate checkOut);
 
+    /** 체크인~체크아웃 기간을 요금으로 100% 커버하는 레이트코드 목록 (dayUseEnabled 필터 적용) */
+    List<RateCodeListResponse> getAvailableRateCodes(Long propertyId, LocalDate checkIn, LocalDate checkOut, boolean dayUseEnabled);
+
     RateCodeResponse getRateCode(Long id);
 
     RateCodeResponse createRateCode(Long propertyId, RateCodeCreateRequest request);

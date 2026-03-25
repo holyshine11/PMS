@@ -16,7 +16,9 @@ import com.hola.hotel.entity.RoomUnavailable;
 import com.hola.rate.repository.RateCodeRepository;
 import com.hola.room.entity.PaidServiceOption;
 import com.hola.room.entity.RoomType;
+import com.hola.room.entity.RoomTypeFloor;
 import com.hola.room.repository.PaidServiceOptionRepository;
+import com.hola.room.repository.RoomTypeFloorRepository;
 import com.hola.room.repository.RoomTypeRepository;
 import com.hola.reservation.dto.request.*;
 import com.hola.reservation.dto.response.*;
@@ -29,12 +31,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.hola.common.enums.StayType;
 import com.hola.rate.entity.RateCode;
 import com.hola.rate.entity.DayUseRate;
 import com.hola.rate.repository.DayUseRateRepository;
+import com.hola.reservation.vo.DayUseTimeSlot;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -63,6 +67,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final FloorRepository floorRepository;
     private final RoomNumberRepository roomNumberRepository;
     private final RoomTypeRepository roomTypeRepository;
+    private final RoomTypeFloorRepository roomTypeFloorRepository;
     private final PaidServiceOptionRepository paidServiceOptionRepository;
     private final ReservationServiceItemRepository serviceItemRepository;
     private final ReservationMapper reservationMapper;
@@ -381,7 +386,8 @@ public class ReservationServiceImpl implements ReservationService {
 
                     if (subReq.getRoomNumberId() != null) {
                         if (availabilityService.hasRoomConflict(subReq.getRoomNumberId(),
-                                subReq.getCheckIn(), subReq.getCheckOut(), sub.getId())) {
+                                subReq.getCheckIn(), subReq.getCheckOut(), sub.getId(),
+                                sub.getStayType(), sub.getDayUseTimeSlot())) {
                             throw new HolaException(ErrorCode.SUB_RESERVATION_ROOM_CONFLICT);
                         }
                     }
@@ -919,10 +925,11 @@ public class ReservationServiceImpl implements ReservationService {
             }
         }
 
-        // L1 객실 충돌 검사 (자기 자신 제외)
+        // L1 객실 충돌 검사 (자기 자신 제외, Dayuse 시간 슬롯 인식)
         if (request.getRoomNumberId() != null) {
             if (availabilityService.hasRoomConflict(request.getRoomNumberId(),
-                    request.getCheckIn(), request.getCheckOut(), legId)) {
+                    request.getCheckIn(), request.getCheckOut(), legId,
+                    sub.getStayType(), sub.getDayUseTimeSlot())) {
                 throw new HolaException(ErrorCode.SUB_RESERVATION_ROOM_CONFLICT);
             }
         }
@@ -936,10 +943,16 @@ public class ReservationServiceImpl implements ReservationService {
             }
         }
 
+        // Dayuse인 경우 checkOut = checkIn + 1 자동 보정
+        LocalDate effectiveCheckOut = request.getCheckOut();
+        if (sub.isDayUse() && request.getCheckIn() != null) {
+            effectiveCheckOut = request.getCheckIn().plusDays(1);
+        }
+
         sub.update(request.getRoomTypeId(), request.getFloorId(), request.getRoomNumberId(),
                 request.getAdults() != null ? request.getAdults() : 1,
                 request.getChildren() != null ? request.getChildren() : 0,
-                request.getCheckIn(), request.getCheckOut(),
+                request.getCheckIn(), effectiveCheckOut,
                 request.getEarlyCheckIn() != null ? request.getEarlyCheckIn() : false,
                 request.getLateCheckOut() != null ? request.getLateCheckOut() : false);
 
@@ -1144,20 +1157,16 @@ public class ReservationServiceImpl implements ReservationService {
     private SubReservation createSubReservation(MasterReservation master, SubReservationRequest request,
                                                  int legSeq, Property property) {
         // Dayuse 자동 감지: 레이트코드의 stayType으로 결정
-        String stayType = resolveStayType(request.getStayType(), master.getRateCodeId());
+        StayType stayType = resolveStayType(request.getStayType(), master.getRateCodeId());
         LocalDate effectiveCheckOut = request.getCheckOut();
-        java.time.LocalTime dayUseStart = null;
-        java.time.LocalTime dayUseEnd = null;
+        DayUseTimeSlot timeSlot = null;
 
-        if ("DAY_USE".equals(stayType)) {
+        if (stayType.isDayUse()) {
             if (!Boolean.TRUE.equals(property.getDayUseEnabled())) {
                 throw new HolaException(ErrorCode.DAY_USE_NOT_ENABLED);
             }
             effectiveCheckOut = request.getCheckIn().plusDays(1);
-            int hours = request.getDayUseDurationHours() != null
-                    ? request.getDayUseDurationHours() : property.getDayUseDefaultHours();
-            dayUseStart = java.time.LocalTime.parse(property.getDayUseStartTime());
-            dayUseEnd = dayUseStart.plusHours(hours);
+            timeSlot = DayUseTimeSlot.from(property, request.getDayUseDurationHours());
         }
 
         validateDates(request.getCheckIn(), effectiveCheckOut);
@@ -1179,10 +1188,11 @@ public class ReservationServiceImpl implements ReservationService {
             }
         }
 
-        // L1 객실 충돌 검사 (비관적 락으로 동시 예약 시 오버부킹 방지)
+        // L1 객실 충돌 검사 (비관적 락, Dayuse 시간 슬롯 인식)
         if (request.getRoomNumberId() != null) {
             if (availabilityService.hasRoomConflictWithLock(request.getRoomNumberId(),
-                    request.getCheckIn(), effectiveCheckOut, null)) {
+                    request.getCheckIn(), effectiveCheckOut, null,
+                    stayType, timeSlot)) {
                 throw new HolaException(ErrorCode.SUB_RESERVATION_ROOM_CONFLICT);
             }
         }
@@ -1218,8 +1228,8 @@ public class ReservationServiceImpl implements ReservationService {
                 .subReservationNo(subNo)
                 .roomReservationStatus(legStatus)
                 .stayType(stayType)
-                .dayUseStartTime(dayUseStart)
-                .dayUseEndTime(dayUseEnd)
+                .dayUseStartTime(timeSlot != null ? timeSlot.startTime() : null)
+                .dayUseEndTime(timeSlot != null ? timeSlot.endTime() : null)
                 .roomTypeId(request.getRoomTypeId())
                 .floorId(request.getFloorId())
                 .roomNumberId(request.getRoomNumberId())
@@ -1625,11 +1635,183 @@ public class ReservationServiceImpl implements ReservationService {
                 .build();
     }
 
+    // ─── 타임라인뷰 ──────────────────────────
+
+    @Override
+    public ReservationTimelineResponse getTimelineData(
+            Long propertyId, LocalDate startDate, LocalDate endDate,
+            String status, String keyword) {
+
+        // 1. 예약 조회 + 필터링 (캘린더뷰와 동일 로직)
+        List<MasterReservation> reservations = masterReservationRepository
+                .findByPropertyIdAndDateRange(propertyId, startDate, endDate);
+
+        List<MasterReservation> filtered = reservations.stream()
+                .filter(r -> status == null || status.isEmpty() || status.equals(r.getReservationStatus()))
+                .filter(r -> filterByKeyword(r, keyword))
+                .collect(Collectors.toList());
+
+        // 2. 프로퍼티 전체 객실 매핑 정보 조회 (RoomTypeFloor → roomNumberId → floorId, roomTypeId)
+        List<RoomTypeFloor> allMappings = roomTypeFloorRepository.findAllByPropertyId(propertyId);
+
+        // roomNumberId → RoomTypeFloor 매핑 (1객실 = 1매핑 가정, 중복 시 첫 번째 사용)
+        Map<Long, RoomTypeFloor> roomMappingMap = new LinkedHashMap<>();
+        for (RoomTypeFloor rtf : allMappings) {
+            roomMappingMap.putIfAbsent(rtf.getRoomNumberId(), rtf);
+        }
+
+        // 3. 벌크 ID 조회 (Floor, RoomNumber, RoomType)
+        Set<Long> allFloorIds = allMappings.stream()
+                .map(RoomTypeFloor::getFloorId).collect(Collectors.toSet());
+        Set<Long> allRoomTypeIds = allMappings.stream()
+                .map(RoomTypeFloor::getRoomTypeId).collect(Collectors.toSet());
+        Set<Long> allRoomNumberIds = roomMappingMap.keySet();
+
+        Map<Long, String> floorMap = allFloorIds.isEmpty() ? Map.of()
+                : floorRepository.findAllById(allFloorIds).stream()
+                    .collect(Collectors.toMap(Floor::getId, Floor::getFloorNumber));
+
+        Map<Long, RoomNumber> roomNumberEntityMap = allRoomNumberIds.isEmpty() ? Map.of()
+                : roomNumberRepository.findAllById(allRoomNumberIds).stream()
+                    .collect(Collectors.toMap(RoomNumber::getId, Function.identity()));
+
+        Map<Long, String> roomTypeMap = allRoomTypeIds.isEmpty() ? Map.of()
+                : roomTypeRepository.findAllById(allRoomTypeIds).stream()
+                    .collect(Collectors.toMap(RoomType::getId, RoomType::getRoomTypeCode));
+
+        // 4. 예약을 roomNumberId 기준 그룹핑
+        Map<Long, List<MasterReservation>> roomReservationMap = new LinkedHashMap<>();
+        List<MasterReservation> unassignedList = new ArrayList<>();
+
+        for (MasterReservation m : filtered) {
+            Long assignedRoomId = getAssignedRoomNumberId(m);
+            if (assignedRoomId != null) {
+                roomReservationMap.computeIfAbsent(assignedRoomId, k -> new ArrayList<>()).add(m);
+            } else {
+                unassignedList.add(m);
+            }
+        }
+
+        // 5. 객실 벌크 조회용 맵 (서브예약 기반 floor/room/type 정보 - 캘린더와 동일)
+        Set<Long> subFloorIds = new HashSet<>(allFloorIds);
+        Set<Long> subRoomNumberIds = new HashSet<>(allRoomNumberIds);
+        Set<Long> subRoomTypeIds = new HashSet<>(allRoomTypeIds);
+        for (MasterReservation m : filtered) {
+            for (SubReservation sub : m.getSubReservations()) {
+                if (sub.getFloorId() != null) subFloorIds.add(sub.getFloorId());
+                if (sub.getRoomNumberId() != null) subRoomNumberIds.add(sub.getRoomNumberId());
+                if (sub.getRoomTypeId() != null) subRoomTypeIds.add(sub.getRoomTypeId());
+            }
+        }
+        // floorMap/roomTypeMap 보강 (서브예약에서 추가된 ID)
+        if (subFloorIds.size() > allFloorIds.size()) {
+            Set<Long> extraFloorIds = new HashSet<>(subFloorIds);
+            extraFloorIds.removeAll(allFloorIds);
+            floorRepository.findAllById(extraFloorIds)
+                    .forEach(f -> floorMap.put(f.getId(), f.getFloorNumber()));
+        }
+        Map<Long, String> subRoomNumberMap = subRoomNumberIds.isEmpty() ? Map.of()
+                : roomNumberRepository.findAllById(subRoomNumberIds).stream()
+                    .collect(Collectors.toMap(RoomNumber::getId, RoomNumber::getRoomNumber));
+        if (subRoomTypeIds.size() > allRoomTypeIds.size()) {
+            Set<Long> extraTypeIds = new HashSet<>(subRoomTypeIds);
+            extraTypeIds.removeAll(allRoomTypeIds);
+            roomTypeRepository.findAllById(extraTypeIds)
+                    .forEach(rt -> roomTypeMap.put(rt.getId(), rt.getRoomTypeCode()));
+        }
+
+        // 6. TimelineRoom 목록 생성 (층 내림차순 → 호수 오름차순)
+        List<ReservationTimelineResponse.TimelineRoom> timelineRooms = new ArrayList<>();
+
+        for (Map.Entry<Long, RoomTypeFloor> entry : roomMappingMap.entrySet()) {
+            Long roomId = entry.getKey();
+            RoomTypeFloor rtf = entry.getValue();
+
+            RoomNumber rn = roomNumberEntityMap.get(roomId);
+            if (rn == null || Boolean.FALSE.equals(rn.getUseYn())) continue;
+
+            String floorName = floorMap.getOrDefault(rtf.getFloorId(), "");
+            String roomTypeName = roomTypeMap.getOrDefault(rtf.getRoomTypeId(), "");
+
+            // 해당 객실의 예약 목록
+            List<MasterReservation> roomReservations = roomReservationMap.getOrDefault(roomId, List.of());
+            List<ReservationCalendarResponse> calDtos = roomReservations.stream()
+                    .map(m -> toCalendarResponse(m, floorMap, subRoomNumberMap, roomTypeMap))
+                    .collect(Collectors.toList());
+
+            timelineRooms.add(ReservationTimelineResponse.TimelineRoom.builder()
+                    .roomId(roomId)
+                    .roomNumber(rn.getRoomNumber())
+                    .floorName(floorName)
+                    .roomTypeName(roomTypeName)
+                    .reservations(calDtos)
+                    .build());
+        }
+
+        // 정렬: 층 자연 오름차순(1F→2F→10F) → 호수 자연 오름차순
+        timelineRooms.sort((a, b) -> {
+            int floorCmp = naturalCompare(a.getFloorName(), b.getFloorName());
+            if (floorCmp != 0) return floorCmp;
+            return naturalCompare(a.getRoomNumber(), b.getRoomNumber());
+        });
+
+        // 미배정 예약 변환
+        List<ReservationCalendarResponse> unassignedDtos = unassignedList.stream()
+                .map(m -> toCalendarResponse(m, floorMap, subRoomNumberMap, roomTypeMap))
+                .collect(Collectors.toList());
+
+        return ReservationTimelineResponse.builder()
+                .rooms(timelineRooms)
+                .unassigned(unassignedDtos)
+                .build();
+    }
+
+    /**
+     * 마스터 예약의 배정된 roomNumberId 추출 (첫 활성 서브예약 기준)
+     */
+    private Long getAssignedRoomNumberId(MasterReservation master) {
+        if (master.getSubReservations() == null) return null;
+        return master.getSubReservations().stream()
+                .filter(s -> !"CANCELED".equals(s.getRoomReservationStatus()))
+                .map(SubReservation::getRoomNumberId)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+    }
+
     // ─── Dayuse 헬퍼 메서드 ──────────────────────────
 
     /**
      * 레이트코드가 Dayuse인지 확인
      */
+    /**
+     * 자연 정렬: 문자열 내 숫자를 숫자값으로 비교 (1F < 2F < 10F, 101 < 102 < 1001)
+     */
+    private static int naturalCompare(String a, String b) {
+        if (a == null && b == null) return 0;
+        if (a == null) return -1;
+        if (b == null) return 1;
+        int ia = 0, ib = 0;
+        while (ia < a.length() && ib < b.length()) {
+            char ca = a.charAt(ia), cb = b.charAt(ib);
+            if (Character.isDigit(ca) && Character.isDigit(cb)) {
+                long na = 0, nb = 0;
+                while (ia < a.length() && Character.isDigit(a.charAt(ia))) {
+                    na = na * 10 + (a.charAt(ia++) - '0');
+                }
+                while (ib < b.length() && Character.isDigit(b.charAt(ib))) {
+                    nb = nb * 10 + (b.charAt(ib++) - '0');
+                }
+                if (na != nb) return Long.compare(na, nb);
+            } else {
+                if (ca != cb) return Character.compare(ca, cb);
+                ia++;
+                ib++;
+            }
+        }
+        return Integer.compare(a.length(), b.length());
+    }
+
     private boolean isDayUseRateCode(Long rateCodeId) {
         if (rateCodeId == null) return false;
         RateCode rc = rateCodeRepository.findById(rateCodeId).orElse(null);
@@ -1639,62 +1821,37 @@ public class ReservationServiceImpl implements ReservationService {
     /**
      * 레이트코드 기반 stayType 자동 결정
      */
-    private String resolveStayType(String requestStayType, Long rateCodeId) {
-        if (requestStayType != null) return requestStayType;
+    private StayType resolveStayType(String requestStayType, Long rateCodeId) {
+        if (requestStayType != null) {
+            try { return StayType.valueOf(requestStayType); }
+            catch (IllegalArgumentException e) { return StayType.OVERNIGHT; }
+        }
         if (rateCodeId != null) {
             RateCode rc = rateCodeRepository.findById(rateCodeId).orElse(null);
-            if (rc != null && rc.isDayUse()) return "DAY_USE";
+            if (rc != null && rc.isDayUse()) return StayType.DAY_USE;
         }
-        return "OVERNIGHT";
+        return StayType.OVERNIGHT;
     }
 
     /**
      * Dayuse 요금 계산 — DayUseRate 테이블에서 이용시간에 맞는 요금 조회
      */
     private DailyCharge calculateDayUseCharge(SubReservation sub, Long rateCodeId, Property property) {
-        int hours = (int) java.time.Duration.between(
-                sub.getDayUseStartTime(), sub.getDayUseEndTime()).toHours();
+        int hours = sub.getDayUseTimeSlot().durationHours();
 
         DayUseRate rate = dayUseRateRepository.findByRateCodeIdAndDurationHoursAndUseYnTrue(rateCodeId, hours)
                 .orElseThrow(() -> new HolaException(ErrorCode.DAY_USE_RATE_NOT_FOUND));
 
-        BigDecimal supplyPrice = rate.getSupplyPrice();
-
-        // 봉사료 계산 (Property 반올림 설정 적용)
-        BigDecimal serviceChargeRate = property.getServiceChargeRate() != null
-                ? property.getServiceChargeRate() : BigDecimal.ZERO;
-        int scScale = property.getServiceChargeDecimalPlaces() != null ? property.getServiceChargeDecimalPlaces() : 0;
-        RoundingMode scRounding = parseRoundingMode(property.getServiceChargeRoundingMethod());
-        BigDecimal serviceCharge = supplyPrice.multiply(serviceChargeRate)
-                .divide(BigDecimal.valueOf(100), scScale, scRounding);
-
-        // 세금 계산: (공급가 + 봉사료) × taxRate (Property 반올림 설정 적용)
-        BigDecimal taxRate = property.getTaxRate() != null ? property.getTaxRate() : BigDecimal.ZERO;
-        int taxScale = property.getTaxDecimalPlaces() != null ? property.getTaxDecimalPlaces() : 0;
-        RoundingMode taxRounding = parseRoundingMode(property.getTaxRoundingMethod());
-        BigDecimal tax = supplyPrice.add(serviceCharge).multiply(taxRate)
-                .divide(BigDecimal.valueOf(100), taxScale, taxRounding);
-
-        BigDecimal total = supplyPrice.add(serviceCharge).add(tax);
+        // PriceCalculationService 공통 유틸 사용
+        var r = priceCalculationService.calculateTaxAndServiceCharge(rate.getSupplyPrice(), property);
 
         return DailyCharge.builder()
                 .subReservation(sub)
                 .chargeDate(sub.getCheckIn())
-                .supplyPrice(supplyPrice)
-                .serviceCharge(serviceCharge)
-                .tax(tax)
-                .total(total)
+                .supplyPrice(r.supplyPrice())
+                .serviceCharge(r.serviceCharge())
+                .tax(r.tax())
+                .total(r.total())
                 .build();
-    }
-
-    private RoundingMode parseRoundingMode(String method) {
-        if (method == null) return RoundingMode.HALF_UP;
-        return switch (method) {
-            case "ROUND_UP" -> RoundingMode.UP;
-            case "ROUND_DOWN" -> RoundingMode.DOWN;
-            case "ROUND_FLOOR" -> RoundingMode.FLOOR;
-            case "ROUND_CEILING" -> RoundingMode.CEILING;
-            default -> RoundingMode.HALF_UP;
-        };
     }
 }
