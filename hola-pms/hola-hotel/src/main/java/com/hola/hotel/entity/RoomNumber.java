@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -49,6 +50,13 @@ public class RoomNumber extends BaseEntity {
     @Column(name = "hk_memo", length = 500)
     private String hkMemo;
 
+    @Column(name = "dnd_since")
+    private LocalDate dndSince;
+
+    @Column(name = "consecutive_dnd_days")
+    @Builder.Default
+    private Integer consecutiveDndDays = 0;
+
     public void update(String roomNumber, String descriptionKo, String descriptionEn) {
         this.roomNumber = roomNumber;
         this.descriptionKo = descriptionKo;
@@ -78,5 +86,33 @@ public class RoomNumber extends BaseEntity {
         this.hkStatus = status;
         this.hkMemo = memo;
         this.hkUpdatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * DND 설정
+     */
+    public void setDnd() {
+        this.hkStatus = "DND";
+        this.hkUpdatedAt = LocalDateTime.now();
+        if (this.dndSince == null) {
+            this.dndSince = LocalDate.now();
+        }
+    }
+
+    /**
+     * DND 해제 → DIRTY 전환
+     */
+    public void clearDnd() {
+        this.hkStatus = "DIRTY";
+        this.hkUpdatedAt = LocalDateTime.now();
+        this.dndSince = null;
+        this.consecutiveDndDays = 0;
+    }
+
+    /**
+     * DND 연속 일수 증가 (일일 배치에서 호출)
+     */
+    public void incrementDndDays() {
+        this.consecutiveDndDays = (this.consecutiveDndDays != null ? this.consecutiveDndDays : 0) + 1;
     }
 }

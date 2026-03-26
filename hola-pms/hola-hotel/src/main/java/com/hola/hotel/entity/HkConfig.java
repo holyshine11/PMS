@@ -61,13 +61,47 @@ public class HkConfig extends BaseEntity {
     @Builder.Default
     private Integer rushThresholdMinutes = 120;
 
+    // 스테이오버 정책
+    @Column(name = "stayover_enabled")
+    @Builder.Default
+    private Boolean stayoverEnabled = false;
+
+    @Column(name = "stayover_frequency")
+    @Builder.Default
+    private Integer stayoverFrequency = 1;
+
+    @Column(name = "turndown_enabled")
+    @Builder.Default
+    private Boolean turndownEnabled = false;
+
+    // DND 정책
+    @Column(name = "dnd_policy", length = 30)
+    @Builder.Default
+    private String dndPolicy = "SKIP";
+
+    @Column(name = "dnd_max_skip_days")
+    @Builder.Default
+    private Integer dndMaxSkipDays = 3;
+
+    // 스케줄 시각
+    @Column(name = "daily_task_gen_time", length = 5)
+    @Builder.Default
+    private String dailyTaskGenTime = "06:00";
+
+    @Column(name = "od_transition_time", length = 5)
+    @Builder.Default
+    private String odTransitionTime = "05:00";
+
     /**
      * 설정 수정
      */
     public void update(Boolean inspectionRequired, Boolean autoCreateCheckout, Boolean autoCreateStayover,
                        BigDecimal defaultCheckoutCredit, BigDecimal defaultStayoverCredit,
                        BigDecimal defaultTurndownCredit, BigDecimal defaultDeepCleanCredit,
-                       BigDecimal defaultTouchUpCredit, Integer rushThresholdMinutes) {
+                       BigDecimal defaultTouchUpCredit, Integer rushThresholdMinutes,
+                       Boolean stayoverEnabled, Integer stayoverFrequency, Boolean turndownEnabled,
+                       String dndPolicy, Integer dndMaxSkipDays,
+                       String dailyTaskGenTime, String odTransitionTime) {
         this.inspectionRequired = inspectionRequired;
         this.autoCreateCheckout = autoCreateCheckout;
         this.autoCreateStayover = autoCreateStayover;
@@ -77,5 +111,12 @@ public class HkConfig extends BaseEntity {
         this.defaultDeepCleanCredit = defaultDeepCleanCredit;
         this.defaultTouchUpCredit = defaultTouchUpCredit;
         this.rushThresholdMinutes = rushThresholdMinutes;
+        this.stayoverEnabled = stayoverEnabled;
+        this.stayoverFrequency = stayoverFrequency;
+        this.turndownEnabled = turndownEnabled;
+        this.dndPolicy = dndPolicy;
+        this.dndMaxSkipDays = dndMaxSkipDays;
+        this.dailyTaskGenTime = dailyTaskGenTime;
+        this.odTransitionTime = odTransitionTime;
     }
 }

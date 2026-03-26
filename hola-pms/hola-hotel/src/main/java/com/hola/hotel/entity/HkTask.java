@@ -92,6 +92,18 @@ public class HkTask extends BaseEntity {
     @Column(name = "note", length = 500)
     private String note;
 
+    // DND 추적
+    @Column(name = "dnd_skipped")
+    @Builder.Default
+    private Boolean dndSkipped = false;
+
+    @Column(name = "dnd_skip_count")
+    @Builder.Default
+    private Integer dndSkipCount = 0;
+
+    @Column(name = "scheduled_time", length = 5)
+    private String scheduledTime;
+
     // === 상태 전이 메서드 ===
 
     /**

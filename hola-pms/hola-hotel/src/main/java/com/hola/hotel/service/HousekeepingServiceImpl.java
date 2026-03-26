@@ -481,6 +481,13 @@ public class HousekeepingServiceImpl implements HousekeepingService {
                     .defaultDeepCleanCredit(new BigDecimal("2.0"))
                     .defaultTouchUpCredit(new BigDecimal("0.3"))
                     .rushThresholdMinutes(120)
+                    .stayoverEnabled(false)
+                    .stayoverFrequency(1)
+                    .turndownEnabled(false)
+                    .dndPolicy("SKIP")
+                    .dndMaxSkipDays(3)
+                    .dailyTaskGenTime("06:00")
+                    .odTransitionTime("05:00")
                     .build();
         }
         return hkTaskMapper.toResponse(config);
@@ -508,7 +515,14 @@ public class HousekeepingServiceImpl implements HousekeepingService {
                 request.getDefaultTurndownCredit(),
                 request.getDefaultDeepCleanCredit(),
                 request.getDefaultTouchUpCredit(),
-                request.getRushThresholdMinutes()
+                request.getRushThresholdMinutes(),
+                request.getStayoverEnabled(),
+                request.getStayoverFrequency(),
+                request.getTurndownEnabled(),
+                request.getDndPolicy(),
+                request.getDndMaxSkipDays(),
+                request.getDailyTaskGenTime(),
+                request.getOdTransitionTime()
         );
 
         return hkTaskMapper.toResponse(config);
