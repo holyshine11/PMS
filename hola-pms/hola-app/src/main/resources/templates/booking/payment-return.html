@@ -27,11 +27,26 @@
         var confirmationNo = /*[[${confirmationNo}]]*/ null;
         var propertyCode = /*[[${propertyCode}]]*/ null;
         var errorMessage = /*[[${errorMessage}]]*/ null;
+        var shopOrderNo = /*[[${shopOrderNo}]]*/ null;
 
         var spinner = document.getElementById('spinner');
         var message = document.getElementById('message');
         var subMessage = document.getElementById('subMessage');
         var resultBox = document.getElementById('resultBox');
+
+        /** /result API에서 confirmation 데이터 조회 → sessionStorage 저장 */
+        function fetchAndStoreConfirmation(callback) {
+            if (!shopOrderNo) { callback(); return; }
+            fetch('/api/v1/booking/payment/result?shopOrderNo=' + encodeURIComponent(shopOrderNo))
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (res.confirmation) {
+                        sessionStorage.setItem('hola_booking_confirmation', JSON.stringify(res.confirmation));
+                    }
+                    callback();
+                })
+                .catch(function() { callback(); });
+        }
 
         if (success) {
             spinner.style.display = 'none';
@@ -46,15 +61,16 @@
                     type: 'KICC_PAYMENT_COMPLETE',
                     success: true,
                     confirmationNo: confirmationNo,
-                    propertyCode: propertyCode
-                }, '*');
+                    propertyCode: propertyCode,
+                    shopOrderNo: shopOrderNo
+                }, window.location.origin);
                 setTimeout(function() { window.close(); }, 1500);
             } else {
-                // 모바일 리다이렉트: confirmation 페이지로 이동
+                // 모바일: confirmation 데이터 조회 → sessionStorage 저장 → 리다이렉트
                 subMessage.textContent = '예약 확인 페이지로 이동합니다...';
-                setTimeout(function() {
-                    window.location.href = '/booking/' + propertyCode + '/confirmation?no=' + confirmationNo;
-                }, 2000);
+                fetchAndStoreConfirmation(function() {
+                    window.location.href = '/booking/' + propertyCode + '/confirmation/' + confirmationNo;
+                });
             }
         } else {
             spinner.style.display = 'none';
@@ -69,7 +85,7 @@
                     type: 'KICC_PAYMENT_COMPLETE',
                     success: false,
                     errorMessage: errorMessage
-                }, '*');
+                }, window.location.origin);
                 setTimeout(function() { window.close(); }, 3000);
             }
         }

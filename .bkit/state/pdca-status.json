@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-03-25T13:00:55.250Z",
+  "lastUpdated": "2026-03-25T23:26:45.689Z",
   "activeFeatures": [
     "hola",
     "web",
@@ -88,9 +88,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-17T11:57:13.724Z",
-        "lastUpdated": "2026-03-25T12:40:10.536Z"
+        "lastUpdated": "2026-03-25T23:26:45.689Z"
       },
-      "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/resources/static/js/reservation-payment.js"
+      "lastFile": "/Users/Dev/PMS/hola-pms/hola-app/src/main/resources/static/js/booking.js"
     },
     "exception": {
       "phase": "do",
@@ -127,7 +127,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-17T12:53:44.722Z",
-        "lastUpdated": "2026-03-25T12:38:13.249Z"
+        "lastUpdated": "2026-03-25T23:25:46.173Z"
       },
       "lastFile": "/Users/Dev/PMS/hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/controller/KiccPaymentApiController.java"
     },
@@ -296,7 +296,7 @@
   "session": {
     "startedAt": "2026-03-03T00:54:55.026Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-03-25T13:00:55.250Z"
+    "lastActivity": "2026-03-25T23:26:45.689Z"
   },
   "history": [
     {
@@ -7958,6 +7958,36 @@
     {
       "timestamp": "2026-03-25T13:00:55.250Z",
       "feature": "kicc",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T23:25:28.172Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T23:25:38.330Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T23:25:46.173Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T23:26:33.901Z",
+      "feature": "js",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-25T23:26:45.689Z",
+      "feature": "js",
       "phase": "do",
       "action": "updated"
     }

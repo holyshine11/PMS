@@ -788,16 +788,38 @@ var HolaBooking = (function() {
 
             var self = this;
 
-            // KICC postMessage 수신 리스너
+            // KICC postMessage 수신 리스너 (origin 검증)
             window.addEventListener('message', function onKiccMessage(e) {
+                if (e.origin !== window.location.origin) return;
                 if (e.data && e.data.type === 'KICC_PAYMENT_COMPLETE') {
                     window.removeEventListener('message', onKiccMessage);
 
                     if (e.data.success) {
-                        // 결제+예약 성공 → confirmation 이동
+                        // 결제+예약 성공 → /result에서 confirmation 데이터 조회 후 이동
                         sessionStorage.removeItem('hola_booking');
-                        window.location.href = '/booking/' + self.propertyCode
+                        var orderNo = e.data.shopOrderNo || sessionStorage.getItem('hola_kicc_shopOrderNo');
+                        var redirectUrl = '/booking/' + self.propertyCode
                             + '/confirmation/' + e.data.confirmationNo;
+
+                        if (orderNo) {
+                            // confirmation 데이터 조회 → sessionStorage 저장 → 이동
+                            $.ajax({
+                                url: API_BASE + '/payment/result',
+                                method: 'GET',
+                                data: { shopOrderNo: orderNo }
+                            }).done(function(res) {
+                                if (res.confirmation) {
+                                    sessionStorage.setItem('hola_booking_confirmation', JSON.stringify(res.confirmation));
+                                }
+                                sessionStorage.removeItem('hola_kicc_shopOrderNo');
+                                window.location.href = redirectUrl;
+                            }).fail(function() {
+                                sessionStorage.removeItem('hola_kicc_shopOrderNo');
+                                window.location.href = redirectUrl;
+                            });
+                        } else {
+                            window.location.href = redirectUrl;
+                        }
                     } else {
                         // 결제 실패
                         self.submitting = false;
@@ -825,6 +847,7 @@ var HolaBooking = (function() {
                         var popup = window.open(res.authPageUrl, 'kiccPayment',
                             'width=720,height=680,scrollbars=yes,resizable=yes');
                         if (!popup || popup.closed) {
+                            window.removeEventListener('message', onKiccMessage);
                             showError('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
                             self.submitting = false;
                             $btn.prop('disabled', false).html('<i class="fas fa-lock me-1"></i> 예약 완료');

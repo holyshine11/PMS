@@ -12,6 +12,7 @@ import com.hola.reservation.booking.gateway.PaymentGateway;
 import com.hola.reservation.booking.gateway.PaymentResult;
 import com.hola.reservation.booking.gateway.RegisterRequest;
 import com.hola.reservation.booking.gateway.RegisterResult;
+import com.hola.reservation.booking.gateway.CancelPaymentRequest;
 import com.hola.reservation.booking.pg.kicc.dto.KiccBookingTempData;
 import com.hola.reservation.booking.service.BookingService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -136,6 +137,7 @@ public class KiccPaymentApiController {
             log.warn("[KICC] 결제 인증 실패 - resCd: {}, resMsg: {}", resCd, resMsg);
             model.addAttribute("success", false);
             model.addAttribute("errorMessage", resMsg != null ? resMsg : "결제 인증에 실패했습니다.");
+            model.addAttribute("shopOrderNo", shopOrderNo);
             cleanupRedis(shopOrderNo);
             return "booking/payment-return";
         }
@@ -148,9 +150,10 @@ public class KiccPaymentApiController {
             return "booking/payment-return";
         }
 
+        PaymentResult paymentResult = null;
         try {
             // 3. KICC 결제 승인
-            PaymentResult paymentResult = paymentGateway.approveAfterAuth(ApproveAfterAuthRequest.builder()
+            paymentResult = paymentGateway.approveAfterAuth(ApproveAfterAuthRequest.builder()
                     .authorizationId(authorizationId)
                     .orderId(shopOrderNo)
                     .expectedAmount(tempData.getGrandTotal())
@@ -164,21 +167,39 @@ public class KiccPaymentApiController {
                     tempData.getClientIp(),
                     tempData.getUserAgent());
 
-            // 5. 결과 Redis 저장 (프론트엔드 폴링용)
+            // 5. 결과 Redis 저장 (프론트엔드 폴링용 — 전체 confirmation 데이터 포함)
             saveResult(shopOrderNo, true, confirmation);
 
             // 6. 결과 페이지 반환
             model.addAttribute("success", true);
             model.addAttribute("confirmationNo", confirmation.getConfirmationNo());
             model.addAttribute("propertyCode", tempData.getPropertyCode());
+            model.addAttribute("shopOrderNo", shopOrderNo);
 
             log.info("[KICC] 결제+예약 완료 - shopOrderNo: {}, confirmationNo: {}",
                     shopOrderNo, confirmation.getConfirmationNo());
 
         } catch (Exception e) {
             log.error("[KICC] 결제승인 또는 예약 생성 실패 - shopOrderNo: {}", shopOrderNo, e);
+
+            // 결제 승인은 성공했으나 예약 생성 실패 시 → PG 자동 취소 (환불)
+            if (paymentResult != null && paymentResult.isSuccess() && paymentResult.getPgCno() != null) {
+                log.warn("[KICC] 결제 승인 후 예약 실패 → 자동 환불 시도 - pgCno: {}", paymentResult.getPgCno());
+                try {
+                    paymentGateway.cancelPayment(CancelPaymentRequest.builder()
+                            .pgCno(paymentResult.getPgCno())
+                            .cancelType("FULL")
+                            .reason("예약 생성 실패에 따른 자동 환불")
+                            .build());
+                    log.info("[KICC] 자동 환불 성공 - pgCno: {}", paymentResult.getPgCno());
+                } catch (Exception cancelEx) {
+                    log.error("[KICC] *** 자동 환불 실패 — 수동 환불 필요 *** pgCno: {}, shopOrderNo: {}, amount: {}",
+                            paymentResult.getPgCno(), shopOrderNo, paymentResult.getAmount(), cancelEx);
+                }
+            }
+
             model.addAttribute("success", false);
-            model.addAttribute("errorMessage", "결제 처리 중 오류가 발생했습니다: " + e.getMessage());
+            model.addAttribute("errorMessage", "결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
             saveResult(shopOrderNo, false, null);
         } finally {
             cleanupRedis(shopOrderNo);
@@ -235,6 +256,8 @@ public class KiccPaymentApiController {
             result.put("success", success);
             if (confirmation != null) {
                 result.put("confirmationNo", confirmation.getConfirmationNo());
+                // 전체 confirmation 데이터 포함 (프론트엔드 sessionStorage 저장용)
+                result.put("confirmation", confirmation);
             }
             String json = objectMapper.writeValueAsString(result);
             redisTemplate.opsForValue().set(RESULT_KEY_PREFIX + shopOrderNo, json, RESULT_TTL);

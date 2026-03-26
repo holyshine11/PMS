@@ -238,6 +238,17 @@ public class HousekeepingServiceImpl implements HousekeepingService {
     public void cancelTask(Long taskId) {
         HkTask task = findTaskById(taskId);
         String prevStatus = task.getStatus();
+
+        // COMPLETED/INSPECTED 상태는 취소 불가 (이미 객실 상태가 변경됨)
+        if ("COMPLETED".equals(prevStatus) || "INSPECTED".equals(prevStatus)) {
+            throw new HolaException(ErrorCode.HK_TASK_STATUS_CHANGE_NOT_ALLOWED,
+                    "완료/검수된 태스크는 취소할 수 없습니다. 현재 상태: " + prevStatus);
+        }
+        if ("CANCELLED".equals(prevStatus)) {
+            throw new HolaException(ErrorCode.HK_TASK_STATUS_CHANGE_NOT_ALLOWED,
+                    "이미 취소된 태스크입니다.");
+        }
+
         task.cancel();
         logStatusChange(taskId, prevStatus, "CANCELLED", null);
     }

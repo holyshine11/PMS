@@ -3,6 +3,7 @@ package com.hola.reservation.booking.pg.kicc;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Base64;
 
 /**
@@ -68,7 +69,9 @@ public class KiccHmacUtils {
             return false;
         }
         String expected = generate(secretKey, parts);
-        return received.equals(expected);
+        return MessageDigest.isEqual(
+                received.getBytes(StandardCharsets.UTF_8),
+                expected.getBytes(StandardCharsets.UTF_8));
     }
 
     /**

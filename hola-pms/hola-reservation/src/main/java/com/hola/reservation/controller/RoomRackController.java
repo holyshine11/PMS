@@ -69,7 +69,10 @@ public class RoomRackController {
         // 4. HK 작업 정보 매핑 (roomNumberId → HkTask)
         Map<Long, HkTask> hkTaskMap = buildHkTaskMap(propertyId, today);
 
-        // 5. 객실타입 + 투숙객 + HK 작업 정보 주입
+        // 5. HK 담당자명 배치 조회 (N+1 방지)
+        Map<Long, String> assigneeNameMap = buildAssigneeNameMap(hkTaskMap);
+
+        // 6. 객실타입 + 투숙객 + HK 작업 정보 주입
         List<RoomRackItemResponse> enrichedItems = new ArrayList<>();
         for (RoomRackItemResponse item : items) {
             String typeName = roomTypeNameMap.getOrDefault(item.getRoomNumberId(), null);
@@ -99,7 +102,7 @@ public class RoomRackController {
                 builder.hkTaskStatus(hkTask.getStatus());
                 if (hkTask.getAssignedTo() != null) {
                     builder.hkAssigneeId(hkTask.getAssignedTo());
-                    builder.hkAssigneeName(getUserName(hkTask.getAssignedTo()));
+                    builder.hkAssigneeName(assigneeNameMap.get(hkTask.getAssignedTo()));
                 }
                 if (hkTask.getStartedAt() != null) {
                     builder.hkTaskStartedAt(hkTask.getStartedAt().toLocalTime().toString().substring(0, 5));
@@ -198,10 +201,18 @@ public class RoomRackController {
         return map;
     }
 
-    private String getUserName(Long userId) {
-        return adminUserRepository.findById(userId)
-                .map(AdminUser::getUserName)
-                .orElse(null);
+    /**
+     * HK 태스크 담당자 ID → 이름 배치 조회 (N+1 방지)
+     */
+    private Map<Long, String> buildAssigneeNameMap(Map<Long, HkTask> hkTaskMap) {
+        Set<Long> assigneeIds = hkTaskMap.values().stream()
+                .filter(t -> t.getAssignedTo() != null && !"CANCELLED".equals(t.getStatus()))
+                .map(HkTask::getAssignedTo)
+                .collect(Collectors.toSet());
+        if (assigneeIds.isEmpty()) return Collections.emptyMap();
+
+        return adminUserRepository.findAllById(assigneeIds).stream()
+                .collect(Collectors.toMap(AdminUser::getId, AdminUser::getUserName));
     }
 
     /**

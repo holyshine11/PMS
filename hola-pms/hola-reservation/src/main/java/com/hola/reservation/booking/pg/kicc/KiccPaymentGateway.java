@@ -222,13 +222,15 @@ public class KiccPaymentGateway implements PaymentGateway {
     }
 
     /** 금액 불일치/HMAC 실패 시 즉시 취소 */
-    private void cancelByPgCno(String pgCno, String shopTransactionId) {
+    private void cancelByPgCno(String pgCno, String originalShopTransactionId) {
         try {
+            // 취소 요청용 새 shopTransactionId 생성 후 동일 ID로 HMAC 생성
+            String cancelShopTransactionId = UUID.randomUUID().toString();
             String msgAuthValue = KiccHmacUtils.generateForRevise(
-                    properties.getSecretKey(), pgCno, shopTransactionId);
+                    properties.getSecretKey(), pgCno, cancelShopTransactionId);
             KiccReviseRequest cancelRequest = KiccReviseRequest.builder()
                     .mallId(properties.getMallId())
-                    .shopTransactionId(UUID.randomUUID().toString())
+                    .shopTransactionId(cancelShopTransactionId)
                     .pgCno(pgCno)
                     .reviseTypeCode("40")
                     .cancelReqDate(LocalDate.now().format(DATE_FMT))
@@ -238,7 +240,7 @@ public class KiccPaymentGateway implements PaymentGateway {
             apiClient.revisePayment(cancelRequest);
             log.info("[KICC] 자동 취소 성공 - pgCno: {}", pgCno);
         } catch (Exception e) {
-            log.error("[KICC] 자동 취소 실패 - pgCno: {}, error: {}", pgCno, e.getMessage());
+            log.error("[KICC] *** 자동 취소 실패 — 수동 취소 필요 *** pgCno: {}, error: {}", pgCno, e.getMessage(), e);
         }
     }
 

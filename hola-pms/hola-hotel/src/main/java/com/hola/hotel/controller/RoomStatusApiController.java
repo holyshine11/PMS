@@ -2,9 +2,11 @@ package com.hola.hotel.controller;
 
 import com.hola.common.dto.HolaResponse;
 import com.hola.common.security.AccessControlService;
+import com.hola.hotel.dto.request.RoomStatusUpdateRequest;
 import com.hola.hotel.service.RoomStatusService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,18 +32,11 @@ public class RoomStatusApiController {
     public HolaResponse<Void> updateStatus(
             @PathVariable Long propertyId,
             @PathVariable Long roomNumberId,
-            @RequestBody Map<String, String> request) {
+            @Valid @RequestBody RoomStatusUpdateRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
 
-        // assigneeId 파싱 (선택 파라미터)
-        Long assigneeId = null;
-        String assigneeIdStr = request.get("assigneeId");
-        if (assigneeIdStr != null && !assigneeIdStr.isEmpty()) {
-            assigneeId = Long.parseLong(assigneeIdStr);
-        }
-
         roomStatusService.updateRoomStatus(roomNumberId, propertyId,
-                request.get("hkStatus"), request.get("foStatus"), request.get("memo"), assigneeId);
+                request.getHkStatus(), request.getFoStatus(), request.getMemo(), request.getAssigneeId());
         return HolaResponse.success();
     }
 
