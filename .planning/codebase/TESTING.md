@@ -1,702 +1,531 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-02-28
+**Analysis Date:** 2026-03-26
 
 ## Test Framework
 
 **Runner:**
 - JUnit 5 (Jupiter)
-- Configuration: `tasks.named('test') { useJUnitPlatform() }` in build.gradle
-- Gradle task: `./gradlew test` (all modules), `./gradlew :module:test --tests "TestClass"`
+- Config: `tasks.named('test') { useJUnitPlatform() }` in `build.gradle`
 
 **Assertion Library:**
 - AssertJ (`import static org.assertj.core.api.Assertions.*`)
-- Methods: `assertThat(...).isTrue()`, `.isEqualTo()`, `.isNotNull()`, `.hasSize()`, `.isFalse()`, `.contains()`, `.throwable()`
-- Mockito: `@ExtendWith(MockitoExtension.class)`, `@Mock`, `@InjectMocks`, `@Spy`
+- Hamcrest for MockMvc JSON path assertions
+
+**Mocking:**
+- Mockito via `spring-boot-starter-test`
+- `@ExtendWith(MockitoExtension.class)` + `@Mock` + `@InjectMocks`
 
 **Run Commands:**
 ```bash
-./gradlew test                                                # Run all tests
-./gradlew :hola-app:test                                      # Run hola-app tests only
-./gradlew :hola-hotel:test --tests "PropertyServiceImplTest"  # Single test class
-./gradlew clean test                                          # Clean + rebuild + test
+./gradlew test                                                    # Run all tests
+./gradlew :hola-hotel:test                                        # Single module
+./gradlew :hola-hotel:test --tests "com.hola.hotel.service.HotelServiceImplTest"  # Single class
+./gradlew :hola-app:test                                          # Integration tests
+./gradlew clean test                                              # Clean build + test
 ```
-
-**Test Output:**
-- Default: brief summary (passed/failed count)
-- Verbose: `./gradlew test --info`
 
 ## Test File Organization
 
-**Location:**
-- Unit tests: `src/test/java/{module}` (mirrors src/main structure)
-- Example: `hola-hotel/src/test/java/com/hola/hotel/service/PropertyServiceImplTest.java`
+**Location:** Unit tests co-located in each module; integration tests in `hola-app`.
 
 **Naming:**
-- Unit test class: `{Subject}Test.java` (e.g., `HolaResponseTest`, `PropertyServiceImplTest`, `ReservationServiceImplTest`)
-- Integration test class: `{Subject}IntegrationTest.java` (e.g., `BookingApiIntegrationTest`, `SecurityIntegrationTest`)
+- Unit test: `{Subject}Test.java` (e.g., `HotelServiceImplTest.java`, `ReservationMapperTest.java`)
+- Integration test: `{Subject}IntegrationTest.java` (e.g., `BookingApiIntegrationTest.java`)
 
 **Directory Structure:**
 ```
-hola-{module}/
-├── src/test/java/com/hola/{module}/
-│   ├── service/
-│   │   ├── PropertyServiceImplTest.java     # Unit test for service
-│   │   └── ReservationServiceImplTest.java
-│   ├── repository/
-│   │   └── ...
-│   ├── mapper/
-│   │   └── ReservationMapperTest.java
-│   └── entity/
-│       └── ReservationPaymentTest.java
-└── src/test/resources/
-    └── application-test.yml                # Test config
-```
+hola-common/src/test/java/com/hola/common/
+├── dto/HolaResponseTest.java
+├── exception/ErrorCodeTest.java
+├── security/AccessControlServiceTest.java
+└── util/NameMaskingUtilTest.java
 
-**Integration tests (hola-app):**
-```
+hola-hotel/src/test/java/com/hola/hotel/
+└── service/
+    ├── HotelServiceImplTest.java
+    └── PropertyServiceImplTest.java
+
+hola-room/src/test/java/com/hola/room/
+└── service/
+    └── RoomTypeServiceImplTest.java
+
+hola-reservation/src/test/java/com/hola/reservation/
+├── booking/service/
+│   ├── BookingServiceImplTest.java
+│   └── CancellationPolicyServiceImplTest.java
+├── entity/
+│   └── ReservationPaymentTest.java
+├── mapper/
+│   └── ReservationMapperTest.java
+└── service/
+    ├── EarlyLateCheckServiceTest.java
+    ├── PriceCalculationServiceTest.java
+    ├── ReservationNumberGeneratorTest.java
+    ├── ReservationPaymentServiceImplTest.java
+    ├── ReservationServiceImplTest.java
+    └── RoomAvailabilityServiceTest.java
+
 hola-app/src/test/java/com/hola/
+├── config/TestContainersConfig.java
+├── fixture/TestFixtures.java
 ├── integration/
-│   ├── booking/
-│   │   └── BookingApiIntegrationTest.java  # Full HTTP test
-│   ├── payment/
-│   │   └── PaymentApiIntegrationTest.java
-│   ├── security/
-│   │   └── SecurityIntegrationTest.java
-│   └── ...
-├── support/
-│   └── BaseIntegrationTest.java            # Base class for integration tests
-└── fixture/
-    └── TestFixtures.java                   # Reusable test data factories
+│   ├── booking/BookingApiIntegrationTest.java
+│   ├── payment/PaymentApiIntegrationTest.java
+│   ├── reservation/ReservationApiIntegrationTest.java
+│   └── security/SecurityIntegrationTest.java
+└── support/BaseIntegrationTest.java
 ```
 
-## Test Structure
+## Test Counts by Module
 
-**Unit Test Suite Organization:**
+**Total: 21 test files, ~256 test methods**
 
-Standard pattern using `@Nested` + `@DisplayName`:
+| Module | Test Files | Test Methods | Focus |
+|--------|-----------|-------------|-------|
+| `hola-common` | 4 | 20 | HolaResponse, ErrorCode integrity, AccessControl, NameMasking |
+| `hola-hotel` | 2 | 15 | HotelService CRUD, PropertyService CRUD |
+| `hola-room` | 1 | 5 | RoomTypeService |
+| `hola-reservation` | 8 | 159 | ReservationService (41), BookingService (26), Payment (20), Pricing (17), CancelPolicy (14), EarlyLate (13), Availability (10), Mapper (6), PaymentEntity (9), NumberGen (8) |
+| `hola-app` (integration) | 4 | 52 | ReservationApi (22), BookingApi (14), Security (10), PaymentApi (6) |
+| **Total** | **21** | **~256** | |
+
+## Unit Test Structure
+
+**Standard pattern:** `@ExtendWith(MockitoExtension.class)` + `@Nested` + `@DisplayName`
+
 ```java
 @ExtendWith(MockitoExtension.class)
-@DisplayName("ReservationServiceImpl")
-class ReservationServiceImplTest {
+@DisplayName("HotelServiceImpl")
+class HotelServiceImplTest {
 
     @InjectMocks
-    private ReservationServiceImpl reservationService;
+    private HotelServiceImpl hotelService;
 
     @Mock
-    private MasterReservationRepository masterReservationRepository;
+    private HotelRepository hotelRepository;
     @Mock
-    private SubReservationRepository subReservationRepository;
-    // ... more @Mock fields
+    private HotelMapper hotelMapper;
 
-    // Shared constants
-    private static final Long PROPERTY_ID = 1L;
-    private static final LocalDate CHECK_IN = LocalDate.of(2026, 6, 1);
-
-    // Shared test setup
-    private Property property;
-    private RateCode rateCode;
-
-    @BeforeEach
-    void setUp() {
-        property = Property.builder()
-                .propertyCode("GMP")
-                .propertyName("그랜드 호텔")
-                .build();
-        // ... more setup
+    // Helper factory methods at class level
+    private Hotel createHotel(String code, String name) {
+        return Hotel.builder().hotelCode(code).hotelName(name).build();
     }
 
-    // Test case groups
     @Nested
-    @DisplayName("예약 생성")
-    class CreateReservation {
+    @DisplayName("호텔 생성")
+    class CreateHotel {
 
         @Test
-        @DisplayName("정상 입력으로 예약 생성 성공")
-        void create_validRequest_success() {
-            // Arrange
-            ReservationCreateRequest request = ReservationCreateRequest.builder()
-                    .guestNameKo("홍길동")
-                    .marketCodeId(1L)
-                    .rateCodeId(RATE_CODE_ID)
-                    .build();
-            when(propertyRepository.findById(PROPERTY_ID))
-                    .thenReturn(Optional.of(property));
-            when(rateCodeRepository.findById(RATE_CODE_ID))
-                    .thenReturn(Optional.of(rateCode));
+        @DisplayName("자동 코드 생성 (HTL00001 형식)")
+        void createHotel_autoCodeGeneration() {
+            // given
+            when(hotelRepository.existsByHotelNameAndDeletedAtIsNull("테스트 호텔"))
+                .thenReturn(false);
+            when(hotelRepository.getNextHotelCodeSequence()).thenReturn(1L);
 
-            // Act
-            ReservationResponse response = reservationService.createReservation(
-                    PROPERTY_ID, request);
+            // when
+            HotelResponse response = hotelService.createHotel(request);
 
-            // Assert
-            assertThat(response.getId()).isNotNull();
-            assertThat(response.getReservationStatus()).isEqualTo("RESERVED");
-            verify(masterReservationRepository, times(1)).save(any());
+            // then
+            assertThat(response.getHotelCode()).isEqualTo("HTL00001");
+            verify(hotelRepository).getNextHotelCodeSequence();
         }
 
         @Test
-        @DisplayName("과거 날짜 체크인 시 HOLA-4014 에러")
-        void create_pastDate_throwsError() {
-            // Arrange
-            ReservationCreateRequest request = buildRequest();
-            request.setCheckIn(LocalDate.now().minusDays(1));
+        @DisplayName("이름 중복 시 HOTEL_NAME_DUPLICATE")
+        void createHotel_duplicateName_throws() {
+            when(hotelRepository.existsByHotelNameAndDeletedAtIsNull("기존 호텔"))
+                .thenReturn(true);
 
-            // Act & Assert
-            assertThatThrownBy(() -> reservationService.createReservation(PROPERTY_ID, request))
+            assertThatThrownBy(() -> hotelService.createHotel(request))
                     .isInstanceOf(HolaException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RESERVATION_CHECKIN_PAST_DATE);
-        }
-    }
-
-    @Nested
-    @DisplayName("예약 상태 변경")
-    class ChangeStatus {
-        // ... more tests
-    }
-
-    // Helper methods
-    private MasterReservation createMaster(String status) {
-        MasterReservation master = MasterReservation.builder()
-                .masterReservationNo("GMP260601-0001")
-                .reservationStatus(status)
-                .build();
-        setId(master, MASTER_ID);
-        return master;
-    }
-
-    private void setId(Object entity, Long id) {
-        try {
-            java.lang.reflect.Field idField = entity.getClass().getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(entity, id);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.HOTEL_NAME_DUPLICATE);
         }
     }
 }
 ```
 
-**Integration Test Base Class:**
+**Key conventions:**
+- `@DisplayName` on class AND every `@Test` method (Korean descriptions)
+- `@Nested` inner classes group related test scenarios
+- Helper/factory methods at bottom of test class (private)
+- Constants for shared test IDs: `private static final Long PROPERTY_ID = 1L;`
+- `@BeforeEach` for common setup (entity builders)
 
-`BaseIntegrationTest` in `hola-app/src/test/java/com/hola/support/`:
+## Integration Test Structure
+
+**Base class:** `hola-pms/hola-app/src/test/java/com/hola/support/BaseIntegrationTest.java`
+
 ```java
-@SpringBootTest                          // Full context load
-@AutoConfigureMockMvc                   // MockMvc injection
-@ActiveProfiles("test")                 // Use application-test.yml
-@Import(TestContainersConfig.class)     // TestContainers setup
-@Transactional                          // Auto-rollback after each test
-@WithMockUser(username="admin", roles={"SUPER_ADMIN"})  // Default security
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Import(TestContainersConfig.class)
+@Transactional
+@WithMockUser(username = "admin", roles = {"SUPER_ADMIN"})
 public abstract class BaseIntegrationTest {
     @Autowired
     protected MockMvc mockMvc;
 }
 ```
 
-**Integration Test Example:**
+**Two integration test approaches observed:**
+
+**1. MockBean approach** (Reservation/Payment API tests) - mocks service layer:
+```java
+@DisplayName("예약 API 통합 테스트")
+class ReservationApiIntegrationTest extends BaseIntegrationTest {
+
+    @Autowired private ObjectMapper objectMapper;
+    @MockBean private AccessControlService accessControlService;
+    @MockBean private ReservationService reservationService;
+
+    @BeforeEach
+    void setUp() {
+        AdminUser mockAdmin = AdminUser.builder()
+                .loginId("admin").role("SUPER_ADMIN").userName("관리자").password("encoded")
+                .build();
+        when(accessControlService.getCurrentUser()).thenReturn(mockAdmin);
+        doNothing().when(accessControlService).validatePropertyAccess(anyLong());
+    }
+
+    @Nested
+    @DisplayName("예약 등록 (POST /reservations)")
+    class Create {
+        @Test
+        @DisplayName("유효한 요청으로 예약 등록 시 201 CREATED 반환")
+        void create_validRequest_returns201() throws Exception {
+            when(reservationService.create(eq(PROPERTY_ID), any()))
+                    .thenReturn(/* response builder */);
+
+            mockMvc.perform(post(BASE_URL, PROPERTY_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.reservationStatus").value("RESERVED"));
+        }
+    }
+}
+```
+
+**2. Full-stack approach** (Booking API test) - uses real Flyway test data:
 ```java
 @DisplayName("부킹엔진 API 통합 테스트")
 class BookingApiIntegrationTest extends BaseIntegrationTest {
 
-    private static final String BASE_URL = "/api/v1/booking";
-    private static final String VALID_PROPERTY_CODE = "GMP";
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private PropertyRepository propertyRepository;
-
-    @Autowired
-    private MasterReservationRepository masterReservationRepository;
+    @Autowired private PropertyRepository propertyRepository;
+    @Autowired private RoomTypeRepository roomTypeRepository;
 
     @Test
     @DisplayName("존재하는 프로퍼티 코드로 조회 시 200 반환")
     void getPropertyInfo_existingCode_200() throws Exception {
-        mockMvc.perform(get(BASE_URL + "/properties/{code}", VALID_PROPERTY_CODE))
+        mockMvc.perform(get("/api/v1/booking/properties/{code}", "GMP"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.RESULT_YN").value("Y"))
-                .andExpect(jsonPath("$.result.data.propertyCode").value(VALID_PROPERTY_CODE))
-                .andExpect(jsonPath("$.result.data.hotelName").value("올라 서울 호텔"));
-    }
-
-    @Test
-    @WithAnonymousUser  // Override default @WithMockUser
-    @DisplayName("인증 없이 접근 시 401 반환")
-    void booking_anonymous_401() throws Exception {
-        mockMvc.perform(post(BASE_URL + "/reservations")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized());
+                .andExpect(jsonPath("$.result.data.propertyCode").value("GMP"));
     }
 }
 ```
 
-## Test Configuration
+**Security testing pattern:**
+```java
+@Test
+@WithAnonymousUser  // Override default @WithMockUser
+@DisplayName("미인증 사용자가 예약 API 접근 시 4xx 반환")
+void unauthenticated_returns401() throws Exception {
+    mockMvc.perform(get("/api/v1/properties/1/reservations"))
+            .andExpect(status().is4xxClientError());
+}
 
-**File:** `hola-app/src/test/resources/application-test.yml`
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:tc:postgresql:16-alpine:///hola_pms_test  # TestContainers PostgreSQL
-    username: test
-    password: test
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-
-  jpa:
-    open-in-view: false                  # Force lazy loading to fail fast
-    hibernate:
-      ddl-auto: none                     # Use Flyway, not auto-schema
-    properties:
-      hibernate:
-        format_sql: false                # No SQL logging
-        default_batch_fetch_size: 100    # IN clause batching
-
-  flyway:
-    enabled: true
-    locations: classpath:db/migration,classpath:db/testpatch
-    baseline-on-migrate: true
-    out-of-order: true
-    target: 5.8.0                        # V5_9_0+ (large test data) excluded
-
-  thymeleaf:
-    cache: false                         # Reload templates
-
-  jackson:
-    time-zone: Asia/Seoul
-    serialization:
-      write-dates-as-timestamps: false
-
-  data:
-    redis:
-      repositories:
-        enabled: false                   # Redis not needed for tests
-
-server:
-  port: 0                                # Random port for integration tests
-
-jwt:
-  secret: holapms-test-secret-key-must-be-at-least-256-bits-long-for-hs256
-  access-token-expiry: 3600000           # 1 hour
-  refresh-token-expiry: 604800000        # 7 days
+@Test
+@WithMockUser(username = "propadmin", roles = {"PROPERTY_ADMIN"})
+@DisplayName("PROPERTY_ADMIN 역할로 접근 허용")
+void propertyAdmin_allowed() throws Exception {
+    mockMvc.perform(get("/api/v1/properties/1/reservations"))
+            .andExpect(notAuthError());  // custom matcher: not 401/403
+}
 ```
 
-**TestContainers Setup:**
-- `TestContainersConfig` class imported by BaseIntegrationTest
-- Auto-starts PostgreSQL 16-alpine container before tests
-- Uses JDBC URL prefix `jdbc:tc:postgresql:16-alpine:///hola_pms_test` for container lifecycle management
-- Automatic cleanup after test suite
+## Mocking Patterns
 
-## Mocking
+**Unit tests: `@Mock` + `@InjectMocks`**
+```java
+@Mock private MasterReservationRepository masterReservationRepository;
+@Mock private ReservationMapper reservationMapper;
+@InjectMocks private ReservationServiceImpl reservationService;
+```
 
-**Framework:** Mockito (provided by spring-boot-starter-test)
+**Lenient stubs for optional setup:**
+```java
+@BeforeEach
+void setUp() {
+    // NPE 방지 - 모든 테스트에서 호출되지 않을 수 있음
+    lenient().when(roomUnavailableRepository.findOverlapping(any(), any(), any()))
+            .thenReturn(Collections.emptyList());
+}
+```
 
-**Patterns:**
+**Integration tests: `@MockBean` for auth bypass**
+```java
+@MockBean private AccessControlService accessControlService;
+@MockBean private ReservationService reservationService;
+```
 
-1. **Mock Dependencies:**
-   ```java
-   @Mock
-   private PropertyRepository propertyRepository;
+**What to mock:**
+- Repositories (DB I/O)
+- External services (payment gateway, etc.)
+- `AccessControlService` in integration tests (auth bypass)
 
-   @Mock
-   private RateCodeRepository rateCodeRepository;
-
-   @InjectMocks
-   private ReservationServiceImpl reservationService;  // Mocks auto-injected
-   ```
-
-2. **Stub Return Values:**
-   ```java
-   when(propertyRepository.findById(PROPERTY_ID))
-       .thenReturn(Optional.of(property));
-
-   when(rateCodeRepository.findById(RATE_CODE_ID))
-       .thenReturn(Optional.of(rateCode));
-   ```
-
-3. **Verify Interactions:**
-   ```java
-   verify(masterReservationRepository, times(1)).save(any());
-   verify(dailyChargeRepository, never()).delete(any());
-   ```
-
-4. **Argument Matchers:**
-   ```java
-   when(repo.save(any(Entity.class))).thenReturn(savedEntity);
-   when(repo.findById(eq(1L))).thenReturn(Optional.of(entity));
-   when(repo.existsByCode(contains("GMP"))).thenReturn(true);
-   ```
-
-5. **Lenient Mocks (for optional stubs):**
-   ```java
-   @BeforeEach
-   void setUp() {
-       // This stub may not be called in all tests, no warning
-       lenient().when(roomUnavailableRepository.findOverlapping(any(), any(), any()))
-           .thenReturn(Collections.emptyList());
-   }
-   ```
-
-**What to Mock:**
-- Repository queries (external I/O)
-- External service calls (payment gateway, email, etc.)
-- Security context (if testing authorization)
-- Date/time if determinism needed (rarely; use fixed LocalDate in tests)
-
-**What NOT to Mock:**
-- Entity constructors/builders (use real instances)
-- Internal service method calls (test full flow if logically connected)
-- Mapper methods (test real mappings)
-- BaseEntity fields (createdAt, updatedAt) — let them flow through
+**What NOT to mock:**
+- Entity builders (use real instances)
+- Mapper methods (test real transformations)
+- Internal method calls within same service
 
 ## Fixtures and Factories
 
-**Location:** `hola-app/src/test/java/com/hola/fixture/TestFixtures.java`
+**`TestFixtures`** - `hola-pms/hola-app/src/test/java/com/hola/fixture/TestFixtures.java`
 
-**Pattern - Static Factory Class:**
+Static factory class with entity builders for common test data:
+
 ```java
 public final class TestFixtures {
-    private TestFixtures() {}  // Prevent instantiation
+    private TestFixtures() {}
 
     // Hotel & Property
-    public static Hotel createHotel() {
-        return Hotel.builder()
-                .hotelCode("HTL00001")
-                .hotelName("테스트 호텔")
-                .build();
-    }
+    public static Hotel createHotel() { ... }
+    public static Property createProperty() { ... }
+    public static Property createProperty(Hotel hotel) { ... }
+    public static Property createPropertyNoTax(Hotel hotel) { ... }
 
-    public static Property createProperty() {
-        return createProperty(createHotel());
-    }
+    // Rate Pricing
+    public static RatePricing createRatePricing(Long rateCodeId, LocalDate start, LocalDate end, BigDecimal price) { ... }
+    public static RatePricing createWeekdayPricing(...) { ... }
+    public static RatePricing createWeekendPricing(...) { ... }
+    public static RatePricingPerson createPricingPerson(String type, int seq, BigDecimal price) { ... }
 
-    public static Property createProperty(Hotel hotel) {
-        return Property.builder()
-                .hotel(hotel)
-                .propertyCode("GMP")
-                .propertyName("테스트 프로퍼티")
-                .checkInTime("15:00")
-                .checkOutTime("11:00")
-                .taxRate(new BigDecimal("10"))
-                .taxDecimalPlaces(0)
-                .taxRoundingMethod("ROUND_DOWN")
-                .serviceChargeRate(new BigDecimal("5"))
-                .build();
-    }
+    // Reservation
+    public static MasterReservation createMasterReservation(Property property) { ... }
+    public static MasterReservation createMasterReservation(Property property, String status) { ... }
+    public static MasterReservation createOtaMasterReservation(Property property) { ... }
+    public static SubReservation createSubReservation(MasterReservation master) { ... }
+    public static DailyCharge createDailyCharge(SubReservation sub, LocalDate date, BigDecimal price) { ... }
 
-    // Variant: No tax property
-    public static Property createPropertyNoTax(Hotel hotel) {
-        return Property.builder()
-                .hotel(hotel)
-                .propertyCode("GMP")
-                .propertyName("테스트 프로퍼티")
-                .taxRate(BigDecimal.ZERO)
-                .serviceChargeRate(BigDecimal.ZERO)
-                .build();
-    }
+    // Payment
+    public static ReservationPayment createPayment(MasterReservation master) { ... }
+    public static PaymentTransaction createTransaction(Long masterId, int seq, String type, BigDecimal amount) { ... }
+    public static PaymentAdjustment createAdjustment(Long masterId, int seq, String sign, BigDecimal amount) { ... }
 
-    // Pricing fixtures
-    public static RatePricing createRatePricing(Long rateCodeId, LocalDate start,
-                                                 LocalDate end, BigDecimal price) {
-        return RatePricing.builder()
-                .rateCodeId(rateCodeId)
-                .startDate(start)
-                .endDate(end)
-                .dayMon(true).dayTue(true).dayWed(true).dayThu(true)
-                .dayFri(true).daySat(true).daySun(true)
-                .baseSupplyPrice(price)
-                .baseTax(BigDecimal.ZERO)
-                .baseTotal(price)
-                .persons(new ArrayList<>())
-                .build();
-    }
+    // Policy
+    public static CancellationFee createDateCancellationFee(Property, int daysBefore, String feeType, BigDecimal amount) { ... }
+    public static CancellationFee createNoShowCancellationFee(Property, String feeType, BigDecimal amount) { ... }
+    public static EarlyLateFeePolicy createEarlyCheckInPolicy(Property, String timeFrom, String timeTo, ...) { ... }
+    public static EarlyLateFeePolicy createLateCheckOutPolicy(Property, ...) { ... }
+
+    // Service Item
+    public static ReservationServiceItem createServiceItem(SubReservation sub, BigDecimal unitPrice, int qty) { ... }
 }
 ```
 
-**Usage in Tests:**
+**Inline helper methods** (per-test file, for simpler fixtures):
 ```java
-@BeforeEach
-void setUp() {
-    property = TestFixtures.createProperty();
-    rateCode = RateCode.builder().saleStartDate(...).build();
-    pricing = TestFixtures.createRatePricing(RATE_CODE_ID, start, end, BigDecimal.valueOf(100));
+private Hotel createHotel(String code, String name) {
+    return Hotel.builder().hotelCode(code).hotelName(name).build();
 }
 ```
 
-## Coverage
+## Test Data Management
 
-**Target:** ~80% line coverage per module (not enforced by CI, but tracked)
-
-**View Coverage:**
-```bash
-./gradlew jacocoTestReport  # If JaCoCo configured (optional)
+**Flyway test profile** - `hola-pms/hola-app/src/test/resources/application-test.yml`:
+```yaml
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:16-alpine:///hola_pms_test  # TestContainers auto-managed
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  flyway:
+    locations: classpath:db/migration,classpath:db/testpatch
+    target: 5.8.0        # Excludes V5_9_0+ (large test data) for speed
+    out-of-order: true
+  data:
+    redis:
+      repositories:
+        enabled: false    # Redis disabled in tests
+server:
+  port: 0                 # Random port
 ```
 
-**Coverage by Module:**
-- `hola-common`: ~85% (Security, DTO, Exception handling)
-- `hola-hotel`: ~75% (CRUD-heavy, property setup)
-- `hola-room`: ~70% (Configuration tables)
-- `hola-rate`: ~65% (Complex pricing logic being expanded)
-- `hola-reservation`: ~80% (Most tested: complex state machine, payment flows)
+**Test schema patches** - `hola-pms/hola-app/src/test/resources/db/testpatch/R__test_schema_patch.sql`:
+- Applies DDL from V6+ through V8 migrations that are beyond `flyway.target: 5.8.0`
+- Adds columns like `version` (optimistic locking), `stay_type` (dayuse), HK fields
+- Repeatable migration (`R__` prefix) - reapplied on change
 
-**No Strict Enforcement:**
-- Jenkins/GitHub Actions does not block on coverage threshold
-- Code review may request tests for critical paths (payment, reservations, soft delete)
+**Flyway test data (V5_0_0 ~ V5_8_0):**
+- Properties: GMP (올라 그랜드 명동), GMS, OBH
+- Rate codes, room types, test users for integration scenarios
+- Admin user: `admin` / SUPER_ADMIN role
 
-## Test Types
+## E2E Tests
 
-### Unit Tests (Mockito)
+**Location:** `hola-pms/e2e-tests/`
+**Framework:** Playwright 1.58.2 (Node.js CommonJS)
+**Status:** Exists but NOT integrated into CI; manual execution only.
 
-**Scope:** Single class in isolation
-**Location:** `{module}/src/test/java/{domain}/{category}/{Subject}Test.java`
-**Example:** `ReservationServiceImplTest`, `PriceCalculationServiceTest`
+**Files:**
+- `phase1-auth.js` - Login success/failure, sidebar navigation
+- `phase2-hotel.js` - Hotel CRUD UI flows
+- `phase3-room.js` - Room management
+- `phase4-reservation.js` - Reservation workflow
+- `phase4-ota-check.js` - OTA integration check
 
-**Characteristics:**
-- All dependencies @Mock
-- Fast execution (< 1s per test)
-- High granularity (each @Test tests one code path)
-- @Nested groups for organizing related scenarios
+**Run (manual):**
+```bash
+cd hola-pms/e2e-tests
+node phase1-auth.js      # Requires server running on localhost:8080
+```
 
-**When to Write:**
-- Service business logic (validation, state transitions, calculations)
-- Utility functions (maskName, maskPhone, date calculations)
-- Mapper transformations
-- Simple entity behavior
+**Pattern:**
+```javascript
+const { chromium } = require('playwright');
+const BASE_URL = 'http://localhost:8080';
 
-**Example - Error Handling:**
+(async () => {
+    const browser = await chromium.launch({ headless: true });
+    const page = await context.newPage();
+    await page.goto(`${BASE_URL}/login`);
+    await page.fill('#username', 'admin');
+    await page.fill('#password', 'holapms1!');
+    await page.click('#loginBtn');
+    await page.waitForURL(/\/admin/);
+    // ... assertions via URL/element checks
+})();
+```
+
+## Test Coverage Gaps
+
+### Services WITHOUT Tests (28 of 35 ServiceImpl files)
+
+**hola-hotel (14 untested):**
+- `FloorServiceImpl.java` - Floor CRUD
+- `MarketCodeServiceImpl.java` - Market code CRUD
+- `RoomNumberServiceImpl.java` - Room number CRUD
+- `HotelAdminServiceImpl.java` - Hotel admin user management
+- `PropertyAdminServiceImpl.java` - Property admin management
+- `PropertyRoleServiceImpl.java` - Property role management
+- `HotelRoleServiceImpl.java` - Hotel role management
+- `PropertySettlementServiceImpl.java` - Settlement info management
+- `CancellationFeeServiceImpl.java` - Cancellation fee rules
+- `EarlyLateFeePolicyServiceImpl.java` - Early/late check fee policies
+- `HousekeepingServiceImpl.java` - HK task management
+- `HousekeeperServiceImpl.java` - HK staff management
+- `HkAssignmentServiceImpl.java` - HK task assignments
+- `RoomStatusServiceImpl.java` - Room FO/HK status management
+- `RoomUnavailableServiceImpl.java` - OOO/OOS management
+- `ReservationChannelServiceImpl.java` - Channel management
+
+**hola-room (4 untested):**
+- `RoomClassServiceImpl.java` - Room class CRUD
+- `TransactionCodeServiceImpl.java` - Transaction code management
+- `PaidServiceOptionServiceImpl.java` - Paid service options
+- `FreeServiceOptionServiceImpl.java` - Free service options
+- `InventoryServiceImpl.java` - Inventory management
+
+**hola-rate (2 untested):**
+- `RateCodeServiceImpl.java` - Rate code management (complex pricing logic)
+- `PromotionCodeServiceImpl.java` - Promotion code management
+
+**hola-reservation (3 untested):**
+- `FrontDeskServiceImpl.java` - Front desk operations
+- `RoomAssignServiceImpl.java` - Room assignment logic
+- `RoomUpgradeServiceImpl.java` - Room upgrade logic
+- `DashboardServiceImpl.java` - Dashboard aggregation
+
+**hola-common (1 untested):**
+- `BluewaveAdminServiceImpl.java` - Bluewave admin management
+
+### Controllers WITHOUT Unit Tests (All 34 ApiControllers)
+
+No controller has dedicated unit tests. Integration tests cover only 3 controllers:
+- `ReservationApiController` (via `ReservationApiIntegrationTest`)
+- `BookingApiController` (via `BookingApiIntegrationTest`)
+- `ReservationPaymentApiController` (via `PaymentApiIntegrationTest`)
+
+### Modules with NO Tests
+
+- **hola-rate**: Only 1 file (`RoomTypeServiceImplTest`) actually in hola-room. Rate code service (complex pricing) has ZERO tests.
+
+### High-Risk Untested Areas
+
+| Area | Files | Risk |
+|------|-------|------|
+| Rate code pricing | `hola-rate/src/main/java/com/hola/rate/service/RateCodeServiceImpl.java` | Complex pricing rules, promotion application |
+| Front desk operations | `hola-reservation/.../service/FrontDeskServiceImpl.java` | Check-in/out workflow, room status transitions |
+| Room assignment | `hola-reservation/.../service/RoomAssignServiceImpl.java` | Overbooking detection, assignment logic |
+| HK management | `hola-hotel/.../service/HousekeepingServiceImpl.java` | Task scheduling, status sync with rooms |
+| Room status sync | `hola-hotel/.../service/RoomStatusServiceImpl.java` | FO/HK status coordination |
+
+## Common Test Patterns
+
+**Exception testing:**
+```java
+assertThatThrownBy(() -> hotelService.createHotel(request))
+        .isInstanceOf(HolaException.class)
+        .extracting("errorCode")
+        .isEqualTo(ErrorCode.HOTEL_NAME_DUPLICATE);
+```
+
+**BigDecimal assertion:**
+```java
+assertThat(response.getGrandTotal()).isEqualByComparingTo("345000");
+assertThat(response.getRemainingAmount()).isEqualByComparingTo("245000");
+```
+
+**MockMvc JSON assertion:**
+```java
+mockMvc.perform(get(BASE_URL, PROPERTY_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data").isArray())
+        .andExpect(jsonPath("$.data", hasSize(0)));
+```
+
+**Entity domain logic testing (no mocks needed):**
 ```java
 @Test
-@DisplayName("과거 날짜 예약 시 HOLA-4014 에러")
-void create_pastCheckIn_throwsException() {
-    // Arrange
-    ReservationCreateRequest request = new ReservationCreateRequest();
-    request.setCheckIn(LocalDate.now().minusDays(1));
-
-    // Act & Assert
-    assertThatThrownBy(() -> reservationService.create(PROPERTY_ID, request))
-            .isInstanceOf(HolaException.class)
-            .hasFieldOrPropertyWithValue("errorCode",
-                    ErrorCode.RESERVATION_CHECKIN_PAST_DATE);
+@DisplayName("grandTotal 0이하 -> PAID (결제 불필요)")
+void updatePaymentStatus_zeroGrandTotal_paid() {
+    ReservationPayment payment = createPayment(BigDecimal.ZERO, BigDecimal.ZERO);
+    payment.updatePaymentStatus();
+    assertThat(payment.getPaymentStatus()).isEqualTo("PAID");
 }
 ```
 
-### Integration Tests (MockMvc)
-
-**Scope:** Full HTTP layer + service + database
-**Location:** `hola-app/src/test/java/com/hola/integration/{domain}/{Subject}IntegrationTest.java`
-**Base Class:** `BaseIntegrationTest`
-
-**Characteristics:**
-- Extends BaseIntegrationTest (SpringBootTest, MockMvc, Transactional)
-- No @Mock repositories; uses real database (TestContainers PostgreSQL)
-- Real service beans, real mappers
-- TestData injected via Flyway (V5_0_0 ~ V5_14_0 scripts)
-- Slower (5-30s per test class), but tests actual integration
-
-**When to Write:**
-- API endpoints (GET, POST, PUT, DELETE)
-- End-to-end workflows (create reservation → add leg → pay → check in)
-- Security (authorization checks, role validation)
-- Data consistency (transactions, soft delete filtering)
-- Booking engine public API
-
-**Example - API Test:**
+**Verify interaction:**
 ```java
-@Test
-@DisplayName("호텔 코드로 프로퍼티 정보 조회")
-void getPropertyInfo_validCode_200() throws Exception {
-    mockMvc.perform(get("/api/v1/booking/properties/{code}", "GMP"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.result.RESULT_YN").value("Y"))
-            .andExpect(jsonPath("$.result.data.propertyCode").value("GMP"))
-            .andExpect(jsonPath("$.result.data.propertyName").value("올라 그랜드 명동"));
-}
-
-@Test
-@WithAnonymousUser
-@DisplayName("인증 없이 결제 API 호출 시 401")
-void payment_anonymous_401() throws Exception {
-    mockMvc.perform(post("/api/v1/reservations/1/payment")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(paymentRequest)))
-            .andExpect(status().isUnauthorized());
-}
+verify(reservationService).cancel(1L, PROPERTY_ID);
+verify(hotelRepository).getNextHotelCodeSequence();
+doNothing().when(accessControlService).validatePropertyAccess(anyLong());
 ```
 
-### E2E Tests (Optional)
+## Best Practices (as observed)
 
-**Not actively used in this codebase.**
-- `hola-pms/e2e-tests/` exists but not populated
-- Future: Selenium/Playwright for frontend interactions
-- Would test: UI workflows, cross-browser compatibility
-
-## Common Patterns
-
-### Async Testing
-
-**Pattern:** Use real Futures, not mocking async behavior
-```java
-@Test
-@DisplayName("비동기 작업 완료 대기")
-void asyncJob_completesSuccessfully() throws Exception {
-    CompletableFuture<ReservationResponse> future = reservationService.createAsync(request);
-
-    ReservationResponse response = future.get(2, TimeUnit.SECONDS);
-
-    assertThat(response.getId()).isNotNull();
-}
-```
-
-### Error Testing
-
-**Pattern:** assertThatThrownBy with error code verification
-```java
-@Test
-@DisplayName("중복 객실 예약 시 HOLA-4011 에러")
-void createSub_roomConflict_throwsException() {
-    // Arrange: existing reservation for same room/dates
-    when(subReservationRepository.existsOverlap(roomId, checkIn, checkOut))
-            .thenReturn(true);
-
-    // Act & Assert
-    assertThatThrownBy(() -> service.addSubReservation(master, request))
-            .isInstanceOf(HolaException.class)
-            .matches(e -> ((HolaException) e).getErrorCode()
-                    == ErrorCode.SUB_RESERVATION_ROOM_CONFLICT);
-}
-```
-
-### Data Setup in Integration Tests
-
-**Pattern 1 - TestFixtures (unit):**
-```java
-@BeforeEach
-void setUp() {
-    property = TestFixtures.createProperty();
-    rateCode = TestFixtures.createRateCode();
-}
-```
-
-**Pattern 2 - Repository Persistence (integration):**
-```java
-@Autowired
-private PropertyRepository propertyRepository;
-
-@Test
-void testWithRealData() {
-    // Use Flyway test data (V5_0_0 ~ V5_14_0)
-    Property property = propertyRepository.findByPropertyCode("GMP").orElseThrow();
-
-    // ...test with real data
-}
-```
-
-**Pattern 3 - Transient Setup (rare):**
-```java
-@Test
-void testWithNewEntity() {
-    Hotel hotel = Hotel.builder().hotelCode("TEST001").build();
-    hotelRepository.saveAndFlush(hotel);
-    Property property = Property.builder().hotel(hotel).build();
-    propertyRepository.saveAndFlush(property);
-
-    // ...test
-    // Auto-rollback via @Transactional
-}
-```
-
-## Test Data Strategy
-
-**Flyway Migrations (Production Seed):**
-- `V5_0_0__initial.sql` through `V5_14_0__test_fixtures.sql`: Standard test fixtures
-- Properties: GMP (그랜드 명동), GMS (마포신사), OBH (올라 부산 해운대)
-- Rate codes: 5-star, 4-star, dayuse rates for 2026 (sale period 2026-01-01 ~ 2026-12-31)
-- Test accounts: admin user with SUPER_ADMIN role
-
-**application-test.yml Configuration:**
-- `flyway.target: 5.8.0` → V5_9_0+ (large bulk data) excluded for speed
-- In-memory or TestContainers database
-- Auto-cleanup via @Transactional rollback
-
-**Fixture Class:**
-- `TestFixtures.java` for ad-hoc entity builders
-- Does NOT persist to DB (used in unit tests)
-- Variants: `createProperty()`, `createPropertyNoTax()`, `createRatePricing()`, etc.
-
-## Running Tests
-
-**All Tests:**
-```bash
-./gradlew test                  # All modules
-./gradlew clean test            # Fresh build + test
-```
-
-**Specific Module:**
-```bash
-./gradlew :hola-hotel:test      # hola-hotel tests only
-./gradlew :hola-app:test        # Integration tests
-```
-
-**Specific Test Class:**
-```bash
-./gradlew :hola-reservation:test --tests "ReservationServiceImplTest"
-./gradlew :hola-app:test --tests "BookingApiIntegrationTest"
-```
-
-**Specific Test Method:**
-```bash
-./gradlew :hola-hotel:test --tests "PropertyServiceImplTest.createProperty_validRequest_success"
-```
-
-**With Logging:**
-```bash
-./gradlew test --info           # Detailed output
-./gradlew test --debug          # Very verbose
-```
-
-**Parallel Execution (optional):**
-```bash
-./gradlew test -x               # Stop on first failure
-./gradlew test --max-workers=4  # Use 4 worker threads (caution: DB conflicts)
-```
-
-## Best Practices
-
-1. **One assertion per test** (or related group):
-   - Clear failure message (know exactly what failed)
-   - Exception: related assertions (response code + body content OK)
-
-2. **Descriptive test names:**
-   - Use @DisplayName("...") with clear scenario description
-   - Include precondition + action + expected result
-   - Example: "과거 날짜 체크인 시 HOLA-4014 에러" (clear in failure reports)
-
-3. **Arrange-Act-Assert pattern:**
+1. **Always use `@DisplayName`** with Korean description on both class and method level
+2. **Group with `@Nested`** by operation (Create, Update, Delete, GetList, etc.)
+3. **Arrange-Act-Assert** pattern (sometimes given-when-then style)
+4. **Test error paths** as thoroughly as happy paths (each ErrorCode scenario gets a test)
+5. **Use `lenient()` stubs** in `@BeforeEach` for optional dependencies (prevents unnecessary strict mock warnings)
+6. **Test service Javadoc comments** document test scope:
    ```java
-   // Arrange: set up data, mocks
-   // Act: execute method
-   // Assert: verify result
+   /**
+    * ReservationServiceImpl 단위 테스트
+    * 테스트 범위:
+    * - CREATE (7): 정상 생성, 과거 날짜, 날짜 역전, ...
+    * - UPDATE (5): 정상, CHECKED_OUT 불가, ...
+    */
    ```
-
-4. **No test interdependencies:**
-   - Each @Test must be runnable in any order
-   - Use @BeforeEach for shared setup, not shared state
-
-5. **Mock only what's necessary:**
-   - Repository queries: YES (external I/O)
-   - Internal service calls in same flow: NO (test full flow)
-   - Mappers: NO (test the transformation)
-
-6. **Cleanup:**
-   - @Transactional on integration tests auto-rolls back
-   - Unit tests need no cleanup (no DB access)
-
-7. **Security Testing:**
-   - Use `@WithMockUser(username="...", roles={...})` to override default
-   - Use `@WithAnonymousUser` for auth-required endpoints
-   - Test both positive (authorized) and negative (forbidden) paths
+7. **Integration tests use `@MockBean`** for `AccessControlService` to bypass auth
 
 ---
 
-*Testing analysis: 2026-02-28*
+*Testing analysis: 2026-03-26*

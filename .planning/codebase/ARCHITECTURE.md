@@ -1,238 +1,345 @@
 # Architecture
 
-**Analysis Date:** 2026-02-28
+**Analysis Date:** 2026-03-26
 
 ## Pattern Overview
 
-**Overall:** Modular Monolith with Schema-per-Tenant
+**Overall:** Modular Monolith (Schema-per-Tenant 멀티테넌시)
 
 **Key Characteristics:**
-- 5 domain modules + 1 runtime module, all exposing REST APIs + Thymeleaf views
-- Layered architecture (Controller → Service → Repository → Entity) applied uniformly across all modules
-- Cross-module dependencies via Spring dependency injection; **no JPA associations between modules** (primary keys stored as `Long` columns only)
-- Tenant isolation via PostgreSQL schema-per-tenant model with `TenantContext` ThreadLocal routing
-- Multi-auth: JWT (REST API), session (Admin form login), HK Mobile session (isolated from Admin)
-- Soft delete on all entities via `BaseEntity.softDelete()` + `@SQLRestriction("deleted_at IS NULL")`
+- 6개 Gradle 서브모듈로 분리된 모듈형 모놀리스 (단일 Spring Boot 프로세스로 배포)
+- Schema-per-Tenant 방식의 PostgreSQL 멀티테넌시 (`X-Tenant-ID` 헤더 → ThreadLocal → Hibernate `setSchema()`)
+- 모듈 간 JPA 의존성 차단 원칙: 크로스 모듈 FK는 `@Column(name="xxx_id") Long xxxId` 사용
+- 4단 Security Filter Chain: Booking API Key(@Order 0) → HK Mobile Session(@Order 1) → JWT API(@Order 2) → Session Web(@Order 3)
+- Server-Side Rendering: Thymeleaf + jQuery + Bootstrap 5.3 (SPA 아님)
+
+## Module Dependencies
+
+**Gradle 빌드 의존성 그래프:**
+
+```
+hola-app ──→ hola-reservation ──→ hola-hotel ──→ hola-common
+   │              │                                    ↑
+   │              ├──→ hola-room ─────────────────────┘
+   │              └──→ hola-rate ─────────────────────┘
+   ├──→ hola-hotel
+   ├──→ hola-room
+   ├──→ hola-rate
+   └──→ hola-common
+```
+
+**실제 코드 참조 방향 (import 기반):**
+- `hola-reservation` → `hola-hotel`: Repository/Entity 직접 임포트 (PropertyRepository, RoomNumberRepository, FloorRepository, MarketCodeRepository, ReservationChannelRepository, RoomUnavailableRepository)
+- `hola-reservation` → `hola-room`: Repository/Entity 직접 임포트 (RoomTypeRepository, RoomClassRepository, PaidServiceOptionRepository, FreeServiceOptionRepository, RoomTypeFloorRepository, RoomTypeFreeServiceRepository)
+- `hola-reservation` → `hola-rate`: Repository/Entity/Service 직접 임포트 (RateCodeRepository, RateCodePaidServiceRepository, PromotionCodeRepository, RatePricingRepository, DayUseRateRepository, RateCodeService)
+- `hola-common` → 없음 (최하위 모듈, 다른 모듈 참조 없음)
+- `hola-hotel`, `hola-room`, `hola-rate` → `hola-common`만 참조
+
+**크로스 모듈 접근 패턴:**
+모듈 간 통신은 서비스 레이어 추상화를 거치지 않고, 다른 모듈의 Repository를 직접 주입받아 사용. 예:
+
+```java
+// hola-reservation/service/ReservationServiceImpl.java (line 7~23)
+import com.hola.hotel.entity.Property;
+import com.hola.hotel.entity.RoomNumber;
+import com.hola.hotel.repository.FloorRepository;
+import com.hola.hotel.repository.PropertyRepository;
+import com.hola.hotel.repository.RoomNumberRepository;
+import com.hola.rate.repository.RateCodeRepository;
+import com.hola.room.entity.RoomType;
+import com.hola.room.repository.RoomTypeRepository;
+```
+
+**예외 사항 (원칙 위반):**
+- `MasterReservation` 엔티티가 `Property`를 `@ManyToOne(fetch = FetchType.LAZY)` 로 직접 참조 (`hola-reservation/src/main/java/com/hola/reservation/entity/MasterReservation.java` line 27)
+- `BookingServiceImpl`이 `hola-rate`의 `RateCodeService` 인터페이스를 직접 호출 (`hola-reservation/src/main/java/com/hola/reservation/booking/service/BookingServiceImpl.java` line 27)
 
 ## Layers
 
-**Controller (API + View Separation):**
-- Purpose: HTTP entry point, request parsing, response marshalling
-- Location: `{module}/src/main/java/com/hola/{domain}/controller/`
-- Contains: `XxxApiController` (@RestController, `/api/v1/...`) and `XxxViewController` (@Controller, Thymeleaf routes)
-- Depends on: Service, DTOs, HolaResponse
-- Used by: HTTP clients, browsers
+**Controller Layer:**
+- Purpose: HTTP 요청 수신, 권한 검증 위임, 서비스 호출, 응답 반환
+- Location: `hola-{module}/src/main/java/com/hola/{domain}/controller/`
+- Contains: API 컨트롤러(`XxxApiController` @RestController), 뷰 컨트롤러(`XxxViewController` @Controller)
+- Pattern: API와 View를 별도 클래스로 분리. API는 `HolaResponse` 래퍼 반환, View는 Thymeleaf 템플릿 경로 반환
+- 모든 프로퍼티 소속 API에서 `accessControlService.validatePropertyAccess(propertyId)` 호출
+- Depends on: Service 인터페이스, AccessControlService
+- Used by: 클라이언트 (Browser, 외부 API)
 
-**Service (Interface + Implementation):**
-- Purpose: Business logic, domain state transitions, transaction boundaries
-- Location: `{module}/src/main/java/com/hola/{domain}/service/`
-- Contains: `XxxService` (interface) + `XxxServiceImpl` (@Service, @Transactional(readOnly=true) class-level)
-- Depends on: Repository, Entity, Mapper, other Services (via dependency injection), ErrorCode enum
-- Used by: Controllers, other Services
-- Pattern: Write methods marked `@Transactional` (no readOnly), read-only class-level annotation overridden per method
+**Service Layer:**
+- Purpose: 비즈니스 로직, 트랜잭션 관리
+- Location: `hola-{module}/src/main/java/com/hola/{domain}/service/`
+- Contains: 인터페이스(`XxxService`), 구현체(`XxxServiceImpl`)
+- Pattern: 클래스 레벨 `@Transactional(readOnly = true)`, 쓰기 메서드만 `@Transactional` 오버라이드
+- Depends on: Repository 인터페이스, Mapper, 다른 모듈의 Repository(크로스 모듈)
+- Used by: Controller
 
-**Repository (Data Access):**
-- Purpose: Entity persistence, query abstraction
-- Location: `{module}/src/main/java/com/hola/{domain}/repository/`
-- Contains: `XxxRepository extends JpaRepository<Xxx, Long>`
-- Depends on: Entities, Spring Data JPA
-- Used by: Services
-- Note: Custom queries use `@Query` + `@Modifying` for bulk operations; `deleteAllByXxx()` is forbidden without `@Modifying`
+**Repository Layer:**
+- Purpose: 데이터 접근
+- Location: `hola-{module}/src/main/java/com/hola/{domain}/repository/`
+- Contains: `JpaRepository<Xxx, Long>` 인터페이스
+- Pattern: Spring Data JPA 메서드 네이밍 쿼리 + 커스텀 `@Query` JPQL. 비관적 락 쿼리(`@Lock(PESSIMISTIC_WRITE)`) 사용
+- Depends on: Entity
+- Used by: Service (자기 모듈 + 크로스 모듈)
 
-**Entity (Domain Model):**
-- Purpose: Persistence model, business invariants
-- Location: `{module}/src/main/java/com/hola/{domain}/entity/`
-- Contains: `Xxx extends BaseEntity` (@Entity, @Table, @SQLRestriction, business methods)
-- Depends on: BaseEntity, JPA, Hibernate annotations, other entities (LAZY loaded)
-- Used by: Repository, Service (via query results)
-- Pattern: All entities inherit `id`, `createdAt/By`, `updatedAt/By`, `deletedAt`, `useYn`, `sortOrder`; business methods encapsulate state changes
+**Entity Layer:**
+- Purpose: 도메인 모델, 비즈니스 규칙 캡슐화
+- Location: `hola-{module}/src/main/java/com/hola/{domain}/entity/`
+- Contains: JPA 엔티티, BaseEntity 상속
+- Pattern: `@SQLRestriction("deleted_at IS NULL")` 자동 적용, Soft Delete (`softDelete()` 메서드)
+- 동시성 제어: `MasterReservation`, `SubReservation` 등에 `@Version Long version` (낙관적 락)
+- Depends on: BaseEntity (hola-common)
+- Used by: Repository, Service, Mapper
 
-**DTO (Data Transfer Objects):**
-- Purpose: Decouple API contract from persistence model
-- Location: `{module}/src/main/java/com/hola/{domain}/dto/request/` + `.../dto/response/`
-- Contains: `CreateRequest`, `UpdateRequest` (request), `Response` (response, @Builder)
-- Depends on: Validation annotations (@NotBlank, @Valid, etc.)
-- Used by: Controllers, Mappers
-- Pattern: Request DTOs with validation constraints; response DTOs with @Builder for flexible construction
+**DTO Layer:**
+- Purpose: 계층 간 데이터 전달
+- Location: `hola-{module}/src/main/java/com/hola/{domain}/dto/request/`, `dto/response/`
+- Contains: CreateRequest, UpdateRequest, Response (@Builder)
+- Pattern: request/response 하위 패키지로 분리. Validation 어노테이션 사용
+- Depends on: 없음 (순수 POJO)
+- Used by: Controller, Service, Mapper
 
-**Mapper (Manual Conversion):**
-- Purpose: Entity ↔ DTO bidirectional transformation
-- Location: `{module}/src/main/java/com/hola/{domain}/mapper/`
-- Contains: `XxxMapper` (@Component, manual `toEntity()` / `toResponse()` methods)
-- Depends on: Entities, DTOs
-- Used by: Services
-- Pattern: MapStruct declared but **manual mapping preferred** for explicit control and cross-module DTO assembly
-
-**hola-common (M00 - Foundation):**
-- Purpose: Shared base classes, security, tenant routing, exception handling, utility
-- Location: `hola-common/src/main/java/com/hola/common/`
-- Contains:
-  - `entity/BaseEntity.java` — JPA MappedSuperclass with audit fields, soft delete methods
-  - `dto/{HolaResponse, PageInfo}` — unified API response envelope, pagination metadata
-  - `security/{SecurityConfig, JwtProvider, AccessControlService, JwtAuthenticationFilter, HkMobileSessionFilter, RoleBasedAuthSuccessHandler}` — 4-chain auth, JWT, tenant access validation
-  - `tenant/{TenantContext, TenantFilter, TenantConnectionProvider, TenantIdentifierResolver}` — schema-per-tenant routing
-  - `auth/{entity/AdminUser, service/AuthService}` — user/password management, multi-tenant admin isolation
-  - `config/{JpaAuditingConfig, WebConfig, OpenApiConfig}` — Flyway, JPA auditing, Swagger init
-  - `enums/ErrorCode.java` — centralized error codes (HOLA-XXXX format)
-  - `exception/HolaException.java` — runtime exception wrapper
-  - `util/NameMaskingUtil.java` — PII masking
-- Depends on: Spring Security, Spring Data JPA, Spring Data Redis, JWT, Thymeleaf, Flyway, Swagger
-- Used by: All domain modules (api dependency)
+**Mapper Layer:**
+- Purpose: Entity ↔ DTO 변환
+- Location: `hola-{module}/src/main/java/com/hola/{domain}/mapper/`
+- Contains: `@Component` 클래스, 수동 `toEntity()`/`toResponse()` 메서드
+- Pattern: MapStruct 의존성은 있으나 실제 사용은 수동 변환
+- Depends on: Entity, DTO
+- Used by: Service
 
 ## Data Flow
 
-**Admin Web (Form Login + Thymeleaf):**
+**Admin 예약 생성 (일반):**
 
-1. **User Request** → `GET /login` browser load
-2. **Controller** → `LoginController.loginForm()` returns `login.html` template
-3. **Form Submit** → POST with `username` + `password` + CSRF token
-4. **Spring Security** → `UsernamePasswordAuthenticationFilter` → `AuthService.loadUserByUsername()` (AdminUser lookup)
-5. **Password Verify** → `PasswordEncoder.matches()`
-6. **Session Created** → `HttpSession` set with `AdminUser` principal
-7. **Redirect** → `RoleBasedAuthSuccessHandler.onAuthenticationSuccess()` routes by role (SUPER_ADMIN → `/admin`, HOTEL_ADMIN → `/hotel-admin`, etc.)
-8. **Page Request** → `HotelViewController.hotelList()` (e.g.)
-9. **Service → Repository** → `hotelRepository.findAll(pageable)` returns `Page<Hotel>`
-10. **Mapper** → `hotelMapper.toResponse(hotel)` builds `List<HotelResponse>`
-11. **Thymeleaf Render** → `layout/default.html` + `hotel/list.html` fragment
-12. **JavaScript** → `hotel-page.js` hydrates DataTable, event bindings
-13. **Response** → HTML + toast notifications (HolaPms.alert)
+1. Browser → `POST /api/v1/properties/{propertyId}/reservations` (JSESSIONID 세션 쿠키)
+2. `SecurityFilterChain @Order(2)`: JWT 필터 → 세션 기반 인증 (SessionCreationPolicy.NEVER)
+3. `ReservationApiController`: `accessControlService.validatePropertyAccess(propertyId)` → `reservationService.create()`
+4. `ReservationServiceImpl`: MasterReservation + SubReservation + DailyCharge 생성, RoomAvailabilityService 충돌 검사
+5. `RoomAvailabilityService`: SubReservationRepository + RoomTypeFloorRepository(hola-room) 크로스 모듈 조회
+6. DB 반영 후 `HolaResponse.success(data)` 반환
 
-**REST API (JWT + Stateless):**
+**부킹엔진 예약 (게스트, KICC PG):**
 
-1. **API Request** → `POST /api/v1/hotels` with `Authorization: Bearer {JWT}`
-2. **JwtAuthenticationFilter** → extracts token, calls `JwtProvider.validateToken(token)`
-3. **Claims Validated** → extract `sub` (loginId), `hotelIds`, `role`
-4. **SecurityContext** → set `UsernamePasswordAuthenticationToken` with roles
-5. **Controller** → `HotelApiController.createHotel(HotelCreateRequest)` receives deserialized JSON
-6. **Validation** → `@Valid` trigger Jakarta constraints (@NotBlank, etc.)
-7. **Service** → `HotelServiceImpl.createHotel()` business logic (duplicate check, code generation)
-8. **Repository** → `hotelRepository.save(hotel)` writes to `public.htl_hotel` (or tenant schema)
-9. **Response** → `HolaResponse.success(hotelResponse)` JSON envelope
-10. **Status** → `200 OK` + JSON body with `success:true`, `code:HOLA-0000`, `data:{...}`
+1. Browser → `POST /api/v1/booking/properties/{propertyCode}/reservations` (API-KEY 헤더)
+2. `BookingSecurityConfig @Order(0)`: BookingApiKeyFilter → API 키 검증 (Stateless)
+3. `BookingApiController` → `BookingServiceImpl`
+4. Property, RateCode, RoomType 등 크로스 모듈 조회
+5. PaymentGateway.registerTransaction() → KICC 거래등록 → 결제창 URL 반환
+6. 게스트 결제창에서 인증 → KiccPaymentApiController로 리다이렉트
+7. PaymentGateway.approveAfterAuth() → 최종 승인
+8. MasterReservation + SubReservation + DailyCharge + ReservationPayment + PaymentTransaction 생성
 
-**HK Mobile (Isolated Session):**
+**하우스키핑 모바일:**
 
-1. **HK User Login** → `POST /api/v1/properties/{propertyId}/hk-mobile/login`
-2. **HkMobileSessionFilter** (pre-auth) → attempts session lookup, saves original `SecurityContext`
-3. **Controller** → `HkMobileApiController.login()` validates password → creates new `HttpSession`
-4. **Session Attrs** → `hkUserId`, `hkUserRole` stored in session (NOT `SecurityContext`)
-5. **HkMobileSessionFilter** (post-auth) → **restores original SecurityContext** in finally block (prevents Admin/Mobile cross-contamination)
-6. **Subsequent Requests** → `HkMobileSessionFilter` loads `hkUserId` from session, bypasses `AccessControlService` (mobile has different authz model)
-7. **Response** → API returns `HolaResponse.success(data)` same as Admin API
-8. **Mobile UI** → Uses same layout + Bootstrap but `layout/mobile.html` variant for responsive design
-
-**Tenant Data Routing:**
-
-1. **Request Entry** → `TenantFilter` (SecurityContextHolderFilter.AFTER) reads `X-Tenant-ID` header or defaults to `public` schema
-2. **TenantContext.setTenantId()** → stores tenant ID in ThreadLocal
-3. **JPA Query** → `TenantIdentifierResolver.resolveCurrentTenantIdentifier()` used by Hibernate to set `SET search_path = {tenantSchema}`
-4. **Data Isolation** → all queries auto-filtered to tenant schema (e.g., `SELECT * FROM tenant_schema.htl_hotel`)
-5. **Response** → data scoped to tenant schema only
-6. **TenantFilter finally block** → `TenantContext.clear()` removes ThreadLocal (prevents leakage to next request)
+1. Mobile Browser → `POST /api/v1/properties/{propertyId}/hk-mobile/tasks/{taskId}/status` (JSESSIONID)
+2. `SecurityFilterChain @Order(1)`: HkMobileSessionFilter → 세션 attribute (`hkUserId`, `hkUserRole`)에서 SecurityContext 복원
+3. `HkMobileApiController` (hola-hotel 모듈) → `HousekeepingService`
+4. HkTask 상태 변경 + HkTaskLog 기록
 
 **State Management:**
-
-- **Entities**: Mutable business objects with `@Transactional` method scope; JPA dirty checking auto-persists changes
-- **Services**: Orchestrate entity state via repositories; transactions bound at service method
-- **Controllers**: Stateless; extract current user from `SecurityContextHolder.getContext().getAuthentication()` or session attributes
-- **Client (Admin)**: sessionStorage + `HolaPms.context` manages current hotel/property selection; broadcasts `hola:contextChange` custom event
-- **Client (Mobile)**: sessionStorage stores task state; server authoritative on persistence
+- Server: 세션 기반 (Spring Security SecurityContext) + JWT (API용)
+- Client: `HolaPms.context` (sessionStorage) → hotelId/propertyId 관리, `hola:contextChange` 커스텀 이벤트로 페이지 간 동기화
+- 멀티테넌시: ThreadLocal `TenantContext` (요청 단위)
 
 ## Key Abstractions
 
-**BaseEntity (Foundational):**
-- Purpose: Standardize audit fields + soft delete on all domain entities
-- Examples: `Hotel`, `Property`, `Room`, `Reservation`, `RoomNumber`, etc.
-- Pattern: `@MappedSuperclass` with `@EntityListeners(AuditingEntityListener.class)`; `softDelete()` method sets `deletedAt` + `useYn=false`; `@SQLRestriction` auto-filters soft-deleted rows on queries
+**BaseEntity:**
+- Purpose: 전체 엔티티 공통 필드 (id, audit, soft delete)
+- Location: `hola-common/src/main/java/com/hola/common/entity/BaseEntity.java`
+- Pattern: `@MappedSuperclass` + JPA Auditing. `softDelete()`, `activate()`, `deactivate()`, `changeSortOrder()`
 
-**HolaResponse\<T\> (API Contract):**
-- Purpose: Unified response envelope for REST APIs (success/error/pagination)
-- Examples: `HolaResponse.success(hotelList, pageInfo)`, `HolaResponse.error(ErrorCode.HOLA_0001, message)`
-- Pattern: Static factory methods; `@JsonInclude(NON_NULL)` omits null fields; always includes `success`, `code`, `message`, `timestamp`
+**HolaResponse<T>:**
+- Purpose: 통일된 API 응답 포맷
+- Location: `hola-common/src/main/java/com/hola/common/dto/HolaResponse.java`
+- Pattern: Generic wrapper. `success(data)`, `success(data, pageInfo)`, `error(code, message)`. 성공코드: `HOLA-0000`
 
-**ErrorCode (Domain Errors):**
-- Purpose: Centralized error taxonomy (HOLA-XXXX format)
-- Examples: `HOTEL_NAME_DUPLICATE = "HOLA-1001"`, `PROPERTY_NOT_FOUND = "HOLA-1002"`, `INVALID_JWT = "HOLA-0005"`
-- Pattern: Enum with code + message; service throws `HolaException(ErrorCode.XXX)` which is auto-caught by `RestExceptionHandler` → `HolaResponse.error(code, message)`
+**ErrorCode:**
+- Purpose: 전체 에러 코드 체계 (enum)
+- Location: `hola-common/src/main/java/com/hola/common/exception/ErrorCode.java`
+- Pattern: Enum with (code, message, HttpStatus). 모듈별 코드 대역: 0xxx 공통, 06xx 회원, 07xx 권한, 08xx 비밀번호, 1xxx 호텔, 2xxx 객실, 25xx TC, 26xx 재고, 3xxx 레이트, 4xxx 예약/부킹/결제, 5xxx 프론트데스크, 8xxx HK
 
-**AccessControlService (Authz):**
-- Purpose: Property-level access enforcement (multi-tenant + role-based)
-- Examples: `accessControlService.validatePropertyAccess(propertyId)` throws `HolaException(PROPERTY_ACCESS_DENIED)` if current user lacks access
-- Pattern: Retrieves current user from `SecurityContextHolder`; checks `adminUser.getHotels()/getProperties()` against requested resource; used in service layer pre-condition checks
+**AccessControlService:**
+- Purpose: 프로퍼티/호텔 접근 권한 검증 중앙화
+- Location: `hola-common/src/main/java/com/hola/common/security/AccessControlService.java`
+- Pattern: SUPER_ADMIN → 전체 허용, HOTEL_ADMIN/PROPERTY_ADMIN → AdminUserProperty 매핑 검증
 
-**TenantContext (Isolation):**
-- Purpose: ThreadLocal routing for schema-per-tenant PostgreSQL
-- Examples: `TenantContext.setTenantId("hotel_001")` → subsequent JPA queries run in `hotel_001` schema
-- Pattern: `TenantFilter` on every request sets tenant; `TenantIdentifierResolver` used by Hibernate; finally block clears ThreadLocal
+**PaymentGateway:**
+- Purpose: 결제 PG 추상화
+- Location: `hola-reservation/src/main/java/com/hola/reservation/booking/gateway/PaymentGateway.java`
+- Implementations:
+  - `MockPaymentGateway` (`hola-reservation/src/main/java/com/hola/reservation/booking/gateway/MockPaymentGateway.java`) — 테스트용 동기식
+  - `KiccPaymentGateway` (`hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccPaymentGateway.java`) — KICC 이지페이 3단계 비동기
+- Pattern: Strategy pattern. `registerTransaction()` → `approveAfterAuth()` → `cancelPayment()`
+
+**InventoryManagementStrategy:**
+- Purpose: 재고 관리 전략 추상화
+- Location: `hola-room/src/main/java/com/hola/room/service/inventory/InventoryManagementStrategy.java`
+- Implementations:
+  - `InternalInventoryStrategy` — 자체 DB 관리 (InventoryAvailability 테이블)
+  - `ExternalInventoryStrategy` — 외부 ERP 연동 준비
+- Pattern: Strategy pattern. `reserve()`, `release()`, `getAvailableCount()`
+
+**RoomAvailabilityService:**
+- Purpose: 객실 가용성 3계층 검증
+- Location: `hola-reservation/src/main/java/com/hola/reservation/service/RoomAvailabilityService.java`
+- L1: 호수(roomNumberId) 충돌 검사 — 동일 객실 기간 겹침 방지
+- L2: 타입(roomTypeId)별 잔여 객실 수 — 총 등록 객실 vs 활성 예약
+- L3: 오버부킹 경고 — L2 초과 시 경고 (관리자 판단 위임)
+- Dayuse 시간 슬롯 충돌 필터링 지원
+- 비관적 락(`findConflictsWithLock`) + 낙관적 락(`@Version`) 이중 동시성 보호
+
+**PriceCalculationService:**
+- Purpose: 요금 자동 계산 엔진
+- Location: `hola-reservation/src/main/java/com/hola/reservation/service/PriceCalculationService.java`
+- Pattern: RateCode → RatePricing → 요일별 요금표 → 인원 추가 요금 → 봉사료 → VAT(봉사료 포함) → DailyCharge 리스트 생성
 
 ## Entry Points
 
-**Admin Web:**
+**Application Bootstrap:**
+- Location: `hola-app/src/main/java/com/hola/HolaPmsApplication.java`
+- Triggers: `./gradlew :hola-app:bootRun`
+- Responsibilities: Spring Boot 자동 설정, `@SpringBootApplication` (base package: `com.hola`) → 전 모듈 컴포넌트 스캔
+
+**Admin Web (세션 기반):**
 - Location: `hola-app/src/main/java/com/hola/web/LoginController.java`
-- Triggers: Browser GET `/login` → form, POST → session creation
-- Responsibilities: Login form rendering, password validation, session initialization, role-based redirect
+- Triggers: Browser GET `/login` → Form POST `/login`
+- Responsibilities: `RoleBasedAuthSuccessHandler` 역할별 리다이렉트 (HOUSEKEEPER→모바일, 나머지→대시보드)
 
-**REST APIs:**
-- Location: `{module}/src/main/java/com/hola/{domain}/controller/{Domain}ApiController.java` (e.g., `HotelApiController`)
-- Triggers: POST/GET/PUT/DELETE to `/api/v1/{resource}`
-- Responsibilities: Request parsing (@RequestBody, @PathVariable), validation (@Valid), service delegation, response marshalling
+**REST API (JWT):**
+- Location: 각 모듈 `*ApiController.java` (60+ 컨트롤러)
+- Triggers: `POST /api/v1/auth/login` → JWT 토큰 발급 → `Authorization: Bearer {token}` 헤더
+- Responsibilities: AJAX 호출 처리, `HolaResponse` 래퍼 반환
 
-**Booking Engine:**
+**Booking API (API Key):**
 - Location: `hola-reservation/src/main/java/com/hola/reservation/booking/controller/BookingApiController.java`
-- Triggers: External POST to `/api/v1/booking/...` with `API-KEY` header (stateless, no tenant context)
-- Responsibilities: Book-on-behalf payment processing, OTA channel integration, no admin session required
+- Triggers: 외부 요청 `API-KEY` 헤더
+- Responsibilities: 게스트 예약 생성/조회/수정/취소, 결제 처리
 
-**HK Mobile Dashboard:**
-- Location: `hola-hotel/src/main/java/com/hola/hotel/controller/HkMobileApiController.java`
-- Triggers: Mobile POST `/api/v1/properties/{propertyId}/hk-mobile/login` → session creation
-- Responsibilities: Housekeeping task assignment, room status updates, attendance tracking (isolation from Admin)
+**KICC PG Callback:**
+- Location: `hola-reservation/src/main/java/com/hola/reservation/booking/controller/KiccPaymentApiController.java`
+- Triggers: KICC 결제창 인증 완료 → 리다이렉트 (`/booking/payment-return`)
+- Responsibilities: PG 인증 후 최종 결제 승인 처리
 
-**Thymeleaf Views:**
-- Location: `hola-app/src/main/resources/templates/{domain}/{page}.html`
-- Triggers: Controller returns `String viewName` (e.g., `"hotel/list"`)
-- Responsibilities: Fragment rendering via `layout:fragment`, JavaScript hydration, form submission
+**HK Mobile:**
+- Location: `hola-hotel/src/main/java/com/hola/hotel/controller/HkMobileApiController.java`, `HkMobileViewController.java`
+- Triggers: Mobile browser `/m/housekeeping/login`
+- Responsibilities: 하우스키퍼 로그인, 업무 조회/상태변경, 출퇴근
+
+**Dashboard:**
+- Location: `hola-app/src/main/java/com/hola/web/DashboardController.java`
+- Triggers: `/` 또는 `/admin/dashboard`
+- Responsibilities: 전체 KPI, 프로퍼티별 운영현황, 픽업 현황 (DashboardService → hola-reservation)
 
 ## Error Handling
 
-**Strategy:** Centralized exception translation via `@RestControllerAdvice` + `RestExceptionHandler`
+**Strategy:** 3계층 예외 처리 (비즈니스 → 검증 → 시스템)
 
 **Patterns:**
+- 비즈니스 예외: `throw new HolaException(ErrorCode.XXX)` → `GlobalExceptionHandler` 에서 `HolaResponse.error()` 반환
+- 입력값 검증: `@Valid` + `MethodArgumentNotValidException` → 필드 에러 메시지 조합
+- 동시성 충돌: `ObjectOptimisticLockingFailureException` → HTTP 409 + "HOLA-4027"
+- 데이터 무결성: `DataIntegrityViolationException` → HTTP 409 + "HOLA-0004"
+- 시스템 오류: 최종 `Exception` catch → HTTP 500 + "HOLA-0001"
+- 정적 리소스 미발견: `NoResourceFoundException` → HTTP 404 (로그 DEBUG)
 
-- **Business Errors** → `throw new HolaException(ErrorCode.HOTEL_NOT_FOUND)` in service → caught by handler → `HolaResponse.error(code, message)` with `success:false`
-- **Validation Errors** → `@Valid` + Jakarta constraints on DTOs → `MethodArgumentNotValidException` → handler extracts field errors → `HolaResponse.error(HOLA-0001, field + error message)`
-- **Authorization Errors** → `AccessControlService.validatePropertyAccess()` throws `HolaException(PROPERTY_ACCESS_DENIED)` → handler → `HolaResponse.error()` with 403 HTTP status
-- **JWT Errors** → `JwtProvider.validateToken()` throws `ExpiredJwtException` / `SignatureException` → `JwtAuthenticationFilter` catches → `401 Unauthorized` JSON response
-- **Session Expiry (Admin)** → Spring Security intercepts unauthenticated request → `AuthenticationEntryPoint` → redirect to `/login` with referrer
-- **Session Expiry (HK Mobile)** → `HkMobileSessionFilter` detects missing session → `401 Unauthorized` JSON response (mobile app handles redirect)
+**GlobalExceptionHandler:** `hola-common/src/main/java/com/hola/common/exception/GlobalExceptionHandler.java`
+**BookingExceptionHandler:** `hola-reservation/src/main/java/com/hola/reservation/booking/exception/BookingExceptionHandler.java`
+
+## Security Architecture
+
+**4단 Filter Chain (Order 기준):**
+
+| Order | Bean | Matcher | 인증 방식 | 세션 정책 |
+|-------|------|---------|-----------|-----------|
+| 0 | `bookingApiFilterChain` | `/api/v1/booking/**` | BookingApiKeyFilter (API-KEY 헤더) | STATELESS |
+| 1 | `hkMobileApiFilterChain` | `/api/v1/properties/*/hk-mobile/**` | HkMobileSessionFilter (세션 attribute) | IF_REQUIRED, sessionFixation().none() |
+| 2 | `apiFilterChain` | `/api/**` | JwtAuthenticationFilter | NEVER (세션 생성 안 함, 기존 세션은 허용) |
+| 3 | `webFilterChain` | `/**` | Form Login (JSESSIONID) | 기본 (세션 생성) |
+
+**SecurityConfig:** `hola-common/src/main/java/com/hola/common/security/SecurityConfig.java`
+**BookingSecurityConfig:** `hola-reservation/src/main/java/com/hola/reservation/booking/security/BookingSecurityConfig.java`
+
+**HkMobileSessionFilter 핵심 주의점:**
+- PMS Admin SecurityContext 오염 방지를 위해 try/finally로 원본 컨텍스트 백업/복원 필수
+- `hkUserId`, `hkUserRole` 세션 attribute에서 별도 SecurityContext 생성
+- `shouldNotFilter()`: `/hk-mobile/` 경로만 필터링
+- Location: `hola-common/src/main/java/com/hola/common/security/HkMobileSessionFilter.java`
+
+**역할 5종:** SUPER_ADMIN, HOTEL_ADMIN, PROPERTY_ADMIN, HOUSEKEEPING_SUPERVISOR, HOUSEKEEPER
+
+**JWT:** Access Token 1h + Refresh Token 7d
+- Location: `hola-common/src/main/java/com/hola/common/security/JwtProvider.java`
+
+**URL 인가 규칙 경로 순서:**
+- 구체적 경로 (`/api/v1/hotels/selector`)를 제너릭 (`/api/v1/hotels/**`)보다 **먼저** 배치 필수
+- SecurityConfig의 `requestMatchers` 순서가 매칭 우선순위를 결정
+
+## Multi-Tenancy
+
+**방식:** Schema-per-Tenant (PostgreSQL 스키마 분리)
+
+**구현 흐름:**
+1. `TenantFilter` (Ordered.HIGHEST_PRECEDENCE): `X-Tenant-ID` 헤더 → `TenantContext.setTenantId()` (ThreadLocal)
+2. `TenantIdentifierResolver`: Hibernate가 SQL 실행 시 `TenantContext.getTenantId()` 호출
+3. `TenantConnectionProvider`: `connection.setSchema(tenantIdentifier)` → 스키마 전환
+4. 요청 종료 시 `TenantFilter` finally 블록에서 `TenantContext.clear()` → ThreadLocal 정리
+
+**관련 파일:**
+- `hola-common/src/main/java/com/hola/common/tenant/TenantFilter.java`
+- `hola-common/src/main/java/com/hola/common/tenant/TenantContext.java`
+- `hola-common/src/main/java/com/hola/common/tenant/TenantConnectionProvider.java`
+- `hola-common/src/main/java/com/hola/common/tenant/TenantIdentifierResolver.java`
 
 ## Cross-Cutting Concerns
 
-**Logging:** `@Slf4j` on services + controllers; structured logs via `log.info()/warn()/error()` with context (e.g., "호텔 생성: HotelName (HotelCode)")
+**Logging:** SLF4J + Logback (`@Slf4j` Lombok). 프로파일별 레벨: local=DEBUG, prod=INFO.
 
-**Validation:**
-- Request layer: Jakarta `@NotBlank`, `@NotNull`, `@Min`, `@Max` on DTO fields
-- Service layer: Manual checks for business rules (e.g., duplicate checks, state transitions)
-- Database layer: Unique constraints on `htl_hotel.hotel_code`, NOT NULL on required columns
+**Validation:** Jakarta Validation (`@Valid`, `@NotBlank`, `@Size` 등) + `GlobalExceptionHandler`. 비즈니스 검증은 Service에서 `HolaException` throw.
 
-**Authentication:**
-- Admin: Spring Security default `UsernamePasswordAuthenticationFilter` → `AuthService.loadUserByUsername()` → session
-- API: `JwtAuthenticationFilter` → `JwtProvider.validateToken()` → `SecurityContext`
-- Mobile: `HkMobileSessionFilter` → session attributes (`hkUserId`, `hkUserRole`) outside SecurityContext
+**Authentication:** `AccessControlService` 를 통해 Controller에서 호출. `getCurrentUser()`, `validatePropertyAccess(propertyId)`, `validateHotelAccess(hotelId)`.
 
-**Multitenant Access:**
-- Header injection: `X-Tenant-ID` passed by client or inferred from `AdminUser.hotelId` (SUPER_ADMIN defaults to `public`)
-- Runtime routing: `TenantFilter` sets `TenantContext`; `TenantIdentifierResolver` configures Hibernate
-- Row-level security: Each entity query scoped to tenant schema automatically
+**Auditing:** JPA Auditing (`@CreatedDate`, `@CreatedBy`, `@LastModifiedDate`, `@LastModifiedBy`) → BaseEntity 자동 적용.
+- Config: `hola-common/src/main/java/com/hola/common/config/JpaAuditingConfig.java`
 
-**Transaction Boundaries:**
-- Class-level `@Transactional(readOnly=true)` on all `*ServiceImpl`
-- Write methods override with `@Transactional` (no readOnly)
-- Exception: `orphanRemoval=true` collections must use `collection.clear() + flush()` not JPQL DELETE
+**Soft Delete:** `BaseEntity.softDelete()` → `deletedAt` + `useYn=false`. `@SQLRestriction("deleted_at IS NULL")` 자동 필터링. **물리 삭제 금지 원칙.**
 
-**PII Masking:**
-- Server-side: `NameMaskingUtil.maskName()`, `maskPhone()` in service response builders
-- Client-side: `HolaPms.maskName()`, `HolaPms.maskPhone()` in JavaScript DataTable renderers (redundant safety)
+**Concurrency Control:**
+- 낙관적 락: `@Version Long version` (MasterReservation, SubReservation 등)
+- 비관적 락: `@Lock(PESSIMISTIC_WRITE)` + `@Query` JPQL (RoomAvailabilityService)
+- 이중 보호: TOCTOU 레이스 컨디션 방지를 위해 비관적 락 → 낙관적 락 순차 적용
+
+**File Upload:**
+- `hola-common/src/main/java/com/hola/common/controller/FileUploadController.java`
+- `hola-common/src/main/java/com/hola/common/service/FileUploadService.java`
+- 로컬 파일시스템 (`./uploads/` 경로, `hola.upload.path` 설정)
+
+## Change Impact Points
+
+**BaseEntity 변경 시:**
+- 전체 모듈의 모든 엔티티에 영향 (61+ 엔티티가 상속)
+- Flyway 마이그레이션 필수
+
+**SecurityConfig 변경 시:**
+- 4개 Filter Chain 순서 중요 — @Order 값과 requestMatchers 순서 모두 확인 필요
+- BookingSecurityConfig (@Order 0)이 별도 파일(`hola-reservation` 모듈)에 존재
+
+**ErrorCode 추가 시:**
+- `ErrorCode` enum에 새 코드 추가 → 프론트엔드 `hola-common.js` 에러 핸들링 매핑 확인
+
+**RoomType/RateCode 엔티티 변경 시:**
+- `hola-reservation` 모듈의 BookingServiceImpl(1,969줄), ReservationServiceImpl(1,857줄), PriceCalculationService에 연쇄 영향
+- 크로스 모듈 Repository 직접 참조이므로 컴파일 타임에 즉시 발견됨
+
+**Property 엔티티 변경 시:**
+- MasterReservation `@ManyToOne` 직접 참조 → JPA 관계에 영향
+- PriceCalculationService: 세금/봉사료율 (`taxRate`, `serviceChargeRate`) 사용
+- 부킹엔진 전체: PropertyImage, PropertyTerms, PropertySettlement 등 연관
+
+**SubReservation 상태 변경 로직:**
+- RoomAvailabilityService 가용성 검사 (RELEASED_STATUSES 목록)
+- FrontDeskServiceImpl 도착/인하우스/출발 조회
+- DashboardServiceImpl KPI 계산
+- HousekeepingServiceImpl 하우스키핑 태스크 자동 생성
 
 ---
 
-*Architecture analysis: 2026-02-28*
+*Architecture analysis: 2026-03-26*

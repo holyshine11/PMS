@@ -1,810 +1,266 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-02-28
+**Analysis Date:** 2026-03-26
 
 ## Tech Debt
 
-### ERP Integration Not Implemented
+### God Class: BookingServiceImpl (1,969줄)
 
-**Area:** Inventory Management Strategy Pattern
+- Issue: 단일 서비스에 부킹엔진 전체 비즈니스 로직 집중. 프로퍼티 조회, 요금 계산, 가용성 검색, 예약 생성, 결제 처리, 취소, 수정, 확인 조회까지 모두 포함
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/service/BookingServiceImpl.java`
+- Impact: 변경 시 의도치 않은 사이드이펙트 발생 위험 높음. 테스트 작성 어려움. 1,969줄은 가독성 한계 초과
+- Fix approach: 기능별 분리 — `BookingSearchService`, `BookingReservationService`, `BookingPaymentService`, `BookingLookupService` 등으로 위임 패턴 적용
 
-**Issue:** External ERP integration is stubbed with TODOs. Module architecture designed for SAP/ERP integration but all methods return mock data.
+### God Class: ReservationServiceImpl (1,857줄)
 
-**Files:**
-- `hola-pms/hola-room/src/main/java/com/hola/room/service/inventory/ExternalInventoryStrategy.java` (lines 21-42)
+- Issue: 예약 CRUD, 상태 전이, 캘린더뷰, 타임라인, 서비스 항목 관리, 체크인/아웃 등 예약 도메인 전체가 단일 클래스
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationServiceImpl.java`
+- Impact: BookingServiceImpl과 동일한 유지보수 위험
+- Fix approach: `ReservationLifecycleService`(상태 전이), `ReservationCalendarService`(캘린더/타임라인), `ReservationServiceItemService`(유료 서비스) 분리
 
-**Impact:**
-- `getAvailableCount()` returns `Integer.MAX_VALUE` (always available)
-- `reserve()` logs notification but doesn't validate against external system
-- `release()` logs notification only
-- `getAvailability()` returns empty list
-- Real inventory conflicts may not be detected if ERP mode is selected
+### ExternalInventoryStrategy — 미구현 스텁
 
-**Fix Approach:**
-1. Implement actual ERP API client (configurable endpoint via environment variable)
-2. Add API key authentication and timeout handling (default 5s with retry)
-3. Create test doubles for unit tests (separate from ExternalInventoryStrategy)
-4. Add circuit breaker pattern for ERP API failures
-5. Log all ERP API calls with correlation IDs for debugging
+- Issue: 외부 ERP 연동 전략이 TODO 상태. `getAvailableCount()`는 `Integer.MAX_VALUE` 반환
+- Files: `hola-pms/hola-room/src/main/java/com/hola/room/service/inventory/ExternalInventoryStrategy.java` (라인 21-42)
+- Impact: ERP 재고 관리 모드 선택 시 재고 검증 없이 무한 가용으로 처리됨
+- Fix approach: ERP API 클라이언트 구현, 서킷브레이커 패턴 적용, 타임아웃 설정
 
----
+### RoomRackController — 아키텍처 위반
 
-### Frontend jQuery $.html() Direct HTML Injection
-
-**Area:** XSS Vulnerability - Content Injection
-
-**Issue:** Multiple JS files use jQuery `.html()` with potentially unsafe string concatenation. While current code appears to use static strings and data-bound variables, the pattern is fragile.
-
-**Files:**
-- `hola-pms/hola-app/src/main/resources/static/js/reservation-detail.js` (19 occurrences: lines 688, 997, 1500, 1529, 1565, 1606, 1672, 1675, 1692, 1741, 1761, 1768, 1784, 1804, 1938, 2340, 2382, 2416, 2430)
-- `hola-pms/hola-app/src/main/resources/static/js/hk-attendance-page.js` (line 108)
-- Other form/page files: `rate-code-form.js`, `promotion-code-form.js`, `reservation-form.js`, etc.
-
-**Symptoms:**
-- String concatenation like `$container.html(html)` where `html` is built from API responses
-- Example: `$('#upgradeRoomTypeId').html('<option value="">선택</option>');` (safe currently)
-- Risk: If API response contains user input (guest name, memo text), XSS injection possible
-
-**Current Mitigation:**
-- API responses are typed DTOs (not raw user input)
-- Server-side masking of PII (guest names, phone numbers) via `NameMaskingUtil`
-- Bootstrap/DataTables handle most list rendering safely
-
-**Fragile Areas:**
-- Memo text display in `reservation-detail.js` (lines 2340+)
-- Custom HTML builders in `_roomStatusBadge()` and similar functions
-- Any field that could contain guest-supplied text (notes, special requests)
-
-**Fix Approach:**
-1. Audit all `.html()` calls to identify data sources
-2. For static HTML: keep as-is (e.g., `<option>` tags)
-3. For dynamic content: use `.text()` or escaped helpers
-4. Create centralized `SafeHtml` utility that validates/escapes before injection
-5. Consider migrating to `.append($(...)` with jQuery objects for DOM-safe construction
-6. Add CSP (Content-Security-Policy) header to prevent inline script execution
-
----
-
-## Known Bugs
-
-### Orphaned HK Task/Assignment Data (PARTIALLY FIXED)
-
-**Issue:** HK tasks remain in INHOUSE state after check-out. Migration V8_9_0 attempted fix but data integrity checks missing.
-
-**Files:**
-- `hola-pms/hola-app/src/main/resources/db/migration/V8_9_0__fix_orphan_inhouse_data.sql`
-- `hola-pms/hola-hotel/src/main/java/com/hola/hotel/service/HkAssignmentServiceImpl.java` (lines 100+)
-
-**Symptoms:**
-- HK staff see completed tasks in mobile app for past check-outs
-- HK reports show tasks from closed reservations
-- Orphan data may interfere with today's task counts
-
-**Current Status:**
-- Flyway migration added but no application-level constraint
-- No foreign key cascade to HkTask/HkAssignment on SubReservation delete
-
-**Fix Approach:**
-1. Add `ON DELETE CASCADE` constraint from `sub_reservation` to `hk_task` and `hk_assignment`
-2. Add pre-delete audit logging in `HousekeepingService.markReservationClosed()` to track cleaned records
-3. Create scheduled job to detect orphaned tasks (SubReservationId pointing to deleted record)
-4. Add test case: create HK task → check out reservation → verify task deleted or marked inactive
-
----
-
-### JPQL Null Parameter Bytea Casting Error (RECURRING RISK)
-
-**Issue:** Hibernate 6 + PostgreSQL fail when JPQL uses `(:param IS NULL OR column = :param)` pattern with non-trivial types. This is solved in current code but the pattern is easy to reintroduce.
-
-**Files:**
-- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationServiceImpl.java` (line 107-116: Java filtering instead of JPQL)
-- All repository methods with optional parameters
-
-**Current Solution:**
-- Code avoids JPQL null checks: "전체 조회 후 Java 필터링 (Hibernate 6 + PostgreSQL null 파라미터 타입 추론 이슈 회피)"
-- Uses `.findByPropertyId()` then streams with Java predicates
-- Pattern works but fetches full table for filtering
-
-**Risk:**
-- Future developer might write `JPQL: "... WHERE (:status IS NULL OR rsv.status = :status)"` not knowing the issue
-- Affects any LIKE, =, >=, <= operators with null-able parameters
-- Silent failure: query compiles, fails at runtime with bytea cast error
-
-**Fix Approach:**
-1. Add custom JPA Specification factory with null-safe helpers
-2. Create `QueryBuilder` utility: `nullSafeEq(root, path, value)` → returns null predicate or equals predicate
-3. Document in CLAUDE.md: "JPQL null patterns forbidden - use Specification or Java stream filtering"
-4. Add pre-commit hook to detect `IS NULL OR` patterns in Java files
-5. Consider Hibernate 6.5+ which may have fixed this (test on upgrade)
-
----
-
-### Multi-File Entity Updates Not Transactional
-
-**Area:** HkSection with Orphan Collections
-
-**Issue:** `HkSection` has two `@OneToMany(orphanRemoval=true)` collections. When updating through web form, all files must be updated atomically or risk orphaned child records.
-
-**Files:**
-- `hola-pms/hola-hotel/src/main/java/com/hola/hotel/entity/HkSection.java` (lines 36-41)
-- `hola-pms/hola-hotel/src/main/java/com/hola/hotel/service/HkAssignmentServiceImpl.java` (line 112: comment notes this pattern)
-
-**Symptoms:**
-- If form submission partially fails (e.g., some files upload, some fail), orphanRemoval cascade may delete unintended records
-- If database transaction rolls back mid-update, collections may be in inconsistent state
-
-**Current Mitigation:**
-- Code uses `clear() → flush() → addAll()` pattern to ensure JPA sees collection changes (line 112)
-- `@Transactional` at service method level
-
-**Fragile Areas:**
-- File upload + HkSection update: If file A uploads OK, file B fails, and transaction rolls back, orphaned file entries may remain
-- No explicit transaction boundary around multi-step updates
-- Flyway migrations (V8_5_1) added nullable FK but no NOT NULL constraint to detect partial deletes
-
-**Fix Approach:**
-1. Separate concerns: HkSection config update vs file upload (two endpoints, two transactions)
-2. Add pre-delete cascade logging: log which child records are being deleted
-3. Add database constraint: `ALTER TABLE hk_section_file ADD CONSTRAINT NOT NULL` to detect orphan attempts
-4. Unit test: create HkSection with 2 files → update 1 file → verify other untouched
-5. Document in service: "Orphan removal enabled - keep collection updates together in same @Transactional block"
+- Issue: Controller가 Repository를 직접 주입받아 사용. 서비스 레이어를 거치지 않고 `SubReservationRepository`, `HkTaskRepository`, `RoomTypeFloorRepository`, `AdminUserRepository` 등 6개 Repository 직접 의존
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/controller/RoomRackController.java`
+- Impact: 트랜잭션 경계 부재 (`@Transactional` 없음), 비즈니스 로직이 Controller에 분산, 테스트 어려움
+- Fix approach: `RoomRackService` 추출하여 서비스 레이어로 이동. `@Transactional(readOnly = true)` 적용
 
 ---
 
 ## Security Considerations
 
-### Session Context Pollution - HK Mobile vs Admin PMS
+### KICC postMessage Origin 미검증
 
-**Risk Level:** CRITICAL (Multiple incidents logged in MEMORY.md)
+- Risk: `booking.js`의 KICC 결제 결과 postMessage 리스너가 `e.origin` 검증 없이 메시지를 처리함. 악의적 iframe이나 팝업이 가짜 `KICC_PAYMENT_COMPLETE` 메시지를 전송하면 잘못된 결제 성공 페이지로 이동 가능
+- Files:
+  - `hola-pms/hola-app/src/main/resources/static/js/booking.js` (라인 792-793)
+  - `hola-pms/hola-app/src/main/resources/templates/booking/payment-return.html` (라인 60, 66: `postMessage({...}, '*')`)
+- Current mitigation: 서버 사이드에서 Redis 기반 결제 결과를 `/result` API로 재검증하므로 실제 예약 생성 위조는 불가. 다만 UI 레벨 오동작 가능
+- Recommendations:
+  1. `payment-return.html`에서 `postMessage(data, '*')` → `postMessage(data, window.location.origin)` 변경
+  2. `booking.js` 리스너에 `if (e.origin !== window.location.origin) return;` 추가
 
-**Area:** Multi-Role Session Management
+### HMAC 검증 — Timing Attack 취약
 
-**Issue:** When same browser/session is used for both Admin PMS (SUPER_ADMIN) and HK Mobile (HOUSEKEEPER), `SecurityContext` can be overwritten. Session attribute `SPRING_SECURITY_CONTEXT` gets contaminated.
+- Risk: `KiccHmacUtils.verify()` 메서드가 `received.equals(expected)`로 비교. 일정 시간 차이를 이용한 timing attack에 이론적으로 취약
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccHmacUtils.java` (라인 71)
+- Current mitigation: 테스트 환경(mallId 'T' 시작)에서는 HMAC 검증 실패 시 로그만 남기고 진행. 실제 공격 난이도는 매우 높음
+- Recommendations: `MessageDigest.isEqual(received.getBytes(), expected.getBytes())` 사용으로 constant-time 비교 적용
 
-**Files:**
-- `hola-pms/hola-common/src/main/java/com/hola/common/security/HkMobileSessionFilter.java` (correct: backup/restore at lines 34-56)
-- `hola-pms/hola-common/src/main/java/com/hola/common/security/SecurityConfig.java` (lines 48-71, 170-171: filter ordering)
+### CSRF 전체 비활성화
 
-**Current Mitigations:**
-- `HkMobileSessionFilter` uses try-finally to restore original SecurityContext (line 54-56)
-- `sessionFixation().none()` disables session fixation protection for mobile (line 54)
-- Filter added AFTER SecurityContextHolderFilter (line 171)
-- Separate session attributes: `hkUserId` + `hkUserRole` vs admin auth
+- Risk: 모든 SecurityFilterChain에서 `.csrf(AbstractHttpConfigurer::disable)`. API(JWT/Stateless) 체인은 괜찮지만, 세션 기반 웹 체인(Order 3)도 CSRF 비활성화됨
+- Files: `hola-pms/hola-common/src/main/java/com/hola/common/security/SecurityConfig.java` (라인 184)
+- Current mitigation: Admin 페이지는 인증된 사용자만 접근. 단, CSRF가 없으면 로그인된 관리자의 브라우저에서 악의적 사이트가 Admin API 호출 가능
+- Recommendations: 웹 체인(Order 3)에 CSRF 토큰 활성화 검토. Thymeleaf `_csrf` 자동 지원 가능
 
-**Why Still Fragile:**
-- Mobile filter runs AFTER JwtAuthenticationFilter (order matters: 0=Booking, 1=HkMobile, 2=JWT, 3=Web)
-- If filter is accidentally moved earlier, admin request could be intercepted by mobile logic
-- If try-finally is removed or catches exception badly, original context is lost
-- No explicit test case for "same session, PMS tab + mobile tab concurrent requests"
+### Client IP 감지 — 프록시 미대응
 
-**Recent Incidents:**
-- early-late-policy page (3회 버그 발생)
-- reservation-detail page
-- Pattern: Context not restored → admin operation incorrectly authorized as HOUSEKEEPER
+- Risk: `httpRequest.getRemoteAddr()` 만 사용. 리버스 프록시(Nginx, LB) 뒤에 배포 시 모든 요청의 IP가 프록시 IP로 기록됨
+- Files:
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/controller/BookingApiController.java` (라인 186, 246)
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/controller/KiccPaymentApiController.java` (라인 66)
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/security/BookingApiKeyFilter.java` (라인 60)
+- Recommendations: `X-Forwarded-For` / `X-Real-IP` 헤더를 우선 확인하는 유틸리티 메서드 도입. Spring Boot `server.forward-headers-strategy=native` 설정 검토
 
-**Fix Approach:**
-1. Add integration test: Same session → Admin API call → Mobile API call → Admin API call → all succeed with correct roles
-2. Add explicit test: Verify SecurityContext is ORIGINAL_ADMIN after mobile filter chain
-3. Move HkMobile filter to AFTER all auth filters (currently at `SecurityContextHolderFilter.class`)
-4. Add guard: In AdminUserRepository, add query-level check to ensure role != HOUSEKEEPER (defense-in-depth)
-5. Log all SecurityContext swaps to audit log (track which requests changed context)
-6. Document in SecurityConfig: "DO NOT REMOVE try-finally from HkMobileSessionFilter - verified fix for context pollution"
+### Rate Limiting 부재
 
----
-
-### JWT Secret Not Rotated, No Token Revocation
-
-**Area:** Token Lifecycle Management
-
-**Issue:** JWT secret is read from `${jwt.secret}` environment variable (good) but no mechanism to revoke tokens or rotate keys.
-
-**Files:**
-- `hola-pms/hola-common/src/main/java/com/hola/common/security/JwtProvider.java` (line 28: secret loaded at startup)
-- `hola-pms/hola-common/src/main/java/com/hola/common/config/JpaAuditingConfig.java` (no revocation list)
-
-**Symptoms:**
-- If dev accidentally commits a secret key in git history, all JWT tokens issued with that key remain valid forever
-- Logout doesn't invalidate JWT (tokens valid until expiry, typically 1 hour)
-- Compromised user account: attacker keeps access with stolen token for 1 hour
-- Key rotation requires restart (downtime)
-
-**Current Mitigations:**
-- Access token expiry: 1 hour (default)
-- Refresh token expiry: 7 days
-- Tokens checked in `JwtAuthenticationFilter.validateToken()` (line 64-73)
-- No environment variable leakage visible in code (secret injection at runtime)
-
-**Risk Vector:**
-- Database breach exposing user passwords (fixed by BCrypt `$2a$10` cost factor)
-- Application logs accidentally printing tokens (search indicates none, but possible in future)
-- Man-in-the-middle capturing token from HTTPS (HTTPS not enforced in dev profile)
-
-**Fix Approach:**
-1. Add token blacklist: `jwt_blacklist` table with `token_hash` + `expiry_date` index
-2. On logout: insert token hash to blacklist (set expiry = actual token expiry)
-3. In `JwtAuthenticationFilter.validateToken()`: check blacklist before claims validation
-4. Implement `/api/v1/auth/logout` endpoint to blacklist current token
-5. Add scheduled job: `DELETE FROM jwt_blacklist WHERE expiry_date < NOW()` (daily)
-6. Separate keypairs for access vs refresh tokens (allows rotating access key without breaking refresh flow)
-7. Document secret rotation procedure: generate new key → deploy with both old+new → validate for 24h → remove old key
-
----
-
-### BookingApiKeyFilter Single Static Key
-
-**Area:** Booking Engine API Authentication
-
-**Issue:** Booking API (guest checkout) uses single API key stored in database. If compromised, attacker can submit fake bookings.
-
-**Files:**
-- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/security/BookingApiKeyFilter.java` (line 33: reads single header)
-- `hola-pms/hola-app/src/main/resources/db/migration/V4_13_0__create_booking_api_key.sql`
-
-**Current Mitigations:**
-- API key stored in `booking_api_key` table (encrypted in DB)
-- Filter checks header `API-KEY` matches database value
-- CSRF disabled for `/api/v1/booking/**` (required for guest checkout)
-
-**Risks:**
-- Single key: if leaked, attacker creates unlimited bookings
-- No key rotation mechanism in code
-- No rate limiting visible (vulnerable to brute-force booking attacks)
-- No request signing or timestamp validation (replay attacks possible)
-- Guest payment confirmation email could be spoofed if booking submission forged
-
-**Impact:**
-- Financial: Fake bookings consume inventory, block real guests
-- Revenue: Refund fraud (submit booking, receive confirmation, request refund)
-- Data: Booking audit log polluted with fake entries
-
-**Fix Approach:**
-1. Implement HMAC-SHA256 request signing: client signs request body with API key
-2. Add timestamp validation: reject requests older than 5 minutes
-3. Add idempotency key: client provides nonce → server tracks to prevent duplicate submissions
-4. Rate limiting: 100 bookings/hour per IP (configurable, with whitelist for OTA partners)
-5. API key versioning: create new key periodically, deprecate old keys after grace period
-6. Webhook signature verification: outbound emails should be signed with same HMAC
-7. Add booking validation: verify payment info, guest details, check-in date sanity before persisting
-8. Log all bookings: IP, user agent, payment method, timestamp → detect patterns
-
----
-
-### No PII Data Masking in Logs or API Responses (Partial Fix)
-
-**Area:** Personally Identifiable Information (PII) Exposure
-
-**Issue:** While frontend masks guest names/phones with `HolaPms.maskName()` + `HolaPms.maskPhone()`, backend logs and API responses may contain unmasked data.
-
-**Files:**
-- `hola-pms/hola-common/src/main/java/com/hola/common/util/NameMaskingUtil.java` (frontend utility)
-- Service logs in `ReservationServiceImpl`, `FrontDeskServiceImpl`, etc. (may log guest details)
-
-**Current Mitigations:**
-- Frontend masking: guest name shown as `김*홍`, phone as `010-****-1234`
-- GDPR-style requirement noted in MEMORY.md: "개인정보 마스킹 필수"
-
-**Fragile Areas:**
-- Backend logs: if `log.info("Guest: " + guest.getName())` appears, unmasked PII in logs
-- API responses: `ReservationDetailResponse` contains full guest name (DTO used by web UI, secure by browser, but exposed in network)
-- Payment info: credit card last 4 digits should be masked (currently unclear if masked)
-- Error messages: stack traces might contain sensitive data
-- Audit logs: login attempts log username (OK), but failed payment details might be logged (risky)
-
-**Search Results:**
-- `NameMaskingUtil` exists but usage may be incomplete
-- No `@Log(sensitive=true)` or similar annotations to auto-mask logs
-- No encryption at rest for guest PII in database
-
-**Fix Approach:**
-1. Audit all `log.*()` calls for PII (guest name, phone, email, card numbers)
-2. Create `SensitiveData` wrapper: `new SensitiveData(guestName)` → logs as `SensitiveData(...)`
-3. In logging appender, replace `SensitiveData` tokens with `[REDACTED]`
-4. Mask API responses: add DTO field `@JsonSerialize(using=MaskingSerializer.class)` for phone/email
-5. Encrypt guest phone/email in database (pgcrypto extension or application-level encryption)
-6. Audit trail: log user action (who accessed guest details) with timestamp, not the details themselves
-7. Add data retention policy: auto-delete guest PII after check-out + 30 days (GDPR compliance)
-8. Test: run application, capture logs, verify no unmasked guest identifiers in output
+- Risk: 부킹엔진 API(`/api/v1/booking/**`)에 Rate Limiting 없음. 악의적 대량 요청 가능
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/security/BookingSecurityConfig.java`
+- Recommendations: Spring Cloud Gateway 또는 Bucket4j 기반 Rate Limiting 적용. 특히 예약 생성/결제 API에 IP당 분당 제한 필요
 
 ---
 
 ## Performance Bottlenecks
 
-### Large Service Methods - ReservationServiceImpl
+### Dashboard 전체 프로퍼티 KPI — N+1 x 7 쿼리
 
-**Problem:** Single service class handles too many concerns, making it slow to compile and test.
+- Problem: `getAllPropertyKpis()`가 `propertyRepository.findAll()` 후 각 프로퍼티별 `getPropertyKpi()` 호출. `getPropertyKpi()` 내부에서 최소 7건의 DB 쿼리 실행 (countSoldRooms, sumRevenue, 전일 동일 등)
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/DashboardServiceImpl.java` (라인 157-168)
+- Cause: 프로퍼티 수 N × 쿼리 7건 = 7N개 쿼리. 프로퍼티 10개면 70건
+- Improvement path: 벌크 집계 쿼리 1~2회로 전체 KPI 조회 후 Java에서 매핑
 
-**Files:**
-- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationServiceImpl.java` (1857 lines)
+### Dashboard Pickup — 예외 무시 루프
 
-**Details:**
-- Handles: create, update, delete, list, detail, status transitions, guest management, service items, deposits
-- 80+ method signatures in the class
-- Dependencies: 16+ injected repositories + services (hides complexity)
-- Test class likely has 100+ test methods
+- Problem: `getPickup()`에서 7일간 반복하며 각 날짜별 2건씩 쿼리. 쿼리 실패 시 빈 catch 블록으로 에러 무시
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/DashboardServiceImpl.java` (라인 128-149)
+- Cause: 날짜별 개별 쿼리 대신 기간 범위 집계 쿼리를 사용해야 함
+- Improvement path: 기간 범위 집계 쿼리(`GROUP BY date`)로 통합, 빈 catch 제거하고 적절한 에러 핸들링
 
-**Impact:**
-- Hard to navigate code (IDE search finds 50+ matches for `findBy` patterns)
-- Single test compilation can trigger full Reservation module rebuild
-- Making a change to one method affects entire class compilation
-- Cognitive load: developer has to understand 1857 lines to make small change
+### BookingServiceImpl 요금 계산 루프 내 catch(Exception) 무시
 
-**Fix Approach:**
-1. Extract `GuestManagementService`: handle guest CRUD (guest table, masking)
-2. Extract `ReservationStatusService`: manage state transitions + validations
-3. Extract `ReservationItemService`: service item line items + rates
-4. Extract `ReservationDepositService`: deposit tracking + history
-5. Keep `ReservationServiceImpl` for orchestration + primary CRUD
-6. Target: 3-4 files, 400-500 lines each
-7. Test: ReservationServiceImplTest → 4 focused test classes, each 30-40 test methods
+- Problem: `getRatePlans()`과 `getRatePlansByRoomType()`에서 각 레이트코드별 요금 계산 시 `catch (Exception e) { // 요금 계산 실패 시 무시 }` 패턴. 루프 내 `rateCodeRepository.findById()` 개별 조회도 포함
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/service/BookingServiceImpl.java` (라인 1593-1603, 1901-1908, 1911)
+- Cause: 레이트코드 N개 × (calculateDailyCharges + findById) = 2N 쿼리. 에러 발생 시 디버깅 불가
+- Improvement path: 레이트코드 벌크 조회, 요금 계산 실패 시 최소한 warn 로그 남기기
 
----
+### 캘린더뷰 Java 필터링
 
-### Potential N+1 Queries - Missing Fetch Joins
-
-**Area:** Collection Lazy Loading
-
-**Issue:** While code contains `// N+1 방지` comments indicating awareness, some queries may still trigger unnecessary SELECT statements.
-
-**Files:**
-- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationServiceImpl.java` (1535: Floor/RoomNumber/RoomType ID 수집)
-- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/FrontDeskServiceImpl.java` (80-105: SubReservation list conversion)
-- `hola-pms/hola-hotel/src/main/java/com/hola/hotel/service/HkAssignmentServiceImpl.java` (642: batch lookup)
-
-**Current Mitigation:**
-- Code explicitly calls `default_batch_fetch_size: 100` in `application.yml` (line 16)
-- Comments show developers understand the issue
-- Bulk loading patterns visible (e.g., `floorRepository.findAllById(floorIds)`)
-
-**Residual Risk:**
-- `open-in-view: false` enforces no lazy loading in view layer (good)
-- But if service calls `.get()` on lazy collection, triggers SELECT per parent row
-- Example: `reservation.getSubReservations()` in loop without fetch join → N queries
-
-**Search for Issues:**
-- Multiple `forEach(rsv -> ...)` patterns visible in codebase
-- If child entity is not loaded, forEach triggers SELECT per iteration
-- Batch fetch helps but doesn't eliminate the issue completely
-
-**Fix Approach:**
-1. Add query analysis: run tests with SQL logging enabled, check for SELECT count
-2. Create `@NamedQuery` or Specification with `LEFT JOIN FETCH` for all multi-row queries
-3. Document: "All public service methods returning collections must use FETCH in JPQL"
-4. Add QueryDSL or Specification helper: `ReservationQuery.withSubReservations()` method
-5. Unit test N+1: `assertEquals(1, sqlExecutionCount)` using P6Spy or similar
-6. Performance baseline: 1000 reservations should query < 10 times (currently unknown)
-
----
-
-### Database Missing Indexes
-
-**Area:** Query Performance at Scale
-
-**Issue:** While some indexes exist (`BookingAuditLog` has 3), other critical paths may lack indexes.
-
-**Files:**
-- `hola-pms/hola-app/src/main/resources/db/migration/V4_15_0__add_reservation_lookup_indexes.sql` (shows some indexes added)
-- No full index audit visible in migrations
-
-**Likely Missing:**
-- `rsv_master_reservation`: `(property_id, check_in_date, reservation_status)` (composite for dashboard queries)
-- `rm_room_type`: `(property_id, use_yn)` (list view filtering)
-- `hk_task`: `(property_id, created_at, status)` (HK dashboard aggregations)
-- `hk_daily_attendance`: `(housekeeper_id, work_date)` (attendance history)
-
-**Impact:**
-- Dashboard queries with filtering can become sequential scans on 100k+ rows
-- List pages slow down as data grows
-- Concurrent requests contend for table locks during sequential scans
-
-**Fix Approach:**
-1. Baseline: measure query times for large datasets (1000+ reservations, 10k+ HK tasks)
-2. Identify slow queries (EXPLAIN ANALYZE in PostgreSQL)
-3. Add indexes for WHERE + ORDER BY clauses used in queries
-4. Create Flyway migration: V9_X_0__add_missing_database_indexes.sql
-5. Test index impact: before/after query times (expect 10-100x improvement for filtered queries)
-6. Document in CLAUDE.md: "When adding new List endpoint with WHERE/ORDER, ensure corresponding index"
+- Problem: `getCalendarData()`에서 전체 예약을 DB에서 조회한 후 Java stream으로 상태/키워드 필터링
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationServiceImpl.java` (라인 1526-1533)
+- Cause: JPQL null 파라미터 제약 때문에 Specification 대신 전체 조회 후 필터링
+- Improvement path: Spring Data JPA Specification 활용하여 DB 레벨 필터링
 
 ---
 
 ## Fragile Areas
 
-### Property Context Dependency Pages (3-Time Bug Pattern)
+### KICC 결제 승인 실패 후 보상 트랜잭션
 
-**Risk Level:** HIGH (documented in MEMORY.md as 3회 버그 발생)
+- Files:
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/controller/KiccPaymentApiController.java` (라인 152-187)
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccPaymentGateway.java` (라인 129-131, 225-243)
+- Why fragile: KICC 결제 승인 성공 후 예약 생성 실패 시 결제만 완료되고 예약은 없는 상태 발생 가능. catch 블록에서 결제 자동 취소를 시도하지만 취소도 실패할 수 있음 (`cancelByPgCno` 내부에서 또 catch(Exception))
+- Safe modification: 결제 승인 후 예약 생성을 하나의 트랜잭션으로 묶되, 실패 시 PG 취소를 별도 보상 트랜잭션으로 분리. 취소 실패 건은 DB에 기록하여 수동 환불 처리
+- Test coverage: `hola-pms/hola-app/src/test/java/com/hola/integration/payment/PaymentApiIntegrationTest.java` 존재하나, PG 실패 시나리오 테스트 불명확
 
-**Area:** Frontend Page Initialization
+### 예약 상태 전이 — 하드코딩 상태 맵
 
-**Issue:** Pages depending on property selection require careful initialization pattern. Early bugs indicate pattern not enforced well.
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationServiceImpl.java` (라인 93-101)
+- Why fragile: 상태 전이 규칙이 `Map<String, Set<String>>`으로 하드코딩. 새 상태 추가 시 여러 곳의 문자열 비교 수정 필요
+- Safe modification: `ReservationStatus` enum 도입하여 상태 전이를 타입-세이프하게 관리
+- Test coverage: `hola-pms/hola-reservation/src/test/java/com/hola/reservation/service/ReservationServiceImplTest.java` 존재
 
-**Files:**
-- `hola-pms/hola-app/src/main/resources/static/js/reservation-detail.js` (lines 55-98: init pattern)
-- `hola-pms/hola-app/src/main/resources/templates/admin/reservations/detail.html` (page structure)
-- Pattern used in: early-late-policy, reservation-detail, and other property-scoped pages
+### HK 모바일 세션 필터 — SecurityContext 오염 방지
 
-**Fragile Pattern:**
-```javascript
-// UNSAFE: Conditional init prevents event binding
-if (HolaPms.context.getPropertyId()) {
-    init();  // ❌ If property not selected, bindEvents() never runs
-}
-
-// SAFE: Always init, check in reload()
-init();  // ✅ Always runs
-reload();  // Checks property inside
-```
-
-**Why Broken:**
-- If developer puts context check OUTSIDE `init()`, the `hola:contextChange` event listener is never registered
-- User switches property context later → page doesn't reload (listener missing)
-- Page shows stale data from previous property selection
-
-**Files at Risk:**
-- Any page with `var init = function() { ... bindEvents(); ... }` called conditionally
-- MUST be called unconditionally, with safety check INSIDE `reload()`
-
-**Current Mitigation:**
-- CLAUDE.md documents correct pattern (lines in UI rules section)
-- Test case likely exists for this specific issue
-
-**Fix Approach:**
-1. Create reusable `PropertyContextPage` base object with template:
-   ```javascript
-   var page = PropertyContextPage({
-       propertyRequired: true,
-       bindings: { /* event definitions */ },
-       reload: function() { /* fetch data */ }
-   });
-   ```
-2. Enforce in code review: "All property-dependent pages must use PropertyContextPage template"
-3. Lint rule: detect `init()` calls with `if` guards (warn/error)
-4. Integration test: create page → don't select property → select property → verify page updates
-5. Documentation: Add example page template to CLAUDE.md with annotations
+- Files: `hola-pms/hola-common/src/main/java/com/hola/common/security/HkMobileSessionFilter.java`
+- Why fragile: try/finally 패턴으로 원본 SecurityContext를 복원하지만, 동일 브라우저에서 Admin과 모바일 동시 사용 시 세션 충돌 가능. `sessionFixation().none()` 설정으로 세션 고정 보호 비활성화됨
+- Safe modification: CLAUDE.md에 이미 주의사항으로 기록됨. 변경 시 반드시 Admin + 모바일 동시 테스트 수행
+- Test coverage: `hola-pms/hola-app/src/test/java/com/hola/integration/security/SecurityIntegrationTest.java` 존재하나 동시 접속 시나리오 미확인
 
 ---
 
-### RateCode Pricing Complexity - Coupled Entities
+## Module Coupling Issues
 
-**Area:** Rate Pricing with Multiple Strategies
+### reservation 모듈의 과도한 크로스 모듈 의존
 
-**Issue:** `RateCode` → `RatePricing` → `RatePricingPerson` has complex cascading updates. Three-level entity hierarchy with orphanRemoval=true.
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/service/ReservationServiceImpl.java` (라인 7-22)
+- Issue: reservation 모듈이 hotel의 `Property`, `RoomNumber`, `Floor`, `RoomUnavailable` 엔티티와 `PropertyRepository`, `FloorRepository`, `RoomNumberRepository` 등 hotel/room 모듈 Repository를 직접 주입
+- Impact: 모듈 간 JPA 의존성이 엔티티 레벨에서 발생. "크로스 모듈 FK는 Long ID만 사용" 원칙 부분 위반. `MasterReservation.property`는 `@ManyToOne`으로 hotel 엔티티 직접 참조
+- Fix approach: 크로스 모듈 조회는 각 모듈의 Service 인터페이스를 통해 수행. 이미 일부 필드(`roomTypeId`, `floorId`)는 Long으로 분리되어 있으므로 나머지도 점진적 분리
 
-**Files:**
-- `hola-pms/hola-rate/src/main/java/com/hola/rate/entity/RatePricing.java` (line 110: orphanRemoval=true)
-- `hola-pms/hola-rate/src/main/java/com/hola/rate/service/RateCodeServiceImpl.java` (lines 226-379: deletion logic)
+### BookingServiceImpl — 15개 이상 의존성 주입
 
-**Fragile Patterns:**
-- Line 315: `ratePricingPersonRepository.deleteAllByRatePricingId(p.getId())` (explicit delete before cascade)
-- Line 317: `ratePricingRepository.deleteAllByRateCodeId(rateCodeId)` (second delete)
-- Line 379: Same pattern for single pricing update
-- Orphan removal PLUS explicit deletes = redundant but defensive
-
-**Why Fragile:**
-- Two deletion mechanisms: orphanRemoval cascade + explicit @Query deletes
-- If ordering changes, orphaned records possible
-- Tests must verify: delete RateCode → all 3 levels deleted (not just parent)
-- Future developer might think orphanRemoval handles it and skip explicit deletes
-
-**Performance:**
-- Explicit deletes are `@Modifying` (good), but executed separately from cascade
-- 3 SQL DELETE statements per rate code deletion
-- If rate code has 100+ pricing entries, loop calls `deleteAllByRatePricingId()` 100+ times
-
-**Fix Approach:**
-1. Document: "RateCode deletion: RatePricing + RatePricingPerson must be deleted in order due to orphanRemoval constraints"
-2. Consolidate deletion: create `RateCodeDeletionService.delete(rateCodeId)` with explicit transaction + order control
-3. Test matrix: create RateCode with 5 pricing entries × 3 persons each → delete → verify all deleted
-4. Replace loop with bulk delete: `DELETE FROM RatePricingPerson WHERE rate_pricing_id IN (SELECT id FROM rate_pricing WHERE rate_code_id = :rateCodeId)`
-5. Add index: `(rate_code_id, id)` on `rate_pricing` for deletion performance
-
----
-
-### Dayuse Time Slot Calculation Not Fully Integrated
-
-**Area:** New Feature Incomplete Integration
-
-**Issue:** Dayuse (대실) feature added recently but integration with existing checkout flow incomplete. Project MEMORY indicates feature implemented but auto-checkout deferred.
-
-**Files:**
-- `hola-pms/hola-pms/hola-reservation/src/main/java/com/hola/reservation/vo/DayUseTimeSlot.java` (VO defined)
-- `hola-pms/hola-app/src/main/resources/db/migration/V4_19_0__add_dayuse_support.sql` (schema)
-- `hola-pms/hola-rate/src/main/java/com/hola/rate/entity/DayUseRate.java` (entity)
-
-**Known Gaps (from project memory):**
-- Auto check-out for dayuse deferred (blocked on Folio/EOD completion)
-- Dayuse package pricing not unified with regular room pricing
-- Time slot validation may conflict with night audit process
-
-**Risk:**
-- Dayuse checkout logic scattered (not in single, testable flow)
-- If night audit runs at 3 AM, dayuse check-out at 6 PM previous day may not be detected
-- Pricing discrepancy: dayuse rate may not be reconciled with inventory system
-- Reports: dayuse revenue may not be separated from room revenue
-
-**Fix Approach:**
-1. Create `DayUseCheckoutService`: handles dayuse housekeeping, settlement, HK task cleanup
-2. Create `DayUseInventoryValidator`: ensures dayuse package inventory deducted correctly
-3. Add feature flag: `hola.dayuse.auto-checkout.enabled=false` (default off until Folio ready)
-4. Test: create dayuse booking → advance time → verify auto-checkout triggers → verify HK task created → verify revenue correct
-5. Document in CLAUDE.md: "Dayuse checkout flow: manual only until EOD implemented. Update when ready."
-
----
-
-## Scaling Limits
-
-### Database Schema-per-Tenant Limits
-
-**Area:** Multi-Tenancy at Scale
-
-**Issue:** Current architecture uses PostgreSQL schema-per-tenant (each hotel chain gets separate schema). This works for 10-100 tenants but has limits.
-
-**Current Implementation:**
-- `TenantContext` (ThreadLocal) holds tenant ID → schema name
-- `TenantIdentifierResolver` (Hibernate) maps tenant to schema
-- Flyway migrations run per-schema with `out-of-order: true`
-
-**Scaling Bottlenecks:**
-- PostgreSQL connection pool: each schema needs separate connection → 50 schemas = 50 connections per app instance
-- Backup/restore: backing up 100 schemas takes 100x longer than single database
-- Schema upgrade (Flyway): must run same migrations across 100 schemas sequentially (slow)
-- Monitoring: no per-schema resource limits (one noisy tenant can consume all connections)
-
-**When It Breaks:**
-- Beyond 1000 active tenants with 10+ concurrent users each = 10,000+ connections needed
-- Backup window (4h → 400h for 100 schemas)
-- Rolling deployments: upgrading 100 schemas serially = hours of downtime
-
-**Future Solution:** Database-per-tenant or row-level security (multi-tenant shared schema)
-
-**Fix Approach:**
-1. Baseline: measure current connection pool usage per tenant (expect 2-5 connections per active tenant)
-2. Add metrics: per-schema query count, lock wait time, connection count
-3. Upgrade path (future): create `shared_schema` mode alongside current schema-per-tenant
-4. Document in CLAUDE.md: "Schema-per-tenant recommended for < 500 active tenants. Beyond that, evaluate database-per-tenant or RLS"
-
----
-
-### Frontend Bundle Size
-
-**Area:** JavaScript Performance
-
-**Issue:** Largest JS files approach 2500+ lines, increasing parsing + execution time.
-
-**Files (by size):**
-- `reservation-detail.js`: 2477 lines
-- `rate-code-form.js`: 1496 lines
-- `reservation-form.js`: 1347 lines
-- `booking.js`: 1183 lines
-- `property-form.js`: 1077 lines
-
-**Impact:**
-- Initial page load: browser must parse + execute 2500 lines of JS
-- No minification visible (production should minimize)
-- Single JS file per page = no code reuse across pages
-- Network: ~50KB gzip per file (typical)
-
-**Symptom:**
-- First contentful paint (FCP) delayed on slow connections (3G mobile)
-- HK mobile app on 4G: expect 1-2 second delay before interactive
-
-**Fix Approach:**
-1. Modularize: extract common patterns into shared modules
-   - `ReservationStateManager`: handle reservation status transitions (reusable in detail + list views)
-   - `DataTableManager`: wrap DataTable initialization (reusable in all list pages)
-   - `FormValidator`: common form validation logic
-2. Use module bundler: Webpack/Rollup to split code + lazy load
-3. Lazy load modal scripts: only parse modal JS when modal opened
-4. Defer non-critical scripts: analytics, tracking scripts load async
-5. Test: measure FCP before/after changes (target < 2s on 4G connection)
-
----
-
-## Dependencies at Risk
-
-### Bootstrap 5.3 + jQuery 3.7 - End of Life Concern
-
-**Area:** Frontend Framework Lifecycle
-
-**Issue:** Bootstrap 5.3 released Nov 2023, jQuery 3.7 Nov 2023. Both are current but have deprecation timelines.
-
-**Current Stack:**
-- Bootstrap 5.3 (no Bootstrap 6 announced yet)
-- jQuery 3.7 (jQuery is in "maintenance mode", not adding features)
-- DataTables 1.13 (current)
-
-**Risk:**
-- jQuery: no new versions planned, minimal security updates only
-- Bootstrap: may release 6.0 in 2-3 years, breaking changes expected
-- Transition effort: 20+ pages use jQuery + Bootstrap patterns
-
-**Migration Path:**
-- Option A: Move to React/Vue (requires rewrite of all pages)
-- Option B: Replace jQuery with vanilla JS gradually (doable page-by-page)
-- Option C: Upgrade Bootstrap to 6.0 when released, keep jQuery in maintenance mode
-
-**Fix Approach:**
-1. Document: "jQuery will be in maintenance mode. Plan gradual migration to vanilla JS or React in 2027+"
-2. Reduce jQuery usage incrementally:
-   - Replace `.ajax()` calls with `fetch()` API (vanilla JS, modern)
-   - Replace `.html()` with vanilla DOM methods (prevents XSS issues)
-   - Replace event delegation with vanilla event listeners
-3. Create vanilla JS version of `HolaPms` namespace utilities
-4. Test: ensure replacement utilities work identically (behavioral parity tests)
-
----
-
-### Spring Boot 3.2.5 - Next Major Version Planning
-
-**Area:** Framework Lifecycle Management
-
-**Issue:** Spring Boot 3.2.5 released early 2024, Spring Boot 3.3+ expected mid-2024. Long-term support (LTS) planning needed.
-
-**Current Dependencies:**
-- Spring Boot 3.2.5 (current)
-- Spring Framework 6.1.x (bundled)
-- Spring Security 6.2.x (bundled)
-- Spring Data JPA with Hibernate 6.4.x
-
-**Deprecations Visible:**
-- `EntityManager` direct usage (not recommended in modern Spring Data)
-- `@WebMvcTest` patterns (Spring recommends `@MockMvcTest` in newer versions)
-- Some `Security` XML config patterns still visible
-
-**Upgrade Challenges:**
-- Spring Boot 3.x dropped Java 8 support (minimum Java 17, current is 17 ✓)
-- Spring Security 6.x changed filter chain API (SecurityConfig already uses new API ✓)
-- Hibernate 6.x requires JPA 3.0 (already in use ✓)
-
-**Risk:**
-- Spring Boot 3.2 security updates end ~2025
-- After 3.5 LTS release, pressure to upgrade (breaking changes likely)
-- Deferring upgrades = accumulating security debt
-
-**Fix Approach:**
-1. Plan upgrade to Spring Boot 3.3 (or next LTS when released) for mid-2026
-2. Audit deprecated APIs: `EntityManager` direct queries → use Spring Data methods
-3. Test matrix: run tests on Java 17 + 21 (Java 21 LTS released Sept 2023)
-4. Upgrade pilot: test on non-critical modules first (e.g., hola-rate)
-5. Document: "Spring Boot upgrade plan: 3.2 → 3.x (Q2 2026 target)"
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/service/BookingServiceImpl.java` (라인 1-80)
+- Issue: hotel, room, rate, reservation 4개 모듈의 Repository와 Service를 직접 주입받아 사용 (PropertyRepository, RoomTypeRepository, RateCodeRepository, RateCodeRoomTypeRepository 등)
+- Impact: 단일 클래스가 전체 도메인 의존성 허브 역할. 변경 파급 효과 매우 큼
 
 ---
 
 ## Test Coverage Gaps
 
-### HK Mobile Session Context Pollution - No Integration Test
+### 서비스 구현체 35개 중 단위테스트 8개
 
-**Untested Area:** Session context corruption scenario
+- What's not tested: 35개 ServiceImpl 중 단위테스트가 있는 것은 8개뿐
+  - 테스트 있음: `BookingServiceImpl`, `CancellationPolicyServiceImpl`, `ReservationServiceImpl`, `ReservationPaymentServiceImpl`, `PriceCalculationService`, `RoomAvailabilityService`, `EarlyLateCheckService`, `PropertyServiceImpl`, `HotelServiceImpl`, `RoomTypeServiceImpl`
+  - 테스트 없음: `HousekeepingServiceImpl`(892줄), `HkAssignmentServiceImpl`(722줄), `RateCodeServiceImpl`(533줄), `RoomAssignServiceImpl`(449줄), `DashboardServiceImpl`, `FrontDeskServiceImpl`, `RoomUpgradeServiceImpl`, `TransactionCodeServiceImpl`, `PropertyRoleServiceImpl` 등 27개
+- Files: `hola-pms/*/src/test/java/` — 전체 22개 테스트 파일
+- Risk: 하우스키핑, 프론트데스크, 대시보드 등 운영 핵심 기능의 리그레션 감지 불가
+- Priority: High — 특히 `HousekeepingServiceImpl`, `RateCodeServiceImpl`, `FrontDeskServiceImpl`
 
-**Files:**
-- `hola-pms/hola-common/src/main/java/com/hola/common/security/HkMobileSessionFilter.java`
-- No test visible for "Admin logged in + Mobile session switch + Admin API call" scenario
+### KICC PG 통합 — 실제 PG 시나리오 테스트 부재
 
-**Risk:**
-- Fix (try-finally at line 54) implemented but not validated by test
-- Regression risk high if filter order changes or exception handling added
-- Only discovered through production incidents (3x noted in MEMORY.md)
+- What's not tested: `KiccPaymentGateway`는 `@Profile("!test")`로 테스트 환경 제외. Mock PG(`MockPaymentGateway`)로 대체됨. 금액 불일치, HMAC 실패, 네트워크 타임아웃 등 PG 실패 시나리오 미테스트
+- Files:
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccPaymentGateway.java`
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccApiClient.java`
+- Risk: PG 결제 실패 시 보상 트랜잭션(취소) 로직 검증 안 됨
+- Priority: High
 
-**Missing Test:**
-```java
-@Test
-public void adminApiCallWithMobileSessionShouldPreserveAdminContext() {
-    // Login as SUPER_ADMIN
-    loginAsAdmin();
+### E2E 테스트 한정적
 
-    // Open mobile session in same browser
-    mockMvc.perform(post("/api/v1/properties/1/hk-mobile/login")
-        .session(session)
-        .param("userId", "housekeeperId")
-    );
-
-    // Admin API should still work as SUPER_ADMIN
-    mockMvc.perform(get("/api/v1/properties/1/room-classes")
-        .session(session)
-    ).andExpect(status().isOk());
-
-    // Verify response is SUPER_ADMIN accessible (not HOUSEKEEPER restricted)
-}
-```
-
-**Fix Approach:**
-1. Add `HkMobileSessionFilterIntegrationTest` class
-2. Test matrix:
-   - Admin login → check admin role in SecurityContext
-   - Admin + mobile switch → check mobile role in temporary context
-   - Mobile request complete → check admin role restored
-   - Concurrent requests from 2 sessions → each sees correct role
-3. Run with `spring.test.database.replace=any` (TestContainers)
-4. Verify: SecurityContext.getAuthentication().getPrincipal() returns correct user
+- What's not tested: `e2e-tests/` 디렉토리에 `phase4-reservation.js` 1개만 존재. 하우스키핑, 대시보드, 프론트데스크 E2E 없음
+- Files: `hola-pms/e2e-tests/phase4-reservation.js`
+- Risk: UI 플로우 리그레션 감지 불가
+- Priority: Medium
 
 ---
 
-### Orphan Data Cleanup Not Tested
+## Missing Critical Features
 
-**Untested Area:** Data integrity after deletions
+### 스케줄러 부재
 
-**Files:**
-- `hola-pms/hola-app/src/main/resources/db/migration/V8_9_0__fix_orphan_inhouse_data.sql` (migration applied)
-- No test verifying orphan cleanup works
+- Problem: `@Scheduled` 또는 `@Async` 어노테이션 사용 없음. 자동 No-Show 처리, 예약 만료, Redis 임시 데이터 정리, 일일 하우스키핑 작업 자동 생성 등 배치 작업이 없음
+- Blocks: 운영 자동화. 현재 모든 상태 전이는 수동(API 호출)으로만 가능
+- Fix approach: `@Scheduled` 기반 배치 작업 추가 — 매일 자정 No-Show 자동 처리, KICC 미완료 결제 정리, 하우스키핑 일일 작업 생성
 
-**Missing Test:**
-```java
-@Test
-public void checkOutReservationShouldCleanupHkTasks() {
-    // Create reservation + HK task
-    SubReservation sub = createReservation(TODAY, TOMORROW);
-    HkTask task = createHkTask(sub);
+### 감사 로그(Audit Log) 한정적
 
-    // Check out
-    checkOut(sub);
-
-    // Task should be deleted or marked completed
-    assertThat(hkTaskRepository.existsById(task.getId())).isFalse();
-}
-```
-
-**Fix Approach:**
-1. Add `HousekeepingCleanupTest` with orphan cleanup scenarios
-2. Test checkout flow → verify child entity cleanup (HkTask, HkAssignment)
-3. Test reservation deletion → verify all related data removed
-4. Test cascading updates → partial failures don't leave orphaned records
-5. Add audit logging test: verify cleanup logged for later validation
+- Problem: `BookingAuditLog`는 부킹엔진 전용. Admin 측 예약 수정/취소, 객실 배정, 프론트데스크 체크인/아웃 등의 감사 로그 없음
+- Blocks: 운영 추적성. 누가 언제 어떤 변경을 했는지 추적 불가
+- Fix approach: `BaseEntity`의 `createdBy`/`updatedBy`는 있으나, 변경 내역(diff) 기록 없음. Spring Data Envers 또는 커스텀 AuditLog 도입 검토
 
 ---
 
-### Booking API Security Not Fully Tested
+## Frontend Concerns
 
-**Untested Area:** Booking engine API key validation, replay attacks, rate limiting
+### JavaScript 파일 크기 과대
 
-**Files:**
-- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/security/BookingApiKeyFilter.java`
-- No test for invalid/missing key, replay attack, or rate limit scenarios
+- Problem: `reservation-detail.js`(2,477줄), `rate-code-form.js`(1,496줄), `reservation-form.js`(1,347줄), `booking.js`(1,287줄) 등 단일 파일 1,000줄 이상
+- Files: `hola-pms/hola-app/src/main/resources/static/js/`
+- Impact: 유지보수 어려움. 함수 간 의존 관계 파악 불가
+- Fix approach: 페이지별 JS를 기능 단위로 분리하거나, 모듈 번들링(Vite 등) 도입 검토
 
-**Missing Tests:**
-```java
-@Test
-public void bookingWithoutApiKeyShouldFail() {
-    mockMvc.perform(post("/api/v1/booking/")
-        .header("API-KEY", "")
-    ).andExpect(status().isUnauthorized());
-}
+### jQuery `.html()` XSS 위험 패턴
 
-@Test
-public void bookingWithWrongKeyShouldFail() {
-    mockMvc.perform(post("/api/v1/booking/")
-        .header("API-KEY", "wrong-key")
-    ).andExpect(status().isUnauthorized());
-}
-
-@Test
-public void replayedBookingWithSameIdempotencyKeyShouldReturnSame() {
-    String idempotencyKey = UUID.randomUUID().toString();
-
-    // First request
-    var response1 = mockMvc.perform(post("/api/v1/booking/")
-        .header("API-KEY", validKey)
-        .header("Idempotency-Key", idempotencyKey)
-        .content(bookingJson)
-    ).andReturn().getResponse();
-
-    // Replay same request
-    var response2 = mockMvc.perform(post("/api/v1/booking/")
-        .header("API-KEY", validKey)
-        .header("Idempotency-Key", idempotencyKey)
-        .content(bookingJson)
-    ).andReturn().getResponse();
-
-    // Both should return same confirmation number (no double booking)
-    assertThat(response1.getContentAsString()).isEqualTo(response2.getContentAsString());
-}
-```
-
-**Fix Approach:**
-1. Add `BookingApiSecurityTest` class
-2. Test API key validation (invalid, missing, expired)
-3. Test idempotency (replay attack prevention)
-4. Test rate limiting (100+ bookings in 1 minute should fail)
-5. Test request signing (HMAC validation if implemented)
-6. Test timestamp validation (old requests rejected)
+- Problem: 다수의 JS 파일에서 API 응답 데이터를 `$.html()`로 DOM에 주입. `booking.js`는 `escapeHtml()` 함수를 제공하고 일부 사용하지만, Admin 측 JS 파일들은 일관성 없음
+- Files: `hola-pms/hola-app/src/main/resources/static/js/reservation-detail.js` 등 Admin JS 전반
+- Impact: 게스트 이름, 메모 등 사용자 입력이 포함된 API 응답을 escaping 없이 `.html()`로 삽입 시 XSS 가능
+- Fix approach: `HolaPms.escapeHtml()` 유틸리티를 `hola-common.js`에 추가하고, `.html()` 사용 시 반드시 escaping 적용 가이드라인 수립
 
 ---
 
-*Concerns audit: 2026-02-28*
+## Recent Changes Requiring Attention
+
+### KICC PG 결제 통합 (커밋: 5c03669)
+
+- Status: 최근 커밋. 수정된 파일:
+  - `hola-pms/hola-app/src/main/resources/static/js/booking.js`
+  - `hola-pms/hola-app/src/main/resources/templates/booking/payment-return.html`
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/controller/KiccPaymentApiController.java`
+- Concerns:
+  1. postMessage origin 미검증 (위 보안 항목 참조)
+  2. 결제 승인 성공 → 예약 생성 실패 시 보상 처리 불완전
+  3. `KiccPaymentApiController`가 `@Controller`인데 `@ResponseBody` 메서드와 뷰 반환 메서드 혼재 (일반적으로 `@RestController` + 별도 ViewController 분리 패턴)
+  4. `payment-return.html`에서 Thymeleaf 인라인 JavaScript에 errorMessage를 직접 출력 — XSS 위험 (`th:inline="javascript"`는 자동 escaping하나, 라인 80에서 직접 문자열 연결)
+
+### Roomrack 하우스키핑 매핑 (커밋: 4bd672e)
+
+- Status: 최근 추가된 기능
+- Files: `hola-pms/hola-reservation/src/main/java/com/hola/reservation/controller/RoomRackController.java`
+- Concerns:
+  1. 아키텍처 위반 — Controller에서 직접 Repository 접근 (위 Tech Debt 항목 참조)
+  2. `getUserName(hkTask.getAssignedTo())` — 루프 내에서 개별 `adminUserRepository.findById()` 호출 (N+1 패턴)
+  3. 개별 객실 상세 조회(`getRoomRackItem`)에서도 전체 프로퍼티의 `roomStatusService.getRoomRackItems(propertyId)` 호출 후 필터링 — 비효율
+
+### Dayuse(대실) 추가 (커밋: 03dd787)
+
+- Status: 비교적 최근 추가
+- Concerns: dayuse 관련 코드가 기존 숙박 로직과 분기 처리(`if (sub.isDayUse())`)로 섞여 있음. `ReservationServiceImpl` 내 체크아웃 로직에서 dayuse 레이트 체크아웃 요금 면제 등 조건부 분기 증가
+
+---
+
+## Dependencies at Risk
+
+### 멀티테넌시 — Schema-per-Tenant 미완성
+
+- Risk: `TenantFilter`와 `TenantConnectionProvider`가 구현되어 있으나, 실제 멀티 스키마 운영은 확인 안 됨. 모든 Repository 쿼리가 propertyId 기반 필터링에 의존
+- Impact: 테넌트 격리가 propertyId 체크에 의존하므로, propertyId 누락 시 다른 테넌트 데이터 접근 가능
+- Migration plan: Schema-per-Tenant가 실제 운영에 필요할 때 Flyway 멀티 스키마 마이그레이션, TenantResolver 확장 필요
+
+### Redis 의존 — 결제 플로우 핵심 경로
+
+- Risk: KICC 결제 플로우에서 Redis가 임시 데이터 저장(`kicc:booking:`) 및 결제 결과 저장(`kicc:result:`)에 사용됨. Redis 장애 시 결제 플로우 전체 실패
+- Impact: Redis 다운 시 결제 등록은 실패하고, 이미 진행 중인 결제의 콜백 처리도 실패
+- Migration plan: Redis 고가용성 구성(Sentinel/Cluster) 또는 결제 임시 데이터를 DB 테이블로 대체 검토
+
+---
+
+*Concerns audit: 2026-03-26*

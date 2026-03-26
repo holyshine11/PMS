@@ -1,221 +1,213 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-28
+**Analysis Date:** 2026-03-26
 
 ## Languages
 
 **Primary:**
-- Java 17 - Core backend language, set as sourceCompatibility/targetCompatibility in all modules
+- Java 17 - 전체 백엔드 (497개 프로덕션 소스 파일)
+  - 설정: `sourceCompatibility = JavaVersion.VERSION_17` (`hola-pms/build.gradle`)
+  - 컴파일러 옵션: UTF-8 인코딩, `-parameters` 플래그 (Spring `@RequestParam` 파라미터 이름 유지)
+
+**Secondary:**
+- JavaScript (ES5/jQuery) - 프론트엔드 (70개 `.js` 파일)
+  - 위치: `hola-pms/hola-app/src/main/resources/static/js/`
+  - 프레임워크 없음 (순수 jQuery + 네임스페이스 패턴 `HolaPms.*`)
+  - 공통 유틸: `hola-common.js` (633줄)
+- HTML/Thymeleaf - 서버 사이드 렌더링 (140개 `.html` 템플릿)
+- SQL - Flyway 마이그레이션 (96개 마이그레이션 파일)
 
 ## Runtime
 
 **Environment:**
-- Java Virtual Machine (JVM) via Spring Boot 3.2.5
-- Port: 8080 (HTTP)
-- Timezone: Asia/Seoul (configured in application.yml)
-- Character encoding: UTF-8 (forced on servlet layer)
+- JVM: Java 17 (Spring Boot 3.2.x 최소 요구사항)
+- Timezone: `Asia/Seoul` (Jackson `spring.jackson.time-zone`, 전역)
+- Profile: `local` (기본), `test` (TestContainers 기반)
+- Port: 8080 (기본)
 
 **Package Manager:**
-- Gradle 8.x (inferred from build structure)
-- Lockfile: Not present (Gradle wrapper manages versions)
+- Gradle 8.7 (Wrapper)
+  - Wrapper 설정: `hola-pms/gradle/wrapper/gradle-wrapper.properties`
+  - Distribution: `gradle-8.7-bin.zip`
+  - Lockfile: 없음 (Gradle version catalog 미사용)
+
+**외부 런타임 의존성:**
+- PostgreSQL 16 - 메인 RDBMS
+- Redis 7+ - KICC PG 결제 임시 데이터 저장 + 결과 폴링
 
 ## Frameworks
 
 **Core:**
-- Spring Boot 3.2.5 - Application framework and dependency management
-- Spring Framework (transitive) - Core Spring Framework
-- Spring Web (spring-boot-starter-web) - REST API and servlet support
-- Spring Data JPA (spring-boot-starter-data-jpa) - ORM abstraction layer
-- Spring Security 6 (spring-boot-starter-security) - Authentication and authorization
-- Spring Data Redis (spring-boot-starter-data-redis) - Redis integration (configured but tests disable)
+- Spring Boot 3.2.5 - 메인 애플리케이션 프레임워크
+  - 루트 빌드: `hola-pms/build.gradle`
+  - BOM: `org.springframework.boot:spring-boot-dependencies:3.2.5`
+  - Dependency Management Plugin: `io.spring.dependency-management:1.1.4`
+- Spring Data JPA - 데이터 액세스 레이어
+  - `open-in-view: false` — 뷰에서 지연 로딩 불가, 서비스에서 반드시 fetch
+  - `default_batch_fetch_size: 100` — IN 쿼리 배치
+  - `ddl-auto: none` — Flyway 전용 스키마 관리
+- Spring Security 6 - 인증/인가
+  - 4단 SecurityFilterChain: `@Order(0)` Booking API-KEY → `@Order(1)` HK Mobile Session → `@Order(2)` API/JWT → `@Order(3)` Web/Session
+  - Password: `BCryptPasswordEncoder`
+  - JWT: jjwt 0.12.5 (HS256, Access 1h + Refresh 7d)
+  - 설정: `hola-pms/hola-common/src/main/java/com/hola/common/security/SecurityConfig.java`
+- Spring Data Redis - KICC 결제 플로우 임시 데이터/결과 캐싱
+  - `StringRedisTemplate` 사용: `KiccPaymentApiController.java`
+  - Redis Key: `kicc:booking:{shopOrderNo}` (TTL 30분), `kicc:result:{shopOrderNo}` (TTL 10분)
+- Spring Validation - Jakarta Bean Validation
 
-**Templating & View:**
-- Thymeleaf 3 (spring-boot-starter-thymeleaf) - Server-side HTML template engine
-- Thymeleaf Layout Dialect 3.3.0 - Master page/layout support
-- Thymeleaf Spring Security 6 (thymeleaf-extras-springsecurity6) - sec:authorize tags
+**View:**
+- Thymeleaf - 서버 사이드 HTML 렌더링
+  - 의존성: `hola-pms/hola-common/build.gradle` (api scope로 전파)
+  - Layout Dialect 3.3.0: 3종 레이아웃 파일
+    - `templates/layout/default.html` — Admin 페이지
+    - `templates/layout/booking.html` — 부킹엔진 (게스트용)
+    - `templates/layout/mobile.html` — HK 모바일
+  - Spring Security 6 통합: `thymeleaf-extras-springsecurity6` (sec:authorize 태그)
 
 **Testing:**
-- JUnit 5 (spring-boot-starter-test) - Test framework
-- Mockito (spring-boot-starter-test) - Mocking library
-- Spring Security Test (spring-security-test) - Authentication/authorization testing
-- TestContainers 1.19.7 - Docker-based PostgreSQL for integration tests
-- PostgreSQL 16-alpine (TestContainers image) - Test database isolation
+- JUnit 5 - `spring-boot-starter-test` 포함
+- Mockito - `@ExtendWith(MockitoExtension.class)` 패턴
+- AssertJ - 어설션 라이브러리
+- Spring MockMvc - 통합 테스트 (`@AutoConfigureMockMvc`)
+- Spring Security Test - `@WithMockUser(roles = "SUPER_ADMIN")`
+- TestContainers 1.19.7 - PostgreSQL 16-alpine 자동 프로비저닝
+  - 의존성: `hola-pms/hola-app/build.gradle`
+  - URL: `jdbc:tc:postgresql:16-alpine:///hola_pms_test`
+- Playwright 1.58.2 - E2E 테스트 (Node.js)
+  - 위치: `hola-pms/e2e-tests/package.json`
 
 **Build/Dev:**
-- Gradle - Build automation tool
-- Spring Boot Gradle Plugin - Spring Boot application packaging
-- Spring Dependency Management Plugin - BOM-based dependency resolution
-- Lombok - Annotation processing for boilerplate (getters/setters/constructors)
-- JavaCompile with -parameters flag - Parameter name preservation for @RequestParam binding
+- Gradle 8.7 - 빌드 도구
+- Flyway - 데이터베이스 마이그레이션 (Spring Boot 통합)
+  - `out-of-order: true` — 버전 대역별 병렬 개발 지원
+  - 96개 마이그레이션: V1(호텔) ~ V8(하우스키핑)
+  - 위치: `hola-pms/hola-app/src/main/resources/db/migration/`
+- SpringDoc OpenAPI 2.5.0 - Swagger UI (`/swagger-ui.html`)
 
 ## Key Dependencies
 
-**Critical:**
+**Critical (hola-common에서 `api` scope로 전 모듈 전파):**
 
-- PostgreSQL 16 (org.postgresql:postgresql) - Primary relational database driver
-- Spring Data JPA + Hibernate ORM - JPA provider for entity mapping and queries
-- Flyway (org.flywaydb:flyway-core) - Database schema versioning and migration
-  - Enabled with out-of-order migration support
-  - Locations: classpath:db/migration
-  - Baseline on migrate enabled
-  - Critical: Schema-per-tenant multi-tenancy design
+| 의존성 | 버전 | 용도 |
+|--------|------|------|
+| `spring-boot-starter-web` | 3.2.5 | REST API + MVC + 내장 Tomcat |
+| `spring-boot-starter-data-jpa` | 3.2.5 | JPA/Hibernate ORM |
+| `spring-boot-starter-security` | 3.2.5 | 인증/인가 |
+| `spring-boot-starter-data-redis` | 3.2.5 | Redis 클라이언트 |
+| `spring-boot-starter-validation` | 3.2.5 | Bean Validation |
+| `spring-boot-starter-thymeleaf` | 3.2.5 | 서버 사이드 렌더링 |
 
-**Authentication & Authorization:**
+**JWT:**
+- `io.jsonwebtoken:jjwt-api:0.12.5` - JWT API (compile)
+- `io.jsonwebtoken:jjwt-impl:0.12.5` - JWT 구현 (runtime)
+- `io.jsonwebtoken:jjwt-jackson:0.12.5` - JWT Jackson 직렬화 (runtime)
 
-- JJWT (io.jsonwebtoken) - JWT token generation/parsing
-  - jjwt-api 0.12.5 - Core JWT API
-  - jjwt-impl 0.12.5 - Implementation
-  - jjwt-jackson 0.12.5 - JSON serialization support
-  - HS256 algorithm (HMAC SHA-256)
-  - Access token: 1 hour expiry
-  - Refresh token: 7 days expiry
-  - Secret: 256+ bits required (application-local.yml example)
+**매핑/코드 생성:**
+- `org.mapstruct:mapstruct:1.5.5.Final` - DTO/Entity 매핑 어노테이션 프로세서
+  - 참고: 실제로는 수동 `XxxMapper(@Component)` 클래스 사용, MapStruct 자동 매핑 미사용
+- `org.projectlombok:lombok` - 보일러플레이트 제거 (`compileOnly` + `annotationProcessor`, 전 모듈)
 
-**Data Serialization:**
+**Database:**
+- `org.postgresql:postgresql` - PostgreSQL JDBC 드라이버 (runtime)
+- `org.flywaydb:flyway-core` - DB 마이그레이션
 
-- Jackson (com.fasterxml.jackson.datatype:jackson-datatype-jsr310) - JSON serialization
-  - JSR310 support for java.time.* classes
-  - Date format: yyyy-MM-dd'T'HH:mm:ss
-  - Timezone: Asia/Seoul
-  - Write dates as ISO-8601 strings (not timestamps)
+**직렬화:**
+- `com.fasterxml.jackson.datatype:jackson-datatype-jsr310` - `java.time.*` Jackson 직렬화
+  - 날짜 포맷: `yyyy-MM-dd'T'HH:mm:ss`
+  - timestamps 비활성화: `write-dates-as-timestamps: false`
 
-**ORM & Validation:**
+**문서화:**
+- `org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0` - Swagger UI + OpenAPI 3.0
 
-- Hibernate Validator (spring-boot-starter-validation) - Bean validation annotations
-- MapStruct 1.5.5.Final - Type-safe DTO/Entity mapping
-  - Annotation processor for compile-time code generation
-  - Manual mappers preferred (no automatic mapping)
+**View 확장:**
+- `nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect:3.3.0` - 레이아웃 상속
 
-**API Documentation:**
+## Frontend Libraries (CDN)
 
-- SpringDoc OpenAPI (springdoc-openapi-starter-webmvc-ui 2.5.0) - OpenAPI 3.0 Swagger UI
-  - Accessible at http://localhost:8080/swagger-ui.html
-  - Auto-generates OpenAPI spec from Controller annotations
+모든 프론트엔드 라이브러리는 CDN으로 로드됨. 번들링/빌드 도구(Webpack, Vite 등) 없음.
+
+**Core (모든 Admin 페이지 — `layout/default.html`):**
+- jQuery 3.7.1 — DOM 조작, AJAX (`code.jquery.com`)
+- Bootstrap 5.3.3 — UI 프레임워크 CSS + JS Bundle (`cdn.jsdelivr.net`)
+- Font Awesome 6.5.1 — 아이콘 (`cdnjs.cloudflare.com`)
+- DataTables 1.13.8 — 테이블 + Bootstrap 5 테마 (`cdn.datatables.net`)
+
+**페이지별:**
+- Chart.js 4.4.1 — 대시보드 차트 (`templates/dashboard.html`에서만)
+- Daum Postcode API v2 — 한국 주소 검색 (`templates/hotel/form.html`, `templates/property/form.html`)
+  - URL: `//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js`
+
+**Typography:**
+- Pretendard v1.3.9 — 한글 웹폰트 (모든 레이아웃)
 
 ## Configuration
 
-**Environment Variables:**
+**환경 설정 파일 구조:**
+- `hola-pms/hola-app/src/main/resources/application.yml` — 공통 설정 (프로파일 무관)
+- `hola-pms/hola-app/src/main/resources/application-local.yml` — 로컬 개발 (DB/Redis/JWT/KICC)
+- `hola-pms/hola-app/src/test/resources/application-test.yml` — 테스트 (TestContainers, Redis 비활성화)
 
-Development (`application-local.yml`):
-- `SPRING_PROFILES_ACTIVE=local` (default in application.yml)
-- `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/hola_pms`
-- `SPRING_DATASOURCE_USERNAME=hola`
-- `SPRING_DATASOURCE_PASSWORD=hola1234` (test credentials only)
-- `SPRING_DATA_REDIS_HOST=localhost`
-- `SPRING_DATA_REDIS_PORT=6379`
-- `JWT_SECRET=holapms-local-secret-key-must-be-at-least-256-bits-long-for-hs256`
-- `HOLA_UPLOAD_PATH=./uploads` (relative to working directory)
-- Thymeleaf cache disabled for development
-- Static resource cache disabled (period: 0, no-cache: true, no-store: true)
-- Hibernate SQL logging enabled (DEBUG level)
+**주요 외부 설정값:**
+- `spring.datasource.*` — PostgreSQL 연결 정보
+- `spring.data.redis.*` — Redis 연결 정보
+- `jwt.secret` / `jwt.access-token-expiry` / `jwt.refresh-token-expiry` — JWT 설정
+- `kicc.*` — KICC PG 설정 (`mallId`, `secretKey`, `apiDomain`, `returnBaseUrl`, `timeoutSeconds`)
+- `hola.upload.path` — 파일 업로드 경로
 
-Test (`application-test.yml`):
-- `SPRING_DATASOURCE_URL=jdbc:tc:postgresql:16-alpine:///hola_pms_test`
-- TestContainers PostgreSQL 16-alpine (auto-managed)
-- Redis disabled via `spring.data.redis.repositories.enabled=false`
-- Flyway target: V5_8_0 (excludes large test data migrations V5_9_0+)
-- Server port: 0 (random port for parallel test runs)
-- Log level: WARN (root), INFO (com.hola)
+**빌드 설정 파일:**
+- `hola-pms/build.gradle` — 루트 (플러그인 + 공통 의존성 + Java 17)
+- `hola-pms/settings.gradle` — 6개 서브모듈 선언
+- `hola-pms/gradle/wrapper/gradle-wrapper.properties` — Gradle 8.7
 
-**Build:**
-
-- `hola-pms/build.gradle` - Root build with:
-  - Spring Boot 3.2.5 plugin
-  - Dependency management BOM
-  - Java 17 target
-  - Lombok annotation processing
-  - JUnit Platform (JUnit 5) task runner
-  - UTF-8 encoding forced
-  - Parameter names preserved via `-parameters` compiler arg
-
-- Module builds (`hola-common/`, `hola-hotel/`, `hola-room/`, `hola-rate/`, `hola-reservation/`, `hola-app/`) extend root with module-specific dependencies
-
-## Database Configuration
-
-**Relational:**
-
-- PostgreSQL 16 (local: 5432, production: TBD)
-- Driver: org.postgresql.Driver
-- Connection pool: HikariCP (default, configured in application-local.yml)
-  - Maximum pool size: 10
-  - Minimum idle: 5
-  - Connection timeout: 30 seconds
-- Schema-per-tenant design: Each hotel/property has isolated PostgreSQL schema
-- Soft delete: All entities use `deletedAt` + `useYn` columns (no physical deletion)
-- JPA configuration:
-  - `open-in-view: false` - No lazy loading in view layer (service must fetch all needed data)
-  - `hibernate.ddl-auto: none` - Flyway handles schema
-  - `hibernate.default_batch_fetch_size: 100` - Batch IN queries to 100 items
-  - SQL formatting: enabled (formatted output in logs)
-
-**Caching:**
-
-- Redis 7+ (localhost:6379 in local profile)
-- Purpose: Session management, potential query caching (not yet utilized)
-- Spring Data Redis Starter configured but not actively used in current Phase 0
-
-**File Storage:**
-
-- Local filesystem only
-- Default path: `./uploads` (configurable via `hola.upload.path`)
-- Subdirectories: `biz-license/`, `logo/`, etc.
-- Allowed formats: pdf, jpg, jpeg, png, gif, svg
-- Max file size: 10MB (multipart.max-file-size)
-- Max request size: 10MB (multipart.max-request-size)
+**Database 설정:**
+- HikariCP 커넥션 풀: max 10, min-idle 5, timeout 30s (`application-local.yml`)
+- `open-in-view: false` — 뷰 레이어 지연 로딩 차단
+- `hibernate.ddl-auto: none` — Flyway 전용
+- `default_batch_fetch_size: 100` — IN 쿼리 배치
 
 ## Platform Requirements
 
 **Development:**
-
 - Java 17 JDK
-- PostgreSQL 16 server (or use `./gradlew test` which auto-provisions TestContainers)
-- Redis 7+ (optional for local dev, disabled in tests)
-- Gradle 8.x or higher (or use wrapper)
-- macOS/Linux/Windows with Bash support
+- PostgreSQL 16 (로컬: DB `hola_pms`, User `hola`/`hola1234`)
+- Redis 7+ (로컬: `localhost:6379`)
+- Docker (테스트 시 TestContainers 필요)
+- Gradle 8.7 (Wrapper 자동 다운로드)
 
 **Production:**
+- Java 17 JRE
+- PostgreSQL 16 (schema-per-tenant 멀티테넌시)
+- Redis 7+
+- 파일 시스템: 업로드 디렉토리 (기본 `./uploads`)
+- KICC PG 계정: 상점ID + 시크릿키 (환경변수 `KICC_SECRET_KEY`)
+- 실행: 단일 Spring Boot JAR (내장 Tomcat)
+- Artifact: `hola-app/build/libs/hola-app-0.0.1-SNAPSHOT.jar`
 
-- Java 17+ JVM
-- PostgreSQL 16+ database (schema-per-tenant isolation)
-- Redis 7+ (for session state, if multi-instance)
-- Execution model: Single Spring Boot JAR with embedded Tomcat
-- Output: bootJar via `./gradlew :hola-app:bootRun` or `./gradlew build` → `hola-app/build/libs/*.jar`
+## Build Commands
 
-## API Contract
+```bash
+cd hola-pms
+./gradlew build                    # 전체 빌드 (컴파일 + 테스트 + JAR 패키징)
+./gradlew compileJava              # 컴파일만 (빠른 검증)
+./gradlew :hola-app:bootRun        # 서버 실행 (http://localhost:8080)
+./gradlew clean build              # 클린 빌드
+./gradlew test                     # 전체 테스트 (TestContainers PostgreSQL 자동)
+./gradlew :hola-hotel:test --tests "com.hola.hotel.SomeTest"  # 단일 테스트
+```
 
-**REST:**
+## Codebase Scale
 
-- Base path: `/api/v1`
-- Request/Response: JSON (UTF-8)
-- Pagination: Custom PageInfo object (not Spring Page)
-- Response envelope: `HolaResponse` (success/error wrapper)
-- Error responses: HTTP status code + ErrorCode (e.g., HOLA-0005, HOLA-1001) + message
-- Multipart form: `/api/v1/files` endpoint for file uploads
-
-**Swagger/OpenAPI:**
-
-- UI: http://localhost:8080/swagger-ui.html
-- Spec: http://localhost:8080/v3/api-docs
-- Generated from `@RestController`, `@RequestMapping`, `@GetMapping`, etc.
-
-## Logging
-
-**Configuration:**
-
-- Framework: SLF4J (via Logback, Spring Boot default)
-- Root level: INFO
-- Package `com.hola`: INFO (development), DEBUG (local profile), varies by test
-- Hibernate SQL: DEBUG (local profile only)
-- BasicBinder: TRACE (local profile only, shows parameter values)
-- Format: Spring Boot default (timestamp, level, logger name, message)
-
-## Java Compatibility
-
-- Source: Java 17
-- Target: Java 17
-- Module system: Not used (classpath mode)
-- Preview features: None
+| 항목 | 수량 |
+|------|------|
+| Java 프로덕션 파일 | 497개 |
+| Java 테스트 파일 | 24개 |
+| Thymeleaf 템플릿 | 140개 |
+| JavaScript 파일 | 70개 |
+| CSS 파일 | 2개 (`hola.css`, `booking.css`) |
+| Flyway 마이그레이션 | 96개 |
+| Gradle 모듈 | 6개 (common, hotel, room, rate, reservation, app) |
 
 ---
 
-*Stack analysis: 2026-02-28*
+*Stack analysis: 2026-03-26*

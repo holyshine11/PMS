@@ -1,417 +1,501 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-28
+**Analysis Date:** 2026-03-26
 
 ## Naming Patterns
 
-**Files:**
-- Package structure: `com.hola.{module}.{layer}` (entity, repository, service, controller, dto, mapper)
-- Entity files: `{DomainName}Entity` (e.g., `Hotel.java`, `Property.java`)
-- DTO files:
-  - Request: `{Domain}Request.java` or `{Domain}CreateRequest.java`, `{Domain}UpdateRequest.java`
-  - Response: `{Domain}Response.java` or `{Domain}ListResponse.java`
-- Service interface: `{Domain}Service.java`
-- Service implementation: `{Domain}ServiceImpl.java`
-- Mapper: `{Domain}Mapper.java` (@Component, manual toEntity/toResponse)
-- Repository: `{Domain}Repository.java` (extends JpaRepository)
-- Controller (API): `{Domain}ApiController.java` (@RestController, /api/v1/...)
-- Controller (View): `{Domain}ViewController.java` (@Controller, Thymeleaf)
+**Java Classes:**
+- Entity: `PascalCase` domain noun (e.g., `Hotel`, `MasterReservation`, `SubReservation`, `DailyCharge`)
+- DTO Request: `{Entity}CreateRequest`, `{Entity}UpdateRequest`, `{Entity}StatusRequest` in `dto/request/`
+- DTO Response: `{Entity}Response`, `{Entity}ListResponse`, `{Entity}DetailResponse` in `dto/response/`
+- Service Interface: `{Entity}Service`
+- Service Impl: `{Entity}ServiceImpl`
+- Controller (API): `{Entity}ApiController` (`@RestController`)
+- Controller (View): `{Entity}ViewController` (`@Controller`, Thymeleaf)
+- Mapper: `{Entity}Mapper` (`@Component`, manual mapping)
+- Repository: `{Entity}Repository` (`JpaRepository<Entity, Long>`)
+- Housekeeping: `Hk*` prefix (e.g., `HkTask`, `HkTaskMapper`, `HkMobileApiController`)
 
-**Classes:**
-- PascalCase: `HolaException`, `ErrorCode`, `BaseEntity`, `Hotel`, `Property`
-- Enum constants: UPPER_SNAKE_CASE (e.g., `RESERVED`, `CHECKED_IN`, `DAY_USE`)
-
-**Variables & Fields:**
-- camelCase: `hotelId`, `propertyName`, `masterReservationNo`, `checkInTime`
-- Private fields in entities: use Lombok @Getter (no manual getters)
-- Constants: UPPER_SNAKE_CASE (e.g., `PROPERTY_ID = 1L`, `CHECK_IN = LocalDate.of(2026, 6, 1)`)
+**Java Variables/Methods:**
+- `camelCase` for variables and methods
+- `UPPER_SNAKE_CASE` for constants (e.g., `PROPERTY_ID`, `SUCCESS_CODE`)
+- Boolean fields: `useYn`, `isOtaManaged`, `isDeleted()` (is/has prefix)
+- ID references: `xxxId` (e.g., `propertyId`, `rateCodeId`, `hotelId`)
 
 **Database:**
-- Table names: snake_case with prefixes: `htl_` (hotel), `rm_` (room), `rt_` (rate), `rsv_` (reservation), `fd_` (front desk), `hk_` (housekeeping)
-- Column names: snake_case (e.g., `hotel_id`, `hotel_code`, `property_name`, `check_in_time`)
-- Primary key: `id` (auto-generated IDENTITY)
-- Foreign key reference columns (cross-module): use `@Column(name="xxx_id")` private Long xxxId instead of @ManyToOne to avoid JPA cross-module coupling
+- Tables: `snake_case` with module prefix
+  - `htl_` (hotel): `htl_hotel`, `htl_property`, `htl_floor`, `htl_room_number`, `htl_room_unavailable`
+  - `rm_` (room): `rm_room_class`, `rm_room_type`, `rm_transaction_code`, `rm_transaction_code_group`
+  - `rt_` (rate): `rt_rate_code`, `rt_day_use_rate`
+  - `rsv_` (reservation): `rsv_master_reservation`, `rsv_sub_reservation`, `rsv_reservation_payment`
+  - `fd_` (front desk): front desk tables
+  - `hk_` (housekeeping): `hk_task`, `hk_staff`
+- Columns: `snake_case` (e.g., `hotel_code`, `created_at`, `use_yn`, `deleted_at`)
+- Sequences: `{table_name}_code_seq` (e.g., `htl_hotel_code_seq`) -> format `HTL00001`
+
+**JavaScript Files:**
+- `{domain}-page.js` for list pages (e.g., `hotel-admin-page.js`, `rate-code-page.js`)
+- `{domain}-form.js` for form/detail pages (e.g., `hotel-form.js`, `room-class-form.js`)
+- Special: `hola-common.js` (shared utilities), `booking.js` (booking engine)
+- HK mobile: `hk-mobile-*.js` (e.g., `hk-mobile-tasks.js`)
+- JS object name: `PascalCase` singleton matching file (e.g., `HotelForm`, `RateCodePage`)
+
+**Thymeleaf Templates:**
+- `{domain}/list.html`, `{domain}/form.html` pattern
+- Layout: `layout/default.html` (Admin), `layout/booking.html` (Booking), `layout/mobile.html` (HK)
+- Fragment slots: `layout:fragment="content"`, `layout:fragment="scripts"`
 
 ## Code Style
 
 **Formatting:**
-- No enforced formatter (ESLint/Prettier for Java not used)
-- Encoding: UTF-8 (configured in build.gradle: `tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }`)
-- JVM parameter compilation: enabled (`options.compilerArgs << '-parameters'` in build.gradle) to preserve method parameter names for @RequestParam
-- Line length: project uses ~120 character lines (observed in code samples)
+- No ESLint/Prettier for JavaScript
+- Java: no explicit Checkstyle/SonarQube; standard Spring Boot conventions
+- Encoding: UTF-8 (configured in `build.gradle`: `options.encoding = 'UTF-8'`)
+- Parameter names preserved: `options.compilerArgs << '-parameters'` for `@RequestParam` binding
+- Line length: ~120 characters observed
 
-**Linting:**
-- No SonarQube/Checkstyle active
-- IDE: VSCode default formatting
-- Maven/Gradle: Java 17 target (projects configured in build.gradle with `JavaVersion.VERSION_17`)
+**Lombok Annotations (use consistently):**
+- Entity: `@Getter @NoArgsConstructor(access = AccessLevel.PROTECTED) @AllArgsConstructor @Builder`
+- DTO: `@Getter @NoArgsConstructor @AllArgsConstructor @Builder`
+- Service: `@Slf4j @Service @RequiredArgsConstructor`
+- Controller: `@RestController @RequiredArgsConstructor` (API) / `@Controller @RequiredArgsConstructor` (View)
 
 ## Import Organization
 
-**Order (standard Java/Spring pattern):**
-1. Package declaration
-2. Blank line
-3. Jakarta/Java imports (jakarta.*, java.*)
-4. Third-party imports (org.springframework.*, org.hibernate.*, etc.)
-5. Blank line
-6. Project imports (com.hola.*)
+**Order (observed pattern):**
+1. Project imports (`com.hola.*`)
+2. Third-party libraries (`com.fasterxml.*`, `io.swagger.*`)
+3. `jakarta.*`
+4. `lombok.*`
+5. `org.springframework.*`, `org.hibernate.*`
+6. `java.*`
 
-**Example from `Hotel.java`:**
+**No path aliases.** All imports use fully qualified package paths.
+
+## API Response Pattern
+
+**Standard response: `HolaResponse<T>`** - `hola-pms/hola-common/src/main/java/com/hola/common/dto/HolaResponse.java`
+
 ```java
-package com.hola.hotel.entity;
+// Success with data
+return ResponseEntity.ok(HolaResponse.success(data));
 
-import com.hola.common.entity.BaseEntity;
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.SQLRestriction;
+// Success with pagination
+return ResponseEntity.ok(HolaResponse.success(page.getContent(), PageInfo.from(page)));
 
-import java.util.ArrayList;
-import java.util.List;
+// Success void
+return ResponseEntity.ok(HolaResponse.success());
+
+// Created (201)
+return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(response));
+
+// Error (auto via GlobalExceptionHandler)
+throw new HolaException(ErrorCode.RESERVATION_NOT_FOUND);
 ```
 
-**Path Aliases:**
-- No explicit aliases used; all imports are full paths
-- Modules import from each other using full package paths: `com.hola.{module}.*`
-
-## Error Handling
-
-**Exception Pattern:**
-- All business exceptions: `throw new HolaException(ErrorCode.XXX)` or `throw new HolaException(ErrorCode.XXX, "custom message")`
-- Location: `com.hola.common.exception.HolaException` (extends RuntimeException, @Getter with errorCode field)
-
-**ErrorCode Enum:**
-- Location: `com.hola.common.exception.ErrorCode` (each constant has code String, message String, HttpStatus)
-- Code system:
-  - `HOLA-0xxx`: Common (0001=Internal Error, 0002=Invalid Input, 0003=Not Found, etc.)
-  - `HOLA-06xx`: Member management (0600=Admin Not Found, 0601=Login ID Duplicate)
-  - `HOLA-07xx`: Authorization (0700=Role Not Found, 0701=Role Name Duplicate)
-  - `HOLA-08xx`: Password (0800=Mismatch, 0802=Invalid Format)
-  - `HOLA-1xxx`: Hotel/Property (1000=Hotel Not Found, 1010=Property Not Found)
-  - `HOLA-2xxx`: Room (2000=Room Class Not Found, 2010=Room Type Not Found)
-  - `HOLA-25xx`: Transaction Code (2500=TC Group Not Found, 2510=TC Not Found)
-  - `HOLA-26xx`: Inventory (2600=Inventory Item Not Found, 2610=Not Available)
-  - `HOLA-3xxx`: Rate (3000=Rate Code Not Found, 3001=Duplicate)
-  - `HOLA-35xx`: Promotion (3500=Promotion Code Not Found)
-  - `HOLA-4xxx`: Reservation (4000=Reservation Not Found, 4001=Duplicate, 4020=Payment Already Completed)
-  - `HOLA-401x`: Sub Reservation (4010=Sub Reservation Not Found, 4011=Room Conflict)
-  - `HOLA-407x`: Booking Engine (4070=Property Not Found, 4071=No Availability)
-  - `HOLA-409x`: Booking Auth (4090=API-KEY Required, 4091=Invalid API Key)
-  - `HOLA-5xxx`: Front Desk (5001=Room Assign Required, 5002=Room Not Clean)
-  - `HOLA-8xxx`: Housekeeping (8000=HK Task Not Found, 8060=Already Clocked In)
-
-**Global Exception Handler:**
-- Location: `com.hola.common.exception.GlobalExceptionHandler` (@RestControllerAdvice)
-- Catches HolaException and returns HolaResponse.error(code, message) with HttpStatus from ErrorCode
-
-## DTO Patterns
-
-**Request DTOs:**
-- Location: `src/main/java/{module}/dto/request/`
-- Annotations: @Getter, @NoArgsConstructor, @AllArgsConstructor, @Builder
-- Validation: @NotNull, @Min, @Max, @NotBlank with message fields (Korean messages)
-- Example: `SubReservationRequest` contains roomTypeId, adults, checkIn, checkOut, guests list, services list
-- No @Setter; use builder pattern
-
-**Response DTOs:**
-- Location: `src/main/java/{module}/dto/response/`
-- Annotations: @Getter, @NoArgsConstructor, @AllArgsConstructor, @Builder
-- Fields: match entity fields (id, code, name, createdAt, updatedAt, useYn, etc.)
-- No nested entities; use primitive types or IDs
-- Example: `HotelResponse` has id, hotelCode, hotelName, phone, email, address, useYn, createdAt, updatedAt
-- Builder pattern used for construction
-
-**Mapper Pattern:**
-- Location: `com.hola.{module}.mapper.{Domain}Mapper` (@Component)
-- No MapStruct; manual toEntity(request, ...) and toResponse(entity) methods
-- Purpose: Entity <-> DTO conversion, isolating controller from entity structure
-- Example from `HotelMapper`:
-  ```java
-  public Hotel toEntity(HotelCreateRequest request, String hotelCode) {
-      return Hotel.builder().hotelCode(hotelCode)...build();
-  }
-  public HotelResponse toResponse(Hotel hotel) {
-      return HotelResponse.builder().id(hotel.getId())...build();
-  }
-  ```
-
-## Entity Patterns
-
-**Base Entity:**
-- Location: `com.hola.common.entity.BaseEntity` (abstract MappedSuperclass)
-- All entities extend BaseEntity
-- Inherited fields:
-  - `id` (Long, @GeneratedValue IDENTITY, @Id)
-  - `createdAt` (LocalDateTime, @CreatedDate, immutable)
-  - `updatedAt` (LocalDateTime, @LastModifiedDate)
-  - `createdBy` (String, @CreatedBy, immutable)
-  - `updatedBy` (String, @LastModifiedBy)
-  - `deletedAt` (LocalDateTime, null=active, set on soft delete)
-  - `useYn` (Boolean, default true, false on soft delete or deactivate)
-  - `sortOrder` (Integer, default 0)
-- Methods:
-  - `softDelete()`: sets deletedAt=now, useYn=false
-  - `isDeleted()`: checks deletedAt != null
-  - `activate()`: sets useYn=true
-  - `deactivate()`: sets useYn=false
-  - `changeSortOrder(Integer)`: updates sortOrder
-- Auditing: JPA @EntityListeners(AuditingEntityListener.class), createdBy/updatedBy populated via Principal
-
-**Entity Annotations:**
-- `@Entity`, `@Table(name="...")`, `@SQLRestriction("deleted_at IS NULL")` (soft delete auto-filter)
-- `@Getter`, `@NoArgsConstructor(access = AccessLevel.PROTECTED)`, `@AllArgsConstructor`, `@Builder` (Lombok)
-- `@Version` (Long, optional): optimistic locking for concurrent updates (used on MasterReservation, SubReservation, HkDailyAttendance)
-
-**Relationship Patterns:**
-- **One-to-Many:** `@OneToMany(mappedBy="parent", fetch=FetchType.LAZY)` with `orphanRemoval=true` if needed
-- **Many-to-One (same module):** `@ManyToOne(fetch=FetchType.LAZY)`, `@JoinColumn(name="parent_id", nullable=false)`
-- **Cross-module FK:** Use `@Column(name="xxx_id") private Long xxxId` instead of @ManyToOne to avoid circular dependencies
-- Fetch strategy: **LAZY by default** (open-in-view: false enforced in application-test.yml, so all loads must be eager in service layer)
-
-**Business Methods in Entity:**
-- Encapsulate state changes inside entity
-- Example from `Hotel.java`: `update(...)` method for field updates
-- Example from `MarketCode`: soft delete handled in service but uses entity's `softDelete()` method
-
-## Service Layer
-
-**Service Interface & Implementation:**
-- Location: `src/main/java/{module}/service/`
-- Interface: `{Domain}Service.java` (public operations)
-- Implementation: `{Domain}ServiceImpl.java` (@Service, @RequiredArgsConstructor, @Transactional)
-- Transaction strategy:
-  - Class-level: `@Transactional(readOnly=true)` (default for reads)
-  - Method-level: `@Transactional` (overrides, for writes: create/update/delete)
-  - Example from `MarketCodeServiceImpl`:
-    ```java
-    @Service
-    @Transactional(readOnly=true)
-    public class MarketCodeServiceImpl {
-        @Transactional
-        public MarketCodeResponse createMarketCode(...) { ... }
-        public MarketCodeResponse getMarketCode(...) { ... }  // inherits readOnly=true
-    }
-    ```
-
-**Service Methods:**
-- Single responsibility: one domain concern per method
-- Validation: check all preconditions first, throw HolaException early
-- Null coalescing: use Optional.orElseThrow(() -> new HolaException(...))
-- Logging: @Slf4j, log.info() for business events (creation, deletion), log.error() for exceptions
-- Return type: Response DTO or List<Response> or void (for side effects)
-
-**Common Pattern:**
-```java
-public ResponseDto create(CreateRequest request) {
-    // 1. Validate/fetch dependent entities
-    Entity parent = findById(request.getParentId());
-
-    // 2. Check duplicates/constraints
-    if (repository.exists(...)) throw new HolaException(ErrorCode.DUPLICATE);
-
-    // 3. Create entity (use builder)
-    Entity entity = Entity.builder().field(request.getField()).build();
-
-    // 4. Apply optional fields
-    if (request.getField() != null) entity.update(...);
-
-    // 5. Persist
-    Entity saved = repository.save(entity);
-
-    // 6. Log
-    log.info("생성됨: {}", saved.getName());
-
-    // 7. Return response
-    return mapper.toResponse(saved);
+**Response JSON shape:**
+```json
+{
+  "success": true,
+  "code": "HOLA-0000",
+  "message": "성공",
+  "data": { ... },
+  "pagination": { "page": 0, "size": 20, "totalElements": 100, "totalPages": 5 },
+  "timestamp": "2026-03-26T10:00:00"
 }
 ```
 
-## Repository Layer
+**Booking engine exception:** Uses `BookingResponse` with `$.result.RESULT_YN` / `$.result.data` format (different from standard `HolaResponse`).
 
-**Repository Interface:**
-- Location: `src/main/java/{module}/repository/`
-- Extends `JpaRepository<Entity, Long>` (auto-provides save, delete, findById, findAll)
-- Custom finder methods: follow Spring Data naming convention
-- Soft delete: explicitly query `DeletedAtIsNull` (e.g., `findByIdAndDeletedAtIsNull(Long id)`)
-- Example from `AdminUserRepository`:
-  ```java
-  Optional<AdminUser> findByLoginIdAndDeletedAtIsNull(String loginId);
-  boolean existsByLoginIdAndDeletedAtIsNull(String loginId);
-  List<AdminUser> findByHotelIdAndAccountTypeAndDeletedAtIsNullOrderByCreatedAtDesc(...);
-  ```
-- @SQLRestriction on entity auto-filters soft-deleted records in most queries
-- Native queries: use `@Query(value="...", nativeQuery=true)` sparingly (e.g., sequence retrieval)
+## Error Handling
 
-**Bulk Delete Pattern:**
-- **FORBIDDEN:** `repository.deleteAllByXxx()` (will not trigger orphanRemoval or soft delete logic)
-- **REQUIRED:** Use `@Modifying @Query("UPDATE Entity SET deletedAt=NOW(), useYn=false WHERE ...")` for soft delete
+**Exception hierarchy:**
+- `HolaException` - `hola-pms/hola-common/src/main/java/com/hola/common/exception/HolaException.java` (extends `RuntimeException`, carries `ErrorCode`)
+- `GlobalExceptionHandler` - `hola-pms/hola-common/src/main/java/com/hola/common/exception/GlobalExceptionHandler.java` (`@RestControllerAdvice`)
+
+**ErrorCode enum** - `hola-pms/hola-common/src/main/java/com/hola/common/exception/ErrorCode.java`:
+- Format: `HOLA-XXXX` (4-digit numeric)
+- Each entry: `(code, message, httpStatus)` triple
+- Code ranges:
+  - `HOLA-0xxx`: Common (auth, validation, generic errors)
+  - `HOLA-06xx`: Member management
+  - `HOLA-07xx`: Role management
+  - `HOLA-08xx`: Password
+  - `HOLA-1xxx`: Hotel/Property (1000=hotel, 1010=property, 1020=floor, 1030=room number, 1040=market code)
+  - `HOLA-2xxx`: Room
+  - `HOLA-25xx`: Transaction codes
+  - `HOLA-26xx`: Inventory
+  - `HOLA-3xxx`: Rate
+  - `HOLA-4xxx`: Reservation/Booking/Payment
+  - `HOLA-5xxx`: Front Desk
+  - `HOLA-8xxx`: Housekeeping
+
+**Throwing pattern:**
+```java
+// Standard
+throw new HolaException(ErrorCode.RESERVATION_NOT_FOUND);
+
+// With custom message
+throw new HolaException(ErrorCode.INVALID_INPUT, "커스텀 메시지");
+```
+
+**GlobalExceptionHandler mappings:**
+| Exception | HTTP Status | Response Code |
+|-----------|------------|---------------|
+| `HolaException` | From `ErrorCode.httpStatus` | `ErrorCode.code` |
+| `MethodArgumentNotValidException` | 400 | `HOLA-0002` (field errors joined) |
+| `ObjectOptimisticLockingFailureException` | 409 | `HOLA-4027` |
+| `DataIntegrityViolationException` | 409 | `HOLA-0004` |
+| `MethodArgumentTypeMismatchException` | 400 | `HOLA-0002` |
+| `NoResourceFoundException` | 404 | `HOLA-0004` |
+| `Exception` (catch-all) | 500 | `HOLA-0001` |
+
+## Entity Patterns
+
+**BaseEntity** - `hola-pms/hola-common/src/main/java/com/hola/common/entity/BaseEntity.java`:
+
+All entities MUST extend `BaseEntity`. Provides:
+- `id` (Long, `@GeneratedValue(IDENTITY)`)
+- `createdAt`, `updatedAt` (JPA Auditing `@CreatedDate`, `@LastModifiedDate`)
+- `createdBy`, `updatedBy` (JPA Auditing `@CreatedBy`, `@LastModifiedBy`)
+- `deletedAt` (soft delete timestamp, null = active)
+- `useYn` (Boolean, default `true`)
+- `sortOrder` (Integer, default `0`)
+- Methods: `softDelete()`, `isDeleted()`, `activate()`, `deactivate()`, `changeSortOrder()`
+
+**Entity annotation pattern:**
+```java
+@Entity
+@Table(name = "htl_hotel")
+@SQLRestriction("deleted_at IS NULL")   // ALWAYS add - auto-filters soft-deleted records
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
+public class Hotel extends BaseEntity {
+    @Column(name = "hotel_code", nullable = false, unique = true, length = 20)
+    private String hotelCode;
+    // ...
+}
+```
+
+**Physical delete is FORBIDDEN.** Always use `entity.softDelete()`.
+
+**Cross-module FK rule:**
+```java
+// CORRECT: ID reference only (no JPA relationship across modules)
+@Column(name = "rate_code_id")
+private Long rateCodeId;
+
+// WRONG: @ManyToOne across module boundary (creates coupling)
+// @ManyToOne private RateCode rateCode;  // DO NOT DO THIS
+```
+
+**Optimistic locking** for concurrent entities:
+```java
+@Version
+private Long version;  // Used on MasterReservation, SubReservation, HkDailyAttendance
+```
+
+**Within-module relationships:**
+```java
+// Parent side
+@OneToMany(mappedBy = "masterReservation", cascade = CascadeType.ALL, orphanRemoval = true)
+private List<SubReservation> subReservations = new ArrayList<>();
+
+// Child side
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "master_reservation_id", nullable = false)
+private MasterReservation masterReservation;
+```
+
+**JPA critical settings:**
+- `open-in-view: false` - lazy loading fails in views; must fetch in service layer
+- `default_batch_fetch_size: 100` - IN clause batching for associations
+
+## Mapper Pattern
+
+**Manual mapping** with `@Component` (no MapStruct). Example: `hola-pms/hola-hotel/src/main/java/com/hola/hotel/mapper/HotelMapper.java`
+
+```java
+@Component
+public class HotelMapper {
+    // Request DTO -> Entity
+    public Hotel toEntity(HotelCreateRequest request, String hotelCode) {
+        return Hotel.builder()
+                .hotelCode(hotelCode)
+                .hotelName(request.getHotelName())
+                // ... field-by-field
+                .build();
+    }
+
+    // Entity -> Response DTO
+    public HotelResponse toResponse(Hotel hotel) {
+        return HotelResponse.builder()
+                .id(hotel.getId())
+                .hotelCode(hotel.getHotelCode())
+                // ... field-by-field
+                .build();
+    }
+}
+```
+
+**Conventions:**
+- One mapper per module handles multiple entity types (e.g., `HotelMapper` handles Hotel, Property, Floor, RoomNumber, MarketCode, CancellationFee, etc.)
+- Method names: `toEntity()`, `toResponse()`, `to{Specific}Response()` (e.g., `toReservationListResponse()`, `toPaymentSummaryResponse()`)
+- Injected into ServiceImpl via constructor (`@RequiredArgsConstructor`)
+
+## Service Layer Pattern
+
+**Interface + Impl separation.** Example: `hola-pms/hola-hotel/src/main/java/com/hola/hotel/service/HotelServiceImpl.java`
+
+```java
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)  // Class-level: read-only by default
+public class HotelServiceImpl implements HotelService {
+
+    private final HotelRepository hotelRepository;
+    private final HotelMapper hotelMapper;
+
+    @Override
+    public HotelResponse getHotel(Long id) {              // Inherits readOnly=true
+        Hotel hotel = hotelRepository.findById(id)
+                .orElseThrow(() -> new HolaException(ErrorCode.HOTEL_NOT_FOUND));
+        return hotelMapper.toResponse(hotel);
+    }
+
+    @Override
+    @Transactional  // Override for write operations
+    public HotelResponse createHotel(HotelCreateRequest request) {
+        // 1. Validate
+        if (hotelRepository.existsByHotelNameAndDeletedAtIsNull(request.getHotelName()))
+            throw new HolaException(ErrorCode.HOTEL_NAME_DUPLICATE);
+        // 2. Create & save
+        Hotel hotel = hotelMapper.toEntity(request, generatedCode);
+        return hotelMapper.toResponse(hotelRepository.save(hotel));
+    }
+}
+```
+
+**JPQL null parameter workaround** (critical trap):
+```java
+// WRONG: causes bytea casting error in PostgreSQL
+// "WHERE (:name IS NULL OR h.hotelName LIKE %:name%)"
+
+// CORRECT: Java conditional branching
+boolean hasName = hotelName != null && !hotelName.isBlank();
+if (hasName) {
+    hotels = repository.findByNameContaining(hotelName, pageable);
+} else {
+    hotels = repository.findAll(pageable);
+}
+```
+
+## Controller Pattern
+
+**API Controller** (`@RestController`):
+```java
+@Tag(name = "프로퍼티 관리", description = "프로퍼티 CRUD API")
+@RestController
+@RequiredArgsConstructor
+public class PropertyApiController {
+
+    @Operation(summary = "프로퍼티 목록 조회")
+    @GetMapping("/api/v1/hotels/{hotelId}/properties")
+    public ResponseEntity<HolaResponse<List<PropertyResponse>>> getProperties(
+            @PathVariable Long hotelId,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<PropertyResponse> page = propertyService.getProperties(hotelId, pageable);
+        return ResponseEntity.ok(HolaResponse.success(page.getContent(), PageInfo.from(page)));
+    }
+}
+```
+
+**URL patterns:**
+- Admin API: `/api/v1/{resource}` or `/api/v1/properties/{propertyId}/{resource}`
+- Booking API: `/api/v1/booking/{resource}` (public, API-KEY auth)
+- HK Mobile API: `/api/v1/properties/{propertyId}/hk-mobile/{resource}` (session auth)
+- Swagger: `@Tag` on class, `@Operation` on methods
+
+**View Controller** (`@Controller`):
+```java
+@Controller
+@RequiredArgsConstructor
+public class HotelViewController {
+    @GetMapping("/admin/hotels")
+    public String list() { return "hotel/list"; }
+}
+```
+
+## DTO Pattern
+
+**Request DTOs** - use Jakarta Validation with Korean messages:
+```java
+@Getter @NoArgsConstructor @AllArgsConstructor @Builder
+public class ReservationCreateRequest {
+    @NotNull(message = "체크인 날짜는 필수입니다.")
+    private LocalDate masterCheckIn;
+
+    @NotBlank(message = "투숙객 이름은 필수입니다.")
+    private String guestNameKo;
+
+    @NotEmpty(message = "객실 레그는 최소 1개 이상 필요합니다.")
+    @Valid
+    private List<SubReservationRequest> subReservations;
+}
+```
+
+**Response DTOs** - `@Builder`, no validation:
+```java
+@Getter @NoArgsConstructor @AllArgsConstructor @Builder
+public class ReservationListResponse {
+    private Long id;
+    private String masterReservationNo;
+    private String confirmationNo;
+    // ... flat fields only, no nested entities
+}
+```
+
+## Repository Pattern
+
+**Convention:**
+```java
+public interface HotelRepository extends JpaRepository<Hotel, Long> {
+    // Spring Data query methods
+    Optional<Hotel> findByHotelCodeAndDeletedAtIsNull(String code);
+    boolean existsByHotelNameAndDeletedAtIsNull(String name);
+    Page<Hotel> findAllByHotelNameContaining(String name, Pageable pageable);
+
+    // Native query for sequence
+    @Query(value = "SELECT nextval('htl_hotel_code_seq')", nativeQuery = true)
+    Long getNextHotelCodeSequence();
+}
+```
+
+**Bulk delete trap:**
+- FORBIDDEN: `repository.deleteAllByXxx()` (bypasses soft delete)
+- REQUIRED: `@Modifying @Query("DELETE FROM ...")` for join table cleanup
 - For orphaned collections: `collection.clear()` + `flush()`
 
-## Controller Patterns
+## Frontend Patterns (HolaPms Namespace)
 
-**API Controller:**
-- Location: `src/main/java/{module}/controller/{Domain}ApiController`
-- Annotation: `@RestController`, `@RequestMapping("/api/v1/...")`
-- Tag: `@Tag(name="...", description="...")` for Swagger/OpenAPI
-- Methods: `@PostMapping`, `@GetMapping`, `@PutMapping`, `@DeleteMapping`
-- Request body validation: `@Valid @RequestBody CreateRequest`
-- Response: Always `ResponseEntity<HolaResponse<T>>` or `HolaResponse<T>`
-- Example from `AuthApiController`:
-  ```java
-  @PostMapping("/login")
-  public ResponseEntity<HolaResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
-      LoginResponse response = authService.login(request);
-      return ResponseEntity.ok(HolaResponse.success(response));
-  }
-  ```
+**`HolaPms` global object** - `hola-pms/hola-app/src/main/resources/static/js/hola-common.js`:
 
-**Response DTO:**
-- All endpoints return: `HolaResponse.success(data)` (code: HOLA-0000), `HolaResponse.success(data, pageInfo)` (paginated), or `HolaResponse.error(code, message)` (errors via GlobalExceptionHandler)
-- Paginated responses: wrap List in PageInfo using `PageInfo.from(page)`
+```javascript
+// AJAX wrapper (always use this, not raw $.ajax)
+HolaPms.ajax({
+    url: '/api/v1/hotels/' + hotelId,
+    type: 'GET',
+    success: function(res) { /* res.data */ }
+});
 
-**View Controller:**
-- Location: `src/main/java/{module}/controller/{Domain}ViewController`
-- Annotation: `@Controller`, `@RequestMapping("/..."`
-- Return type: String (Thymeleaf template name)
-- Data: `model.addAttribute(key, value)`
-- Pattern: list view, detail view, form view (GET for show, POST for save)
+// Toast notifications
+HolaPms.alert('success', '저장되었습니다.');    // auto-hide 1.5s
+HolaPms.alert('error', '오류가 발생했습니다.'); // auto-hide 3s
 
-## Frontend JavaScript Conventions
+// Redirect with flash
+HolaPms.alertAndRedirect('/admin/hotels', 'success', '호텔이 생성되었습니다.');
 
-**File Naming:**
-- Pattern: `{domain}-page.js` (list/table pages), `{domain}-form.js` (form/detail pages)
-- Examples: `hotel-page.js`, `property-form.js`, `dashboard-page.js`, `hk-mobile-tasks.js`
+// Context (hotel/property selector)
+var propertyId = HolaPms.context.getPropertyId();
+HolaPms.requireContext('property');
 
-**Module Pattern (Object Namespace):**
-- Encapsulate all code in a single object/namespace to avoid global scope pollution
-- Example from `dashboard-page.js`:
-  ```javascript
-  var Dashboard = {
-      pickupChart: null,
-      isSuperAdmin: false,
-      MAX_RECENT: 5,
+// PII masking (REQUIRED on list pages)
+HolaPms.maskName('홍길동');       // 홍*동
+HolaPms.maskPhone('01012345678'); // 010****5678
 
-      init: function() { ... },
-      bindEvents: function() { ... },
-      reload: function() { ... }
-  };
-  ```
-- Initialize on document ready: `$(document).ready(function() { Dashboard.init(); });`
+// DataTable defaults (ALWAYS extend, never define language separately)
+$.extend({}, HolaPms.dataTableDefaults, {
+    ajax: { url: '/api/v1/...' },
+    columns: [...]
+});
 
-**AJAX Pattern:**
-- Use `HolaPms.ajax(options)` wrapper (auto JSON serialization, error handling)
-- Options: `url`, `type`, `data` (object, auto-stringified), `success`, `error`
-- Example:
-  ```javascript
-  HolaPms.ajax({
-      url: '/api/v1/properties/' + propertyId,
-      type: 'GET',
-      success: function(response) { ... },
-      error: function(xhr) { HolaPms.handleAjaxError(xhr); }
-  });
-  ```
+// Modal
+HolaPms.modal.show('#myModal');
+HolaPms.modal.hide('#myModal');
+```
 
-**Alert/Modal Handling:**
-- Alerts: `HolaPms.alert(type, message)` (type: success, error, warning, info) — auto-hides after 1.5s (success) or 3s (error)
-- Redirects: `HolaPms.alertAndRedirect(type, message, url)` — flash alert via sessionStorage
-- Modals: `HolaPms.modal.show(selector)`, `HolaPms.modal.hide(selector)` (reuses Bootstrap Modal instance)
+**JS page object pattern:**
+```javascript
+const HotelForm = {
+    isEdit: false,
+    hotelId: null,
 
-**PII Masking:**
-- Names in tables: `HolaPms.maskName(name)` — (1자: 그대로, 2자: 김*, 3자: 김*수, 4자+: 김**수)
-- Phones in tables: `HolaPms.maskPhone(phone)` — (010-1234-5678 → 010-****-5678)
-- **Rule:** All list/table pages MUST mask customer names and phone numbers (no exceptions, enforced policy since feedback-pii-masking.md)
+    init: function() {
+        this.hotelId = $('#hotelId').val() || null;
+        this.isEdit = !!this.hotelId;
+        this.bindEvents();
+        this.load();
+    },
+    bindEvents: function() { /* event bindings */ },
+    load: function() { /* data loading */ }
+};
 
-**DataTable Conventions:**
-- Use `$.extend({}, HolaPms.dataTableDefaults, {...})` for configuration
-- Never define individual `language` object; defaults include Korean language pack
-- Column definitions use `HolaPms.renders.*` helpers (dashIfEmpty, useYnBadge, countBadge, actionButtons)
-- Page size select: 10/20(default)/50/100 in Korean (predefined in HolaPms.dataTableDefaults)
+$(document).ready(function() {
+    HotelForm.init();
+});
+```
 
-**Property Context Pattern (CRITICAL):**
-- All property-dependent pages MUST follow strict initialization pattern (3 bugs traced to this):
-  1. HTML: Include alert div: `<div id="contextAlert" class="alert alert-danger d-none">...</div>`
-  2. JS: **Always call `init()` unconditionally** (NOT conditionally on propertyId check)
-  3. JS: Inside `init()`, call `bindEvents()` then `reload()`
-  4. JS: In `reload()`, check `HolaPms.context.getPropertyId()` — if null, show alert; else load data
-  5. JS: Register event listener in `bindEvents()`: `$(document).on('hola:contextChange', function() { self.reload(); })`
-  - **DO NOT:** Check propertyId before calling init() — this causes bindEvents() to skip and contextChange listener to never register
-  - Examples: `early-late-policy-page.js`, `reservation-detail.js`, dashboard property branches
+**Property context pattern (CRITICAL - 3 bugs traced to violations):**
+1. HTML: `<div id="contextAlert" class="alert alert-danger d-none">` must exist
+2. `init()` ALWAYS runs `bindEvents()` + `reload()` unconditionally
+3. `reload()` checks `HolaPms.context.getPropertyId()`, shows alert if missing
+4. Listen `hola:contextChange` event -> `self.reload()`
+5. NEVER conditionally call `init()` based on propertyId (causes `bindEvents()` skip -> listener never registered)
 
-**Context Management:**
-- Global: `HolaPms.context.getHotelId()`, `HolaPms.context.getPropertyId()` (sessionStorage-backed)
-- Event: `hola:contextChange` fires when user selects hotel/property in header
-- Header selector stores context, triggers event for all pages to reload
+## UI Style Rules
 
-## CSS Conventions
+**Card:** `card border-0 shadow-sm`
+**Form:** Bootstrap grid (`row mb-3` + `col-sm-2 col-form-label`). `table table-bordered` FORBIDDEN for forms.
+**Buttons:** `d-flex justify-content-between` - left: delete (edit only), right: cancel (`fa-arrow-left`) + save
+**fw-bold:** Page title (`h4`), section header (`h6`) ONLY. FORBIDDEN on form labels/data.
+**Colors:** #051923, #003554, #0582CA, #EF476F, #000/#FFF + gray. Font: Pretendard.
+**Popup mode:** `?mode=popup` -> `body.popup-mode` class
 
-**Design System:**
-- Location: `hola-pms/hola-app/src/main/resources/static/css/hola.css`
-- Color palette (CSS variables):
-  - `--bs-primary`: #0582CA (bright blue, buttons, links)
-  - `--bs-danger`: #EF476F (pink-red, errors, destructive actions)
-  - `--bs-dark`: #051923 (navy, sidebar)
-  - `--hola-header-bg`: #003554 (darker blue, header)
-  - `--hola-text-primary`: #212529 (text)
-  - `--hola-text-secondary`: #6c757d (secondary text)
-  - `--hola-border`: #e9ecef (borders)
-  - `--hola-shadow-sm`, `-md`, `-lg`: depth shadows
+## Logging
 
-**Bootstrap Customizations:**
-- Overrides in :root CSS variables
-- Font: Pretendard (Google CDN + fallbacks)
-- Button sizing: .btn-sm for compact UI (0.75rem font, 4px 10px padding)
-- Card default: `card border-0 shadow-sm` (no border, subtle shadow)
+**Framework:** SLF4J via Lombok `@Slf4j`
 
-**Typography Rules:**
-- **fw-bold (font-weight-bold):** Allowed ONLY on h4 (page title), h6 (section headers). Forbidden on labels, data spans, modal titles
-- Form labels: use Bootstrap .col-form-label without fw-bold
-- DataTable pagination: info on left (0 margin), pagination centered
-
-**Responsive Design:**
-- Bootstrap 5.3 grid (col-sm-2, col-lg-3, etc.)
-- Mobile-first: base styles then @media min-width breakpoints
-- Popup mode: HTML param `?mode=popup` → body gets `.popup-mode` class for modal-only display
+```java
+log.warn("비즈니스 예외: {} - {}", e.getErrorCode().getCode(), e.getMessage());
+log.error("서버 오류: ", e);  // include stack trace
+log.info("호텔 생성됨: {}", hotel.getHotelCode());
+log.debug("정적 리소스 없음: {}", e.getResourcePath());
+```
 
 ## Comments
 
-**When to Comment:**
-- Class/method header: JSDoc-style comments for public APIs
-- Complex logic: explain "why" not "what" (e.g., "Soft delete required for audit trail, not physical removal")
-- Business rules: document constraints (e.g., "Max 5 recent properties to prevent storage bloat")
-- Language: Korean comments preferred (per CLAUDE.md), English for commit messages
+**Language:** Korean for code comments, English for commit messages.
 
-**JSDoc/Documentation:**
-- Location: class-level /** */ blocks with @param, @return, @deprecated as needed
-- Example from error handler: `/** 비즈니스 예외 */` for HolaException class
-- Service methods: brief Javadoc for public operations
+**Class-level:** brief Javadoc (`/** 호텔 마스터 엔티티 */`)
+**Service interface:** Javadoc for each public method
+**Section separators:**
+```java
+// ========== 예약 리스트 조회 ==========
+```
 
-**Inline Comments:**
-- Use sparingly; prefer clear variable/method names
-- Explain non-obvious algorithm steps
-- Link to JIRA/issue numbers if applicable
+## Git Conventions
 
-## Version Control & Build
+**Commit:** `[HOLA-XXX] feat/fix/refactor: description` (English)
+**Flyway:** `V{major}_{minor}_{patch}__{desc}.sql` at `hola-pms/hola-app/src/main/resources/db/migration/`
+- Version bands: V1(Hotel) V2(Room) V3(Rate) V4(Reservation) V5(Test data) V6(Transaction) V7(Room status) V8(Housekeeping)
 
-**Git Commit Messages:**
-- Format: `[HOLA-XXX] feat/fix/refactor: description` (English, issue key optional)
-- Examples: `[HOLA-100] feat: add dayuse checkout`, `fix: soft delete on cascade`, `refactor: extract price calculator`
+## Security Patterns
 
-**Build Configuration:**
-- Build tool: Gradle (root build.gradle + subproject build.gradle files)
-- Java version: Java 17 (sourceCompatibility = VERSION_17, targetCompatibility = VERSION_17)
-- Encoding: UTF-8 (enforced in build.gradle)
-- Parameter preservation: enabled for @RequestParam binding (options.compilerArgs << '-parameters')
-- Test runner: JUnit 5 (useJUnitPlatform() in test task)
-- Lombok: compileOnly, testCompileOnly with annotationProcessor
+**4-tier SecurityFilterChain:**
 
-## Code Quality Auto-Checks (Pre-Commit)
+| Order | Target | Auth |
+|-------|--------|------|
+| 0 | `/api/v1/booking/**` | `BookingApiKeyFilter` (API-KEY header, stateless) |
+| 1 | `/api/v1/properties/*/hk-mobile/**` | Session-based (`IF_REQUIRED`), `sessionFixation().none()` |
+| 2 | `/api/**` | JWT (`SessionCreationPolicy.NEVER`) |
+| 3 | `/**` | Session-based form login |
 
-Before committing, verify:
-1. **Service layer pattern:** All domain methods in @Transactional(readOnly=true) class + method-level @Transactional on writes
-2. **Type hints:** All public method parameters + returns typed (no Object, use specific DTO/Entity)
-3. **No hardcoded env vars:** Check for passwords, API keys, URLs not in application.yml
-4. **Soft delete usage:** All delete endpoints call softDelete(), not physical delete()
-5. **DTO in/out:** Controllers accept/return DTO, not Entity (except internal service calls)
-6. **PII in logs:** Never log names/phones directly; use masking utilities if needed
+**Authorization check in service:** `accessControlService.validatePropertyAccess(propertyId)`
+**Roles:** `SUPER_ADMIN`, `HOTEL_ADMIN`, `PROPERTY_ADMIN`, `HOUSEKEEPING_SUPERVISOR`, `HOUSEKEEPER`
 
 ---
 
-*Convention analysis: 2026-02-28*
+*Convention analysis: 2026-03-26*

@@ -1,255 +1,307 @@
 # External Integrations
 
-**Analysis Date:** 2026-02-28
+**Analysis Date:** 2026-03-26
 
 ## APIs & External Services
 
-**Booking Engine (Stateless API-KEY Auth):**
-- Endpoint: `/api/v1/booking/**`
-- Purpose: External channel partner creation/management of reservations
-- Auth: BookingApiKeyFilter + API-KEY header validation (not JWT)
-- Session creation: Stateless (SessionCreationPolicy = NEVER)
-- Status: Implemented with MockPaymentGateway placeholder
+### KICC 이지페이 PG (결제 게이트웨이)
 
-**Payment Gateway (Mock):**
-- Service: MockPaymentGateway (com.hola.reservation.booking.gateway.MockPaymentGateway)
-- Purpose: Placeholder for KICC/PayPal/other payment processor
-- Implementation: Always returns success
-- Interface: `PaymentGateway` (authorize/cancel methods)
-- Payment methods: Card-based (card bin validation prepared)
-- Currency: Multi-currency support via CurrencyConversionService (exchange rate lookup)
-- Status: Mock only, ready for production gateway substitution
+**용도:** 부킹엔진 온라인 카드 결제 (거래등록 → 인증 → 승인 3단계 플로우)
 
-**Card Bin Validation Service:**
-- Service: CardBinValidationService (com.hola.reservation.booking.service.CardBinValidationService)
-- Purpose: Validate credit card BIN (Bank Identification Number) for security
-- Status: Prepared but not actively called (future integration)
-- Related entity: `rsv_card_bin_validation_log` (audit table exists)
+**구현 파일:**
+- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccApiClient.java` — HTTP 클라이언트 (모든 API 호출 담당)
+- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccPaymentGateway.java` — `PaymentGateway` 인터페이스 구현
+- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccConfig.java` — RestTemplate Bean 설정
+- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccProperties.java` — `@ConfigurationProperties(prefix = "kicc")`
+- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/pg/kicc/KiccHmacUtils.java` — HMAC 서명 유틸
+- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/controller/KiccPaymentApiController.java` — 결제 API 엔드포인트
 
-**Currency Conversion:**
-- Service: CurrencyConversionService (com.hola.reservation.booking.service.CurrencyConversionService)
-- Purpose: Multi-currency booking support with exchange rates
-- Status: Prepared, lookup mechanism not specified (likely local rate table)
+**API 엔드포인트 (KICC 서버):**
+
+| API | URL | 용도 |
+|-----|-----|------|
+| 거래등록 | `POST {apiDomain}/api/ep9/trades/webpay` | 결제창 URL 발급 |
+| 결제승인 | `POST {apiDomain}/api/ep9/trades/approval` | 인증 후 최종 승인 |
+| 빌키결제 | `POST {apiDomain}/api/trades/approval/batch` | 등록된 빌키로 재결제 |
+| 빌키삭제 | `POST {apiDomain}/api/trades/removeBatchKey` | 빌키 삭제 |
+| 취소/환불 | `POST {apiDomain}/api/trades/revise` | 전체/부분 취소 |
+| 거래조회 | `POST {apiDomain}/api/trades/retrieveTransaction` | 거래 상태 확인 |
+
+**설정값 (application-local.yml):**
+- `kicc.mall-id`: 상점ID (테스트: `T5102001`)
+- `kicc.secret-key`: 시크릿키 (환경변수 `KICC_SECRET_KEY`)
+- `kicc.api-domain`: API 도메인 (테스트: `https://testpgapi.easypay.co.kr`)
+- `kicc.return-base-url`: 인증 완료 후 리턴 URL (로컬: `http://localhost:8080`)
+- `kicc.timeout-seconds`: API 타임아웃 (기본 30초)
+- `kicc.billing-cert-type`: 빌키 카드인증 타입 (기본 `"0"`)
+
+**HTTP 클라이언트:** `RestTemplate` (Spring Framework)
+- 전용 Bean: `kiccRestTemplate` (`@Qualifier` 사용)
+- Jackson ObjectMapper: `FAIL_ON_UNKNOWN_PROPERTIES = false` (하위 호환성)
+- 프로파일 제한: `@Profile("!test")` — 테스트 환경에서 제외
+
+**결제 플로우 (3단계 비동기):**
+1. 프론트엔드 → `POST /api/v1/booking/payment/register` → 검증 + Redis 임시 저장 + KICC 거래등록 → 결제창 URL 반환
+2. KICC 결제창 → 사용자 카드 인증 → `POST /api/v1/booking/payment/return` (returnUrl 콜백)
+3. 서버에서 KICC 결제승인 API 호출 + 예약 생성 → 결과 Redis 저장
+
+**에러 처리:**
+- `ErrorCode.PG_REGISTER_FAILED` — 거래등록 실패
+- `ErrorCode.PG_APPROVAL_FAILED` — 결제승인 실패
+- `ErrorCode.PG_CANCEL_FAILED` — 취소/환불 실패
+- `ErrorCode.PG_COMMUNICATION_ERROR` — API 통신 오류 (RestClientException)
+
+### PaymentGateway 추상화
+
+**인터페이스:** `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/gateway/PaymentGateway.java`
+
+**메서드:**
+- `authorize(PaymentRequest)` — 동기식 결제 승인 (Mock용)
+- `cancel(String approvalNo)` — 승인 취소 (Mock용)
+- `registerTransaction(RegisterRequest)` — PG 거래등록 (3단계 플로우)
+- `approveAfterAuth(ApproveAfterAuthRequest)` — PG 인증 후 승인 (3단계 플로우)
+- `cancelPayment(CancelPaymentRequest)` — PG 결제 취소
+
+**구현체:**
+- `KiccPaymentGateway` — KICC 이지페이 실 PG (`@Profile("!test")`)
+- `MockPaymentGateway` — 테스트용 가상 승인 (항상 성공 반환)
+
+### Daum Postcode API (주소 검색)
+
+**용도:** 호텔/프로퍼티 등록 시 한국 주소 검색 (우편번호 + 도로명주소)
+
+**사용 위치:**
+- `hola-pms/hola-app/src/main/resources/templates/hotel/form.html` (호텔 등록/수정 폼)
+- `hola-pms/hola-app/src/main/resources/templates/property/form.html` (프로퍼티 등록/수정 폼)
+
+**스크립트:** `//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js`
+- 클라이언트 사이드 전용 (서버 API 호출 없음)
+- 인증 불필요 (무료 API)
+
+## 내부 API (노출)
+
+### Booking Engine API
+
+**엔드포인트:** `/api/v1/booking/**`
+**인증:** `BookingApiKeyFilter` — `X-API-KEY` 헤더 검증
+**보안:** `BookingSecurityConfig` (`@Order(0)`, STATELESS, permitAll)
+
+**주요 파일:**
+- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/security/BookingSecurityConfig.java`
+- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/security/BookingApiKeyFilter.java`
+- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/entity/BookingApiKey.java`
+- `hola-pms/hola-reservation/src/main/java/com/hola/reservation/booking/service/BookingApiKeyService.java`
+
+**API Key 저장:** `rsv_booking_api_key` 테이블, BCrypt 해시 저장
+
+### Admin REST API
+
+**엔드포인트:** `/api/v1/**` (booking 제외)
+**인증:** JWT Bearer Token (`JwtAuthenticationFilter`)
+**보안:** `SecurityConfig` (`@Order(2)`, SessionCreationPolicy.NEVER)
+**응답 형식:** `HolaResponse.success(data)` / `HolaResponse.error(code, message)`
+
+### HK Mobile API
+
+**엔드포인트:** `/api/v1/properties/{propertyId}/hk-mobile/**`
+**인증:** 세션 기반 (session attribute: `hkUserId`, `hkUserRole`)
+**보안:** `SecurityConfig` (`@Order(1)`, SessionCreationPolicy.IF_REQUIRED)
 
 ## Data Storage
 
-**Databases:**
+### PostgreSQL 16 (Primary Database)
 
-- **Primary Relational:**
-  - PostgreSQL 16
-  - Connection: `jdbc:postgresql://localhost:5432/hola_pms`
-  - Client: Spring Data JPA + Hibernate ORM
-  - Schema: Schema-per-tenant (separate schema per hotel)
-  - Tables: Prefixed by domain module (htl_*, rm_*, rt_*, rsv_*, fd_*, hk_*)
-  - Soft delete: All entities respect `deletedAt IS NULL` via @SQLRestriction
+**연결:**
+- 로컬: `jdbc:postgresql://localhost:5432/hola_pms`
+- 테스트: `jdbc:tc:postgresql:16-alpine:///hola_pms_test` (TestContainers)
+- 드라이버: `org.postgresql.Driver`
 
-- **Test Database:**
-  - PostgreSQL 16-alpine (TestContainers)
-  - Auto-provisioned for `./gradlew test`
-  - URL: `jdbc:tc:postgresql:16-alpine:///hola_pms_test`
-  - Isolation: Complete schema reset between test runs
+**커넥션 풀:** HikariCP (Spring Boot 기본)
+- `maximum-pool-size: 10`
+- `minimum-idle: 5`
+- `connection-timeout: 30000` (30초)
 
-**Caching:**
+**멀티테넌시:** Schema-per-Tenant
+- `TenantFilter` → `X-Tenant-ID` 헤더 → `TenantContext` (ThreadLocal)
+- 파일: `hola-pms/hola-common/src/main/java/com/hola/common/tenant/TenantFilter.java`
 
-- **Redis 7+**
-  - Purpose: Session management (configured, not heavily used in Phase 0)
-  - Connection: localhost:6379 (local), TBD (production)
-  - Status: Starter dependency present, disabled in tests
-  - Future use: Query caching, distributed sessions
+**테이블 접두사:**
 
-**File Storage:**
+| 접두사 | 도메인 |
+|--------|--------|
+| `htl_` | 호텔/프로퍼티/회원 |
+| `rm_` | 객실클래스/타입/서비스옵션 |
+| `rt_` | 레이트코드/프로모션 |
+| `rsv_` | 예약/부킹/결제 |
+| `fd_` | 프론트데스크 |
+| `hk_` | 하우스키핑 |
 
-- **Local Filesystem Only**
-  - Path: `./uploads` (configurable)
-  - Supported formats: pdf, jpg, jpeg, png, gif, svg
-  - Subdirectories: biz-license/, logo/, etc. (managed by FileUploadService)
-  - No cloud integration (S3/Azure Blob Storage/GCS) in current Phase
+**스키마 관리:** Flyway
+- 마이그레이션 위치: `hola-pms/hola-app/src/main/resources/db/migration/`
+- 96개 마이그레이션 파일 (V1_0_0 ~ V8_9_0)
+- `out-of-order: true`, `baseline-on-migrate: true`
+- 테스트 환경: `flyway.target: 5.8.0` (V5_9_0+ 대용량 데이터 제외)
+
+**ORM:** Spring Data JPA + Hibernate
+- Soft Delete: `@SQLRestriction("deleted_at IS NULL")` 전 엔티티
+- Optimistic Lock: `@Version` 사용 엔티티
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/entity/MasterReservation.java`
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/entity/SubReservation.java`
+  - `hola-pms/hola-reservation/src/main/java/com/hola/reservation/entity/ReservationPayment.java`
+  - `hola-pms/hola-hotel/src/main/java/com/hola/hotel/entity/HkDailyAttendance.java`
+
+### Redis 7+ (Temporary Data Store)
+
+**연결:**
+- 로컬: `localhost:6379` (`application-local.yml`)
+- 테스트: 비활성화 (`spring.data.redis.repositories.enabled: false`)
+
+**용도 (현재):**
+- KICC 결제 임시 데이터: `kicc:booking:{shopOrderNo}` (TTL 30분)
+  - `BookingCreateRequest` + 검증 결과 + 주문번호 + 클라이언트 정보
+- KICC 결제 결과 폴링: `kicc:result:{shopOrderNo}` (TTL 10분)
+  - 모바일 리다이렉트 후 결과 확인용
+- 클라이언트: `StringRedisTemplate` (JSON 직렬화/역직렬화)
+
+**용도 (미사용/준비):**
+- 세션 관리 (Spring Session Redis): 설정되어 있으나 활성 사용 미확인
+- 쿼리 캐싱: `@Cacheable` 사용 없음
+
+### 파일 스토리지 (Local Filesystem)
+
+**서비스:** `hola-pms/hola-common/src/main/java/com/hola/common/service/FileUploadService.java`
+**컨트롤러:** `hola-pms/hola-common/src/main/java/com/hola/common/controller/FileUploadController.java`
+**정적 리소스 매핑:** `hola-pms/hola-common/src/main/java/com/hola/common/config/WebConfig.java`
+
+**설정:**
+- 경로: `hola.upload.path` (기본 `./uploads`)
+- URL 매핑: `/uploads/**` → 로컬 파일시스템
+- 허용 확장자: `pdf`, `jpg`, `jpeg`, `png`, `gif`, `svg`
+- 최대 파일 크기: 10MB
+- 파일명: UUID 기반 (`{uuid}.{ext}`)
+- 하위 디렉토리: `biz-license/`, `logo/` 등
+
+**제한:**
+- 클라우드 스토리지 미연동 (S3, GCS, Azure Blob 없음)
+- 경로 탈출 방지: `target.startsWith(rootLocation)` 검증
 
 ## Authentication & Identity
 
-**Primary (Admin/Staff):**
+### JWT (Admin API)
 
-- **Type:** JWT (JSON Web Tokens)
-- **Mechanism:** Stateless Bearer token in Authorization header
-- **Filter:** JwtAuthenticationFilter (applies to `/api/**` not `/api/v1/booking/**`)
-- **Algorithm:** HS256 (HMAC SHA-256)
-- **Secret:** Environment-provided (min 256 bits)
-- **Tokens:**
-  - Access: 1 hour expiry
-  - Refresh: 7 days expiry
-  - Claims: `sub` (username), `iat` (issued-at), `exp` (expiration), `role` (for access token)
-- **Implementation:** JJWT library
-- **Endpoint:** `POST /api/v1/auth/login` (returns access + refresh tokens)
+**필터:** `JwtAuthenticationFilter` → `/api/**` 경로
+**라이브러리:** JJWT 0.12.5
+**알고리즘:** HS256 (HMAC SHA-256)
+**토큰:**
+- Access Token: 1시간 (3,600,000ms)
+- Refresh Token: 7일 (604,800,000ms)
+- Secret: 환경변수 또는 설정 (최소 256비트)
 
-**Housekeeping Mobile:**
+### Booking API Key
 
-- **Type:** Session-based
-- **Mechanism:** Session attribute authentication (session ID in cookie)
-- **Filter:** HkMobileSessionFilter (applies to `/api/v1/properties/*/hk-mobile/**`)
-- **Session attributes:** `hkUserId`, `hkUserRole`
-- **Session fixation:** Disabled (sessionFixation().none())
-- **Purpose:** Separate from admin SessionContext to prevent SecurityContext pollution
-- **Endpoint:** Form login to `/login` then HK-specific paths
-- **Critical note:** Must restore original SecurityContext in filter finally block
+**필터:** `BookingApiKeyFilter` → `/api/v1/booking/**`
+**인증:** `X-API-KEY` 헤더
+**저장:** `rsv_booking_api_key` 테이블 (BCrypt 해시)
+**서비스:** `BookingApiKeyService` (검증 + 로깅)
 
-**Form Login (Web UI):**
+### 세션 기반 (Web + HK Mobile)
 
-- **Type:** Session + password authentication
-- **Mechanism:** POST /login → session cookie
-- **Password encoder:** BCrypt (10 salt rounds)
-- **Password policy:** 10-20 chars, 5 failed attempts locks account
-- **Role hierarchy:** SUPER_ADMIN > HOTEL_ADMIN > PROPERTY_ADMIN > HOUSEKEEPING_SUPERVISOR > HOUSEKEEPER
-- **Test credentials:** admin / holapms1! (Flyway-provided, BCrypt $2a$ hash)
+**Web:** Form Login (`POST /login`) → JSESSIONID 쿠키
+**HK Mobile:** 별도 세션 인증 (`HkMobileSessionFilter`)
+- Session 속성: `hkUserId`, `hkUserRole`
+- SecurityContext 분리 (Admin 세션과 오염 방지)
 
-**Multi-Tenancy (Tenant Isolation):**
+### Multi-Tenancy
 
-- **Mechanism:** TenantFilter + TenantContext (ThreadLocal)
-- **Header:** X-Tenant-ID (multi-schema routing)
-- **Implementation:**
-  - TenantFilter (com.hola.common.tenant.TenantFilter) - Sets ThreadLocal
-  - TenantIdentifierResolver - JPA MultiTenancyStrategy.SCHEMA
-  - TenantConnectionProvider - Selects schema based on tenant
-- **Scope:** Per HTTP request, cleared after response
-- **Purpose:** Enforce schema-per-tenant isolation (no cross-hotel data leakage)
+**메커니즘:** HTTP 헤더 기반 스키마 라우팅
+- `TenantFilter` (최고 우선순위 필터) → `X-Tenant-ID` 헤더 읽기
+- `TenantContext` (ThreadLocal) → 요청 종료 시 clear
+- JPA MultiTenancyStrategy.SCHEMA → 테넌트별 PostgreSQL 스키마 격리
 
 ## Monitoring & Observability
 
-**Error Tracking:**
+**에러 처리:**
+- `GlobalExceptionHandler` — 전역 예외 핸들러 (JSON ErrorCode + HTTP Status 매핑)
+- `BookingExceptionHandler` — 부킹엔진 전용 예외 핸들러
+- 위치: `hola-pms/hola-common/src/main/java/com/hola/common/exception/GlobalExceptionHandler.java`
 
-- Type: None (centralized exception handler)
-- Mechanism: GlobalExceptionHandler (com.hola.common.exception.GlobalExceptionHandler)
-- Output: JSON error responses with ErrorCode + message
-- Status codes: Mapped error codes to HTTP status (e.g., 400 BAD_REQUEST, 409 CONFLICT)
-- No external APM (DataDog, New Relic, Sentry) integrated
+**로깅:**
+- SLF4J + Logback (Spring Boot 기본)
+- 로컬: `com.hola=DEBUG`, `org.hibernate.SQL=DEBUG`, `BasicBinder=TRACE`
+- 프로덕션: `root=INFO`, `com.hola=INFO`
+- KICC 결제: 상세 로깅 (`[KICC]` 접두사, 거래번호/금액 로깅)
 
-**Logs:**
+**헬스체크:**
+- `/actuator/health` — Spring Boot Actuator (permitAll 설정됨)
+- Swagger: `/swagger-ui.html`, `/v3/api-docs`
 
-- **Framework:** SLF4J + Logback (Spring Boot default)
-- **Format:** Spring Boot standard (timestamp, level, logger, message)
-- **Levels:**
-  - Root: INFO
-  - com.hola: INFO (prod), DEBUG (local)
-  - org.hibernate.SQL: DEBUG (local only)
-  - org.testcontainers: INFO (tests only)
-- **Aggregation:** None (logs to stdout/stderr)
-- **Future:** No log shipping configured (Elastic Stack/CloudWatch/GCP Logging TBD)
-
-**Metrics:**
-
-- Type: None (Spring Boot Actuator not configured)
-- No health checks exposed
-- No metrics endpoint
+**외부 모니터링:** 미연동 (Sentry, DataDog, New Relic 등 없음)
+**메트릭:** 미연동 (Micrometer/Prometheus 없음)
 
 ## CI/CD & Deployment
 
-**Hosting:**
+**Hosting:** 미결정 (AWS/Azure/On-premise TBD)
+**CI Pipeline:** 미구축 (GitHub Actions/Jenkins 없음)
+**Docker:** Dockerfile 미존재 (TestContainers만 테스트용 사용)
+**Deployment Model:** 단일 Spring Boot JAR (내장 Tomcat)
 
-- Target: Not yet determined (AWS/Azure/On-premise TBD)
-- Deployment model: Single Spring Boot JAR (embedded Tomcat)
-- Build artifact: `hola-app/build/libs/*.jar`
-- Port: 8080 (configurable via server.port)
-
-**CI Pipeline:**
-
-- Status: Not integrated in repository (no GitHub Actions/GitLab CI/Jenkins)
-- Build command: `./gradlew clean build`
-- Test command: `./gradlew test` (TestContainers provisions PostgreSQL 16)
-- Manual: Developer runs locally before push
-
-**Docker:**
-
-- Dockerfile: Not present in repository (future requirement)
-- TestContainers used for local/CI test isolation
-- Runtime: Java 17+ JVM only
-
-## Environment Configuration
-
-**Required Environment Variables (Production):**
-
-- `SPRING_DATASOURCE_URL` - PostgreSQL JDBC connection string
-- `SPRING_DATASOURCE_USERNAME` - PostgreSQL user
-- `SPRING_DATASOURCE_PASSWORD` - PostgreSQL password (secret)
-- `SPRING_DATA_REDIS_HOST` - Redis host
-- `SPRING_DATA_REDIS_PORT` - Redis port
-- `JWT_SECRET` - Minimum 256-bit string for HS256 signing
-- `JWT_ACCESS_TOKEN_EXPIRY` - Milliseconds (default 3600000 = 1h)
-- `JWT_REFRESH_TOKEN_EXPIRY` - Milliseconds (default 604800000 = 7d)
-- `HOLA_UPLOAD_PATH` - File upload directory (must be writable)
-- `SERVER_PORT` - Tomcat port (default 8080)
-
-**Secrets Location:**
-
-- Local: `application-local.yml` (development only, hardcoded test values)
-- Production: Environment variables or Spring Cloud Config (not yet implemented)
-- No `.env` file committed (security best practice)
-- JWT secret: Pass via environment, never hardcode in production
-
-**Profile Activation:**
-
-- Default: `spring.profiles.active=local` (in application.yml)
-- Override: `-Dspring.profiles.active=prod` or environment variable
-- Available profiles: `local`, `test` (implicit), `prod` (TBD)
+**빌드:**
+```bash
+./gradlew clean build              # JAR 패키징
+# Output: hola-app/build/libs/hola-app-0.0.1-SNAPSHOT.jar
+```
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-
-- `/api/v1/booking/**` - Booking engine channel integration (POST for reservations)
-- `/api/v1/auth/login` - Authentication endpoint
-- `/api/v1/files` - File upload endpoint
-- No external webhook receivers configured
+- `POST /api/v1/booking/payment/return` — KICC 결제 인증 완료 콜백
+  - KICC가 브라우저를 통해 POST 호출 (리다이렉트)
+  - 파라미터: `resCd`, `shopOrderNo`, `authorizationId`, `resMsg`
+  - 성공 시: 결제 승인 + 예약 생성 + Thymeleaf 결과 페이지 반환
 
 **Outgoing:**
+- 없음 (알림/웹훅 발송 기능 미구현)
 
-- None currently implemented
-- Future: Folio/EOD notification webhooks, housekeeping task status callbacks (Phase 3)
+## Environment Configuration
 
-## API Key Management
+**필수 환경 변수 (Production):**
 
-**Booking API Keys:**
+| 변수 | 용도 | 비고 |
+|------|------|------|
+| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC URL | `jdbc:postgresql://host:5432/hola_pms` |
+| `SPRING_DATASOURCE_USERNAME` | DB 사용자명 | |
+| `SPRING_DATASOURCE_PASSWORD` | DB 비밀번호 | Secret |
+| `SPRING_DATA_REDIS_HOST` | Redis 호스트 | |
+| `SPRING_DATA_REDIS_PORT` | Redis 포트 | 기본 6379 |
+| `jwt.secret` | JWT 서명 키 | 최소 256비트 |
+| `KICC_SECRET_KEY` | KICC PG 시크릿키 | Secret |
+| `kicc.mall-id` | KICC 상점ID | 프로덕션용 발급 필요 |
+| `kicc.api-domain` | KICC API 도메인 | 운영: `https://pgapi.easypay.co.kr` |
+| `kicc.return-base-url` | 결제 리턴 베이스URL | 프로덕션 도메인 |
+| `hola.upload.path` | 파일 업로드 경로 | 쓰기 권한 필요 |
 
-- Entity: BookingApiKey (com.hola.reservation.booking.entity.BookingApiKey)
-- Table: `rsv_booking_api_key`
-- Service: BookingApiKeyService (validate + log usage)
-- Filter: BookingApiKeyFilter (intercepts `/api/v1/booking/**`)
-- Hash: Stored as bcrypt hash in `api_key_hash` column (not plaintext)
-- Validation: OncePerRequestFilter checks Authorization header value against stored hash
-- Audit: Each request logged in application logs (not in separate table)
+**시크릿 위치:**
+- 로컬: `application-local.yml` (개발용 하드코딩)
+- 프로덕션: 환경 변수 또는 외부 설정 관리 (Spring Cloud Config 미구축)
+- `.env` 파일: 커밋되지 않음
 
-## Third-Party Libraries (Non-Framework)
+## 비활성/미구축 통합
 
-**Code Generation/Annotation Processing:**
-
-- Lombok 1.18+ - Reduce boilerplate (getters, setters, constructors, logging)
-
-**Data Validation:**
-
-- Hibernate Validator - Bean validation (javax.validation.constraints.*)
-
-**DTO Mapping:**
-
-- MapStruct 1.5.5 - Type-safe annotation-based DTO/Entity conversion
-
-**Serialization:**
-
-- Jackson (core, datatype-jsr310) - JSON serialization, LocalDate/LocalDateTime handling
-
-**Database Migration:**
-
-- Flyway - Schema versioning and migration (executed on startup if enabled)
-
-**API Documentation:**
-
-- SpringDoc OpenAPI 2.5.0 - Generates OpenAPI 3.0 spec from controller annotations
-
-**Testing Isolation:**
-
-- TestContainers 1.19.7 - Docker-based PostgreSQL 16-alpine provisioning for tests
-
-**JWT:**
-
-- JJWT 0.12.5 - JWT token generation/parsing with HS256 signing
+| 통합 | 상태 | 비고 |
+|------|------|------|
+| 이메일 (SMTP) | 미구현 | `JavaMailSender` 미사용 |
+| SMS/알림톡 | 미구현 | 카카오톡 알림 등 미연동 |
+| 채널매니저 (OTA) | 미착수 | Phase 3 계획 |
+| POS 연동 | 미착수 | Phase 3 계획 |
+| 정산 시스템 | 미착수 | Phase 3 계획 |
+| 클라우드 스토리지 | 미구현 | 로컬 파일시스템만 |
+| 로그 수집 | 미구현 | ELK/CloudWatch 미연동 |
+| APM/메트릭 | 미구현 | Sentry/DataDog 미연동 |
+| 스케줄링 | 미구현 | `@Scheduled` 미사용 |
+| 비동기 처리 | 미구현 | `@Async` 미사용 |
+| 메시지 큐 | 미구현 | Kafka/RabbitMQ 미사용 |
+| WebSocket | 미구현 | 실시간 알림 없음 |
 
 ---
 
-*Integration audit: 2026-02-28*
+*Integration audit: 2026-03-26*
