@@ -5,6 +5,7 @@ import com.hola.hotel.dto.response.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 하우스키핑 서비스 인터페이스
@@ -57,6 +58,17 @@ public interface HousekeepingService {
 
     /** DIRTY 상태 객실을 스캔하여 미생성 작업을 일괄 생성. 생성된 작업 수 반환 */
     int generateDailyTasks(Long propertyId, LocalDate date);
+
+    // === 스테이오버 자동화 ===
+
+    /** OC→OD 일괄 전환 (매일 새벽 실행). SecurityContext 불필요. 전환된 객실 수 반환 */
+    int transitionOccupiedRoomsToDirty(Long propertyId);
+
+    /** 정책 기반 스테이오버 작업 자동 생성. SecurityContext 불필요. 생성된 작업 수 반환 */
+    int generateStayoverTasks(Long propertyId, LocalDate date);
+
+    /** DND 객실 정책 기반 처리. SecurityContext 불필요. 처리 결과 반환 */
+    Map<String, Integer> processDndRooms(Long propertyId, LocalDate date);
 
     // === 이력 조회 ===
     List<HkTaskResponse> getHistory(Long propertyId, LocalDate from, LocalDate to, Long assignedTo);

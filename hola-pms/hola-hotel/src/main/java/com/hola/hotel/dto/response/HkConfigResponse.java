@@ -27,4 +27,11 @@ public class HkConfigResponse {
     private BigDecimal defaultDeepCleanCredit;
     private BigDecimal defaultTouchUpCredit;
     private Integer rushThresholdMinutes;
+    private Boolean stayoverEnabled;
+    private Integer stayoverFrequency;
+    private Boolean turndownEnabled;
+    private String dndPolicy;
+    private Integer dndMaxSkipDays;
+    private String dailyTaskGenTime;
+    private String odTransitionTime;
 }

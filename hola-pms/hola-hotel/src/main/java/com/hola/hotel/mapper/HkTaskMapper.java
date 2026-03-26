@@ -86,6 +86,13 @@ public class HkTaskMapper {
                 .defaultDeepCleanCredit(config.getDefaultDeepCleanCredit())
                 .defaultTouchUpCredit(config.getDefaultTouchUpCredit())
                 .rushThresholdMinutes(config.getRushThresholdMinutes())
+                .stayoverEnabled(config.getStayoverEnabled())
+                .stayoverFrequency(config.getStayoverFrequency())
+                .turndownEnabled(config.getTurndownEnabled())
+                .dndPolicy(config.getDndPolicy())
+                .dndMaxSkipDays(config.getDndMaxSkipDays())
+                .dailyTaskGenTime(config.getDailyTaskGenTime())
+                .odTransitionTime(config.getOdTransitionTime())
                 .build();
     }
 

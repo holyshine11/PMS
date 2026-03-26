@@ -206,6 +206,8 @@ public enum ErrorCode {
     HK_CLOCKIN_DAYOFF_CONFLICT("HOLA-8072", "승인된 휴무일에는 출근할 수 없습니다.", HttpStatus.BAD_REQUEST),
     HK_DAYOFF_NOT_FOUND("HOLA-8073", "휴무일 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     HK_CONCURRENT_MODIFICATION("HOLA-8080", "다른 사용자가 동시에 수정하여 처리에 실패했습니다. 다시 시도해주세요.", HttpStatus.CONFLICT),
+    HK_CLEANING_POLICY_NOT_FOUND("HOLA-8090", "청소 정책을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    HK_CLEANING_POLICY_DUPLICATE("HOLA-8091", "해당 룸타입에 이미 청소 정책이 존재합니다.", HttpStatus.CONFLICT),
 
     // 프론트데스크 (HOLA-5xxx)
     FD_ROOM_ASSIGN_REQUIRED("HOLA-5001", "체크인 전 객실 배정이 필요합니다.", HttpStatus.BAD_REQUEST),

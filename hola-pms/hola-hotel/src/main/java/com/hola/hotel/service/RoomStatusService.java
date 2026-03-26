@@ -27,6 +27,7 @@ public interface RoomStatusService {
     static String calcStatusCode(String hkStatus, String foStatus) {
         if ("OOO".equals(hkStatus)) return "OOO";
         if ("OOS".equals(hkStatus)) return "OOS";
+        if ("DND".equals(hkStatus)) return "DND";
         String fo = "OCCUPIED".equals(foStatus) ? "O" : "V";
         String hk;
         switch (hkStatus) {

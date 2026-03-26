@@ -43,6 +43,7 @@ public class HousekeepingServiceImpl implements HousekeepingService {
     private final AdminUserPropertyRepository adminUserPropertyRepository;
     private final AccessControlService accessControlService;
     private final HkTaskMapper hkTaskMapper;
+    private final HkCleaningPolicyService cleaningPolicyService;
 
     // === 대시보드 ===
 
@@ -637,6 +638,163 @@ public class HousekeepingServiceImpl implements HousekeepingService {
         return createdCount;
     }
 
+    // === 스테이오버 자동화 ===
+
+    @Override
+    @Transactional
+    public int transitionOccupiedRoomsToDirty(Long propertyId) {
+        // OC 객실 → DIRTY 전환
+        List<RoomNumber> ocRooms = roomNumberRepository.findOccupiedCleanRooms(propertyId);
+        for (RoomNumber room : ocRooms) {
+            room.updateHkStatus("DIRTY", null);
+        }
+
+        // DND 객실: 연속 일수 증가
+        List<RoomNumber> dndRooms = roomNumberRepository.findByPropertyIdAndHkStatusOrderByRoomNumberAsc(
+                propertyId, "DND");
+        for (RoomNumber room : dndRooms) {
+            if ("OCCUPIED".equals(room.getFoStatus())) {
+                room.incrementDndDays();
+            }
+        }
+
+        log.info("OC→OD 전환: propertyId={}, 전환={}건, DND 일수증가={}건",
+                 propertyId, ocRooms.size(), dndRooms.size());
+        return ocRooms.size();
+    }
+
+    @Override
+    @Transactional
+    public int generateStayoverTasks(Long propertyId, LocalDate date) {
+        LocalDate targetDate = date != null ? date : LocalDate.now();
+
+        // OD 객실 + roomTypeId 조회
+        List<Object[]> odRooms = roomNumberRepository.findOccupiedDirtyRoomsWithRoomTypeId(propertyId);
+        int created = 0;
+
+        for (Object[] row : odRooms) {
+            Long roomNumberId = ((Number) row[0]).longValue();
+            Long roomTypeId = row[1] != null ? ((Number) row[1]).longValue() : null;
+
+            // 정책 해석
+            ResolvedCleaningPolicy policy = cleaningPolicyService.resolvePolicy(
+                    propertyId, roomTypeId != null ? roomTypeId : 0L);
+
+            if (!policy.isStayoverEnabled()) continue;
+
+            // 이미 오늘 활성 작업이 있으면 스킵
+            if (hkTaskRepository.existsActiveTaskByRoomNumberIdAndTaskDate(roomNumberId, targetDate)) continue;
+
+            // frequency만큼 작업 생성
+            for (int i = 0; i < policy.getStayoverFrequency(); i++) {
+                String scheduledTime = calculateScheduledTime(i, policy.getStayoverFrequency());
+                HkTask task = HkTask.builder()
+                        .propertyId(propertyId)
+                        .roomNumberId(roomNumberId)
+                        .taskType("STAYOVER")
+                        .taskDate(targetDate)
+                        .priority(policy.getStayoverPriority())
+                        .credit(policy.getStayoverCredit())
+                        .scheduledTime(scheduledTime)
+                        .build();
+                applyRushPriority(task, propertyId);
+                hkTaskRepository.save(task);
+                created++;
+            }
+        }
+
+        log.info("스테이오버 작업 생성: propertyId={}, date={}, 생성={}건", propertyId, targetDate, created);
+        return created;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Integer> processDndRooms(Long propertyId, LocalDate date) {
+        LocalDate targetDate = date != null ? date : LocalDate.now();
+        List<RoomNumber> dndRooms = roomNumberRepository.findByPropertyIdAndHkStatusOrderByRoomNumberAsc(
+                propertyId, "DND");
+        int skipped = 0, retried = 0, forced = 0;
+
+        for (RoomNumber room : dndRooms) {
+            if (!"OCCUPIED".equals(room.getFoStatus())) continue;
+
+            Long roomTypeId = roomNumberRepository.findRoomTypeIdByRoomNumberId(room.getId());
+            ResolvedCleaningPolicy policy = cleaningPolicyService.resolvePolicy(
+                    propertyId, roomTypeId != null ? roomTypeId : 0L);
+
+            String dndPolicy = policy.getDndPolicy();
+            if (dndPolicy == null) dndPolicy = "SKIP";
+
+            switch (dndPolicy) {
+                case "SKIP":
+                    skipped++;
+                    break;
+
+                case "RETRY_AFTERNOON":
+                    if (!hkTaskRepository.existsActiveTaskByRoomNumberIdAndTaskDate(room.getId(), targetDate)) {
+                        HkTask task = HkTask.builder()
+                                .propertyId(propertyId)
+                                .roomNumberId(room.getId())
+                                .taskType("STAYOVER")
+                                .taskDate(targetDate)
+                                .priority("NORMAL")
+                                .credit(policy.getStayoverCredit())
+                                .scheduledTime("14:00")
+                                .dndSkipped(true)
+                                .dndSkipCount(room.getConsecutiveDndDays() != null ? room.getConsecutiveDndDays() : 0)
+                                .note("DND 오후 재시도")
+                                .build();
+                        hkTaskRepository.save(task);
+                    }
+                    retried++;
+                    break;
+
+                case "FORCE_AFTER_DAYS":
+                    int maxDays = policy.getDndMaxSkipDays();
+                    if (room.getConsecutiveDndDays() != null && room.getConsecutiveDndDays() >= maxDays) {
+                        room.clearDnd();
+                        if (!hkTaskRepository.existsActiveTaskByRoomNumberIdAndTaskDate(room.getId(), targetDate)) {
+                            HkTask task = HkTask.builder()
+                                    .propertyId(propertyId)
+                                    .roomNumberId(room.getId())
+                                    .taskType("STAYOVER")
+                                    .taskDate(targetDate)
+                                    .priority("HIGH")
+                                    .credit(policy.getStayoverCredit())
+                                    .scheduledTime("10:00")
+                                    .note("DND " + maxDays + "일 초과 강제 청소")
+                                    .build();
+                            hkTaskRepository.save(task);
+                        }
+                        forced++;
+                    } else {
+                        skipped++;
+                    }
+                    break;
+
+                default:
+                    skipped++;
+                    break;
+            }
+        }
+
+        log.info("DND 처리: propertyId={}, 스킵={}, 재시도={}, 강제={}",
+                 propertyId, skipped, retried, forced);
+        return Map.of("skipped", skipped, "retried", retried, "forced", forced);
+    }
+
+    /**
+     * 시간대 분배: frequency별 청소 시작 시간 계산
+     */
+    private String calculateScheduledTime(int index, int total) {
+        if (total <= 1) return "10:00";
+        int startHour = 9;
+        int endHour = 18;
+        int gap = (endHour - startHour) / total;
+        int hour = startHour + (gap * index);
+        return String.format("%02d:00", hour);
+    }
+
     // === 이력 조회 ===
 
     @Override
@@ -902,6 +1060,7 @@ public class HousekeepingServiceImpl implements HousekeepingService {
         long od = roomNumberRepository.countByPropertyIdAndHkStatusAndFoStatus(propertyId, "DIRTY", "OCCUPIED");
         long ooo = roomNumberRepository.countByPropertyIdAndHkStatus(propertyId, "OOO");
         long oos = roomNumberRepository.countByPropertyIdAndHkStatus(propertyId, "OOS");
+        long dnd = roomNumberRepository.countByPropertyIdAndHkStatus(propertyId, "DND");
         long total = roomNumberRepository.countByPropertyId(propertyId);
 
         return HkDashboardResponse.RoomStatusSummary.builder()
@@ -912,6 +1071,7 @@ public class HousekeepingServiceImpl implements HousekeepingService {
                 .occupiedDirty((int) od)
                 .ooo((int) ooo)
                 .oos((int) oos)
+                .dnd((int) dnd)
                 .build();
     }
 }

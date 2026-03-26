@@ -440,6 +440,40 @@ public class HousekeepingApiController {
         return ResponseEntity.ok(HolaResponse.success(Map.of("createdCount", count)));
     }
 
+    // === 수동 실행 ===
+
+    @Operation(summary = "OC→OD 수동 전환", description = "투숙 중 + 청소완료 객실을 일괄 DIRTY 전환")
+    @PostMapping("/transition-od")
+    public ResponseEntity<HolaResponse<Map<String, Object>>> transitionToDirty(
+            @PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
+        int count = housekeepingService.transitionOccupiedRoomsToDirty(propertyId);
+        return ResponseEntity.ok(HolaResponse.success(Map.of("convertedCount", count)));
+    }
+
+    @Operation(summary = "스테이오버 작업 생성", description = "정책 기반 스테이오버 청소 작업 일괄 생성")
+    @PostMapping("/generate-stayover-tasks")
+    public ResponseEntity<HolaResponse<Map<String, Object>>> generateStayoverTasks(
+            @PathVariable Long propertyId,
+            @RequestBody(required = false) Map<String, String> body) {
+        accessControlService.validatePropertyAccess(propertyId);
+        LocalDate date = (body != null && body.get("date") != null)
+                ? LocalDate.parse(body.get("date")) : LocalDate.now();
+        int count = housekeepingService.generateStayoverTasks(propertyId, date);
+        return ResponseEntity.ok(HolaResponse.success(Map.of("createdCount", count)));
+    }
+
+    @Operation(summary = "DND 처리", description = "DND 객실 정책 기반 처리 (스킵/재시도/강제)")
+    @PostMapping("/process-dnd")
+    public ResponseEntity<HolaResponse<Map<String, Integer>>> processDnd(
+            @PathVariable Long propertyId,
+            @RequestBody(required = false) Map<String, String> body) {
+        accessControlService.validatePropertyAccess(propertyId);
+        LocalDate date = (body != null && body.get("date") != null)
+                ? LocalDate.parse(body.get("date")) : LocalDate.now();
+        return ResponseEntity.ok(HolaResponse.success(housekeepingService.processDndRooms(propertyId, date)));
+    }
+
     // === 자동 배정 ===
 
     @Operation(summary = "자동 배정", description = "구역 기반 자동 배정 (가용 인력 → 구역 매핑 → 크레딧 균등 폴백)")

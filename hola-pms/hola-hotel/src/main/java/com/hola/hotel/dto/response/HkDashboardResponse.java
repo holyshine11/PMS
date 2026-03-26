@@ -44,6 +44,7 @@ public class HkDashboardResponse {
         private int occupiedDirty;  // OD: 투숙중+청소필요
         private int ooo;            // Out of Order
         private int oos;            // Out of Service
+        private int dnd;
     }
 
     @Getter

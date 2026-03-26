@@ -7,6 +7,7 @@ var HkSettings = {
     floors: [],
     housekeepers: [],
     sections: [],
+    policies: [],
 
     init: function () {
         this.bindEvents();
@@ -36,6 +37,13 @@ var HkSettings = {
                 self.deleteSection($(this).data('id'));
             }
         });
+
+        // 청소 정책
+        $(document).on('click', '.btn-edit-policy', function () {
+            self.openPolicyModal($(this).data('room-type-id'));
+        });
+        $('#btnSavePolicy').on('click', function () { self.savePolicy(); });
+        $('#btnResetPolicy').on('click', function () { self.resetPolicy(); });
     },
 
     reload: function () {
@@ -52,6 +60,7 @@ var HkSettings = {
         this.loadFloors();
         this.loadHousekeepers();
         this.loadSections();
+        this.loadPolicies();
     },
 
     // === 일반 설정 ===
@@ -73,6 +82,13 @@ var HkSettings = {
                     $('#cfgDeepCleanCredit').val(c.defaultDeepCleanCredit);
                     $('#cfgTouchUpCredit').val(c.defaultTouchUpCredit);
                     $('#cfgRushThreshold').val(c.rushThresholdMinutes);
+                    $('#cfgStayoverEnabled').prop('checked', c.stayoverEnabled);
+                    $('#cfgStayoverFrequency').val(c.stayoverFrequency || 1);
+                    $('#cfgTurndownEnabled').prop('checked', c.turndownEnabled);
+                    $('#cfgDndPolicy').val(c.dndPolicy || 'SKIP');
+                    $('#cfgDndMaxSkipDays').val(c.dndMaxSkipDays || 3);
+                    $('#cfgOdTransitionTime').val(c.odTransitionTime || '05:00');
+                    $('#cfgDailyTaskGenTime').val(c.dailyTaskGenTime || '06:00');
                 }
             }
         });
@@ -89,7 +105,14 @@ var HkSettings = {
             defaultTurndownCredit: parseFloat($('#cfgTurndownCredit').val()) || 0.3,
             defaultDeepCleanCredit: parseFloat($('#cfgDeepCleanCredit').val()) || 2.0,
             defaultTouchUpCredit: parseFloat($('#cfgTouchUpCredit').val()) || 0.3,
-            rushThresholdMinutes: parseInt($('#cfgRushThreshold').val()) || 120
+            rushThresholdMinutes: parseInt($('#cfgRushThreshold').val()) || 120,
+            stayoverEnabled: $('#cfgStayoverEnabled').is(':checked'),
+            stayoverFrequency: parseInt($('#cfgStayoverFrequency').val()) || 1,
+            turndownEnabled: $('#cfgTurndownEnabled').is(':checked'),
+            dndPolicy: $('#cfgDndPolicy').val() || 'SKIP',
+            dndMaxSkipDays: parseInt($('#cfgDndMaxSkipDays').val()) || 3,
+            dailyTaskGenTime: $('#cfgDailyTaskGenTime').val() || '06:00',
+            odTransitionTime: $('#cfgOdTransitionTime').val() || '05:00'
         };
 
         HolaPms.ajax({
@@ -274,6 +297,143 @@ var HkSettings = {
                 if (res.success) {
                     HolaPms.alert('success', '구역이 삭제되었습니다.');
                     self.loadSections();
+                }
+            }
+        });
+    },
+
+    // === 청소 정책 ===
+
+    loadPolicies: function () {
+        var self = this;
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/hk-cleaning-policies',
+            method: 'GET',
+            success: function (res) {
+                if (res.success) {
+                    self.policies = res.data || [];
+                    self.renderPolicyTable();
+                }
+            }
+        });
+    },
+
+    renderPolicyTable: function () {
+        var $body = $('#policyBody');
+        $body.empty();
+
+        if (this.policies.length === 0) {
+            $body.append('<tr><td colspan="6" class="text-center text-muted py-3">등록된 룸타입이 없습니다.</td></tr>');
+            return;
+        }
+
+        this.policies.forEach(function (p) {
+            var badge = p.overridden
+                ? '<span class="badge bg-primary">오버라이드</span>'
+                : '<span class="badge bg-secondary">기본값</span>';
+            var stayover = p.overridden && p.stayoverEnabled != null
+                ? (p.stayoverEnabled ? (p.stayoverFrequency || '-') + '회/일' : 'OFF')
+                : '-';
+            var turndown = p.overridden && p.turndownEnabled != null
+                ? (p.turndownEnabled ? 'ON' : 'OFF')
+                : '-';
+            var dndMap = { 'SKIP': '스킵', 'RETRY_AFTERNOON': '오후 재시도', 'FORCE_AFTER_DAYS': 'N일 강제' };
+            var dnd = p.overridden && p.dndPolicy ? (dndMap[p.dndPolicy] || p.dndPolicy) : '-';
+
+            $body.append(
+                '<tr>' +
+                '<td>' + HolaPms.escapeHtml(p.roomTypeCode || '') +
+                    ' <span class="text-muted small">(' + HolaPms.escapeHtml(p.roomTypeName || '') + ')</span></td>' +
+                '<td class="text-center">' + stayover + '</td>' +
+                '<td class="text-center">' + turndown + '</td>' +
+                '<td class="text-center">' + dnd + '</td>' +
+                '<td class="text-center">' + badge + '</td>' +
+                '<td class="text-center">' +
+                    '<button class="btn btn-sm btn-outline-primary btn-edit-policy" data-room-type-id="' + p.roomTypeId + '">' +
+                        '<i class="fas fa-edit"></i>' +
+                    '</button>' +
+                '</td>' +
+                '</tr>'
+            );
+        });
+    },
+
+    openPolicyModal: function (roomTypeId) {
+        var self = this;
+        var policy = self.policies.find(function (p) { return p.roomTypeId === roomTypeId; });
+        if (!policy) return;
+
+        $('#policyModalTitle').text(
+            (policy.roomTypeCode || '') + ' 청소 정책' + (policy.overridden ? ' (오버라이드)' : '')
+        );
+        $('#policyRoomTypeId').val(roomTypeId);
+
+        $('#polStayoverEnabled').val(policy.stayoverEnabled != null ? String(policy.stayoverEnabled) : '');
+        $('#polStayoverFrequency').val(policy.stayoverFrequency || '');
+        $('#polStayoverCredit').val(policy.stayoverCredit || '');
+        $('#polStayoverPriority').val(policy.stayoverPriority || '');
+        $('#polTurndownEnabled').val(policy.turndownEnabled != null ? String(policy.turndownEnabled) : '');
+        $('#polTurndownCredit').val(policy.turndownCredit || '');
+        $('#polDndPolicy').val(policy.dndPolicy || '');
+        $('#polDndMaxSkipDays').val(policy.dndMaxSkipDays || '');
+        $('#polNote').val(policy.note || '');
+
+        if (policy.overridden) {
+            $('#btnResetPolicy').removeClass('d-none');
+        } else {
+            $('#btnResetPolicy').addClass('d-none');
+        }
+
+        HolaPms.modal.show('#policyModal');
+    },
+
+    savePolicy: function () {
+        var self = this;
+        var roomTypeId = parseInt($('#policyRoomTypeId').val());
+
+        var toNull = function (v) { return v === '' || v === undefined ? null : v; };
+        var toBool = function (v) { return v === 'true' ? true : v === 'false' ? false : null; };
+
+        var data = {
+            roomTypeId: roomTypeId,
+            stayoverEnabled: toBool($('#polStayoverEnabled').val()),
+            stayoverFrequency: toNull($('#polStayoverFrequency').val()) ? parseInt($('#polStayoverFrequency').val()) : null,
+            stayoverCredit: toNull($('#polStayoverCredit').val()) ? parseFloat($('#polStayoverCredit').val()) : null,
+            stayoverPriority: toNull($('#polStayoverPriority').val()),
+            turndownEnabled: toBool($('#polTurndownEnabled').val()),
+            turndownCredit: toNull($('#polTurndownCredit').val()) ? parseFloat($('#polTurndownCredit').val()) : null,
+            dndPolicy: toNull($('#polDndPolicy').val()),
+            dndMaxSkipDays: toNull($('#polDndMaxSkipDays').val()) ? parseInt($('#polDndMaxSkipDays').val()) : null,
+            note: toNull($('#polNote').val())
+        };
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/hk-cleaning-policies',
+            method: 'POST',
+            data: JSON.stringify(data),
+            success: function (res) {
+                if (res.success) {
+                    HolaPms.modal.hide('#policyModal');
+                    HolaPms.alert('success', '정책이 저장되었습니다.');
+                    self.loadPolicies();
+                }
+            }
+        });
+    },
+
+    resetPolicy: function () {
+        var self = this;
+        var roomTypeId = parseInt($('#policyRoomTypeId').val());
+        if (!confirm('이 룸타입의 오버라이드를 삭제하고 프로퍼티 기본값으로 복귀하시겠습니까?')) return;
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/hk-cleaning-policies/' + roomTypeId,
+            method: 'DELETE',
+            success: function (res) {
+                if (res.success) {
+                    HolaPms.modal.hide('#policyModal');
+                    HolaPms.alert('success', '기본값으로 초기화되었습니다.');
+                    self.loadPolicies();
                 }
             }
         });
