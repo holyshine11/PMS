@@ -10,7 +10,7 @@
 
     <!-- 히어로 섹션 -->
     <section class="booking-hero">
-        <div class="container">
+        <div class="container" style="position:relative; z-index:1;">
             <div class="text-center text-white">
                 <p class="hero-subtitle mb-2" id="hotelName"></p>
                 <h1 class="hero-title mb-3" id="propertyName">객실 예약</h1>
@@ -19,107 +19,44 @@
         </div>
     </section>
 
-    <!-- 검색 폼 -->
+    <!-- 검색 카드 -->
     <section class="booking-search-section">
         <div class="container">
             <div class="search-card">
-                <form id="searchForm" class="row g-3 align-items-end">
-                    <!-- 체크인 -->
-                    <div class="col-md-3">
-                        <label for="checkIn" class="form-label">체크인</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-calendar-check"></i></span>
-                            <input type="date" class="form-control" id="checkIn" name="checkIn" required>
-                        </div>
-                    </div>
-                    <!-- 체크아웃 -->
-                    <div class="col-md-3">
-                        <label for="checkOut" class="form-label">체크아웃</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-calendar-minus"></i></span>
-                            <input type="date" class="form-control" id="checkOut" name="checkOut" required>
-                        </div>
-                    </div>
-                    <!-- 성인 -->
-                    <div class="col-md-2">
-                        <label for="adults" class="form-label">성인</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-user"></i></span>
-                            <select class="form-select" id="adults" name="adults">
-                                <option value="1">1명</option>
-                                <option value="2" selected>2명</option>
-                                <option value="3">3명</option>
-                                <option value="4">4명</option>
-                                <option value="5">5명</option>
-                                <option value="6">6명</option>
-                            </select>
-                        </div>
-                    </div>
-                    <!-- 아동 -->
-                    <div class="col-md-2">
-                        <label for="children" class="form-label">아동</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-child"></i></span>
-                            <select class="form-select" id="children" name="children">
-                                <option value="0" selected>0명</option>
-                                <option value="1">1명</option>
-                                <option value="2">2명</option>
-                                <option value="3">3명</option>
-                                <option value="4">4명</option>
-                            </select>
-                        </div>
-                    </div>
-                    <!-- 검색 버튼 -->
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-booking w-100">
-                            <i class="fas fa-search me-1"></i> 객실 검색
-                        </button>
-                    </div>
-                </form>
+                <!-- 캘린더 -->
+                <div id="calendarContainer" class="bk-calendar"></div>
 
-                <!-- 숙박일수 안내 -->
-                <div class="mt-3 text-center" id="nightsInfo" style="display:none;">
-                    <span class="badge bg-light text-dark border px-3 py-2">
-                        <i class="fas fa-moon me-1 text-primary"></i>
-                        <span id="nightsCount"></span>박 <span id="nightsCountPlus"></span>일
-                    </span>
+                <!-- 인원 + 검색 -->
+                <div class="search-guests-row">
+                    <div class="bk-stepper" style="flex:1;">
+                        <div class="bk-stepper-label">성인</div>
+                        <div class="bk-stepper-control">
+                            <button type="button" class="bk-stepper-btn" id="adultsDecrease">&#8722;</button>
+                            <span class="bk-stepper-value" id="adultsValue">2</span>
+                            <button type="button" class="bk-stepper-btn" id="adultsIncrease">&#43;</button>
+                        </div>
+                    </div>
+                    <div class="bk-stepper" style="flex:1;">
+                        <div class="bk-stepper-label">아동<small>만 12세 이하</small></div>
+                        <div class="bk-stepper-control">
+                            <button type="button" class="bk-stepper-btn" id="childrenDecrease">&#8722;</button>
+                            <span class="bk-stepper-value" id="childrenValue">0</span>
+                            <button type="button" class="bk-stepper-btn" id="childrenIncrease">&#43;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 검색 버튼 -->
+                <div class="search-action-row">
+                    <button type="button" class="btn btn-booking btn-booking-lg" id="btnSearch">
+                        <i class="fas fa-search"></i> 객실 검색
+                    </button>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- 프로퍼티 정보 -->
-    <section class="property-info-section" id="propertyInfoSection" style="display:none;">
-        <div class="container">
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="info-card">
-                        <div class="info-icon"><i class="fas fa-clock"></i></div>
-                        <h6>체크인 / 체크아웃</h6>
-                        <p class="mb-0">
-                            <span id="infoCheckIn">-</span> ~ <span id="infoCheckOut">-</span>
-                        </p>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="info-card">
-                        <div class="info-icon"><i class="fas fa-phone"></i></div>
-                        <h6>문의전화</h6>
-                        <p class="mb-0" id="infoPhone">-</p>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="info-card">
-                        <div class="info-icon"><i class="fas fa-envelope"></i></div>
-                        <h6>이메일</h6>
-                        <p class="mb-0" id="infoEmail">-</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- 에러 표시 -->
+    <!-- 에러 -->
     <div class="container mt-4">
         <div class="alert alert-danger d-none" id="errorAlert" role="alert">
             <i class="fas fa-exclamation-circle me-1"></i>
@@ -127,7 +64,6 @@
         </div>
     </div>
 
-    <!-- 프로퍼티 코드 (JS에서 사용) -->
     <input type="hidden" id="propertyCode" th:value="${propertyCode}">
 
 </main>
@@ -135,6 +71,7 @@
 <th:block layout:fragment="scripts">
 <script>
     $(function() {
+        document.body.classList.add('has-hero');
         HolaBooking.SearchPage.init();
     });
 </script>

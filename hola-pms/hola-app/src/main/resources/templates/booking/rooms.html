@@ -24,14 +24,27 @@
                     <span class="summary-item">
                         <i class="fas fa-user me-1"></i>
                         성인 <span th:text="${adults}"></span>명
-                        <span th:if="${children > 0}">
-                            , 아동 <span th:text="${children}"></span>명
-                        </span>
+                        <span th:if="${children > 0}">, 아동 <span th:text="${children}"></span>명</span>
                     </span>
                 </div>
-                <a th:href="@{/booking/{code}(code=${propertyCode})}" class="btn btn-sm btn-outline-light mt-2 mt-md-0">
+                <a th:href="@{/booking/{code}(code=${propertyCode})}" class="btn btn-sm btn-outline-dark mt-2 mt-md-0">
                     <i class="fas fa-search me-1"></i> 재검색
                 </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 스텝 인디케이터 -->
+    <section class="step-indicator-section">
+        <div class="container">
+            <div class="step-indicator">
+                <div class="step completed"><span class="step-num">1</span><span class="step-text">날짜 선택</span></div>
+                <div class="step-line completed"></div>
+                <div class="step active"><span class="step-num">2</span><span class="step-text">객실 선택</span></div>
+                <div class="step-line"></div>
+                <div class="step"><span class="step-num">3</span><span class="step-text">정보 입력</span></div>
+                <div class="step-line"></div>
+                <div class="step"><span class="step-num">4</span><span class="step-text">예약 완료</span></div>
             </div>
         </div>
     </section>
@@ -41,18 +54,14 @@
         <div class="container">
             <h4 class="section-title mb-4">예약 가능 객실</h4>
 
-            <!-- 로딩 스피너 -->
             <div id="roomsLoading" class="booking-spinner">
                 <div class="spinner-border" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
 
-            <!-- 객실 없음 -->
             <div id="noRoomsMessage" class="text-center py-5" style="display:none;">
-                <div class="mb-3">
-                    <i class="fas fa-bed fa-3x text-muted"></i>
-                </div>
+                <div class="mb-3"><i class="fas fa-bed fa-3x text-muted"></i></div>
                 <h5 class="text-muted">선택하신 조건에 맞는 객실이 없습니다</h5>
                 <p class="text-muted mb-3">날짜나 인원을 변경하여 다시 검색해주세요.</p>
                 <a th:href="@{/booking/{code}(code=${propertyCode})}" class="btn btn-booking">
@@ -60,18 +69,17 @@
                 </a>
             </div>
 
-            <!-- 객실 카드 목록 -->
             <div id="roomsList"></div>
         </div>
     </section>
 
-    <!-- 선택 요약 + 예약 진행 (하단 고정) -->
+    <!-- 하단 고정 바 -->
     <div class="booking-bottom-bar" id="bottomBar" style="display:none;">
         <div class="container">
             <div class="d-flex flex-wrap align-items-center justify-content-between">
                 <div>
                     <span class="text-muted me-2">선택 객실:</span>
-                    <span id="selectedRoomSummary"></span>
+                    <span id="selectedRoomSummary" style="font-weight:600;"></span>
                 </div>
                 <div class="d-flex align-items-center gap-3 mt-2 mt-md-0">
                     <span class="selected-total">
@@ -85,7 +93,7 @@
         </div>
     </div>
 
-    <!-- 에러 표시 -->
+    <!-- 에러 -->
     <div class="container mt-4">
         <div class="alert alert-danger d-none" id="errorAlert" role="alert">
             <i class="fas fa-exclamation-circle me-1"></i>
@@ -93,7 +101,6 @@
         </div>
     </div>
 
-    <!-- Hidden 데이터 -->
     <input type="hidden" id="propertyCode" th:value="${propertyCode}">
     <input type="hidden" id="checkIn" th:value="${checkIn}">
     <input type="hidden" id="checkOut" th:value="${checkOut}">
@@ -104,9 +111,7 @@
 
 <th:block layout:fragment="scripts">
 <script>
-    $(function() {
-        HolaBooking.RoomsPage.init();
-    });
+    $(function() { HolaBooking.RoomsPage.init(); });
 </script>
 </th:block>
 </body>

@@ -354,10 +354,11 @@ var ReservationTimelineView = {
         var laneEnds = [];
         for (var i = 0; i < sorted.length; i++) {
             var rsv = sorted[i];
+            var rsvEnd = (rsv.stayType === 'DAY_USE') ? rsv.masterCheckIn : rsv.masterCheckOut;
             var placed = false;
             for (var li = 0; li < laneEnds.length; li++) {
                 if (rsv.masterCheckIn >= laneEnds[li]) {
-                    laneEnds[li] = rsv.masterCheckOut;
+                    laneEnds[li] = rsvEnd;
                     rsv._lane = li;
                     placed = true;
                     break;
@@ -365,7 +366,7 @@ var ReservationTimelineView = {
             }
             if (!placed) {
                 rsv._lane = laneEnds.length;
-                laneEnds.push(rsv.masterCheckOut);
+                laneEnds.push(rsvEnd);
             }
         }
         return Math.max(1, laneEnds.length);
@@ -375,57 +376,7 @@ var ReservationTimelineView = {
      * 레인 기반 예약 바 렌더링 (미배정 타임라인 전용)
      */
     renderLanedBar: function(rsv, dates, z, lane) {
-        var viewStart = this.formatDate(this.viewDate);
-        var viewEnd = this.formatDate(this.addDays(this.viewDate, dates.length));
-        var ci = rsv.masterCheckIn, co = rsv.masterCheckOut;
-        if (ci >= viewEnd || co <= viewStart) return '';
-
-        var bs = ci < viewStart ? viewStart : ci;
-        var be = co > viewEnd ? viewEnd : co;
-        var sIdx = this.daysBetween(this.viewDate, this.parseDate(bs));
-        var eIdx = this.daysBetween(this.viewDate, this.parseDate(be));
-        // 체크아웃 당일 컬럼 포함 (호텔 테이프차트 표준)
-        if (co <= viewEnd) eIdx += 1;
-        if (sIdx < 0) sIdx = 0;
-        if (eIdx > dates.length) eIdx = dates.length;
-        if (eIdx <= sIdx) return '';
-
-        var left = sIdx * z.dayWidth + 2;
-        var width = (eIdx - sIdx) * z.dayWidth - 4;
-        var span = eIdx - sIdx;
-        var name = HolaPms.escapeHtml(rsv.guestNameMasked || '-');
-        var resNo = rsv.masterReservationNo ? HolaPms.escapeHtml(rsv.masterReservationNo) : '';
-        var statusLabel = this.getStatusLabel(rsv.reservationStatus);
-        var statusClass = rsv.reservationStatus.toLowerCase().replace(/_/g, '-');
-
-        var isFirst = ci >= viewStart, isLast = co <= viewEnd;
-        var rad = '6px';
-        if (isFirst && !isLast) rad = '6px 2px 2px 6px';
-        else if (!isFirst && isLast) rad = '2px 6px 6px 2px';
-        else if (!isFirst && !isLast) rad = '2px';
-
-        // 레인 기반 위치
-        var barTop = lane * this.LANE_H + 4;
-        var barHeight = this.LANE_H - 8;
-
-        var h = '<div class="tl-bar tl-bar--' + statusClass + '" ';
-        h += 'style="left:' + left + 'px;width:' + width + 'px;border-radius:' + rad + ';';
-        h += 'top:' + barTop + 'px;height:' + barHeight + 'px;" ';
-        h += 'data-status-label="' + HolaPms.escapeHtml(statusLabel) + '" ';
-        h += 'data-guest="' + name + '" data-resno="' + resNo + '" ';
-        h += 'data-period="' + HolaPms.escapeHtml(ci + ' → ' + co) + '" ';
-        h += 'onclick="HolaPms.popup.openReservationDetail(' + rsv.id + ')">';
-
-        if (span >= 2 || z.dayWidth >= 80) {
-            h += '<span class="tl-bar-icon">' + this.getStatusIcon(rsv.reservationStatus) + '</span>';
-            h += '<span class="tl-bar-text">' + name + '</span>';
-            if (span >= 3 && z.dayWidth >= 54) h += '<span class="tl-bar-sub">' + resNo + '</span>';
-        } else {
-            h += '<span class="tl-bar-icon">' + this.getStatusIcon(rsv.reservationStatus) + '</span>';
-        }
-
-        h += '</div>';
-        return h;
+        return this.renderBar(rsv, dates, z, lane);
     },
 
     buildFloorGroup: function(group, dates, z, gridW) {
@@ -481,11 +432,16 @@ var ReservationTimelineView = {
         return h;
     },
 
-    renderBar: function(rsv, dates, z) {
+    /**
+     * 예약 바 렌더링 (배정 객실 + 미배정 레인 공용)
+     * @param lane - null이면 배정 객실(top/height 생략), 숫자면 미배정 레인 위치 적용
+     */
+    renderBar: function(rsv, dates, z, lane) {
         var viewStart = this.formatDate(this.viewDate);
         var viewEnd = this.formatDate(this.addDays(this.viewDate, dates.length));
-        var ci = rsv.masterCheckIn, co = rsv.masterCheckOut;
-        if (ci >= viewEnd || co <= viewStart) return '';
+        var ci = rsv.masterCheckIn;
+        var co = (rsv.stayType === 'DAY_USE') ? ci : rsv.masterCheckOut;
+        if (ci >= viewEnd || co < viewStart) return '';
 
         var bs = ci < viewStart ? viewStart : ci;
         var be = co > viewEnd ? viewEnd : co;
@@ -511,8 +467,13 @@ var ReservationTimelineView = {
         else if (!isFirst && isLast) rad = '2px 6px 6px 2px';
         else if (!isFirst && !isLast) rad = '2px';
 
+        var style = 'left:' + left + 'px;width:' + width + 'px;border-radius:' + rad + ';';
+        if (lane != null) {
+            style += 'top:' + (lane * this.LANE_H + 4) + 'px;height:' + (this.LANE_H - 8) + 'px;';
+        }
+
         var h = '<div class="tl-bar tl-bar--' + statusClass + '" ';
-        h += 'style="left:' + left + 'px;width:' + width + 'px;border-radius:' + rad + ';" ';
+        h += 'style="' + style + '" ';
         h += 'data-status-label="' + HolaPms.escapeHtml(statusLabel) + '" ';
         h += 'data-guest="' + name + '" data-resno="' + resNo + '" ';
         h += 'data-period="' + HolaPms.escapeHtml(ci + ' → ' + co) + '" ';

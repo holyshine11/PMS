@@ -30,4 +30,7 @@ public class ReservationCalendarResponse {
 
     /** 객실타입명 */
     private String roomTypeName;
+
+    /** 숙박유형 (OVERNIGHT / DAY_USE) */
+    private String stayType;
 }

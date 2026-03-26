@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/booking}">
+<head>
+    <title>예약 조회</title>
+</head>
+<body>
+<main layout:fragment="content">
+
+    <!-- 조회 폼 -->
+    <section class="lookup-section" id="lookupSection">
+        <div class="container">
+            <div class="confirmation-header">
+                <div class="confirmation-icon icon-search"><i class="fas fa-concierge-bell"></i></div>
+                <h3>예약 조회</h3>
+                <p class="text-muted">예약 시 발급된 확인번호를 입력해주세요.</p>
+            </div>
+            <div class="row justify-content-center">
+                <div class="col-md-5">
+                    <div class="bk-card bk-card--elevated">
+                        <div class="mb-4">
+                            <label for="lookupConfirmNo" class="form-label" style="font-weight:500;">예약번호 (확인번호)</label>
+                            <input type="text" class="form-control" id="lookupConfirmNo" placeholder="CFM-20260326-001" required>
+                        </div>
+                        <button type="button" class="btn btn-booking btn-booking-lg w-100" id="btnLookup">
+                            <i class="fas fa-search"></i> 예약 조회
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 로딩 -->
+    <div id="lookupLoading" class="booking-spinner" style="display:none;">
+        <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+    </div>
+
+    <!-- 예약 상세 -->
+    <section class="reservation-detail-section" id="detailSection" style="display:none;">
+        <div class="container">
+            <!-- 상태 바 -->
+            <div class="reservation-status-bar">
+                <div>
+                    <span class="text-muted" style="font-size:0.8125rem;">확인번호</span>
+                    <div class="confirm-no" id="dtlConfirmNo">-</div>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span id="dtlStatus"></span>
+                    <button type="button" class="btn btn-booking-outline btn-sm" id="btnBackToLookup">
+                        <i class="fas fa-arrow-left"></i> 다른 예약
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <!-- 좌측: 예약 상세 -->
+                <div class="col-lg-6">
+                    <div class="bk-card">
+                        <div class="bk-card__title"><i class="fas fa-user"></i> 투숙객 정보</div>
+                        <div class="detail-row">
+                            <span class="detail-label">이름</span>
+                            <span class="detail-value" id="dtlGuestName">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">전화</span>
+                            <span class="detail-value" id="dtlGuestPhone">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">이메일</span>
+                            <span class="detail-value" id="dtlGuestEmail">-</span>
+                        </div>
+                    </div>
+
+                    <div class="bk-card">
+                        <div class="bk-card__title"><i class="fas fa-bed"></i> 숙박 정보</div>
+                        <div class="detail-row">
+                            <span class="detail-label">호텔</span>
+                            <span class="detail-value" id="dtlPropertyName">-</span>
+                        </div>
+                        <div id="dtlRooms"></div>
+                    </div>
+                </div>
+
+                <!-- 우측: 결제 -->
+                <div class="col-lg-6">
+                    <div class="bk-card">
+                        <div class="bk-card__title"><i class="fas fa-credit-card"></i> 결제 정보</div>
+                        <div class="detail-row">
+                            <span class="detail-label">결제 금액</span>
+                            <span class="detail-value" id="dtlTotalAmount" style="font-weight:700;font-size:1.125rem;">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">결제 상태</span>
+                            <span id="dtlPaymentStatus"></span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">결제 수단</span>
+                            <span class="detail-value" id="dtlPaymentMethod">-</span>
+                        </div>
+                        <div class="detail-row" id="dtlApprovalRow" style="display:none;">
+                            <span class="detail-label">승인번호</span>
+                            <span class="detail-value" id="dtlApprovalNo">-</span>
+                        </div>
+                    </div>
+
+                    <div class="bk-card" id="dtlPolicySection" style="display:none;">
+                        <div class="bk-card__title"><i class="fas fa-shield-alt"></i> 취소 정책</div>
+                        <ul id="dtlPolicyList" class="mb-0" style="font-size:0.875rem;"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 일별 요금 (접기) -->
+            <div class="bk-card" id="dtlChargesSection" style="display:none;">
+                <button type="button" class="charges-toggle" id="chargesToggleBtn">
+                    <i class="fas fa-chevron-down"></i> 일별 요금 상세
+                </button>
+                <div id="chargesContent" style="display:none;"></div>
+            </div>
+
+            <!-- 액션 버튼 -->
+            <div class="d-flex justify-content-between mt-4 mb-4">
+                <div>
+                    <button type="button" class="btn btn-booking-outline" onclick="window.print();">
+                        <i class="fas fa-print"></i> 인쇄
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-booking-danger" id="btnCancelReservation" style="display:none;">
+                        <i class="fas fa-times"></i> 예약 취소
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 취소 확인 모달 -->
+    <div class="cancel-modal-overlay" id="cancelModal">
+        <div class="cancel-modal">
+            <div class="cancel-modal__title">
+                <i class="fas fa-exclamation-triangle" style="color:var(--bk-pink);"></i>
+                예약을 취소하시겠습니까?
+            </div>
+
+            <!-- 로딩 -->
+            <div id="cancelLoading" class="booking-spinner" style="display:none; padding:1.5rem;">
+                <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+            </div>
+
+            <!-- 수수료 미리보기 -->
+            <div id="cancelPreview" style="display:none;">
+                <div class="cancel-fee-row">
+                    <span class="text-muted">1박 객실 요금</span>
+                    <span id="cancelFirstNight">-</span>
+                </div>
+                <div class="cancel-fee-row">
+                    <span class="text-muted">취소 수수료율</span>
+                    <span id="cancelFeePercent">-</span>
+                </div>
+                <div class="cancel-fee-row cancel-fee-divider">
+                    <span style="color:var(--bk-pink);font-weight:600;">취소 수수료</span>
+                    <span style="color:var(--bk-pink);font-weight:600;" id="cancelFeeAmount">-</span>
+                </div>
+                <div class="cancel-fee-row">
+                    <span class="text-muted">총 결제 금액</span>
+                    <span id="cancelTotalPaid">-</span>
+                </div>
+                <div class="cancel-fee-row cancel-fee-divider cancel-fee-refund">
+                    <span>환불 예정 금액</span>
+                    <span id="cancelRefund">-</span>
+                </div>
+                <p class="text-muted mt-2 mb-0" style="font-size:0.75rem;" id="cancelPolicyDesc"></p>
+            </div>
+
+            <!-- 취소 완료 -->
+            <div id="cancelComplete" style="display:none;" class="text-center py-3">
+                <div class="confirmation-icon icon-done" style="width:64px;height:64px;font-size:1.5rem;margin-bottom:1rem;">
+                    <i class="fas fa-check"></i>
+                </div>
+                <h5>예약이 취소되었습니다</h5>
+                <div class="cancel-fee-row cancel-fee-divider cancel-fee-refund mt-3">
+                    <span>환불 금액</span>
+                    <span id="cancelCompleteRefund">-</span>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4" id="cancelActions">
+                <button type="button" class="btn btn-booking-outline" id="btnCancelModalClose">돌아가기</button>
+                <button type="button" class="btn btn-booking-danger" id="btnConfirmCancel">예약 취소 확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 에러 -->
+    <div class="container">
+        <div class="alert alert-danger d-none" id="errorAlert" role="alert">
+            <i class="fas fa-exclamation-circle me-1"></i>
+            <span id="errorMessage"></span>
+        </div>
+    </div>
+
+</main>
+
+<th:block layout:fragment="scripts">
+<script>
+    $(function() { HolaBooking.MyReservationPage.init(); });
+</script>
+</th:block>
+</body>
+</html>

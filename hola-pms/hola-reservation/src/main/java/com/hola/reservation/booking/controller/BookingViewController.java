@@ -65,7 +65,7 @@ public class BookingViewController {
     }
 
     /**
-     * 예약 취소 페이지
+     * 예약 취소 페이지 (기존 호환)
      */
     @GetMapping("/{propertyCode}/cancel/{confirmationNo}")
     public String cancellationPage(@PathVariable String propertyCode,
@@ -74,5 +74,13 @@ public class BookingViewController {
         model.addAttribute("propertyCode", propertyCode);
         model.addAttribute("confirmationNo", confirmationNo);
         return "booking/cancellation";
+    }
+
+    /**
+     * 예약 조회 페이지 (예약번호 + 전화번호)
+     */
+    @GetMapping("/my-reservation")
+    public String myReservationPage() {
+        return "booking/my-reservation";
     }
 }

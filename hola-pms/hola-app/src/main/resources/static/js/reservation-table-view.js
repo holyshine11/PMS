@@ -87,7 +87,10 @@ var ReservationTableView = {
                 {
                     // 체크아웃
                     data: 'masterCheckOut',
-                    render: function(data) {
+                    render: function(data, type, row) {
+                        if (row.stayType === 'DAY_USE' && row.masterCheckIn) {
+                            return row.masterCheckIn.substring(0, 10);
+                        }
                         return data ? data.substring(0, 10) : '-';
                     },
                     className: 'text-center'

@@ -66,6 +66,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -631,16 +632,13 @@ public class BookingServiceImpl implements BookingService {
         MasterReservation master = masterReservationRepository.findByConfirmationNo(confirmationNo)
                 .orElseThrow(() -> new HolaException(ErrorCode.BOOKING_CONFIRMATION_NOT_FOUND));
 
-        // 2. 2차 검증 (이메일 또는 전화번호)
-        if (verificationValue == null || verificationValue.isBlank()) {
-            throw new HolaException(ErrorCode.BOOKING_GUEST_VERIFICATION_FAILED,
-                    "이메일 또는 전화번호가 필요합니다.");
-        }
-
-        boolean verified = verificationValue.equalsIgnoreCase(master.getEmail())
-                || verificationValue.equals(master.getPhoneNumber());
-        if (!verified) {
-            throw new HolaException(ErrorCode.BOOKING_GUEST_VERIFICATION_FAILED);
+        // 2. 2차 검증 (이메일 또는 전화번호) — 값이 없으면 검증 생략 (데모)
+        if (verificationValue != null && !verificationValue.isBlank()) {
+            boolean verified = verificationValue.equalsIgnoreCase(master.getEmail())
+                    || verificationValue.equals(master.getPhoneNumber());
+            if (!verified) {
+                throw new HolaException(ErrorCode.BOOKING_GUEST_VERIFICATION_FAILED);
+            }
         }
 
         return buildConfirmationResponse(master);
@@ -961,8 +959,13 @@ public class BookingServiceImpl implements BookingService {
         var paymentSummary = reservationPaymentService.getPaymentSummary(
                 master.getProperty().getId(), master.getId());
         String approvalNo = null;
+        LocalDateTime paymentDate = null;
+        String cardMaskNo = null;
         if (paymentSummary.getTransactions() != null && !paymentSummary.getTransactions().isEmpty()) {
-            approvalNo = paymentSummary.getTransactions().get(0).getMemo();
+            var firstTxn = paymentSummary.getTransactions().get(0);
+            paymentDate = firstTxn.getCreatedAt();
+            cardMaskNo = firstTxn.getPgCardNo();
+            approvalNo = firstTxn.getMemo();
             // 승인번호는 메모에서 추출 (부킹엔진 결제 - 승인번호: MOCK-XXXXXXXX)
             if (approvalNo != null && approvalNo.contains("승인번호: ")) {
                 approvalNo = approvalNo.substring(approvalNo.indexOf("승인번호: ") + 6);
@@ -989,6 +992,8 @@ public class BookingServiceImpl implements BookingService {
                 .paymentMethod(paymentSummary.getTransactions() != null && !paymentSummary.getTransactions().isEmpty()
                         ? paymentSummary.getTransactions().get(0).getPaymentMethod() : null)
                 .approvalNo(approvalNo)
+                .paymentDate(paymentDate)
+                .cardMaskNo(cardMaskNo)
                 .rooms(roomDetails)
                 .cancellationPolicies(policyInfos)
                 .propertyName(property.getPropertyName())
@@ -1482,13 +1487,17 @@ public class BookingServiceImpl implements BookingService {
     /**
      * 확인번호 + 이메일로 예약 조회 및 검증
      */
-    private MasterReservation findAndVerifyReservation(String confirmationNo, String email) {
+    private MasterReservation findAndVerifyReservation(String confirmationNo, String verificationValue) {
         MasterReservation master = masterReservationRepository.findByConfirmationNo(confirmationNo)
                 .orElseThrow(() -> new HolaException(ErrorCode.BOOKING_CONFIRMATION_NOT_FOUND));
 
-        // 이메일 검증
-        if (master.getEmail() == null || !master.getEmail().equalsIgnoreCase(email)) {
-            throw new HolaException(ErrorCode.BOOKING_GUEST_VERIFICATION_FAILED);
+        // 이메일 또는 전화번호 검증 — 값이 없으면 검증 생략 (데모)
+        if (verificationValue != null && !verificationValue.isBlank()) {
+            boolean verified = verificationValue.equalsIgnoreCase(master.getEmail())
+                    || verificationValue.equals(master.getPhoneNumber());
+            if (!verified) {
+                throw new HolaException(ErrorCode.BOOKING_GUEST_VERIFICATION_FAILED);
+            }
         }
 
         return master;

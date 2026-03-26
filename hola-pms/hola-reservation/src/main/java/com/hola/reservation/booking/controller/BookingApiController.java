@@ -226,18 +226,20 @@ public class BookingApiController {
     /**
      * 취소 수수료 미리보기
      */
-    @Operation(summary = "취소 수수료 미리보기", description = "확인번호 + 이메일로 취소 시 수수료 확인")
+    @Operation(summary = "취소 수수료 미리보기", description = "확인번호 + 이메일 또는 전화번호로 취소 시 수수료 확인")
     @GetMapping("/reservations/{confirmationNo}/cancel-fee")
     public BookingResponse<CancelFeePreviewResponse> getCancelFeePreview(
             @PathVariable String confirmationNo,
-            @RequestParam String email) {
-        return BookingResponse.success(bookingService.getCancelFeePreview(confirmationNo, email));
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String phone) {
+        String verificationValue = email != null ? email : phone;
+        return BookingResponse.success(bookingService.getCancelFeePreview(confirmationNo, verificationValue));
     }
 
     /**
      * 게스트 자가 취소
      */
-    @Operation(summary = "게스트 자가 취소", description = "확인번호 + 이메일 검증 후 예약 취소")
+    @Operation(summary = "게스트 자가 취소", description = "확인번호 + 이메일 또는 전화번호 검증 후 예약 취소")
     @PostMapping("/reservations/{confirmationNo}/cancel")
     public ResponseEntity<BookingResponse<CancelBookingResponse>> cancelBooking(
             @PathVariable String confirmationNo,
@@ -245,8 +247,9 @@ public class BookingApiController {
             HttpServletRequest httpRequest) {
         String clientIp = httpRequest.getRemoteAddr();
         String userAgent = httpRequest.getHeader("User-Agent");
+        String verificationValue = request.getEmail() != null ? request.getEmail() : request.getPhone();
         return ResponseEntity.ok(BookingResponse.success(
-                bookingService.cancelBooking(confirmationNo, request.getEmail(), clientIp, userAgent)));
+                bookingService.cancelBooking(confirmationNo, verificationValue, clientIp, userAgent)));
     }
 
     /**

@@ -207,11 +207,14 @@ var ReservationDetail = {
         if (self.isOta) $('#otaAlert').removeClass('d-none');
         if (self.isReadonly) $('#readonlyAlert').removeClass('d-none');
 
+        var subs = data.subReservations || [];
+        self.isDayUse = subs.length > 0 && subs[0].stayType === 'DAY_USE';
+
         // ── Tab 1: 예약정보 ──
         $('#masterReservationNoDisplay').val(data.masterReservationNo || '');
         $('#confirmationNoDisplay').val(data.confirmationNo || '');
         $('#masterCheckIn').val(data.masterCheckIn || '');
-        $('#masterCheckOut').val(data.masterCheckOut || '');
+        $('#masterCheckOut').val(self.isDayUse ? (data.masterCheckIn || '') : (data.masterCheckOut || ''));
         this.bindReservationDates('#masterCheckIn', '#masterCheckOut');
 
         if (data.rateCodeId) {
@@ -355,7 +358,7 @@ var ReservationDetail = {
 
         if (legData) {
             checkIn = legData.checkIn || '';
-            checkOut = legData.checkOut || '';
+            checkOut = (legData.stayType === 'DAY_USE' && legData.checkIn) ? legData.checkIn : (legData.checkOut || '');
             adults = legData.adults || 1;
             children = legData.children || 0;
             earlyCheckIn = legData.earlyCheckIn === true;
@@ -1969,6 +1972,15 @@ var ReservationDetail = {
     /**
      * 전체 폼 데이터 수집
      */
+    /** 날짜 문자열에 N일 더한 결과 반환 (yyyy-MM-dd) */
+    addDays: function(dateStr, n) {
+        var d = new Date(dateStr + 'T00:00:00');
+        d.setDate(d.getDate() + n);
+        return d.getFullYear() + '-'
+            + String(d.getMonth() + 1).padStart(2, '0') + '-'
+            + String(d.getDate()).padStart(2, '0');
+    },
+
     collectFormData: function() {
         var self = this;
         // 서브 예약 (객실 레그) 수집
@@ -1978,12 +1990,19 @@ var ReservationDetail = {
             var roomTypeId = HolaPms.form.intVal($leg.find('.room-type-id'));
             if (!roomTypeId) return; // 객실타입 미선택 레그 스킵
 
+            var legCheckIn = HolaPms.form.val($leg.find('.leg-check-in'));
+            var legCheckOut = HolaPms.form.val($leg.find('.leg-check-out'));
+            // Dayuse: 서버 전송 시 체크아웃을 체크인+1일로 복원
+            if (self.isDayUse && legCheckIn) {
+                legCheckOut = self.addDays(legCheckIn, 1);
+            }
+
             var legData = {
                 roomTypeId: roomTypeId,
                 floorId: HolaPms.form.intVal($leg.find('.floor-id')),
                 roomNumberId: HolaPms.form.intVal($leg.find('.room-number-id')),
-                checkIn: HolaPms.form.val($leg.find('.leg-check-in')),
-                checkOut: HolaPms.form.val($leg.find('.leg-check-out')),
+                checkIn: legCheckIn,
+                checkOut: legCheckOut,
                 adults: parseInt($leg.find('.leg-adults').val()) || 1,
                 children: parseInt($leg.find('.leg-children').val()) || 0,
                 earlyCheckIn: $leg.find('.leg-early-checkin').val() === 'true',
@@ -1997,10 +2016,16 @@ var ReservationDetail = {
             subReservations.push(legData);
         });
 
+        var masterCheckIn = HolaPms.form.val('#masterCheckIn');
+        var masterCheckOut = HolaPms.form.val('#masterCheckOut');
+        if (self.isDayUse && masterCheckIn) {
+            masterCheckOut = self.addDays(masterCheckIn, 1);
+        }
+
         return {
             // 예약 기본 정보
-            masterCheckIn: HolaPms.form.val('#masterCheckIn'),
-            masterCheckOut: HolaPms.form.val('#masterCheckOut'),
+            masterCheckIn: masterCheckIn,
+            masterCheckOut: masterCheckOut,
             rateCodeId: HolaPms.form.intVal('#rateCodeId'),
             marketCodeId: HolaPms.form.intVal('#marketCodeId'),
             reservationChannelId: HolaPms.form.intVal('#reservationChannelId'),
@@ -2090,7 +2115,7 @@ var ReservationDetail = {
             $('#masterCheckOut').focus();
             return false;
         }
-        if (data.masterCheckIn >= data.masterCheckOut) {
+        if (!this.isDayUse && data.masterCheckIn >= data.masterCheckOut) {
             HolaPms.alert('warning', '체크아웃 날짜는 체크인 날짜 이후여야 합니다.');
             $('a[href="#tabReservation"]').tab('show');
             $('#masterCheckOut').focus();
@@ -2116,7 +2141,7 @@ var ReservationDetail = {
                 $('a[href="#tabDetail"]').tab('show');
                 return false;
             }
-            if (sub.checkIn >= sub.checkOut) {
+            if (!this.isDayUse && sub.checkIn >= sub.checkOut) {
                 HolaPms.alert('warning', '객실 #' + (i + 1) + '의 체크아웃은 체크인 이후여야 합니다.');
                 $('a[href="#tabDetail"]').tab('show');
                 return false;

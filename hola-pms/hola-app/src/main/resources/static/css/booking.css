@@ -1,629 +1,1400 @@
 /* ========================================
-   Hola Booking Engine - 게스트 전용 스타일
-   컬러: #051923, #003554, #0582CA, #EF476F
-   폰트: Pretendard
+   Hola Booking Engine — Luxury Hotel Design
+   Benchmarked: Josun · GLAD · Shilla
+   ──────────────────────────────────────
+   Color: Charcoal + Gold + Cream + White
+   Type:  Serif display + Pretendard body
+   Feel:  Walking into a 5-star hotel lobby
    ======================================== */
 
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap');
+
 :root {
-    --bk-navy-deep: #051923;
-    --bk-navy: #003554;
-    --bk-blue: #0582CA;
-    --bk-pink: #EF476F;
+    /* ── Luxury Palette ── */
+    --bk-charcoal: #1C1C1E;
+    --bk-dark: #2C2C2E;
+    --bk-dark-soft: #3A3A3C;
+    --bk-gold: #B8960C;
+    --bk-gold-light: #D4AF37;
+    --bk-gold-muted: rgba(184, 150, 12, 0.12);
+    --bk-cream: #F7F3EE;
+    --bk-cream-dark: #EDE8E1;
+    --bk-warm-white: #FDFCFA;
     --bk-white: #FFFFFF;
-    --bk-gray-50: #F8F9FA;
-    --bk-gray-100: #F1F3F5;
-    --bk-gray-200: #E9ECEF;
-    --bk-gray-500: #ADB5BD;
-    --bk-gray-700: #495057;
-    --bk-gray-900: #212529;
-    --bk-font: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --bk-text: #1C1C1E;
+    --bk-text-secondary: #636366;
+    --bk-text-muted: #8E8E93;
+    --bk-border: #E5E5EA;
+    --bk-border-light: #F0EDE8;
+    --bk-danger: #C44040;
+    --bk-success: #34A853;
+    --bk-info: #5B7BB4;
+
+    /* ── Typography ── */
+    /* Playfair Display: 영문/숫자 세리프. 한글은 Pretendard로 자동 fallback */
+    --font-display: 'Playfair Display', 'Pretendard', -apple-system, sans-serif;
+    --font-body: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+    /* ── Spacing (8px) ── */
+    --sp-1: 0.25rem;   --sp-2: 0.5rem;    --sp-3: 0.75rem;
+    --sp-4: 1rem;      --sp-5: 1.25rem;    --sp-6: 1.5rem;
+    --sp-8: 2rem;      --sp-10: 2.5rem;    --sp-12: 3rem;
+    --sp-16: 4rem;     --sp-20: 5rem;      --sp-24: 6rem;
+
+    /* ── Radius ── */
+    --r-sm: 4px;  --r-md: 8px;  --r-lg: 12px;  --r-xl: 16px;  --r-full: 50%;
+
+    /* ── Shadows ── */
+    --shadow-subtle: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 20px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,0.1);
+    --shadow-xl: 0 16px 64px rgba(0,0,0,0.12);
+
+    /* ── Transitions ── */
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ═══════════════════════════════════════
+   BASE
+   ═══════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
 body {
-    font-family: var(--bk-font);
-    color: var(--bk-gray-900);
-    background: var(--bk-white);
+    font-family: var(--font-body);
+    color: var(--bk-text);
+    background: var(--bk-warm-white);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+    font-size: 0.9375rem;
 }
 
-main {
-    flex: 1;
-}
+main { flex: 1; }
 
-/* ── 네비게이션 ── */
+a { color: var(--bk-gold); text-decoration: none; }
+a:hover { color: var(--bk-gold-light); }
+
+/* ═══════════════════════════════════════
+   NAVBAR — 신라 스타일 (다크, 미니멀)
+   ═══════════════════════════════════════ */
+
 .booking-navbar {
-    background: var(--bk-navy-deep);
-    padding: 0.75rem 0;
+    background: var(--bk-charcoal);
+    padding: var(--sp-5) 0;
     position: sticky;
     top: 0;
     z-index: 1030;
 }
 
-.brand-text {
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--bk-white);
-    letter-spacing: 3px;
+/* 히어로가 있는 검색 페이지: 네비바 투명 + 절대위치 */
+.has-hero .booking-navbar {
+    background: transparent;
+    position: absolute;
+    left: 0; right: 0;
 }
+
+.brand-text {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--bk-white);
+    letter-spacing: 6px;
+}
+
+.nav-link-light {
+    color: rgba(255,255,255,0.9);
+    font-size: 0.8125rem;
+    text-decoration: none;
+    transition: color 0.3s var(--ease);
+    padding: 0 var(--sp-4);
+    letter-spacing: 0.5px;
+}
+
+.nav-link-light:hover { color: var(--bk-gold-light); }
 
 .booking-navbar .btn-outline-light {
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-color: rgba(255,255,255,0.3);
+    font-size: 0.6875rem;
+    padding: 2px 8px;
+    border-color: rgba(255,255,255,0.15);
+    letter-spacing: 1px;
 }
 
-.booking-navbar .btn-outline-light:hover {
-    background: rgba(255,255,255,0.1);
-}
+/* ═══════════════════════════════════════
+   HERO — 풀블리드, 다크 오버레이 스타일
+   ═══════════════════════════════════════ */
 
-/* ── 히어로 섹션 ── */
 .booking-hero {
-    background: linear-gradient(135deg, var(--bk-navy-deep) 0%, var(--bk-navy) 100%);
-    padding: 3.5rem 0 5rem;
+    background: var(--bk-charcoal);
+    padding: 7rem 0 var(--sp-24);
     position: relative;
+    overflow: hidden;
+    background-image: url('/img/hero-main.jpg');
+    background-size: cover;
+    background-position: center 40%;
+}
+
+.booking-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(28,28,30,0.7) 0%,
+        rgba(28,28,30,0.6) 50%,
+        rgba(28,28,30,0.85) 100%
+    );
+    pointer-events: none;
 }
 
 .booking-hero::after {
     content: '';
     position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 40px;
-    background: var(--bk-white);
-    clip-path: ellipse(55% 100% at 50% 100%);
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(184,150,12,0.3), transparent);
 }
 
 .hero-subtitle {
-    font-size: 0.875rem;
-    letter-spacing: 2px;
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    letter-spacing: 4px;
     text-transform: uppercase;
-    opacity: 0.7;
+    color: var(--bk-gold);
+    font-weight: 500;
 }
 
 .hero-title {
-    font-size: 2rem;
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 600;
+    color: var(--bk-white);
+    letter-spacing: 1px;
+    line-height: 1.2;
 }
 
 .hero-desc {
-    font-size: 0.9375rem;
-    opacity: 0.8;
+    font-size: 0.875rem;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.5px;
 }
 
-/* ── 검색 카드 ── */
+/* ═══════════════════════════════════════
+   SEARCH CARD — 조선 스타일 (크림, 우아한)
+   ═══════════════════════════════════════ */
+
 .booking-search-section {
-    margin-top: -2rem;
+    margin-top: -3rem;
     position: relative;
     z-index: 10;
-    padding-bottom: 2rem;
+    padding-bottom: var(--sp-12);
 }
 
 .search-card {
     background: var(--bk-white);
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+    border-radius: var(--r-lg);
+    padding: var(--sp-10);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid var(--bk-border-light);
+    max-width: 960px;
+    margin: 0 auto;
 }
 
-.search-card .form-label {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--bk-gray-700);
-    margin-bottom: 0.375rem;
+/* ═══════════════════════════════════════
+   CALENDAR — 럭셔리 커스텀
+   ═══════════════════════════════════════ */
+
+.bk-calendar { user-select: none; }
+
+.bk-calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--sp-4);
 }
 
-.search-card .input-group-text {
-    background: var(--bk-gray-50);
-    border-color: var(--bk-gray-200);
-    color: var(--bk-blue);
-}
-
-.search-card .form-control,
-.search-card .form-select {
-    border-color: var(--bk-gray-200);
-    font-size: 0.9375rem;
-}
-
-.search-card .form-control:focus,
-.search-card .form-select:focus {
-    border-color: var(--bk-blue);
-    box-shadow: 0 0 0 0.2rem rgba(5, 130, 202, 0.15);
-}
-
-/* 검색 버튼 */
-.btn-booking {
-    background: var(--bk-blue);
-    color: var(--bk-white);
-    font-weight: 600;
-    padding: 0.625rem 1.25rem;
-    border-radius: 8px;
+.bk-calendar-nav {
+    width: 36px;
+    height: 36px;
     border: none;
-    transition: all 0.2s;
-}
-
-.btn-booking:hover {
-    background: var(--bk-navy);
-    color: var(--bk-white);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,53,84,0.3);
-}
-
-.btn-booking:active {
-    transform: translateY(0);
-}
-
-.btn-booking-outline {
+    border-radius: var(--r-full);
     background: transparent;
-    color: var(--bk-blue);
-    font-weight: 600;
-    padding: 0.625rem 1.25rem;
-    border-radius: 8px;
-    border: 2px solid var(--bk-blue);
-    transition: all 0.2s;
-}
-
-.btn-booking-outline:hover {
-    background: var(--bk-blue);
-    color: var(--bk-white);
-}
-
-/* ── 프로퍼티 정보 ── */
-.property-info-section {
-    padding: 2rem 0 3rem;
-    background: var(--bk-gray-50);
-}
-
-.info-card {
-    background: var(--bk-white);
-    border-radius: 10px;
-    padding: 1.5rem;
-    text-align: center;
-    border: 1px solid var(--bk-gray-200);
-    transition: box-shadow 0.2s;
-}
-
-.info-card:hover {
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-}
-
-.info-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: rgba(5, 130, 202, 0.1);
-    color: var(--bk-blue);
+    color: var(--bk-text-secondary);
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 0.75rem;
-    font-size: 1.125rem;
-}
-
-.info-card h6 {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--bk-gray-700);
-    margin-bottom: 0.5rem;
-}
-
-.info-card p {
-    font-size: 0.9375rem;
-    color: var(--bk-gray-900);
-}
-
-/* ── 푸터 ── */
-.booking-footer {
-    background: var(--bk-gray-50);
-    border-top: 1px solid var(--bk-gray-200);
-    padding: 1.5rem 0;
-    margin-top: auto;
-}
-
-/* ── 객실 카드 (rooms 페이지용) ── */
-.room-card {
-    background: var(--bk-white);
-    border-radius: 12px;
-    border: 1px solid var(--bk-gray-200);
-    overflow: hidden;
-    transition: box-shadow 0.2s, transform 0.2s;
-}
-
-.room-card:hover {
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    transform: translateY(-2px);
-}
-
-.room-card-body {
-    padding: 1.5rem;
-}
-
-.room-card-header {
-    padding: 1rem 1.5rem;
-    background: var(--bk-gray-50);
-    border-bottom: 1px solid var(--bk-gray-200);
-}
-
-.room-name {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--bk-navy-deep);
-}
-
-.room-size {
-    font-size: 0.8125rem;
-    color: var(--bk-gray-500);
-}
-
-.room-feature {
-    display: inline-block;
-    padding: 0.25rem 0.625rem;
-    background: var(--bk-gray-100);
-    border-radius: 4px;
-    font-size: 0.75rem;
-    color: var(--bk-gray-700);
-    margin: 0.125rem;
-}
-
-.room-availability {
-    font-size: 0.8125rem;
-    color: var(--bk-blue);
-    font-weight: 600;
-}
-
-.room-availability.low {
-    color: var(--bk-pink);
-}
-
-/* 요금 옵션 */
-.rate-option {
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--bk-gray-200);
-    border-radius: 8px;
-    margin-bottom: 0.5rem;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.rate-option:hover,
-.rate-option.selected {
-    border-color: var(--bk-blue);
-    background: rgba(5, 130, 202, 0.04);
-}
-
-.rate-option.selected {
-    box-shadow: 0 0 0 2px var(--bk-blue);
-}
-
-.rate-name {
+    transition: all 0.2s var(--ease);
     font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--bk-gray-900);
 }
 
-.rate-price {
+.bk-calendar-nav:hover { background: var(--bk-cream); color: var(--bk-text); }
+.bk-calendar-nav:disabled { opacity: 0.2; cursor: not-allowed; }
+.bk-calendar-nav:disabled:hover { background: transparent; }
+
+.bk-calendar-months {
+    display: flex;
+    gap: var(--sp-10);
+    flex: 1;
+    justify-content: center;
+}
+
+.bk-calendar-month-title {
+    font-family: var(--font-body);
     font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--bk-navy-deep);
+    font-weight: 600;
+    color: var(--bk-text);
+    flex: 1;
+    text-align: center;
+    letter-spacing: 1px;
 }
 
-.rate-price-unit {
-    font-size: 0.75rem;
+.bk-calendar-body {
+    display: flex;
+    gap: var(--sp-10);
+}
+
+.bk-calendar-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0;
+}
+
+.bk-calendar-weekday {
+    text-align: center;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--bk-text-muted);
+    padding: var(--sp-2) 0 var(--sp-4);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.bk-calendar-weekday:first-child { color: var(--bk-danger); }
+
+/* ── Calendar Day Cells ── */
+.bk-calendar-day {
+    text-align: center;
+    height: 44px;
+    line-height: 44px;
+    font-size: 0.875rem;
+    color: var(--bk-text);
+    cursor: pointer;
+    position: relative;
     font-weight: 400;
-    color: var(--bk-gray-500);
+    z-index: 1;
 }
 
-/* ── 스텝 인디케이터 ── */
+.bk-calendar-day:hover:not(.disabled):not(.empty):not(.start):not(.end):not(.in-range) {
+    color: var(--bk-text);
+}
+
+.bk-calendar-day:not(.disabled):not(.empty):not(.start):not(.end):not(.in-range):hover::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px; height: 40px;
+    border-radius: var(--r-full);
+    background: var(--bk-cream);
+    z-index: -1;
+}
+
+.bk-calendar-day.today { font-weight: 700; }
+.bk-calendar-day.today:not(.start):not(.end)::after {
+    content: '';
+    position: absolute;
+    bottom: 4px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px;
+    border-radius: var(--r-full);
+    background: var(--bk-text-muted);
+}
+
+.bk-calendar-day.disabled { color: var(--bk-border); cursor: default; pointer-events: none; }
+.bk-calendar-day.empty { cursor: default; pointer-events: none; }
+.bk-calendar-day.sunday:not(.start):not(.end):not(.disabled) { color: var(--bk-danger); }
+
+/* ── Range: start/end 원 + 연결 배경 ── */
+
+.bk-calendar-day.start,
+.bk-calendar-day.end {
+    color: var(--bk-white) !important;
+    font-weight: 600;
+}
+
+/* Start/End 원 — z-index:-1 로 텍스트 뒤, 연결배경 위 */
+.bk-calendar-day.start::before,
+.bk-calendar-day.end::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 42px; height: 42px;
+    border-radius: var(--r-full);
+    background: var(--bk-charcoal);
+    z-index: -1;
+}
+
+/* Start 오른쪽 연결 배경 */
+.bk-calendar-day.start.has-range::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translateY(-50%);
+    width: 50%; height: 42px;
+    background: var(--bk-cream-dark);
+    z-index: -2;
+}
+
+/* End 왼쪽 연결 배경 */
+.bk-calendar-day.end.has-range::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 0;
+    transform: translateY(-50%);
+    width: 50%; height: 42px;
+    background: var(--bk-cream-dark);
+    z-index: -2;
+}
+
+/* In-range 연결 배경 */
+.bk-calendar-day.in-range::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 0;
+    transform: translateY(-50%);
+    width: 100%; height: 42px;
+    background: var(--bk-cream-dark);
+    z-index: -1;
+}
+
+.bk-calendar-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-6);
+    margin-top: var(--sp-6);
+    padding: var(--sp-5) var(--sp-8);
+    background: var(--bk-cream);
+    border-radius: var(--r-md);
+    font-size: 0.875rem;
+    color: var(--bk-text-secondary);
+}
+
+.bk-calendar-summary .date-value {
+    font-weight: 600;
+    color: var(--bk-text);
+}
+
+.bk-calendar-summary .nights-badge {
+    background: var(--bk-charcoal);
+    color: var(--bk-white);
+    padding: 3px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* ═══════════════════════════════════════
+   STEPPER — 미니멀 원형
+   ═══════════════════════════════════════ */
+
+.bk-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-4) 0;
+}
+
+.bk-stepper-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--bk-text);
+}
+
+.bk-stepper-label small {
+    display: block;
+    font-size: 0.6875rem;
+    color: var(--bk-text-muted);
+    font-weight: 400;
+    margin-top: 2px;
+}
+
+.bk-stepper-control { display: flex; align-items: center; gap: var(--sp-4); }
+
+.bk-stepper-btn {
+    width: 40px; height: 40px;
+    border: 1px solid var(--bk-border);
+    border-radius: var(--r-full);
+    background: var(--bk-white);
+    color: var(--bk-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 300;
+    transition: all 0.2s var(--ease);
+    line-height: 1;
+}
+
+.bk-stepper-btn:hover:not(:disabled) {
+    background: var(--bk-charcoal);
+    color: var(--bk-white);
+    border-color: var(--bk-charcoal);
+}
+
+.bk-stepper-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+.bk-stepper-value {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--bk-text);
+    min-width: 28px;
+    text-align: center;
+}
+
+.search-guests-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    padding-top: var(--sp-6);
+    border-top: 1px solid var(--bk-border-light);
+    margin-top: var(--sp-6);
+}
+
+.search-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--sp-8);
+}
+
+/* ═══════════════════════════════════════
+   BUTTONS — 고급 호텔 스타일
+   ═══════════════════════════════════════ */
+
+.btn-booking {
+    background: var(--bk-charcoal);
+    color: var(--bk-white);
+    font-weight: 500;
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--r-sm);
+    border: none;
+    font-size: 0.875rem;
+    transition: all 0.3s var(--ease);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    letter-spacing: 0.5px;
+    cursor: pointer;
+}
+
+.btn-booking:hover {
+    background: var(--bk-gold);
+    color: var(--bk-white);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(184,150,12,0.25);
+}
+
+.btn-booking:active { transform: translateY(0); }
+.btn-booking:disabled { background: var(--bk-border); color: var(--bk-text-muted); cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn-booking-outline {
+    background: transparent;
+    color: var(--bk-text);
+    font-weight: 500;
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--r-sm);
+    border: 1px solid var(--bk-border);
+    font-size: 0.875rem;
+    transition: all 0.3s var(--ease);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    letter-spacing: 0.5px;
+    cursor: pointer;
+}
+
+.btn-booking-outline:hover { border-color: var(--bk-charcoal); color: var(--bk-charcoal); }
+
+.btn-booking-lg { padding: var(--sp-5) var(--sp-10); font-size: 0.9375rem; }
+
+.btn-booking-danger {
+    background: var(--bk-danger);
+    color: var(--bk-white);
+    font-weight: 500;
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--r-sm);
+    border: none;
+    font-size: 0.875rem;
+    transition: all 0.3s var(--ease);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    cursor: pointer;
+}
+
+.btn-booking-danger:hover { background: #a83535; color: var(--bk-white); }
+
+/* ═══════════════════════════════════════
+   STEP INDICATOR — 글래드 스타일 (슬림)
+   ═══════════════════════════════════════ */
+
 .step-indicator-section {
-    background: var(--bk-gray-50);
-    padding: 1.25rem 0;
-    border-bottom: 1px solid var(--bk-gray-200);
+    background: var(--bk-white);
+    padding: var(--sp-6) 0;
+    border-bottom: 1px solid var(--bk-border-light);
 }
 
 .step-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0;
 }
 
 .step {
     display: flex;
     align-items: center;
-    gap: 0.375rem;
+    gap: var(--sp-2);
     font-size: 0.8125rem;
-    color: var(--bk-gray-500);
-    font-weight: 500;
+    color: var(--bk-text-muted);
+    font-weight: 400;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
 }
 
-.step.active {
-    color: var(--bk-blue);
-    font-weight: 700;
-}
-
-.step.completed {
-    color: var(--bk-navy);
-}
+.step.active { color: var(--bk-text); font-weight: 600; }
+.step.completed { color: var(--bk-text-secondary); }
 
 .step-num {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--bk-gray-200);
-    color: var(--bk-gray-500);
+    width: 28px; height: 28px;
+    border-radius: var(--r-full);
+    background: var(--bk-border-light);
+    color: var(--bk-text-muted);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 700;
+    flex-shrink: 0;
+    transition: all 0.3s var(--ease);
 }
 
-.step.active .step-num {
-    background: var(--bk-blue);
-    color: var(--bk-white);
-}
-
-.step.completed .step-num {
-    background: var(--bk-navy);
-    color: var(--bk-white);
-}
+.step.active .step-num { background: var(--bk-charcoal); color: var(--bk-white); }
+.step.completed .step-num { background: var(--bk-gold-muted); color: var(--bk-gold); }
 
 .step-line {
-    width: 40px;
-    height: 2px;
-    background: var(--bk-gray-200);
-    margin: 0 0.5rem;
+    width: 48px; height: 1px;
+    background: var(--bk-border);
+    margin: 0 var(--sp-3);
+    flex-shrink: 0;
 }
 
-.step-line.completed {
-    background: var(--bk-navy);
+.step-line.completed { background: var(--bk-gold); }
+
+/* ═══════════════════════════════════════
+   CARDS — 조선 스타일 (미니멀 보더, 크림)
+   ═══════════════════════════════════════ */
+
+.bk-card {
+    background: var(--bk-white);
+    border: 1px solid var(--bk-border-light);
+    border-radius: var(--r-md);
+    padding: var(--sp-8);
+    margin-bottom: var(--sp-6);
 }
 
-/* ── 결제 수단 선택 ── */
+.bk-card--elevated {
+    border: none;
+    box-shadow: var(--shadow-md);
+}
+
+.bk-card__title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--bk-text);
+    padding-bottom: var(--sp-4);
+    margin-bottom: var(--sp-6);
+    border-bottom: 1px solid var(--bk-border-light);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    letter-spacing: 0.3px;
+}
+
+.bk-card__title i { color: var(--bk-gold); font-size: 0.9375rem; }
+
+/* ═══════════════════════════════════════
+   PROPERTY INFO — 크림 배경 카드
+   ═══════════════════════════════════════ */
+
+.property-info-section {
+    padding: var(--sp-10) 0 var(--sp-12);
+    background: var(--bk-cream);
+}
+
+.info-card {
+    background: var(--bk-white);
+    border-radius: var(--r-md);
+    padding: var(--sp-8);
+    text-align: center;
+    border: 1px solid var(--bk-border-light);
+    transition: box-shadow 0.3s var(--ease);
+    height: 100%;
+}
+
+.info-card:hover { box-shadow: var(--shadow-sm); }
+
+.info-icon {
+    width: 52px; height: 52px;
+    border-radius: var(--r-full);
+    background: var(--bk-gold-muted);
+    color: var(--bk-gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--sp-4);
+    font-size: 1.125rem;
+}
+
+.info-card h6 {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--bk-text-muted);
+    margin-bottom: var(--sp-1);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.info-card p { font-size: 0.9375rem; color: var(--bk-text); margin-bottom: 0; font-weight: 500; }
+
+/* ═══════════════════════════════════════
+   SEARCH SUMMARY BAR
+   ═══════════════════════════════════════ */
+
+.search-summary-bar {
+    background: var(--bk-cream);
+    padding: var(--sp-5) 0;
+    color: var(--bk-text);
+    font-size: 0.925rem;
+    border-bottom: 1px solid var(--bk-border-light);
+}
+
+.summary-label { font-weight: 700; letter-spacing: 0.3px; font-size: 1rem; color: var(--bk-text); }
+.summary-item { color: #555; }
+.summary-item i { color: var(--bk-gold); margin-right: 4px; }
+.summary-divider { color: #ccc; margin: 0 var(--sp-2); }
+.summary-item .badge { background: var(--bk-charcoal) !important; color: var(--bk-white) !important; font-size: 0.75rem; font-weight: 600; padding: 3px 10px; border-radius: 4px; vertical-align: 1px; }
+
+/* ═══════════════════════════════════════
+   ROOM CARDS — 글래드 스타일 (대형 이미지)
+   ═══════════════════════════════════════ */
+
+.rooms-section { padding: var(--sp-10) 0 6rem; }
+
+.section-title {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--bk-text);
+    letter-spacing: 0.5px;
+}
+
+.room-card {
+    background: var(--bk-white);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    transition: box-shadow 0.4s var(--ease), transform 0.4s var(--ease);
+    border: 1px solid var(--bk-border-light);
+}
+
+.room-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.room-card + .room-card { margin-top: var(--sp-8); }
+
+/* ── 수평 레이아웃: 좌(이미지) 우(정보) ── */
+.room-card-layout {
+    display: flex;
+    min-height: 320px;
+}
+
+.room-card-image {
+    position: relative;
+    width: 380px;
+    min-width: 380px;
+    background: linear-gradient(135deg, var(--bk-charcoal) 0%, var(--bk-dark) 40%, var(--bk-dark-soft) 100%);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.room-card-image img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s var(--ease);
+}
+
+.room-card:hover .room-card-image img { transform: scale(1.03); }
+
+.room-image-placeholder {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.15);
+    gap: var(--sp-3);
+}
+
+.room-image-placeholder i { font-size: 3rem; }
+.room-image-placeholder span {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    letter-spacing: 3px;
+    font-weight: 500;
+}
+
+.room-avail-badge {
+    position: absolute;
+    top: var(--sp-4); left: var(--sp-4);
+    padding: 5px 14px;
+    border-radius: 2px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    backdrop-filter: blur(8px);
+    background: rgba(0,0,0,0.5);
+    color: var(--bk-white);
+    letter-spacing: 0.5px;
+}
+
+.room-avail-badge.low { background: var(--bk-danger); }
+
+.room-card-body {
+    flex: 1;
+    padding: var(--sp-8);
+    display: flex;
+    flex-direction: column;
+}
+
+.room-card-info { margin-bottom: var(--sp-5); }
+
+.room-card-rates {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.room-name {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--bk-text);
+    margin-bottom: var(--sp-3);
+    letter-spacing: 0.3px;
+}
+
+.room-meta { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-5); }
+
+.room-meta-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    background: var(--bk-cream);
+    border-radius: 2px;
+    font-size: 0.6875rem;
+    color: var(--bk-text-secondary);
+    letter-spacing: 0.3px;
+    font-weight: 500;
+}
+
+.room-meta-tag i { font-size: 0.5625rem; color: var(--bk-gold); }
+
+.room-desc {
+    font-size: 0.875rem;
+    color: var(--bk-text-secondary);
+    margin-bottom: var(--sp-6);
+    line-height: 1.7;
+}
+
+.rate-options-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bk-text-muted);
+    margin-bottom: var(--sp-3);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.rate-option {
+    padding: var(--sp-5);
+    border: 1px solid var(--bk-border-light);
+    border-radius: var(--r-md);
+    margin-bottom: var(--sp-3);
+    cursor: pointer;
+    transition: all 0.2s var(--ease);
+}
+
+.rate-option:last-child { margin-bottom: 0; }
+
+.rate-option:hover {
+    border-color: var(--bk-gold);
+    background: var(--bk-gold-muted);
+}
+
+.rate-option.selected {
+    border-color: var(--bk-gold);
+    background: var(--bk-gold-muted);
+    box-shadow: inset 0 0 0 1px var(--bk-gold);
+}
+
+.rate-name { font-size: 0.875rem; font-weight: 600; color: var(--bk-text); }
+.rate-code { font-size: 0.6875rem; color: var(--bk-text-muted); letter-spacing: 0.3px; }
+
+.rate-service-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.6875rem;
+    color: var(--bk-gold);
+    font-weight: 600;
+    margin-top: var(--sp-1);
+}
+
+.rate-price {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--bk-text);
+}
+
+.rate-price-unit { font-size: 0.6875rem; color: var(--bk-text-muted); font-weight: 400; }
+
+.daily-prices-toggle {
+    margin-top: var(--sp-4);
+    padding-top: var(--sp-4);
+    border-top: 1px dashed var(--bk-border-light);
+}
+
+/* ═══════════════════════════════════════
+   BOTTOM BAR
+   ═══════════════════════════════════════ */
+
+.booking-bottom-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--bk-white);
+    border-top: 1px solid var(--bk-border-light);
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.06);
+    padding: var(--sp-5) 0;
+    z-index: 1020;
+}
+
+.selected-total { font-size: 0.8125rem; color: var(--bk-text-muted); }
+
+.total-amount {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--bk-text);
+    margin-left: var(--sp-2);
+}
+
+/* ═══════════════════════════════════════
+   CHECKOUT — 폼 스타일
+   ═══════════════════════════════════════ */
+
+.checkout-section { padding: var(--sp-8) 0 var(--sp-12); }
+.form-group-section { margin-bottom: var(--sp-8); }
+.form-group-section:last-child { margin-bottom: 0; }
+
+.bk-card .form-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bk-text-secondary);
+    margin-bottom: var(--sp-1);
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.bk-card .form-label.required::after { content: ' *'; color: var(--bk-danger); text-transform: none; }
+
+.bk-card .form-control,
+.bk-card .form-select {
+    border-color: var(--bk-border);
+    border-radius: var(--r-sm);
+    font-size: 0.9375rem;
+    padding: var(--sp-3) var(--sp-4);
+    transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.bk-card .form-control:focus,
+.bk-card .form-select:focus {
+    border-color: var(--bk-charcoal);
+    box-shadow: 0 0 0 3px rgba(28, 28, 30, 0.06);
+}
+
 .payment-method-option {
     display: inline-flex;
     align-items: center;
-    padding: 0.625rem 1.25rem;
-    border: 2px solid var(--bk-gray-200);
-    border-radius: 8px;
+    padding: var(--sp-4) var(--sp-6);
+    border: 1px solid var(--bk-border);
+    border-radius: var(--r-sm);
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 500;
-    transition: all 0.15s;
+    transition: all 0.2s var(--ease);
     user-select: none;
+    gap: var(--sp-2);
 }
 
-.payment-method-option:hover {
-    border-color: var(--bk-blue);
-}
+.payment-method-option:hover { border-color: var(--bk-charcoal); }
 
 .payment-method-option.selected {
-    border-color: var(--bk-blue);
-    background: rgba(5, 130, 202, 0.05);
-    color: var(--bk-blue);
+    border-color: var(--bk-charcoal);
+    background: var(--bk-charcoal);
+    color: var(--bk-white);
+}
+
+/* Easy Pay */
+.easy-pay-panel {
+    margin-top: var(--sp-6);
+    padding-top: var(--sp-6);
+    border-top: 1px solid var(--bk-border-light);
+}
+
+/* 가로 스와이프 스크롤 */
+.easy-pay-cards {
+    display: flex;
+    gap: var(--sp-4);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--sp-3);
+    scrollbar-width: thin;
+    scrollbar-color: var(--bk-border) transparent;
+}
+.easy-pay-cards::-webkit-scrollbar { height: 4px; }
+.easy-pay-cards::-webkit-scrollbar-track { background: transparent; }
+.easy-pay-cards::-webkit-scrollbar-thumb { background: var(--bk-border); border-radius: 2px; }
+
+.easy-pay-card {
+    min-width: 200px;
+    width: 200px;
+    height: 126px;
+    border-radius: var(--r-md);
+    background: linear-gradient(135deg, #2C2C2E 0%, #1C1C1E 100%);
+    color: var(--bk-white);
+    padding: var(--sp-5);
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s var(--ease);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    opacity: 0.6;
+}
+.easy-pay-card::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+}
+.easy-pay-card:hover { border-color: var(--bk-gold-light); opacity: 0.85; }
+.easy-pay-card.selected {
+    border-color: var(--bk-gold);
+    box-shadow: 0 0 0 1px var(--bk-gold), 0 4px 12px rgba(184,150,12,0.25);
+    opacity: 1;
+}
+.easy-pay-card-issuer {
+    font-size: 0.9375rem;
     font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
 }
-
-/* ── 필수 라벨 ── */
-.checkout-card .form-label.required::after {
-    content: ' *';
-    color: var(--bk-pink);
+.easy-pay-card-type { font-size: 0.6875rem; opacity: 0.5; }
+.easy-pay-card-number {
+    font-size: 0.8125rem;
+    letter-spacing: 2px;
+    font-weight: 500;
+    margin-top: auto;
+    opacity: 0.8;
 }
-
-/* ── 체크아웃 섹션 ── */
-.checkout-section {
-    padding: 2rem 0 3rem;
+.easy-pay-card-delete {
+    position: absolute; top: 6px; right: 8px;
+    background: none; border: none; color: rgba(255,255,255,0.35);
+    font-size: 1rem; cursor: pointer; padding: 2px 6px; line-height: 1;
+    transition: color 0.15s;
 }
+.easy-pay-card-delete:hover { color: #EF476F; }
 
-.checkout-card {
-    background: var(--bk-white);
-    border-radius: 12px;
-    border: 1px solid var(--bk-gray-200);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-
-.checkout-card h5 {
-    font-size: 1rem;
+/* 선택된 카드 체크 아이콘 */
+.easy-pay-card.selected::after {
+    content: '\2713';
+    position: absolute;
+    bottom: 8px;
+    right: 10px;
+    color: var(--bk-gold);
+    font-size: 0.875rem;
     font-weight: 700;
-    color: var(--bk-navy-deep);
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 2px solid var(--bk-gray-100);
 }
 
-/* 요약 사이드바 */
+.easy-pay-add {
+    min-width: 200px;
+    width: 200px;
+    height: 126px;
+    border-radius: var(--r-md);
+    border: 2px dashed var(--bk-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-3);
+    cursor: pointer;
+    transition: all 0.2s var(--ease);
+    background: transparent;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+}
+.easy-pay-add:hover {
+    border-color: var(--bk-gold);
+    background: rgba(184,150,12,0.03);
+}
+.easy-pay-add-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bk-cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--bk-text-light);
+    font-size: 1rem;
+    transition: all 0.2s var(--ease);
+}
+.easy-pay-add:hover .easy-pay-add-icon { background: var(--bk-gold); color: var(--bk-white); }
+.easy-pay-add-text { font-size: 0.8125rem; color: var(--bk-text-light); font-weight: 500; }
+
+/* Summary sidebar */
 .summary-card {
-    background: var(--bk-gray-50);
-    border-radius: 12px;
-    border: 1px solid var(--bk-gray-200);
-    padding: 1.5rem;
+    background: var(--bk-cream);
+    border-radius: var(--r-md);
+    padding: var(--sp-8);
     position: sticky;
-    top: 80px;
+    top: 90px;
+    border: 1px solid var(--bk-border-light);
 }
 
-.summary-card h5 {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--bk-navy-deep);
-    margin-bottom: 1rem;
+.summary-card__title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--bk-text);
+    margin-bottom: var(--sp-6);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+}
+
+.summary-card__title i { color: var(--bk-gold); }
+
+.summary-room-preview {
+    padding: var(--sp-4);
+    background: var(--bk-white);
+    border-radius: var(--r-sm);
+    border: 1px solid var(--bk-border-light);
+    margin-bottom: var(--sp-6);
 }
 
 .summary-row {
     display: flex;
     justify-content: space-between;
-    padding: 0.375rem 0;
-    font-size: 0.875rem;
+    padding: var(--sp-2) 0;
+    font-size: 0.8125rem;
+    color: var(--bk-text-secondary);
 }
+
+.summary-row span:last-child { font-weight: 500; color: var(--bk-text); }
 
 .summary-total {
     display: flex;
     justify-content: space-between;
-    padding: 0.75rem 0 0;
-    margin-top: 0.5rem;
-    border-top: 2px solid var(--bk-gray-200);
-    font-size: 1.125rem;
+    padding: var(--sp-5) 0 0;
+    margin-top: var(--sp-3);
+    border-top: 1px solid var(--bk-border);
+    font-weight: 600;
+    color: var(--bk-text);
+}
+
+.summary-total span:last-child {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
     font-weight: 700;
-    color: var(--bk-navy-deep);
 }
 
-/* ── 확인 페이지 ── */
-.confirmation-section {
-    padding: 3rem 0;
-}
-
-.confirmation-header {
+.trust-signal {
     text-align: center;
-    margin-bottom: 2rem;
+    font-size: 0.6875rem;
+    color: var(--bk-text-muted);
+    margin-top: var(--sp-4);
+    letter-spacing: 0.3px;
+}
+
+/* ═══════════════════════════════════════
+   CONFIRMATION — 성공 화면
+   ═══════════════════════════════════════ */
+
+.confirmation-section { padding: var(--sp-12) 0; }
+
+.confirmation-header { text-align: center; margin-bottom: var(--sp-10); }
+
+.confirmation-header h3 {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--bk-text);
+    letter-spacing: 0.3px;
 }
 
 .confirmation-icon {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: rgba(5, 130, 202, 0.1);
-    color: var(--bk-blue);
+    width: 88px; height: 88px;
+    border-radius: var(--r-full);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 1rem;
-    font-size: 2rem;
+    margin: 0 auto var(--sp-6);
+    font-size: 2.25rem;
 }
+
+.confirmation-icon.icon-success { background: rgba(52,168,83,0.08); color: var(--bk-success); }
+.confirmation-icon.icon-search { background: var(--bk-gold-muted); color: var(--bk-gold); }
+.confirmation-icon.icon-cancel { background: rgba(196,64,64,0.08); color: var(--bk-danger); }
+.confirmation-icon.icon-done { background: var(--bk-cream); color: var(--bk-text-muted); }
 
 .confirmation-no {
-    font-size: 1.5rem;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
     font-weight: 700;
-    color: var(--bk-navy-deep);
-    letter-spacing: 1px;
+    color: var(--bk-text);
+    letter-spacing: 2px;
+    margin-top: var(--sp-3);
 }
 
-/* 확인 상세 행 */
-.confirm-detail-row {
+/* Detail rows */
+.detail-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--bk-gray-100);
+    padding: var(--sp-3) 0;
+    border-bottom: 1px solid var(--bk-border-light);
     font-size: 0.875rem;
 }
 
-.confirm-detail-row:last-child {
-    border-bottom: none;
-}
+.detail-row:last-child { border-bottom: none; }
 
-.confirm-label {
-    color: var(--bk-gray-700);
-    font-weight: 500;
-}
+.detail-label { color: var(--bk-text-muted); font-weight: 500; font-size: 0.8125rem; }
+.detail-value { color: var(--bk-text); text-align: right; font-weight: 500; }
 
-.confirm-value {
-    color: var(--bk-gray-900);
-    text-align: right;
-}
+/* ═══════════════════════════════════════
+   MY RESERVATION
+   ═══════════════════════════════════════ */
 
-/* ── 스피너 ── */
-.booking-spinner {
+.lookup-section { padding: var(--sp-16) 0; }
+
+.reservation-detail-section { padding: var(--sp-8) 0 var(--sp-12); }
+
+.reservation-status-bar {
+    background: var(--bk-cream);
+    border: 1px solid var(--bk-border-light);
+    border-radius: var(--r-md);
+    padding: var(--sp-6) var(--sp-8);
     display: flex;
-    justify-content: center;
     align-items: center;
-    padding: 3rem;
+    justify-content: space-between;
+    margin-bottom: var(--sp-8);
 }
 
-.booking-spinner .spinner-border {
-    color: var(--bk-blue);
-}
-
-/* ── 검색 조건 요약 바 ── */
-.search-summary-bar {
-    background: var(--bk-navy);
-    padding: 0.75rem 0;
-    color: var(--bk-white);
-    font-size: 0.875rem;
-}
-
-.summary-label {
-    font-weight: 700;
-    font-size: 0.9375rem;
-}
-
-.summary-item {
-    opacity: 0.9;
-}
-
-.summary-divider {
-    opacity: 0.3;
-}
-
-/* ── 객실 섹션 ── */
-.rooms-section {
-    padding: 2rem 0 6rem;
-}
-
-.section-title {
-    font-weight: 700;
-    color: var(--bk-navy-deep);
-}
-
-/* ── 하단 고정 바 ── */
-.booking-bottom-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--bk-white);
-    border-top: 1px solid var(--bk-gray-200);
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
-    padding: 0.875rem 0;
-    z-index: 1020;
-}
-
-.selected-total {
-    font-size: 0.875rem;
-    color: var(--bk-gray-700);
-}
-
-.total-amount {
+.reservation-status-bar .confirm-no {
+    font-family: var(--font-display);
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--bk-navy-deep);
-    margin-left: 0.25rem;
+    color: var(--bk-text);
+    letter-spacing: 1px;
 }
 
-/* ── 반응형 ── */
-@media (max-width: 768px) {
-    .booking-hero {
-        padding: 2.5rem 0 4rem;
-    }
-
-    .hero-title {
-        font-size: 1.5rem;
-    }
-
-    .search-card {
-        padding: 1.25rem;
-    }
-
-    .search-card .row > div {
-        margin-bottom: 0.25rem;
-    }
-
-    .summary-card {
-        position: static;
-    }
+.charges-toggle {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-4) 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--bk-text);
+    border: none;
+    background: none;
+    width: 100%;
 }
 
-@media (max-width: 576px) {
-    .booking-hero {
-        padding: 2rem 0 3.5rem;
-    }
+.charges-toggle i { transition: transform 0.3s var(--ease); font-size: 0.75rem; }
+.charges-toggle.open i { transform: rotate(180deg); }
 
-    .hero-title {
-        font-size: 1.25rem;
-    }
+.charges-table { width: 100%; font-size: 0.8125rem; border-collapse: collapse; }
+.charges-table th { font-weight: 600; color: var(--bk-text-muted); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--bk-border); text-align: right; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.charges-table th:first-child { text-align: left; }
+.charges-table td { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--bk-border-light); text-align: right; }
+.charges-table td:first-child { text-align: left; }
+.charges-table tfoot td { font-weight: 700; border-top: 1px solid var(--bk-border); border-bottom: none; }
 
-    .search-card {
-        padding: 1rem;
-    }
+/* Cancel modal */
+.cancel-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0; visibility: hidden;
+    transition: all 0.3s var(--ease);
+    backdrop-filter: blur(4px);
+}
+
+.cancel-modal-overlay.show { opacity: 1; visibility: visible; }
+
+.cancel-modal {
+    background: var(--bk-white);
+    border-radius: var(--r-lg);
+    padding: var(--sp-10);
+    max-width: 480px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(20px);
+    transition: transform 0.3s var(--ease);
+}
+
+.cancel-modal-overlay.show .cancel-modal { transform: translateY(0); }
+
+.cancel-modal__title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--bk-text);
+    margin-bottom: var(--sp-6);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+}
+
+.cancel-fee-row { display: flex; justify-content: space-between; padding: var(--sp-3) 0; font-size: 0.875rem; }
+.cancel-fee-divider { border-top: 1px solid var(--bk-border); padding-top: var(--sp-4); margin-top: var(--sp-2); }
+.cancel-fee-refund { font-weight: 700; font-size: 1rem; color: var(--bk-gold); }
+
+/* ═══════════════════════════════════════
+   SPINNER / FOOTER / ERROR
+   ═══════════════════════════════════════ */
+
+.booking-spinner { display: flex; justify-content: center; align-items: center; padding: var(--sp-12); }
+.booking-spinner .spinner-border { color: var(--bk-gold); width: 2.5rem; height: 2.5rem; }
+
+.booking-footer {
+    background: var(--bk-charcoal);
+    padding: var(--sp-10) 0;
+    margin-top: auto;
+    color: rgba(255,255,255,0.5);
+}
+
+.booking-footer p { font-size: 0.8125rem; }
+
+.booking-footer .footer-brand {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--bk-white);
+    letter-spacing: 2px;
+    margin-bottom: var(--sp-2);
+}
+
+/* ═══════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════ */
+
+@media (max-width: 991.98px) {
+    .bk-calendar-body { flex-direction: column; gap: var(--sp-6); }
+    .bk-calendar-months { gap: var(--sp-6); }
+    .bk-calendar-summary { flex-wrap: wrap; gap: var(--sp-3); }
+    .search-guests-row { flex-direction: column; align-items: stretch; gap: var(--sp-4); }
+    .summary-card { position: static; margin-top: var(--sp-6); }
+    .reservation-status-bar { flex-direction: column; align-items: flex-start; gap: var(--sp-4); }
+    .search-card { padding: var(--sp-8); }
+    .room-card-image { width: 300px; min-width: 300px; }
+}
+
+@media (max-width: 767.98px) {
+    .booking-hero { padding: var(--sp-12) 0 var(--sp-16); }
+    .hero-title { font-size: 2rem; }
+    .search-card { padding: var(--sp-6); max-width: 100%; }
+    /* 캘린더: 1개월만 표시 */
+    .bk-calendar-months { gap: 0; }
+    .bk-calendar-months .bk-calendar-month-title:last-child { display: none; }
+    .bk-calendar-body { gap: 0; }
+    .bk-calendar-body > .bk-calendar-grid:last-child { display: none; }
+    .bk-calendar-month-title { min-width: auto; }
+    .room-card-layout { flex-direction: column; min-height: auto; }
+    .room-card-image { width: 100%; min-width: 100%; height: 220px; }
+    .room-card-body { padding: var(--sp-6); }
+    .room-name { font-size: 1.25rem; }
+    .step .step-text { display: none; }
+    .step-line { width: 24px; }
+    .bk-card { padding: var(--sp-6); }
+}
+
+@media (max-width: 575.98px) {
+    .booking-hero { padding: var(--sp-10) 0 var(--sp-12); }
+    .hero-title { font-size: 1.75rem; }
+    .booking-search-section { margin-top: -2rem; }
+    .search-card { padding: var(--sp-5); }
+    .bk-calendar-day { padding: 8px 0; font-size: 0.8125rem; }
+    .room-card-image { padding-top: 56%; }
+    .rate-price { font-size: 1.25rem; }
+}
+
+/* ═══════════════════════════════════════
+   PRINT
+   ═══════════════════════════════════════ */
+
+@media print {
+    .booking-navbar, .booking-footer, .booking-bottom-bar,
+    .btn-booking, .btn-booking-outline, .cancel-modal-overlay { display: none !important; }
+    .bk-card { border: 1px solid #ddd; box-shadow: none; }
+    .summary-card { position: static; }
+    body { background: white; }
 }

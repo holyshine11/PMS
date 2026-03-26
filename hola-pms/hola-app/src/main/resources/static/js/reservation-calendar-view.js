@@ -470,7 +470,7 @@ var ReservationCalendarView = {
 
             // 예약의 시작/끝 판정 (이 주 기준)
             var checkIn = r.item.masterCheckIn;
-            var checkOut = r.item.masterCheckOut;
+            var checkOut = (r.item.stayType === 'DAY_USE') ? checkIn : r.item.masterCheckOut;
 
             result.bars.push({
                 item: r.item,

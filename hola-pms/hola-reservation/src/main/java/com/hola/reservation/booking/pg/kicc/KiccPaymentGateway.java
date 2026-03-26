@@ -203,7 +203,7 @@ public class KiccPaymentGateway implements PaymentGateway {
     /** returnUrl 생성 */
     private String buildReturnUrl(String payMethodTypeCode) {
         String path = "81".equals(payMethodTypeCode)
-                ? "/api/v1/booking/payment/billkey/return"
+                ? "/api/v1/booking/easy-pay/billkey-return"
                 : "/api/v1/booking/payment/return";
         return properties.getReturnBaseUrl() + path;
     }

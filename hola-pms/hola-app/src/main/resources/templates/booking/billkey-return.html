@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카드 등록 처리 중...</title>
+    <style>
+        body { font-family: 'Pretendard', sans-serif; text-align: center; padding: 60px 20px; background: #f8f9fa; }
+        .result-box { max-width: 400px; margin: 0 auto; padding: 40px; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .icon { font-size: 48px; margin-bottom: 16px; }
+        .message { font-size: 18px; color: #333; margin-bottom: 24px; }
+        .sub-message { font-size: 14px; color: #666; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #B8960C; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="result-box" id="resultBox">
+    <div class="spinner" id="spinner"></div>
+    <div class="message" id="message">카드 등록 처리 중...</div>
+    <div class="sub-message" id="subMessage">잠시만 기다려주세요.</div>
+</div>
+
+<script th:inline="javascript">
+    (function() {
+        var success = /*[[${success}]]*/ false;
+        var errorMessage = /*[[${errorMessage}]]*/ null;
+        var shopOrderNo = /*[[${shopOrderNo}]]*/ null;
+
+        var spinner = document.getElementById('spinner');
+        var resultBox = document.getElementById('resultBox');
+
+        if (success) {
+            spinner.style.display = 'none';
+            resultBox.innerHTML =
+                '<div class="icon">&#10004;</div>' +
+                '<div class="message" style="color:#28a745;">카드가 등록되었습니다</div>' +
+                '<div class="sub-message">잠시 후 창이 닫힙니다.</div>';
+
+            // PC 팝업: 부모 창에 결과 전달 + 자가 닫기
+            if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({
+                    type: 'BILLKEY_REGISTER_COMPLETE',
+                    success: true,
+                    shopOrderNo: shopOrderNo
+                }, window.location.origin);
+                setTimeout(function() { window.close(); }, 1500);
+            } else {
+                // 모바일: 뒤로가기 (checkout 페이지로)
+                setTimeout(function() { window.history.back(); }, 2000);
+            }
+        } else {
+            spinner.style.display = 'none';
+            resultBox.innerHTML =
+                '<div class="icon">&#10006;</div>' +
+                '<div class="message" style="color:#dc3545;">카드 등록에 실패했습니다</div>' +
+                '<div class="sub-message">' + (errorMessage || '알 수 없는 오류가 발생했습니다.') + '</div>';
+
+            // PC 팝업: 부모 창에 실패 전달
+            if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({
+                    type: 'BILLKEY_REGISTER_COMPLETE',
+                    success: false,
+                    errorMessage: errorMessage
+                }, window.location.origin);
+                setTimeout(function() { window.close(); }, 3000);
+            }
+        }
+    })();
+</script>
+</body>
+</html>

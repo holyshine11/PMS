@@ -85,6 +85,18 @@ public class ReservationMapper {
      */
     public ReservationListResponse toReservationListResponse(MasterReservation master) {
         // 첫 번째 서브 예약 기준 객실 정보 (이름은 서비스에서 조회 후 별도 세팅)
+        // 첫 번째 활성 서브의 숙박유형
+        String stayType = null;
+        if (master.getSubReservations() != null && !master.getSubReservations().isEmpty()) {
+            SubReservation firstSub = master.getSubReservations().stream()
+                    .filter(s -> !"CANCELED".equals(s.getRoomReservationStatus()))
+                    .findFirst()
+                    .orElse(master.getSubReservations().get(0));
+            if (firstSub.getStayType() != null) {
+                stayType = firstSub.getStayType().name();
+            }
+        }
+
         return ReservationListResponse.builder()
                 .id(master.getId())
                 .masterReservationNo(master.getMasterReservationNo())
@@ -96,6 +108,7 @@ public class ReservationMapper {
                 .phoneNumber(master.getPhoneNumber())
                 .isOtaManaged(master.getIsOtaManaged())
                 .createdAt(master.getCreatedAt())
+                .stayType(stayType)
                 .build();
     }
 

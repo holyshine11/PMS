@@ -184,7 +184,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/m/housekeeping/login", "/css/**", "/js/**", "/images/**", "/webjars/**", "/uploads/**",
+                .requestMatchers("/login", "/m/housekeeping/login", "/css/**", "/js/**", "/images/**", "/img/**", "/webjars/**", "/uploads/**",
                     "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 // 부킹엔진 게스트 화면: 인증 없이 접근 허용

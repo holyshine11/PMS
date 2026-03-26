@@ -24,6 +24,8 @@ public class BookingConfirmationResponse {
     private final String paymentStatus;
     private final String paymentMethod;
     private final String approvalNo;
+    private final LocalDateTime paymentDate;
+    private final String cardMaskNo;
 
     /** 객실 예약 내역 */
     private final List<RoomDetail> rooms;

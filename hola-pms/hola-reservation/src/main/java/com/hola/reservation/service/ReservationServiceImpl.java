@@ -1563,9 +1563,13 @@ public class ReservationServiceImpl implements ReservationService {
         for (MasterReservation m : filtered) {
             ReservationCalendarResponse dto = toCalendarResponse(m, floorMap, roomNumberMap, roomTypeMap);
 
+            // Dayuse: 체크인 당일만 매핑 (체크아웃일은 인벤토리용 +1일)
+            LocalDate effectiveCheckOut = "DAY_USE".equals(dto.getStayType())
+                    ? m.getMasterCheckIn() : m.getMasterCheckOut();
+
             // 체류 기간 내 각 날짜에 매핑
             LocalDate cursor = m.getMasterCheckIn().isBefore(startDate) ? startDate : m.getMasterCheckIn();
-            LocalDate until = m.getMasterCheckOut().isAfter(endDate) ? endDate : m.getMasterCheckOut();
+            LocalDate until = effectiveCheckOut.isAfter(endDate) ? endDate : effectiveCheckOut;
 
             // 체크아웃일 포함 (Gantt 바가 체크아웃일까지 표시)
             while (!cursor.isAfter(until)) {
@@ -1587,9 +1591,10 @@ public class ReservationServiceImpl implements ReservationService {
             Map<Long, String> roomNumberMap,
             Map<Long, String> roomTypeMap) {
 
-        // 첫 번째 활성 서브 예약 기준 객실 정보
+        // 첫 번째 활성 서브 예약 기준 객실/숙박유형 정보
         String roomInfo = null;
         String roomTypeName = null;
+        String stayType = null;
         List<SubReservation> subs = master.getSubReservations();
         if (subs != null && !subs.isEmpty()) {
             SubReservation firstSub = subs.stream()
@@ -1607,6 +1612,9 @@ public class ReservationServiceImpl implements ReservationService {
             }
 
             roomTypeName = firstSub.getRoomTypeId() != null ? roomTypeMap.get(firstSub.getRoomTypeId()) : null;
+            if (firstSub.getStayType() != null) {
+                stayType = firstSub.getStayType().name();
+            }
         }
 
         // 이름: 국문 우선, 없으면 영문 폴백 (OTA 예약 대응)
@@ -1632,6 +1640,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .guestNameMasked(maskedName)
                 .roomInfo(roomInfo)
                 .roomTypeName(roomTypeName)
+                .stayType(stayType)
                 .build();
     }
 

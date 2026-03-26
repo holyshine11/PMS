@@ -33,4 +33,7 @@ public class ReservationListResponse {
     private String reservationChannelName;
     private Boolean isOtaManaged;
     private LocalDateTime createdAt;
+
+    /** 숙박유형 (OVERNIGHT / DAY_USE) */
+    private String stayType;
 }
