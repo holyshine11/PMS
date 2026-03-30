@@ -160,9 +160,16 @@
                         <label class="col-sm-5 col-form-label">총 결제액</label>
                         <div class="col-sm-7 d-flex align-items-center"><span id="fdCpTotalPaid">-</span></div>
                     </div>
-                    <div class="row mb-2">
+                    <div class="row mb-2" id="fdCpRefundRow">
                         <label class="col-sm-5 col-form-label" style="color:#0582CA;">환불 예정액</label>
                         <div class="col-sm-7 d-flex align-items-center"><span id="fdCpRefundAmt" style="color:#0582CA;">-</span></div>
+                    </div>
+                    <div class="row mb-2 d-none" id="fdCpOutstandingRow">
+                        <label class="col-sm-5 col-form-label" style="color:#EF476F;">미결제 수수료</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="fdCpOutstandingAmt" style="color:#EF476F;">-</span></div>
+                    </div>
+                    <div class="alert alert-warning small mb-0 d-none" id="fdCpFeeAlert">
+                        <i class="fas fa-exclamation-triangle me-1"></i>취소/노쇼 수수료가 미결제 상태입니다. 예약 상세에서 수수료를 결제한 후 처리해주세요.
                     </div>
                 </div>
                 <div class="modal-footer">

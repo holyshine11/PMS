@@ -180,6 +180,7 @@ public enum ErrorCode {
     BOOKING_CANCEL_NOT_ALLOWED("HOLA-4080", "해당 상태에서는 취소할 수 없습니다.", HttpStatus.BAD_REQUEST),
     BOOKING_ALREADY_CANCELED("HOLA-4081", "이미 취소된 예약입니다.", HttpStatus.BAD_REQUEST),
     BOOKING_INVALID_CARD_BIN("HOLA-4082", "유효하지 않은 카드 BIN입니다.", HttpStatus.BAD_REQUEST),
+    CANCEL_FEE_UNPAID("HOLA-4083", "취소/노쇼 수수료가 미결제 상태입니다. 수수료 결제 후 처리해주세요.", HttpStatus.BAD_REQUEST),
 
     // 부킹 인증 (HOLA-409x)
     BOOKING_AUTH_REQUIRED("HOLA-4090", "API-KEY와 VENDOR-ID 헤더가 필요합니다.", HttpStatus.UNAUTHORIZED),

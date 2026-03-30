@@ -587,7 +587,7 @@ public class HousekeepingServiceImpl implements HousekeepingService {
     @Override
     @Transactional
     public int generateDailyTasks(Long propertyId, LocalDate date) {
-        accessControlService.validatePropertyAccess(propertyId);
+        // 인가 검증은 호출자(API Controller)에서 수행 — 스케줄러/내부 서비스에서도 호출 가능
         LocalDate targetDate = date != null ? date : LocalDate.now();
 
         HkConfig config = hkConfigRepository.findByPropertyId(propertyId).orElse(null);

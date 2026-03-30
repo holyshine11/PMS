@@ -440,18 +440,31 @@ var FdOperations = {
                     $('#fdCpTotalPaid').text(fmt(d.totalPaidAmount));
                     $('#fdCpRefundAmt').text(fmt(d.refundAmount));
 
-                    var btnLabel = isNoShow ? '노쇼 확인' : '취소 확인';
-                    $('#fdCancelConfirmBtn').html('<i class="fas fa-ban me-1"></i>' + btnLabel)
-                        .off('click').on('click', function () {
-                            HolaPms.modal.hide('#fdCancelPreviewModal');
-                            if (isNoShow) {
-                                // 노쇼: PUT /status
-                                self.changeStatus(reservationId, 'NO_SHOW', null);
-                            } else {
-                                // 취소: DELETE (수수료 계산 + REFUND 처리)
-                                self.executeCancel(reservationId);
-                            }
-                        });
+                    // 미결제 수수료 표시 및 버튼 차단
+                    var outstanding = Number(d.outstandingCancelFee || 0);
+                    if (outstanding > 0) {
+                        $('#fdCpOutstandingRow').removeClass('d-none');
+                        $('#fdCpOutstandingAmt').text(fmt(d.outstandingCancelFee));
+                        $('#fdCpRefundRow').addClass('d-none');
+                        $('#fdCpFeeAlert').removeClass('d-none');
+                        $('#fdCancelConfirmBtn').prop('disabled', true)
+                            .html('<i class="fas fa-lock me-1"></i>수수료 결제 필요');
+                    } else {
+                        $('#fdCpOutstandingRow').addClass('d-none');
+                        $('#fdCpRefundRow').removeClass('d-none');
+                        $('#fdCpFeeAlert').addClass('d-none');
+                        var btnLabel = isNoShow ? '노쇼 확인' : '취소 확인';
+                        $('#fdCancelConfirmBtn').prop('disabled', false)
+                            .html('<i class="fas fa-ban me-1"></i>' + btnLabel)
+                            .off('click').on('click', function () {
+                                HolaPms.modal.hide('#fdCancelPreviewModal');
+                                if (isNoShow) {
+                                    self.changeStatus(reservationId, 'NO_SHOW', null);
+                                } else {
+                                    self.executeCancel(reservationId);
+                                }
+                            });
+                    }
 
                     HolaPms.modal.show('#fdCancelPreviewModal');
                 }

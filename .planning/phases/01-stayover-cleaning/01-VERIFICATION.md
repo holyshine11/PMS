@@ -1,18 +1,9 @@
 ---
 phase: 01-stayover-cleaning
-verified: 2026-03-26T20:00:00Z
-status: gaps_found
-score: 6/7 must-haves verified
-gaps:
-  - truth: "Scheduler can auto-generate stayover tasks and process DND rooms without SecurityContext"
-    status: failed
-    reason: "HkCleaningPolicyServiceImpl.resolvePolicy() calls accessControlService.validatePropertyAccess(propertyId) at line 43. This method is invoked by generateStayoverTasks() and processDndRooms(), both of which are called by HkSchedulerService without a SecurityContext. The scheduler will throw an authentication exception at runtime."
-    artifacts:
-      - path: "hola-pms/hola-hotel/src/main/java/com/hola/hotel/service/HkCleaningPolicyServiceImpl.java"
-        issue: "resolvePolicy() line 43 calls accessControlService.validatePropertyAccess(propertyId) — blocks scheduler invocation"
-    missing:
-      - "Remove accessControlService.validatePropertyAccess() from resolvePolicy(), or add an overloaded resolvePolicy method without auth check for internal/scheduler use"
-      - "Alternatively, create a separate internal method (e.g., resolvePolicyInternal) that skips auth, and call it from scheduler-triggered paths"
+verified: 2026-03-30T00:00:00Z
+status: verified
+score: 7/7 must-haves verified
+gaps: []
 ---
 
 # Phase 1: Stayover Cleaning Management Verification Report
@@ -34,9 +25,9 @@ gaps:
 | 4 | OC to OD daily transition and DND day increment work correctly | VERIFIED | transitionOccupiedRoomsToDirty() queries OC rooms, sets hkStatus=DIRTY, and increments consecutiveDndDays for OCCUPIED+DND rooms. No accessControlService calls. |
 | 5 | Policy-based stayover task auto-generation respects all policy fields | VERIFIED | generateStayoverTasks() queries OD rooms with roomTypeId, resolves policy, checks stayoverEnabled, respects frequency, credit, priority, and scheduledTime. Skips rooms with existing active tasks. |
 | 6 | DND handling correctly implements all 3 policies (SKIP, RETRY_AFTERNOON, FORCE_AFTER_DAYS) | VERIFIED | processDndRooms() switches on dndPolicy: SKIP increments counter; RETRY_AFTERNOON creates task at 14:00; FORCE_AFTER_DAYS calls room.clearDnd() when consecutiveDndDays >= maxDays then creates HIGH priority task. |
-| 7 | Scheduler can auto-generate stayover tasks and process DND rooms without SecurityContext | FAILED | HkCleaningPolicyServiceImpl.resolvePolicy() calls accessControlService.validatePropertyAccess(propertyId) at line 43. This is invoked by generateStayoverTasks() (line 680) and processDndRooms() (line 722) from HkSchedulerService, which runs without SecurityContext. Will throw runtime auth exception. |
+| 7 | Scheduler can auto-generate stayover tasks and process DND rooms without SecurityContext | VERIFIED | resolvePolicy() auth check removed (comment-only). generateDailyTasks() auth check removed (controller handles it). HkSchedulerService now calls generateDailyTasks() directly. All scheduler-path methods are auth-free. |
 
-**Score:** 6/7 truths verified
+**Score:** 7/7 truths verified
 
 ### Required Artifacts
 
@@ -75,8 +66,8 @@ gaps:
 | HkSchedulerService | HousekeepingService.transitionOccupiedRoomsToDirty | Direct method call | WIRED | Line 57: `housekeepingService.transitionOccupiedRoomsToDirty(propertyId)` |
 | HkSchedulerService | HousekeepingService.generateStayoverTasks | Direct method call | WIRED | Line 68: `housekeepingService.generateStayoverTasks(propertyId, today)` |
 | HkSchedulerService | HousekeepingService.processDndRooms | Direct method call | WIRED | Line 79: `housekeepingService.processDndRooms(propertyId, today)` |
-| generateStayoverTasks | HkCleaningPolicyService.resolvePolicy | Direct method call | WIRED (but auth-blocked) | Line 680: `cleaningPolicyService.resolvePolicy(propertyId, roomTypeId)` -- call exists but will fail at runtime due to accessControlService in resolvePolicy |
-| processDndRooms | HkCleaningPolicyService.resolvePolicy | Direct method call | WIRED (but auth-blocked) | Line 722: `cleaningPolicyService.resolvePolicy(propertyId, roomTypeId)` -- same issue |
+| generateStayoverTasks | HkCleaningPolicyService.resolvePolicy | Direct method call | WIRED | Line 680: `cleaningPolicyService.resolvePolicy(propertyId, roomTypeId)` — auth-free after fix |
+| processDndRooms | HkCleaningPolicyService.resolvePolicy | Direct method call | WIRED | Line 722: `cleaningPolicyService.resolvePolicy(propertyId, roomTypeId)` — auth-free after fix |
 | HousekeepingServiceImpl | HkCleaningPolicyService | Constructor injection | WIRED | Line 46: `private final HkCleaningPolicyService cleaningPolicyService;` |
 | updateConfig | HkConfig.update(16 params) | Method call | WIRED | Lines 510-527: All 16 params passed in correct order matching HkConfig.update() signature |
 | getConfig fallback | HkConfigResponse.builder | Builder pattern | WIRED | Lines 474-492: All 7 new fields included in fallback builder with correct defaults |
@@ -114,9 +105,9 @@ No formal REQUIREMENTS.md was found for this phase. Verification is based on the
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| HkCleaningPolicyServiceImpl.java | 43 | accessControlService.validatePropertyAccess() in resolvePolicy() | BLOCKER | Called from scheduler path (generateStayoverTasks, processDndRooms) which has no SecurityContext. Will throw runtime exception. |
-| HkSchedulerService.java | 76-77 | Comment about generateDailyTasks SecurityContext issue but no resolution | INFO | Acknowledges the problem but does not call generateDailyTasks from scheduler (acceptable: checkout tasks created via events). |
-| HkCleaningPolicyServiceImpl.java | 43, 69, 97, 149 | accessControlService in every public method | WARNING | resolvePolicy (line 43) is problematic for scheduler use. Other methods (getAllPolicies, createOrUpdate, deletePolicy) are only called from API controllers, so auth there is correct. |
+| ~~HkCleaningPolicyServiceImpl.java~~ | ~~43~~ | ~~accessControlService in resolvePolicy()~~ | ~~BLOCKER~~ | **FIXED**: auth check removed, comment documents that caller (controller) handles auth. |
+| ~~HkSchedulerService.java~~ | ~~76-77~~ | ~~generateDailyTasks not called from scheduler~~ | ~~INFO~~ | **FIXED**: scheduler now calls generateDailyTasks(propertyId, today) directly. |
+| HkCleaningPolicyServiceImpl.java | 69, 97, 149 | accessControlService in CRUD methods | OK | Only called from API controllers — auth there is correct. |
 
 ### Human Verification Required
 
@@ -146,11 +137,9 @@ No formal REQUIREMENTS.md was found for this phase. Verification is based on the
 
 ### Gaps Summary
 
-**One blocker gap found.** The `HkCleaningPolicyServiceImpl.resolvePolicy()` method contains an `accessControlService.validatePropertyAccess(propertyId)` call that will fail when invoked from the scheduler path (no SecurityContext). This affects both `generateStayoverTasks()` and `processDndRooms()` -- the core automated stayover task generation and DND processing.
+**All blockers resolved.** The auth checks were removed from `resolvePolicy()` and `generateDailyTasks()` — both methods are now callable from the scheduler without SecurityContext. API-level auth is enforced by the calling controllers.
 
-**Root cause:** The resolvePolicy method was designed as both an API-facing and internal method but includes API-level auth checks. The fix is straightforward: either remove the auth check from resolvePolicy (since the callers -- controller and internal service -- handle auth at their own level), or create a package-private/internal variant without auth for scheduler use.
-
-**All other aspects verified successfully:**
+**All aspects verified successfully:**
 - Schema/entity consistency is exact (column names, types, defaults, constraints).
 - Policy resolution engine correctly implements the "Default + Override" pattern with the generic pick() helper.
 - OC to OD transition logic is correct and auth-free.

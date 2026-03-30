@@ -101,7 +101,8 @@ Mapper
 - DB: `snake_case` 테이블(접두사: `htl_`, `rm_`, `rt_`, `rsv_`, `fd_`, `hk_`), `snake_case` 컬럼
 - Git: `[HOLA-XXX] feat/fix/refactor: description` (영문). 코드 주석: 한글
 - Flyway: `hola-app/src/main/resources/db/migration/`, `V{major}_{minor}_{patch}__{desc}.sql`, out-of-order 활성화
-  - 버전대역: V1(호텔) V2(객실) V3(레이트) V4(예약) V5(테스트데이터) V6(트랜잭션) V7(객실상태) V8(하우스키핑)
+  - 버전대역: V1(호텔) V2(객실) V3(레이트) V4(예약/부킹/결제) V5(테스트데이터) V6(트랜잭션) V7(객실상태) V8(하우스키핑)
+  - 최신: V8_10_0 (stayover cleaning policy). 다음 결제 마이그레이션은 V4_21_0 대역
 - DB 시퀀스 자동 생성: `SELECT nextval('htl_hotel_code_seq')` → `HTL00001` 형식
 
 ## UI 규칙 (Admin Frontend)
@@ -163,14 +164,21 @@ Mapper
 3. **orphanRemoval + JPQL DELETE 금지**: `collection.clear()` + `flush()` 방식만 사용
 4. **SecurityConfig 순서**: 구체적 경로(`/api/v1/hotels/selector`)를 제너릭(`/api/v1/hotels/**`)보다 먼저
 5. **HK 모바일 SecurityContext 오염**: HkMobileSessionFilter에서 try/finally 원본 복원 필수, `sessionFixation().none()`, accessControlService 우회 필수
+6. **스케줄러 내부 호출 시 auth 우회**: `@Scheduled` 메서드는 SecurityContext 없이 실행됨. 내부 서비스 호출 시 `accessControlService.validatePropertyAccess()` 가 있으면 런타임 예외 발생. 스케줄러 경로용 내부 메서드 분리 필요
 
 ## 개발 현황
 
-| Phase | 상태 |
-|-------|------|
-| Phase 0~1: 기반+코어 (호텔/객실/레이트/예약/프론트데스크) | 완료 |
-| Phase 2: 운영 (하우스키핑/부킹엔진/대시보드) | 대부분 완료 |
-| Phase 3: 고도화 (채널/POS/정산) | 미착수 |
+| 영역 | 상태 | 비고 |
+|------|------|------|
+| 기반+코어 (호텔/객실/레이트/예약/프론트데스크) | 완료 | |
+| 하우스키핑 (관리자+모바일, 태스크·근태·휴무) | 완료 | |
+| 투숙중 청소 관리 (Stayover/DND 정책) | 완료 | |
+| 부킹엔진 + KICC PG 결제 | 완료 | |
+| 간편결제 (빌키) | 컨텍스트 수집 완료 | `.planning/phases/02-easy-payment/` 참조 |
+| 대시보드 | 완료 | N+1 성능 이슈 존재 |
+| Dayuse(대실) | 완료 | |
+| 타임라인 뷰 / Roomrack HK 매핑 | 완료 | |
+| 고도화 (채널/POS/정산) | 미착수 | |
 
 ## 설계 자산
 

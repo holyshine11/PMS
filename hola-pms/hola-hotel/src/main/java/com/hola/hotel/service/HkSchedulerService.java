@@ -71,10 +71,12 @@ public class HkSchedulerService {
                 }
             }
 
-            // 기존 일일 작업 (VD→CHECKOUT 포함) — accessControl 우회 필요
-            // generateDailyTasks는 내부에서 accessControlService.validatePropertyAccess를 호출하므로
-            // 스케줄러에서 직접 호출 시 SecurityContext가 없어 실패할 수 있음
-            // 이 경우 체크아웃 작업은 체크아웃 이벤트에서 이미 생성되므로 스킵 가능
+            // 기존 일일 작업 (VD→CHECKOUT 포함)
+            int daily = housekeepingService.generateDailyTasks(propertyId, today);
+            if (daily > 0) {
+                log.info("[스케줄러] 일일작업: propertyId={}, {}건", propertyId, daily);
+            }
+
             // DND 처리
             housekeepingService.processDndRooms(propertyId, today);
         }
