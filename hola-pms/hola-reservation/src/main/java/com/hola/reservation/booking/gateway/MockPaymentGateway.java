@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -42,5 +43,33 @@ public class MockPaymentGateway implements PaymentGateway {
     @Override
     public String getGatewayId() {
         return GATEWAY_ID;
+    }
+
+    @Override
+    public RegisterResult registerTransaction(RegisterRequest request) {
+        String mockUrl = "http://localhost:8080/booking/mock-payment?shopOrderNo=" + request.getOrderId();
+
+        log.info("[MockPG] 거래등록 - orderId: {}, paymentMethod: {}",
+                request.getOrderId(), request.getPaymentMethod());
+
+        return RegisterResult.success(mockUrl, request.getOrderId());
+    }
+
+    @Override
+    public PaymentResult approveAfterAuth(ApproveAfterAuthRequest request) {
+        String approvalNo = "MOCK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
+        log.info("[MockPG] 인증 후 승인 - authorizationId: {}, amount: {}",
+                request.getAuthorizationId(), request.getExpectedAmount());
+
+        return PaymentResult.builder()
+                .success(true)
+                .gatewayId(GATEWAY_ID)
+                .pgProvider("MOCK")
+                .pgCno("MOCK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .amount(request.getExpectedAmount())
+                .approvalNo(approvalNo)
+                .processedAt(LocalDateTime.now())
+                .build();
     }
 }

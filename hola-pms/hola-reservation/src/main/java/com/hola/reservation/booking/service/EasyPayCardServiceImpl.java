@@ -10,6 +10,7 @@ import com.hola.reservation.booking.pg.kicc.dto.KiccRemoveKeyRequest;
 import com.hola.reservation.booking.repository.EasyPayCardRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,8 +33,12 @@ public class EasyPayCardServiceImpl implements EasyPayCardService {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final EasyPayCardRepository easyPayCardRepository;
-    private final KiccApiClient kiccApiClient;
-    private final KiccProperties kiccProperties;
+
+    @Autowired(required = false)
+    private KiccApiClient kiccApiClient;
+
+    @Autowired(required = false)
+    private KiccProperties kiccProperties;
 
     @Override
     public List<EasyPayCardResponse> getCardsByEmail(String email) {
@@ -78,17 +83,21 @@ public class EasyPayCardServiceImpl implements EasyPayCardService {
         }
 
         // KICC 빌키 삭제 (실패해도 DB에서는 삭제 처리 — 데모 편의)
-        try {
-            KiccRemoveKeyRequest removeRequest = KiccRemoveKeyRequest.builder()
-                    .mallId(kiccProperties.getMallId())
-                    .shopTransactionId(UUID.randomUUID().toString())
-                    .batchKey(card.getBatchKey())
-                    .removeReqDate(LocalDate.now().format(DATE_FMT))
-                    .build();
-            kiccApiClient.removeBatchKey(removeRequest);
-            log.info("[간편결제] KICC 빌키 삭제 성공 - cardId: {}", cardId);
-        } catch (Exception e) {
-            log.warn("[간편결제] KICC 빌키 삭제 실패 (DB에서는 삭제 진행) - cardId: {}, error: {}", cardId, e.getMessage());
+        if (kiccApiClient != null && kiccProperties != null) {
+            try {
+                KiccRemoveKeyRequest removeRequest = KiccRemoveKeyRequest.builder()
+                        .mallId(kiccProperties.getMallId())
+                        .shopTransactionId(UUID.randomUUID().toString())
+                        .batchKey(card.getBatchKey())
+                        .removeReqDate(LocalDate.now().format(DATE_FMT))
+                        .build();
+                kiccApiClient.removeBatchKey(removeRequest);
+                log.info("[간편결제] KICC 빌키 삭제 성공 - cardId: {}", cardId);
+            } catch (Exception e) {
+                log.warn("[간편결제] KICC 빌키 삭제 실패 (DB에서는 삭제 진행) - cardId: {}, error: {}", cardId, e.getMessage());
+            }
+        } else {
+            log.info("[간편결제] KICC 클라이언트 비활성화 — DB soft delete만 수행 - cardId: {}", cardId);
         }
 
         // DB soft delete

@@ -17,6 +17,7 @@ import com.hola.reservation.booking.gateway.PaymentGateway;
 import com.hola.reservation.booking.entity.EasyPayCard;
 import com.hola.reservation.booking.pg.kicc.KiccApiClient;
 import com.hola.reservation.booking.pg.kicc.KiccProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.hola.reservation.booking.pg.kicc.dto.KiccBatchApprovalRequest;
 import com.hola.reservation.booking.pg.kicc.dto.KiccApprovalResponse;
 import com.hola.reservation.booking.repository.EasyPayCardRepository;
@@ -58,10 +59,14 @@ public class EasyPayApiController {
     private final EasyPayCardRepository easyPayCardRepository;
     private final BookingService bookingService;
     private final PaymentGateway paymentGateway;
-    private final KiccApiClient kiccApiClient;
-    private final KiccProperties kiccProperties;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+
+    @Autowired(required = false)
+    private KiccApiClient kiccApiClient;
+
+    @Autowired(required = false)
+    private KiccProperties kiccProperties;
 
     // ========================================
     // 카드 목록 조회
@@ -188,6 +193,12 @@ public class EasyPayApiController {
 
         try {
             // 3. KICC 승인 (빌키 발급) — 직접 KiccApiClient 사용하여 빌키와 마스킹번호를 별도 추출
+            if (kiccApiClient == null) {
+                throw new HolaException(ErrorCode.PG_REGISTER_FAILED, "PG 클라이언트가 비활성화 상태입니다.");
+            }
+            if (kiccProperties == null) {
+                throw new HolaException(ErrorCode.PG_REGISTER_FAILED, "PG 설정이 비활성화 상태입니다.");
+            }
             String shopTransactionId = UUID.randomUUID().toString();
             String today = LocalDate.now().format(DATE_FMT);
 
@@ -356,6 +367,12 @@ public class EasyPayApiController {
 
         try {
             // 5. KICC 빌키 결제 승인
+            if (kiccApiClient == null) {
+                throw new HolaException(ErrorCode.PG_REGISTER_FAILED, "PG 클라이언트가 비활성화 상태입니다.");
+            }
+            if (kiccProperties == null) {
+                throw new HolaException(ErrorCode.PG_REGISTER_FAILED, "PG 설정이 비활성화 상태입니다.");
+            }
             KiccBatchApprovalRequest batchRequest = KiccBatchApprovalRequest.builder()
                     .mallId(kiccProperties.getMallId())
                     .shopTransactionId(UUID.randomUUID().toString())
