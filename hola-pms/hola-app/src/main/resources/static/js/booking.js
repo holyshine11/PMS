@@ -753,6 +753,46 @@ var HolaBooking = (function() {
                 }
             });
 
+            // 모바일: KICC 빌키 등록 후 페이지 복귀 시 카드 목록 갱신
+            window.addEventListener('pageshow', function(e) {
+                var shopOrderNo = sessionStorage.getItem('hola_billkey_shopOrderNo');
+                if (!shopOrderNo) return;
+
+                // bfcache 복원 또는 일반 네비게이션 모두 처리
+                sessionStorage.removeItem('hola_billkey_shopOrderNo');
+
+                // 빌키 등록 결과 폴링
+                var pollCount = 0;
+                var maxPoll = 10;
+                var pollInterval = 1500; // 1.5초
+
+                function pollBillkeyResult() {
+                    $.ajax({
+                        url: API_BASE + '/easy-pay/billkey-result',
+                        method: 'GET',
+                        data: { shopOrderNo: shopOrderNo }
+                    }).done(function(res) {
+                        if (res.status === 'SUCCESS') {
+                            self.loadEasyPayCards();
+                            HolaPms.alert('success', '카드가 등록되었습니다.');
+                        } else if (res.status === 'FAILED') {
+                            HolaPms.alert('error', '카드 등록에 실패했습니다.');
+                        } else if (res.status === 'PENDING' && pollCount < maxPoll) {
+                            pollCount++;
+                            setTimeout(pollBillkeyResult, pollInterval);
+                        } else {
+                            // 타임아웃: 그래도 카드 목록 갱신 시도
+                            self.loadEasyPayCards();
+                        }
+                    }).fail(function() {
+                        // 폴링 실패 시에도 카드 목록 갱신 시도
+                        self.loadEasyPayCards();
+                    });
+                }
+
+                pollBillkeyResult();
+            });
+
             $('#agreeAll').on('change', function() {
                 $('.agree-item').prop('checked', $(this).is(':checked'));
                 self.updateSubmitButton();
