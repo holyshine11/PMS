@@ -957,19 +957,6 @@ var HolaBooking = (function() {
 
         /** 카드 목록 렌더링 */
         renderEasyPayCards: function(cards) {
-            var email = $('#email').val().trim();
-
-            // D-01: 이메일 미입력 시 안내 메시지 표시
-            if (!email) {
-                $('#easyPayCards').html(
-                    '<div class="text-muted small p-3 text-center">' +
-                    '<i class="fas fa-info-circle me-1"></i>' +
-                    '이메일을 먼저 입력하면 등록된 카드를 확인할 수 있습니다.</div>'
-                );
-                this.selectedCardId = null;
-                return;
-            }
-
             var html = '';
             var self = this;
             cards.forEach(function(card, idx) {
