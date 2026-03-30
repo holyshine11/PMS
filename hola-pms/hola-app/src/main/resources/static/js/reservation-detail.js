@@ -528,7 +528,7 @@ var ReservationDetail = {
             + '        <div class="col-sm-2">'
             + '          <input type="date" class="form-control form-control-sm service-date"'
             + (legData && legData.checkIn ? ' min="' + legData.checkIn + '"' : '')
-            + (legData && legData.checkOut ? ' max="' + legData.checkOut + '"' : '')
+            + (legData && legData.checkOut ? ' max="' + (function(d){ var dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()-1); return dt.toISOString().slice(0,10); })(legData.checkOut) + '"' : '')
             + '>'
             + '        </div>'
             + '        <div class="col-sm-3 d-flex gap-1">'
@@ -973,10 +973,13 @@ var ReservationDetail = {
      * 취소/노쇼 수수료 미리보기 모달
      * @param isNoShow true이면 노쇼 정책 적용
      */
-    showCancelPreview: function(isNoShow) {
+    showCancelPreview: function(isNoShow, legId) {
         var self = this;
         var url = '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/cancel-preview';
-        if (isNoShow) url += '?noShow=true';
+        var params = [];
+        if (isNoShow) params.push('noShow=true');
+        if (legId) params.push('subReservationId=' + legId);
+        if (params.length > 0) url += '?' + params.join('&');
 
         HolaPms.ajax({
             url: url,
@@ -1060,7 +1063,11 @@ var ReservationDetail = {
                             .html('<i class="fas fa-ban me-1"></i>' + btnLabel)
                             .off('click').on('click', function() {
                                 HolaPms.modal.hide('#cancelPreviewModal');
-                                if (isNoShow) {
+                                if (legId) {
+                                    // Leg 단위 취소/노쇼 → changeStatus
+                                    var newStatus = isNoShow ? 'NO_SHOW' : 'CANCELED';
+                                    self.changeStatus(newStatus, legId);
+                                } else if (isNoShow) {
                                     self.changeStatus('NO_SHOW');
                                 } else {
                                     self.executeCancel();
@@ -1164,11 +1171,11 @@ var ReservationDetail = {
 
             // 취소/노쇼는 수수료 미리보기 모달로 분기 (결제 처리 포함 경로)
             if (newStatus === 'CANCELED') {
-                self.showCancelPreview(false);
+                self.showCancelPreview(false, legId);
                 return;
             }
             if (newStatus === 'NO_SHOW') {
-                self.showCancelPreview(true);
+                self.showCancelPreview(true, legId);
                 return;
             }
 
@@ -1392,6 +1399,17 @@ var ReservationDetail = {
                 $form.find('.service-option-select').val('');
                 $form.find('.service-qty').val(1);
                 $form.find('.service-date').val('');
+                // 서비스 날짜 범위를 현재 Leg의 체크인~체크아웃-1로 동적 설정
+                var $card = $form.closest('.room-leg-card');
+                var checkIn = $card.find('input[name="checkIn"]').val();
+                var checkOut = $card.find('input[name="checkOut"]').val();
+                var $dateInput = $form.find('.service-date');
+                if (checkIn) $dateInput.attr('min', checkIn);
+                if (checkOut) {
+                    var maxDate = new Date(checkOut + 'T00:00:00');
+                    maxDate.setDate(maxDate.getDate() - 1);
+                    $dateInput.attr('max', maxDate.toISOString().slice(0, 10));
+                }
             }
         });
 

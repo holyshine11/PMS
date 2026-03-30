@@ -433,7 +433,7 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional(readOnly = true)
-    public AdminCancelPreviewResponse getCancelPreview(Long id, Long propertyId, boolean noShow) {
+    public AdminCancelPreviewResponse getCancelPreview(Long id, Long propertyId, boolean noShow, Long subReservationId) {
         MasterReservation master = findMasterById(id, propertyId);
 
         // 취소/노쇼 가능 상태 확인
@@ -443,8 +443,13 @@ public class ReservationServiceImpl implements ReservationService {
             throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
         }
 
-        // 1박 공급가 조회
-        BigDecimal firstNightSupply = getFirstNightTotal(master.getId());
+        // 1박 요금 조회: Leg 지정 시 해당 Leg 기준, 아니면 마스터(원본) 기준
+        BigDecimal firstNightSupply;
+        if (subReservationId != null) {
+            firstNightSupply = getFirstNightTotalForSub(subReservationId);
+        } else {
+            firstNightSupply = getFirstNightTotal(master.getId());
+        }
 
         // 취소 수수료 계산 (노쇼 여부 전달)
         var cancelResult = cancellationPolicyService.calculateCancelFee(
@@ -631,6 +636,54 @@ public class ReservationServiceImpl implements ReservationService {
         BigDecimal tax = first.getTax() != null ? first.getTax() : BigDecimal.ZERO;
         BigDecimal svc = first.getServiceCharge() != null ? first.getServiceCharge() : BigDecimal.ZERO;
         return supply.add(tax).add(svc);
+    }
+
+    /**
+     * 특정 Leg(SubReservation)의 1박 총액 조회
+     * Leg 단위 취소 수수료 기준: DailyCharge 1박 + 유료 업그레이드 차액(1박분)
+     *
+     * 정책 근거:
+     * - 무료 업그레이드: DailyCharge만 (호텔 주도 → 고객 불이익 불가)
+     * - 유료 업그레이드: DailyCharge + 업그레이드 차액/숙박일수 (고객 합의 총요금 기준)
+     * - 참조: .planning/cancellation-policy.md
+     */
+    private BigDecimal getFirstNightTotalForSub(Long subReservationId) {
+        // 1. DailyCharge 기반 1박 총액
+        List<DailyCharge> charges = dailyChargeRepository.findBySubReservationId(subReservationId);
+        if (charges.isEmpty()) return BigDecimal.ZERO;
+
+        DailyCharge first = charges.get(0);
+        BigDecimal firstNight;
+        if (first.getTotal() != null) {
+            firstNight = first.getTotal();
+        } else {
+            BigDecimal supply = first.getSupplyPrice() != null ? first.getSupplyPrice() : BigDecimal.ZERO;
+            BigDecimal tax = first.getTax() != null ? first.getTax() : BigDecimal.ZERO;
+            BigDecimal svc = first.getServiceCharge() != null ? first.getServiceCharge() : BigDecimal.ZERO;
+            firstNight = supply.add(tax).add(svc);
+        }
+
+        // 2. 유료 업그레이드 차액의 1박분 추가
+        //    업그레이드 차액(ReservationServiceItem)은 전체 숙박에 대한 총액이므로 숙박일수로 나눔
+        int nights = charges.size();
+        if (nights > 0) {
+            List<ReservationServiceItem> services = serviceItemRepository.findBySubReservationId(subReservationId);
+            // TC:1020(Room Upgrade) 차액 합산 — upgradeType=PAID인 항목만
+            // 업그레이드 서비스는 transactionCodeId가 설정되어 있고 serviceOptionId가 null
+            BigDecimal upgradeTotal = services.stream()
+                    .filter(s -> "PAID".equals(s.getServiceType()) && s.getServiceOptionId() == null)
+                    .map(ReservationServiceItem::getTotalPrice)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            if (upgradeTotal.compareTo(BigDecimal.ZERO) > 0) {
+                // 업그레이드 차액의 1박분 = 총 차액 / 숙박일수
+                BigDecimal upgradePerNight = upgradeTotal.divide(
+                        BigDecimal.valueOf(nights), 0, java.math.RoundingMode.HALF_UP);
+                firstNight = firstNight.add(upgradePerNight);
+            }
+        }
+
+        return firstNight;
     }
 
     @Override

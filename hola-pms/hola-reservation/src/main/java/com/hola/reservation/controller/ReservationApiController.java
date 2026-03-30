@@ -99,15 +99,16 @@ public class ReservationApiController {
         return HolaResponse.success(reservationService.update(id, propertyId, request));
     }
 
-    /** 예약 취소/노쇼 수수료 미리보기 */
+    /** 예약 취소/노쇼 수수료 미리보기 (subReservationId 지정 시 Leg별 1박 요금 기준) */
     @Operation(summary = "취소/노쇼 수수료 미리보기", description = "예약 취소 또는 노쇼 시 수수료 미리보기")
     @GetMapping("/{id}/cancel-preview")
     public HolaResponse<AdminCancelPreviewResponse> getCancelPreview(
             @PathVariable Long propertyId,
             @PathVariable Long id,
-            @RequestParam(required = false, defaultValue = "false") boolean noShow) {
+            @RequestParam(required = false, defaultValue = "false") boolean noShow,
+            @RequestParam(required = false) Long subReservationId) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.getCancelPreview(id, propertyId, noShow));
+        return HolaResponse.success(reservationService.getCancelPreview(id, propertyId, noShow, subReservationId));
     }
 
     /** 예약 취소 */
