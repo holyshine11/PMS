@@ -18,7 +18,7 @@ decisions:
 metrics:
   duration: "~2m"
   completed: "2026-03-30T02:09:35Z"
-  tasks_completed: 1
+  tasks_completed: 2
   tasks_total: 2
   files_changed: 0
 ---
@@ -33,10 +33,11 @@ Full compilation and all unit tests pass for the easy payment (billkey) feature.
 |------|------|--------|-------|
 | 1 | 전체 빌드 및 단위 테스트 실행 | (no code change — verification only) | none |
 
-## Task 2: Awaiting Human Verification
+## Task 2: Human Verification — APPROVED
 
 **Type:** checkpoint:human-verify
-**Status:** Paused — requires human sign-off on the running application
+**Status:** Approved (2026-03-30)
+**Feedback:** 이메일 미입력 안내 메시지 제거 요청 → fix(02-02) 커밋으로 반영. 카드 추가 버튼 바로 노출되도록 변경.
 
 ## What Was Verified
 
@@ -65,7 +66,7 @@ Full compilation and all unit tests pass for the easy payment (billkey) feature.
 1. MockPaymentGateway에 registerTransaction/approveAfterAuth mock 메서드 추가
 2. EasyPayApiController/EasyPayCardServiceImpl의 KiccApiClient 의존성을 optional로 변경 (test profile 호환)
 3. EasyPayCardServiceImpl 단위 테스트 8개 작성 (등록/삭제/조회/제한)
-4. booking.js: 이메일 미입력 시 안내 메시지 추가 (D-01)
+4. booking.js: 이메일 미입력 시 카드 등록 UI 바로 표시 (안내 메시지 → 카드 추가 버튼으로 변경)
 5. booking.js: 모바일 pageshow 이벤트 + billkey-result 폴링 추가
 
 ## How to Verify (Task 2 — Human)
