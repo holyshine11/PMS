@@ -1054,6 +1054,21 @@ public class BookingServiceImpl implements BookingService {
         }
         BigDecimal refundAmt = totalPaid.subtract(cancelResult.feeAmount()).max(BigDecimal.ZERO);
 
+        // PG 결제 정보 조회
+        boolean isPgPayment = false;
+        String pgCardNo = null;
+        String pgIssuerName = null;
+        var txns = paymentTransactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
+        var pgTxn = txns.stream()
+                .filter(t -> "PAYMENT".equals(t.getTransactionType()) && t.getPgCno() != null)
+                .findFirst().orElse(null);
+        if (pgTxn != null) {
+            isPgPayment = true;
+            pgCardNo = pgTxn.getPgCardNo();
+            pgIssuerName = pgTxn.getPgIssuerName();
+        }
+
         return CancelFeePreviewResponse.builder()
                 .confirmationNo(confirmationNo)
                 .reservationStatus(status)
@@ -1066,6 +1081,9 @@ public class BookingServiceImpl implements BookingService {
                 .totalPaidAmount(totalPaid)
                 .refundAmount(refundAmt)
                 .policyDescription(cancelResult.policyDescription())
+                .pgPayment(isPgPayment)
+                .pgCardNo(pgCardNo)
+                .pgIssuerName(pgIssuerName)
                 .build();
     }
 
@@ -1093,28 +1111,24 @@ public class BookingServiceImpl implements BookingService {
         // 결제 정보 업데이트
         BigDecimal cancelFee = cancelResult.feeAmount();
         BigDecimal refundAmt = BigDecimal.ZERO;
+        Boolean pgRefundSuccess = null;
+        String pgRefundApprovalNo = null;
         var payment = reservationPaymentRepository.findByMasterReservationId(master.getId()).orElse(null);
         if (payment != null) {
             BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
             refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
             payment.updateCancelRefund(cancelFee, refundAmt);
 
-            // REFUND 거래 기록
+            // PG 환불 포함 REFUND 거래 기록
             if (refundAmt.compareTo(BigDecimal.ZERO) > 0) {
-                var existingTxns = paymentTransactionRepository
-                        .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
-                int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
-
-                var refundTxn = com.hola.reservation.entity.PaymentTransaction.builder()
-                        .masterReservationId(master.getId())
-                        .transactionSeq(nextSeq)
-                        .transactionType("REFUND")
-                        .paymentMethod(payment.getPaymentMethod() != null ? payment.getPaymentMethod() : "CARD")
-                        .amount(refundAmt)
-                        .transactionStatus("COMPLETED")
-                        .memo("게스트 자가 취소 환불 (수수료: " + cancelFee + "원)")
-                        .build();
-                paymentTransactionRepository.save(refundTxn);
+                var refundTxn = reservationPaymentService.processRefundWithPg(
+                        master.getId(), refundAmt, cancelFee,
+                        "게스트 자가 취소 환불 (수수료: " + cancelFee + "원)");
+                // PG 환불 결과 저장 (응답 DTO에 반영)
+                if (refundTxn != null && refundTxn.getPgCno() != null) {
+                    pgRefundSuccess = "COMPLETED".equals(refundTxn.getTransactionStatus());
+                    pgRefundApprovalNo = refundTxn.getPgApprovalNo();
+                }
             }
         }
 
@@ -1154,6 +1168,8 @@ public class BookingServiceImpl implements BookingService {
                 .status("CANCELED")
                 .cancelFeeAmount(cancelFee)
                 .refundAmount(refundAmt)
+                .pgRefundSuccess(pgRefundSuccess)
+                .pgRefundApprovalNo(pgRefundApprovalNo)
                 .build();
     }
 

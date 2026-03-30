@@ -1347,6 +1347,16 @@ var HolaBooking = (function() {
                     $('#cancelTotalPaid').text(formatCurrency(d.totalPaidAmount));
                     $('#cancelRefund').text(formatCurrency(d.refundAmount));
                     $('#cancelPolicyDesc').text(d.policyDescription || '');
+
+                    // PG 결제 카드 정보 표시
+                    if (d.pgPayment) {
+                        var cardInfo = (d.pgIssuerName || '') + ' ' + (d.pgCardNo || '');
+                        $('#cancelPgCardInfo').text(cardInfo.trim() || '-');
+                        $('#cancelPgInfoRow').removeClass('d-none');
+                    } else {
+                        $('#cancelPgInfoRow').addClass('d-none');
+                    }
+
                     $('#cancelPreview').show();
                 }
             }).fail(function() {
@@ -1371,6 +1381,19 @@ var HolaBooking = (function() {
                 if (res.data) {
                     $('#cancelPreview').hide();
                     $('#cancelCompleteRefund').text(formatCurrency(res.data.refundAmount));
+
+                    // PG 환불 결과 표시
+                    if (res.data.pgRefundSuccess === true) {
+                        $('#cancelPgRefundMsg')
+                            .text('카드 환불이 자동 처리되었습니다.' + (res.data.pgRefundApprovalNo ? ' (승인번호: ' + res.data.pgRefundApprovalNo + ')' : ''))
+                            .removeClass('d-none');
+                    } else if (res.data.pgRefundSuccess === false) {
+                        $('#cancelPgRefundMsg')
+                            .text('카드 환불 처리 중 오류가 발생했습니다. 호텔에 문의해주세요.')
+                            .css('color', 'var(--bk-pink)')
+                            .removeClass('d-none');
+                    }
+
                     $('#cancelComplete').show();
                     $('#btnConfirmCancel').hide();
                     $('#btnCancelModalClose').text('닫기');

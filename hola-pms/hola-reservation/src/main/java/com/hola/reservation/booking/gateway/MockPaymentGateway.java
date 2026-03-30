@@ -56,6 +56,25 @@ public class MockPaymentGateway implements PaymentGateway {
     }
 
     @Override
+    public PaymentResult cancelPayment(CancelPaymentRequest request) {
+        String cancelPgCno = "MOCK-CANCEL-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
+        log.info("[MockPG] PG 결제 취소 - pgCno: {}, type: {}, amount: {}",
+                request.getPgCno(), request.getCancelType(), request.getCancelAmount());
+
+        return PaymentResult.builder()
+                .success(true)
+                .gatewayId(GATEWAY_ID)
+                .pgProvider("MOCK")
+                .pgCno(cancelPgCno)
+                .pgStatusCode("TS02")
+                .approvalNo("MOCK-CA-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .amount(request.getCancelAmount())
+                .processedAt(LocalDateTime.now())
+                .build();
+    }
+
+    @Override
     public PaymentResult approveAfterAuth(ApproveAfterAuthRequest request) {
         String approvalNo = "MOCK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 

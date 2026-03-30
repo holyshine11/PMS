@@ -798,18 +798,17 @@ class ReservationServiceImplTest {
                     .thenReturn(cancelResult);
             when(reservationPaymentRepository.findByMasterReservationId(MASTER_ID))
                     .thenReturn(Optional.of(payment));
-            when(paymentTransactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(MASTER_ID))
-                    .thenReturn(Collections.emptyList());
 
             // when
             reservationService.changeStatus(MASTER_ID, PROPERTY_ID, request);
 
             // then
             assertThat(master.getReservationStatus()).isEqualTo("NO_SHOW");
-            verify(paymentTransactionRepository).save(argThat(txn ->
-                    "REFUND".equals(txn.getTransactionType())
-                            && txn.getAmount().compareTo(new BigDecimal("100000")) == 0
-                            && "COMPLETED".equals(txn.getTransactionStatus())));
+            verify(paymentService).processRefundWithPg(
+                    eq(MASTER_ID),
+                    argThat(amt -> amt.compareTo(new BigDecimal("100000")) == 0),
+                    argThat(fee -> fee.compareTo(new BigDecimal("100000")) == 0),
+                    anyString());
         }
     }
 
@@ -907,16 +906,16 @@ class ReservationServiceImplTest {
                     .thenReturn(cancelResult);
             when(reservationPaymentRepository.findByMasterReservationId(MASTER_ID))
                     .thenReturn(Optional.of(payment));
-            when(paymentTransactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(MASTER_ID))
-                    .thenReturn(Collections.emptyList());
 
             // when
             reservationService.cancel(MASTER_ID, PROPERTY_ID);
 
-            // then - 환불금액: 200000 - 50000 = 150000
-            verify(paymentTransactionRepository).save(argThat(txn ->
-                    "REFUND".equals(txn.getTransactionType())
-                            && txn.getAmount().compareTo(new BigDecimal("150000")) == 0));
+            // then - 환불금액: 200000 - 50000 = 150000 → processRefundWithPg 호출
+            verify(paymentService).processRefundWithPg(
+                    eq(MASTER_ID),
+                    argThat(amt -> amt.compareTo(new BigDecimal("150000")) == 0),
+                    argThat(fee -> fee.compareTo(new BigDecimal("50000")) == 0),
+                    anyString());
         }
     }
 

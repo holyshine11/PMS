@@ -408,6 +408,8 @@ var ReservationPayment = {
 
         // PG 결제 정보가 하나라도 있는지 확인
         var hasPgInfo = transactions.some(function(t) { return t.pgProvider && t.pgProvider !== 'MOCK'; });
+        // PG 환불 실패 건 존재 여부
+        var hasFailedRefund = transactions.some(function(t) { return t.transactionStatus === 'PG_REFUND_FAILED'; });
 
         var html = '<table class="table table-bordered table-sm mb-0 align-middle">'
             + '<thead class="table-light">'
@@ -424,8 +426,11 @@ var ReservationPayment = {
         }
         html += '  <th class="text-center">메모</th>'
             + '  <th style="width:80px" class="text-center">처리자</th>'
-            + '  <th style="width:180px" class="text-center">처리일시</th>'
-            + '</tr>'
+            + '  <th style="width:180px" class="text-center">처리일시</th>';
+        if (hasFailedRefund) {
+            html += '  <th style="width:120px" class="text-center">상태</th>';
+        }
+        html += '</tr>'
             + '</thead><tbody>';
 
         transactions.forEach(function(txn, idx) {
@@ -449,12 +454,51 @@ var ReservationPayment = {
             }
             html += '<td class="text-center">' + HolaPms.escapeHtml(txn.memo || '-') + '</td>'
                 + '<td class="text-center">' + HolaPms.escapeHtml(txn.createdBy || '-') + '</td>'
-                + '<td class="text-center text-nowrap">' + HolaPms.escapeHtml(createdAt) + '</td>'
-                + '</tr>';
+                + '<td class="text-center text-nowrap">' + HolaPms.escapeHtml(createdAt) + '</td>';
+            if (hasFailedRefund) {
+                if (txn.transactionStatus === 'PG_REFUND_FAILED') {
+                    html += '<td class="text-center">'
+                        + '<span class="badge bg-danger mb-1">PG환불실패</span><br>'
+                        + '<button class="btn btn-warning btn-sm retry-refund-btn" data-txn-id="' + txn.id + '">'
+                        + '<i class="fas fa-redo me-1"></i>재시도</button></td>';
+                } else {
+                    html += '<td></td>';
+                }
+            }
+            html += '</tr>';
         });
 
         html += '</tbody></table>';
         $content.html(html);
+
+        // PG 환불 재시도 버튼 이벤트
+        if (hasFailedRefund) {
+            $content.off('click', '.retry-refund-btn').on('click', '.retry-refund-btn', function() {
+                var txnId = $(this).data('txn-id');
+                var $btn = $(this);
+                $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+
+                HolaPms.ajax({
+                    url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId
+                        + '/payment/transactions/' + txnId + '/retry-refund',
+                    type: 'POST',
+                    success: function(res) {
+                        if (res.success) {
+                            HolaPms.alert('success', 'PG 환불이 완료되었습니다.');
+                            if (res.data) {
+                                self.bindSummary(res.data);
+                                self.renderPaymentTransactions(res.data.transactions || []);
+                                self.renderCancelInfo(res.data);
+                            }
+                        }
+                    },
+                    error: function() {
+                        $btn.prop('disabled', false).html('<i class="fas fa-redo me-1"></i>재시도');
+                        HolaPms.alert('error', 'PG 환불 재시도에 실패했습니다.');
+                    }
+                });
+            });
+        }
     },
 
     /**
@@ -625,6 +669,32 @@ var ReservationPayment = {
         $('#cancelFeeDisplay').text(this.formatCurrency(cancelFee));
         $('#cancelTotalPaid').text(this.formatCurrency(totalPaid));
         $('#cancelRefundAmt').text(this.formatCurrency(refund));
+
+        // PG 환불 상세 정보 표시
+        var pgRefundTxn = null;
+        for (var j = 0; j < transactions.length; j++) {
+            if (transactions[j].transactionType === 'REFUND' && transactions[j].pgCno) {
+                pgRefundTxn = transactions[j];
+                break;
+            }
+        }
+        if (pgRefundTxn) {
+            var pgDetail = (pgRefundTxn.pgIssuerName || '') + ' ' + (pgRefundTxn.pgCardNo || '');
+            if (pgRefundTxn.pgApprovalNo) {
+                pgDetail += ' (승인번호: ' + pgRefundTxn.pgApprovalNo + ')';
+            }
+            if (pgRefundTxn.transactionStatus === 'PG_REFUND_FAILED') {
+                pgDetail = 'PG 환불 실패 — 결제 이력에서 재시도 가능';
+                $('#cancelPgRefundDetail').css('color', '#EF476F');
+            } else {
+                $('#cancelPgRefundDetail').css('color', '#0582CA');
+            }
+            $('#cancelPgRefundDetail').text(pgDetail.trim());
+            $('#cancelPgRefundRow').removeClass('d-none');
+        } else {
+            $('#cancelPgRefundRow').addClass('d-none');
+        }
+
         $('#cancelInfoSection').show();
     },
 

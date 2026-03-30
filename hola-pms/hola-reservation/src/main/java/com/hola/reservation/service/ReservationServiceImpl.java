@@ -460,6 +460,22 @@ public class ReservationServiceImpl implements ReservationService {
 
         BigDecimal cancelFee = cancelResult.feeAmount();
         BigDecimal refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
+        BigDecimal outstandingCancelFee = cancelFee.subtract(totalPaid).max(BigDecimal.ZERO);
+
+        // PG 결제 정보 조회 (환불 대상 카드 표시용)
+        boolean isPgPayment = false;
+        String pgCardNo = null;
+        String pgIssuerName = null;
+        List<PaymentTransaction> txns = paymentTransactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
+        PaymentTransaction pgTxn = txns.stream()
+                .filter(t -> "PAYMENT".equals(t.getTransactionType()) && t.getPgCno() != null)
+                .findFirst().orElse(null);
+        if (pgTxn != null) {
+            isPgPayment = true;
+            pgCardNo = pgTxn.getPgCardNo();
+            pgIssuerName = pgTxn.getPgIssuerName();
+        }
 
         return AdminCancelPreviewResponse.builder()
                 .reservationId(master.getId())
@@ -473,7 +489,11 @@ public class ReservationServiceImpl implements ReservationService {
                 .cancelFeePercent(cancelResult.feePercent())
                 .totalPaidAmount(totalPaid)
                 .refundAmount(refundAmt)
+                .outstandingCancelFee(outstandingCancelFee)
                 .policyDescription(cancelResult.policyDescription())
+                .pgPayment(isPgPayment)
+                .pgCardNo(pgCardNo)
+                .pgIssuerName(pgIssuerName)
                 .build();
     }
 
@@ -499,40 +519,26 @@ public class ReservationServiceImpl implements ReservationService {
         if (payment != null) {
             BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
             BigDecimal cancelFee = cancelResult.feeAmount();
+
+            // 취소 수수료 미결제 검증: 수수료 > 기결제액이면 차단
+            if (cancelFee.compareTo(BigDecimal.ZERO) > 0 && totalPaid.compareTo(cancelFee) < 0) {
+                throw new HolaException(ErrorCode.CANCEL_FEE_UNPAID);
+            }
+
             BigDecimal refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
 
             payment.updateCancelRefund(cancelFee, refundAmt);
 
-            // REFUND 거래 기록 (환불 금액이 있는 경우)
+            // PG 환불 포함 REFUND 거래 기록
             if (refundAmt.compareTo(BigDecimal.ZERO) > 0) {
-                List<PaymentTransaction> existingTxns = paymentTransactionRepository
-                        .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
-                int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
-
-                PaymentTransaction refundTxn = PaymentTransaction.builder()
-                        .masterReservationId(master.getId())
-                        .transactionSeq(nextSeq)
-                        .transactionType("REFUND")
-                        .paymentMethod(payment.getPaymentMethod() != null ? payment.getPaymentMethod() : "CARD")
-                        .amount(refundAmt)
-                        .transactionStatus("COMPLETED")
-                        .memo("취소 환불 (수수료: " + cancelFee + "원)")
-                        .build();
-                paymentTransactionRepository.save(refundTxn);
+                paymentService.processRefundWithPg(master.getId(), refundAmt, cancelFee,
+                        "취소 환불 (수수료: " + cancelFee + "원)");
             }
         }
 
-        // 재고 복원 (PAID 서비스 중 inventoryItemId가 있는 항목)
+        // 서비스 재고 복원
         for (SubReservation sub : master.getSubReservations()) {
-            for (var svcItem : sub.getServices()) {
-                if ("PAID".equals(svcItem.getServiceType()) && svcItem.getServiceOptionId() != null) {
-                    paidServiceOptionRepository.findById(svcItem.getServiceOptionId())
-                            .filter(opt -> opt.getInventoryItemId() != null)
-                            .ifPresent(opt -> inventoryService.releaseInventory(
-                                    opt.getInventoryItemId(), sub.getCheckIn(), sub.getCheckOut(),
-                                    svcItem.getQuantity()));
-                }
-            }
+            releaseServiceItemInventory(sub);
         }
 
         // 상태 변경
@@ -626,8 +632,18 @@ public class ReservationServiceImpl implements ReservationService {
                 validateCheckOutBalance(master);
             }
 
+            // 취소/노쇼 수수료 미결제 검증 (Leg 단위도 마스터 기준으로 수수료 산정)
+            if ("CANCELED".equals(newStatus) || "NO_SHOW".equals(newStatus)) {
+                validateCancelFeePayment(master, propertyId, "NO_SHOW".equals(newStatus));
+            }
+
             applyStatusChange(targetSub, newStatus);
             statusChanged = true;
+
+            // 취소/노쇼 시 서비스 재고 복원
+            if ("CANCELED".equals(newStatus) || "NO_SHOW".equals(newStatus)) {
+                releaseServiceItemInventory(targetSub);
+            }
 
             log.info("Leg 상태 변경: {} → {} (서브예약: {})", currentLegStatus, newStatus, targetSub.getSubReservationNo());
 
@@ -640,11 +656,16 @@ public class ReservationServiceImpl implements ReservationService {
                 if (!masterAllowed.contains(newStatus)) {
                     throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
                 }
+                // 취소/노쇼 수수료 미결제 검증
+                validateCancelFeePayment(master, propertyId, "NO_SHOW".equals(newStatus));
+
                 for (SubReservation sub : master.getSubReservations()) {
                     if (!"CANCELED".equals(sub.getRoomReservationStatus())
                             && !"NO_SHOW".equals(sub.getRoomReservationStatus())
                             && !"CHECKED_OUT".equals(sub.getRoomReservationStatus())) {
                         sub.updateStatus(newStatus);
+                        // 취소/노쇼 시 서비스 재고 복원
+                        releaseServiceItemInventory(sub);
                     }
                 }
                 statusChanged = true;
@@ -815,6 +836,28 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     /**
+     * 취소/노쇼 수수료 미결제 검증
+     * 정책에 의한 수수료가 기결제 금액보다 크면 상태 변경 차단
+     */
+    private void validateCancelFeePayment(MasterReservation master, Long propertyId, boolean isNoShow) {
+        BigDecimal firstNightSupply = getFirstNightTotal(master.getId());
+        var cancelResult = cancellationPolicyService.calculateCancelFee(
+                propertyId, master.getMasterCheckIn(), firstNightSupply, isNoShow);
+        BigDecimal cancelFee = cancelResult.feeAmount();
+        if (cancelFee.compareTo(BigDecimal.ZERO) <= 0) return;
+
+        ReservationPayment payment = reservationPaymentRepository
+                .findByMasterReservationId(master.getId()).orElse(null);
+        BigDecimal totalPaid = BigDecimal.ZERO;
+        if (payment != null && payment.getTotalPaidAmount() != null) {
+            totalPaid = payment.getTotalPaidAmount();
+        }
+        if (totalPaid.compareTo(cancelFee) < 0) {
+            throw new HolaException(ErrorCode.CANCEL_FEE_UNPAID);
+        }
+    }
+
+    /**
      * 마지막 활성 Leg 여부 판별 (체크아웃 잔액 검증 필요 여부)
      */
     private boolean isLastActiveLeg(SubReservation targetSub, MasterReservation master) {
@@ -824,6 +867,21 @@ public class ReservationServiceImpl implements ReservationService {
                           && !"CHECKED_OUT".equals(s.getRoomReservationStatus())
                           && !"NO_SHOW".equals(s.getRoomReservationStatus()))
                 .findAny().isEmpty();
+    }
+
+    /**
+     * 서비스 항목 재고 복원 (PAID 서비스 중 inventoryItemId가 있는 항목)
+     */
+    private void releaseServiceItemInventory(SubReservation sub) {
+        for (var svcItem : sub.getServices()) {
+            if ("PAID".equals(svcItem.getServiceType()) && svcItem.getServiceOptionId() != null) {
+                paidServiceOptionRepository.findById(svcItem.getServiceOptionId())
+                        .filter(opt -> opt.getInventoryItemId() != null)
+                        .ifPresent(opt -> inventoryService.releaseInventory(
+                                opt.getInventoryItemId(), sub.getCheckIn(), sub.getCheckOut(),
+                                svcItem.getQuantity()));
+            }
+        }
     }
 
     /**
@@ -843,21 +901,10 @@ public class ReservationServiceImpl implements ReservationService {
 
             payment.updateCancelRefund(cancelFee, refundAmt);
 
+            // PG 환불 포함 REFUND 거래 기록
             if (refundAmt.compareTo(BigDecimal.ZERO) > 0) {
-                List<PaymentTransaction> existingTxns = paymentTransactionRepository
-                        .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
-                int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
-
-                PaymentTransaction refundTxn = PaymentTransaction.builder()
-                        .masterReservationId(master.getId())
-                        .transactionSeq(nextSeq)
-                        .transactionType("REFUND")
-                        .paymentMethod(payment.getPaymentMethod() != null ? payment.getPaymentMethod() : "CARD")
-                        .amount(refundAmt)
-                        .transactionStatus("COMPLETED")
-                        .memo("노쇼 환불 (수수료: " + cancelFee + "원)")
-                        .build();
-                paymentTransactionRepository.save(refundTxn);
+                paymentService.processRefundWithPg(master.getId(), refundAmt, cancelFee,
+                        "노쇼 환불 (수수료: " + cancelFee + "원)");
             }
         }
 

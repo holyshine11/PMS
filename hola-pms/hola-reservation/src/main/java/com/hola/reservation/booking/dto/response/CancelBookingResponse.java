@@ -27,4 +27,9 @@ public class CancelBookingResponse {
 
     /** 환불 금액 */
     private BigDecimal refundAmount;
+
+    /** PG 환불 성공 여부 (null = PG 결제 아님) */
+    private Boolean pgRefundSuccess;
+    /** PG 환불 승인번호 */
+    private String pgRefundApprovalNo;
 }

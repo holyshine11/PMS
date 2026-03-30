@@ -956,11 +956,6 @@ class BookingServiceImplTest {
                             new BigDecimal("50000"), new BigDecimal("50"), "체크인 7일 이내: 1박 요금의 50% 부과"));
             when(reservationPaymentRepository.findByMasterReservationId(1L))
                     .thenReturn(Optional.of(payment));
-            when(paymentTransactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(1L))
-                    .thenReturn(List.of(PaymentTransaction.builder()
-                            .masterReservationId(1L).transactionSeq(1)
-                            .transactionType("PAYMENT").paymentMethod("CARD")
-                            .amount(new BigDecimal("230000")).build()));
             when(objectMapper.writeValueAsString(any()))
                     .thenReturn("{}");
 
@@ -974,8 +969,12 @@ class BookingServiceImplTest {
             // 마스터/서브 예약 상태 변경 검증
             assertThat(master.getReservationStatus()).isEqualTo("CANCELED");
             assertThat(sub.getRoomReservationStatus()).isEqualTo("CANCELED");
-            // 환불 거래 기록 검증
-            verify(paymentTransactionRepository).save(any(PaymentTransaction.class));
+            // 환불 거래 기록 검증 — processRefundWithPg 호출
+            verify(reservationPaymentService).processRefundWithPg(
+                    eq(1L),
+                    argThat(amt -> amt.compareTo(new BigDecimal("180000")) == 0),
+                    argThat(fee -> fee.compareTo(new BigDecimal("50000")) == 0),
+                    anyString());
         }
 
         @Test
@@ -1057,11 +1056,6 @@ class BookingServiceImplTest {
                             BigDecimal.ZERO, BigDecimal.ZERO, "체크인 7일 이전: 무료 취소"));
             when(reservationPaymentRepository.findByMasterReservationId(1L))
                     .thenReturn(Optional.of(payment));
-            when(paymentTransactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(1L))
-                    .thenReturn(List.of(PaymentTransaction.builder()
-                            .masterReservationId(1L).transactionSeq(1)
-                            .transactionType("PAYMENT").paymentMethod("CARD")
-                            .amount(new BigDecimal("200000")).build()));
             when(objectMapper.writeValueAsString(any()))
                     .thenReturn("{}");
 
@@ -1072,8 +1066,12 @@ class BookingServiceImplTest {
             assertThat(result.getCancelFeeAmount()).isEqualByComparingTo(BigDecimal.ZERO);
             assertThat(result.getRefundAmount()).isEqualByComparingTo(new BigDecimal("200000"));
 
-            // 전액 환불이므로 REFUND 거래 기록
-            verify(paymentTransactionRepository).save(any(PaymentTransaction.class));
+            // 전액 환불 — processRefundWithPg 호출
+            verify(reservationPaymentService).processRefundWithPg(
+                    eq(1L),
+                    argThat(amt -> amt.compareTo(new BigDecimal("200000")) == 0),
+                    argThat(fee -> fee.compareTo(BigDecimal.ZERO) == 0),
+                    anyString());
         }
     }
 }

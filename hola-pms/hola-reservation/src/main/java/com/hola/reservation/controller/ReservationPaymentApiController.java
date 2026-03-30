@@ -56,4 +56,14 @@ public class ReservationPaymentApiController {
         accessControlService.validatePropertyAccess(propertyId);
         return HolaResponse.success(paymentService.addAdjustment(propertyId, reservationId, request));
     }
+
+    /** PG 환불 재시도 (PG_REFUND_FAILED 상태 거래의 PG 취소 재처리) */
+    @Operation(summary = "PG 환불 재시도", description = "PG_REFUND_FAILED 상태 거래의 PG 환불 재시도")
+    @PostMapping("/transactions/{transactionId}/retry-refund")
+    public HolaResponse<PaymentSummaryResponse> retryPgRefund(@PathVariable Long propertyId,
+                                                                @PathVariable Long reservationId,
+                                                                @PathVariable Long transactionId) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(paymentService.retryPgRefund(propertyId, reservationId, transactionId));
+    }
 }

@@ -167,6 +167,10 @@
                     <span class="text-muted">총 결제 금액</span>
                     <span id="cancelTotalPaid">-</span>
                 </div>
+                <div class="cancel-fee-row d-none" id="cancelPgInfoRow">
+                    <span class="text-muted">결제 카드</span>
+                    <span id="cancelPgCardInfo">-</span>
+                </div>
                 <div class="cancel-fee-row cancel-fee-divider cancel-fee-refund">
                     <span>환불 예정 금액</span>
                     <span id="cancelRefund">-</span>
@@ -184,6 +188,7 @@
                     <span>환불 금액</span>
                     <span id="cancelCompleteRefund">-</span>
                 </div>
+                <p class="text-muted small d-none mt-2" id="cancelPgRefundMsg"></p>
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-4" id="cancelActions">

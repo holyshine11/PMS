@@ -48,4 +48,11 @@ public class CancelFeePreviewResponse {
 
     /** 정책 설명 */
     private String policyDescription;
+
+    /** PG 결제 여부 */
+    private boolean pgPayment;
+    /** PG 마스킹 카드번호 */
+    private String pgCardNo;
+    /** PG 발급사명 */
+    private String pgIssuerName;
 }

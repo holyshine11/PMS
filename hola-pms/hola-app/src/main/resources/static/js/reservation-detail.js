@@ -996,16 +996,40 @@ var ReservationDetail = {
                     $('#cpTotalPaid').text(fmt(d.totalPaidAmount));
                     $('#cpRefundAmt').text(fmt(d.refundAmount));
 
-                    var btnLabel = isNoShow ? '노쇼 확인' : '취소 확인';
-                    $('#cancelConfirmBtn').html('<i class="fas fa-ban me-1"></i>' + btnLabel)
-                        .off('click').on('click', function() {
-                            HolaPms.modal.hide('#cancelPreviewModal');
-                            if (isNoShow) {
-                                self.changeStatus('NO_SHOW');
-                            } else {
-                                self.executeCancel();
-                            }
-                        });
+                    // PG 결제 카드 정보 표시
+                    if (d.pgPayment) {
+                        var cardInfo = (d.pgIssuerName || '') + ' ' + (d.pgCardNo || '');
+                        $('#cpPgCardInfo').text(cardInfo.trim() || '-');
+                        $('#cpPgInfoRow').removeClass('d-none');
+                    } else {
+                        $('#cpPgInfoRow').addClass('d-none');
+                    }
+
+                    // 미결제 수수료 표시 및 버튼 차단
+                    var outstanding = Number(d.outstandingCancelFee || 0);
+                    if (outstanding > 0) {
+                        $('#cpOutstandingRow').removeClass('d-none');
+                        $('#cpOutstandingAmt').text(fmt(d.outstandingCancelFee));
+                        $('#cpRefundRow').addClass('d-none');
+                        $('#cpFeeAlert').removeClass('d-none');
+                        $('#cancelConfirmBtn').prop('disabled', true)
+                            .html('<i class="fas fa-lock me-1"></i>수수료 결제 필요');
+                    } else {
+                        $('#cpOutstandingRow').addClass('d-none');
+                        $('#cpRefundRow').removeClass('d-none');
+                        $('#cpFeeAlert').addClass('d-none');
+                        var btnLabel = isNoShow ? '노쇼 확인' : '취소 확인';
+                        $('#cancelConfirmBtn').prop('disabled', false)
+                            .html('<i class="fas fa-ban me-1"></i>' + btnLabel)
+                            .off('click').on('click', function() {
+                                HolaPms.modal.hide('#cancelPreviewModal');
+                                if (isNoShow) {
+                                    self.changeStatus('NO_SHOW');
+                                } else {
+                                    self.executeCancel();
+                                }
+                            });
+                    }
 
                     HolaPms.modal.show('#cancelPreviewModal');
                 }

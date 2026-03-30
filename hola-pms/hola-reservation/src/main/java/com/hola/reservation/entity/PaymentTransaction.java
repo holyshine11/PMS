@@ -110,6 +110,27 @@ public class PaymentTransaction {
     @Column(name = "pg_raw_response", columnDefinition = "TEXT")
     private String pgRawResponse;
 
+    // === PG 환불 재시도용 업데이트 메서드 ===
+
+    /**
+     * PG 환불 재시도 결과 업데이트
+     */
+    public void updatePgRefundResult(String transactionStatus, String pgCno,
+                                      String pgApprovalNo, String pgStatusCode, String pgTransactionId) {
+        this.transactionStatus = transactionStatus;
+        this.pgCno = pgCno;
+        this.pgApprovalNo = pgApprovalNo;
+        this.pgStatusCode = pgStatusCode;
+        this.pgTransactionId = pgTransactionId;
+    }
+
+    /**
+     * 메모 업데이트 (재시도 실패 시 에러 메시지 추가용)
+     */
+    public void updateMemo(String memo) {
+        this.memo = memo;
+    }
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

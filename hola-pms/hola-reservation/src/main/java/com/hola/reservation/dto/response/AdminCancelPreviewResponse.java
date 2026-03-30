@@ -28,5 +28,14 @@ public class AdminCancelPreviewResponse {
     private BigDecimal cancelFeePercent;
     private BigDecimal totalPaidAmount;
     private BigDecimal refundAmount;
+    /** 미결제 수수료 (cancelFee - totalPaid, 0 이상) — 0보다 크면 상태 변경 차단 */
+    private BigDecimal outstandingCancelFee;
     private String policyDescription;
+
+    /** PG 결제 여부 (환불이 PG 경유인지 표시용) */
+    private boolean pgPayment;
+    /** PG 마스킹 카드번호 */
+    private String pgCardNo;
+    /** PG 발급사명 */
+    private String pgIssuerName;
 }
