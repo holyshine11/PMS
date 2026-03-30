@@ -400,13 +400,15 @@ class ReservationPaymentServiceImplTest {
         }
 
         @Test
-        @DisplayName("이미 PAID 상태 - RESERVATION_PAYMENT_ALREADY_COMPLETED 예외")
+        @DisplayName("잔액 없는 PAID 상태 - RESERVATION_PAYMENT_ALREADY_COMPLETED 예외")
         void alreadyPaid_throwsAlreadyCompleted() {
-            // given
+            // given - grandTotal == totalPaid == 300000 → remaining == 0
             stubMasterFound();
             ReservationPayment payment = createPayment("PAID", new BigDecimal("300000"), new BigDecimal("300000"));
             when(paymentRepository.findByMasterReservationId(RESERVATION_ID))
                     .thenReturn(Optional.of(payment));
+            // recalculateAmounts에서 재계산해도 grandTotal = 300000 으로 동일 (remaining = 0)
+            stubRecalculateWithTotal(300000, 0, 0);
 
             PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("100000"));
 

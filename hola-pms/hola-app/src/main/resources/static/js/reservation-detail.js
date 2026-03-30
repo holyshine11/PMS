@@ -1005,6 +1005,43 @@ var ReservationDetail = {
                         $('#cpPgInfoRow').addClass('d-none');
                     }
 
+                    // 환불 분배 내역 표시
+                    var $breakdownArea = $('#cpRefundBreakdowns');
+                    $breakdownArea.empty();
+                    if (d.refundBreakdowns && d.refundBreakdowns.length > 1) {
+                        for (var i = 0; i < d.refundBreakdowns.length; i++) {
+                            var bd = d.refundBreakdowns[i];
+                            var methodLabel = bd.pgRefund
+                                ? 'PG 환불' + (bd.cardInfo ? ' (' + bd.cardInfo + ')' : '')
+                                : (bd.paymentMethod === 'CASH' ? '현금 환불' : '카드(VAN) 환불');
+                            var badgeClass = bd.pgRefund ? 'text-primary' : 'text-danger';
+                            $breakdownArea.append(
+                                '<div class="d-flex justify-content-between small mt-1">' +
+                                '<span class="' + badgeClass + '">' + methodLabel + '</span>' +
+                                '<span class="fw-semibold">' + fmt(bd.refundAmount) + '</span></div>'
+                            );
+                        }
+                        $breakdownArea.removeClass('d-none');
+                    } else {
+                        $breakdownArea.addClass('d-none');
+                    }
+
+                    // 노쇼: 체크인 날짜가 오늘 이후이면 처리 불가 (미도착이 확정되지 않음)
+                    if (isNoShow && d.checkIn) {
+                        var today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        var checkInDate = new Date(d.checkIn + 'T00:00:00');
+                        if (checkInDate > today) {
+                            $('#cpOutstandingRow').addClass('d-none');
+                            $('#cpFeeAlert').addClass('d-none');
+                            $('#cpRefundRow').addClass('d-none');
+                            $('#cancelConfirmBtn').prop('disabled', true)
+                                .html('<i class="fas fa-lock me-1"></i>체크인 전 노쇼 처리 불가');
+                            HolaPms.modal.show('#cancelPreviewModal');
+                            return;
+                        }
+                    }
+
                     // 미결제 수수료 표시 및 버튼 차단
                     var outstanding = Number(d.outstandingCancelFee || 0);
                     if (outstanding > 0) {
@@ -1124,6 +1161,16 @@ var ReservationDetail = {
             var legId = $(this).data('leg-id');
             var newStatus = $(this).data('new-status');
             var label = $(this).text().trim();
+
+            // 취소/노쇼는 수수료 미리보기 모달로 분기 (결제 처리 포함 경로)
+            if (newStatus === 'CANCELED') {
+                self.showCancelPreview(false);
+                return;
+            }
+            if (newStatus === 'NO_SHOW') {
+                self.showCancelPreview(true);
+                return;
+            }
 
             // 체크아웃 시 클라이언트 잔액 검증 (서버에서도 검증하지만, 사전 차단)
             if (newStatus === 'CHECKED_OUT') {

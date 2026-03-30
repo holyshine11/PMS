@@ -1120,7 +1120,7 @@ public class BookingServiceImpl implements BookingService {
             payment.updateCancelRefund(cancelFee, refundAmt);
 
             // PG 환불 포함 REFUND 거래 기록
-            if (refundAmt.compareTo(BigDecimal.ZERO) > 0) {
+            if (refundAmt.compareTo(BigDecimal.ZERO) > 0 || cancelFee.compareTo(BigDecimal.ZERO) > 0) {
                 var refundTxn = reservationPaymentService.processRefundWithPg(
                         master.getId(), refundAmt, cancelFee,
                         "게스트 자가 취소 환불 (수수료: " + cancelFee + "원)");
@@ -1130,6 +1130,9 @@ public class BookingServiceImpl implements BookingService {
                     pgRefundApprovalNo = refundTxn.getPgApprovalNo();
                 }
             }
+
+            // 취소 후 결제 상태 갱신
+            payment.updatePaymentStatus();
         }
 
         // 서비스 항목 재고 복원
@@ -1156,9 +1159,12 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 감사 로그 기록 (STEP 6)
+        java.util.Map<String, Object> auditData = new java.util.HashMap<>();
+        auditData.put("verificationValue", email != null ? email : "");
+        auditData.put("cancelFee", cancelFee);
+        auditData.put("refund", refundAmt);
         saveAuditLog(master.getId(), confirmationNo, "BOOKING_CANCELED", "WEBSITE",
-                java.util.Map.of("email", email, "cancelFee", cancelFee, "refund", refundAmt),
-                null, clientIp, userAgent, null);
+                auditData, null, clientIp, userAgent, null);
 
         log.info("게스트 자가 취소: confirmationNo={}, cancelFee={}, refund={}",
                 confirmationNo, cancelFee, refundAmt);
@@ -1520,10 +1526,19 @@ public class BookingServiceImpl implements BookingService {
     }
 
     /**
-     * 첫 번째 서브예약의 1박 총액 조회 (공급가 + 세액 + 봉사료)
-     * 취소/노쇼 수수료는 1박 총액 기준으로 계산
+     * 취소/노쇼 수수료 기준 1박 총액 조회
+     * 원본 1박 총액(originalFirstNightTotal) 우선, 없으면 DailyCharge에서 조회 (하위호환)
      */
     private BigDecimal getFirstNightTotal(Long masterReservationId) {
+        // 1. 원본 1박 총액 우선 (업그레이드 전 요금)
+        var payment = reservationPaymentRepository
+                .findByMasterReservationId(masterReservationId).orElse(null);
+        if (payment != null && payment.getOriginalFirstNightTotal() != null
+                && payment.getOriginalFirstNightTotal().compareTo(BigDecimal.ZERO) > 0) {
+            return payment.getOriginalFirstNightTotal();
+        }
+
+        // 2. 하위호환: DailyCharge에서 조회
         List<SubReservation> subs = subReservationRepository.findByMasterReservationId(masterReservationId);
         if (subs.isEmpty()) return BigDecimal.ZERO;
 

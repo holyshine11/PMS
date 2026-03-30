@@ -89,13 +89,8 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
 
         ReservationPayment payment = getOrCreatePayment(master);
 
-        // 이미 전액 결제 완료 또는 초과결제
-        String paymentStatus = payment.getPaymentStatus();
-        if ("PAID".equals(paymentStatus) || "OVERPAID".equals(paymentStatus)) {
-            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED);
-        }
-
-        // 금액 재계산 (grandTotal 최신화)
+        // 금액 재계산 (grandTotal 최신화) — stale paymentStatus 체크 전에 먼저 재계산하여
+        // 룸 업그레이드/서비스 추가 후 grandTotal이 증가한 경우를 정확히 반영
         recalculateAmounts(payment, reservationId);
 
         // 잔액 계산
@@ -103,7 +98,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
         BigDecimal remaining = grandTotal.subtract(totalPaid);
 
-        // 잔액이 0 이하면 결제 불필요
+        // 잔액이 0 이하면 결제 불필요 (이미 전액 결제 완료 또는 초과결제)
         if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
             throw new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED);
         }
@@ -292,6 +287,12 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         // grandTotal 재계산 (PAID 상태에서도 재계산하되 totalPaidAmount 유지)
         recalculateAmounts(payment, reservationId);
 
+        // 최초 예약 시점 1박 총액 보존 (null일 때 1회만 설정 — 업그레이드 후에도 불변)
+        if (payment.getOriginalFirstNightTotal() == null) {
+            BigDecimal firstNightTotal = getFirstNightTotalFromCharges(reservationId);
+            payment.saveOriginalFirstNightTotal(firstNightTotal);
+        }
+
         // 결제 상태 재판단
         payment.updatePaymentStatus();
     }
@@ -302,69 +303,103 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
     @Transactional
     public PaymentTransaction processRefundWithPg(Long masterReservationId, BigDecimal refundAmount,
                                                    BigDecimal cancelFee, String memo) {
-        if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
+        // 둘 다 0이면 기록할 내용 없음
+        if (refundAmount.compareTo(BigDecimal.ZERO) <= 0 && cancelFee.compareTo(BigDecimal.ZERO) <= 0) {
             return null;
         }
 
         List<PaymentTransaction> existingTxns = transactionRepository
                 .findByMasterReservationIdOrderByTransactionSeqAsc(masterReservationId);
-        int nextSeq = existingTxns.isEmpty() ? 1
-                : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
 
-        // 원본 PG 결제 거래 조회
-        PaymentTransaction originalPgTxn = existingTxns.stream()
+        // 환불 금액이 0이면 (수수료 전액 차감 케이스) 기록만
+        if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            int nextSeq = getNextSeq(existingTxns);
+            PaymentTransaction feeTxn = PaymentTransaction.builder()
+                    .masterReservationId(masterReservationId)
+                    .transactionSeq(nextSeq)
+                    .transactionType("REFUND")
+                    .paymentMethod("CARD")
+                    .amount(BigDecimal.ZERO)
+                    .transactionStatus("COMPLETED")
+                    .memo(memo)
+                    .build();
+            return transactionRepository.save(feeTxn);
+        }
+
+        // ── 결제수단별 환불 분배 ──
+        // PG 결제 거래와 비-PG(현금/카드VAN) 결제 거래 분리
+        List<PaymentTransaction> pgPayments = existingTxns.stream()
                 .filter(t -> "PAYMENT".equals(t.getTransactionType()) && t.getPgCno() != null)
-                .findFirst().orElse(null);
+                .toList();
+        List<PaymentTransaction> nonPgPayments = existingTxns.stream()
+                .filter(t -> "PAYMENT".equals(t.getTransactionType()) && t.getPgCno() == null)
+                .toList();
 
-        // 결제 수단 결정
-        ReservationPayment payment = paymentRepository
-                .findByMasterReservationId(masterReservationId).orElse(null);
-        String paymentMethod = (payment != null && payment.getPaymentMethod() != null)
-                ? payment.getPaymentMethod() : "CARD";
+        // 기존 PG 환불 누적액 (COMPLETED된 REFUND 중 PG 필드가 있는 것)
+        BigDecimal alreadyPgRefunded = existingTxns.stream()
+                .filter(t -> "REFUND".equals(t.getTransactionType())
+                        && "COMPLETED".equals(t.getTransactionStatus())
+                        && t.getPgProvider() != null)
+                .map(PaymentTransaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        PaymentTransaction.PaymentTransactionBuilder refundBuilder = PaymentTransaction.builder()
-                .masterReservationId(masterReservationId)
-                .transactionSeq(nextSeq)
-                .transactionType("REFUND")
-                .paymentMethod(paymentMethod)
-                .amount(refundAmount)
-                .memo(memo);
+        // PG 환불 가능액 = PG 결제 총액 - 기환불액
+        BigDecimal totalPgPaid = pgPayments.stream()
+                .map(PaymentTransaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal pgRefundable = totalPgPaid.subtract(alreadyPgRefunded).max(BigDecimal.ZERO);
 
-        if (originalPgTxn != null) {
-            // PG 취소 API 호출
-            boolean isFull = cancelFee.compareTo(BigDecimal.ZERO) == 0;
+        // 분배: PG에서 가능한 만큼, 나머지는 비-PG(현금/카드) 환불
+        BigDecimal pgRefundAmount = refundAmount.min(pgRefundable);
+        BigDecimal nonPgRefundAmount = refundAmount.subtract(pgRefundAmount);
+
+        PaymentTransaction firstResult = null;
+        int seq = getNextSeq(existingTxns);
+
+        // 1) PG 환불 처리
+        if (pgRefundAmount.compareTo(BigDecimal.ZERO) > 0 && !pgPayments.isEmpty()) {
+            PaymentTransaction originalPgTxn = pgPayments.get(0);
+            boolean isFull = cancelFee.compareTo(BigDecimal.ZERO) == 0
+                    && nonPgRefundAmount.compareTo(BigDecimal.ZERO) <= 0;
+            BigDecimal remainAmount = totalPgPaid.subtract(alreadyPgRefunded);
+
             CancelPaymentRequest cancelRequest = CancelPaymentRequest.builder()
                     .pgCno(originalPgTxn.getPgCno())
                     .cancelType(isFull ? "FULL" : "PARTIAL")
-                    .cancelAmount(refundAmount)
-                    .remainAmount(cancelFee)
+                    .cancelAmount(pgRefundAmount)
+                    .remainAmount(remainAmount)
                     .reason(memo)
                     .build();
 
+            PaymentTransaction.PaymentTransactionBuilder pgRefundBuilder = PaymentTransaction.builder()
+                    .masterReservationId(masterReservationId)
+                    .transactionSeq(seq++)
+                    .transactionType("REFUND")
+                    .paymentMethod("CARD")
+                    .amount(pgRefundAmount)
+                    .memo(memo);
+
             try {
                 PaymentResult result = paymentGateway.cancelPayment(cancelRequest);
-
                 if (result.isSuccess()) {
-                    refundBuilder
+                    pgRefundBuilder
                             .transactionStatus("COMPLETED")
                             .pgProvider(result.getPgProvider())
                             .pgCno(result.getPgCno())
                             .pgTransactionId(result.getPgTransactionId())
                             .pgStatusCode(result.getPgStatusCode())
                             .pgApprovalNo(result.getApprovalNo())
-                            // 카드 정보는 원본에서 복사 (취소 응답에 미포함)
                             .pgCardNo(originalPgTxn.getPgCardNo())
                             .pgIssuerName(originalPgTxn.getPgIssuerName())
                             .pgAcquirerName(originalPgTxn.getPgAcquirerName())
                             .pgInstallmentMonth(originalPgTxn.getPgInstallmentMonth())
                             .pgCardType(originalPgTxn.getPgCardType());
-
                     log.info("PG 환불 성공: masterReservationId={}, pgCno={}, cancelPgCno={}, amount={}",
-                            masterReservationId, originalPgTxn.getPgCno(), result.getPgCno(), refundAmount);
+                            masterReservationId, originalPgTxn.getPgCno(), result.getPgCno(), pgRefundAmount);
                 } else {
-                    log.error("PG 환불 실패 (응답 실패): masterReservationId={}, pgCno={}, error={}",
+                    log.error("PG 환불 실패: masterReservationId={}, pgCno={}, error={}",
                             masterReservationId, originalPgTxn.getPgCno(), result.getErrorMessage());
-                    refundBuilder
+                    pgRefundBuilder
                             .transactionStatus("PG_REFUND_FAILED")
                             .pgProvider(originalPgTxn.getPgProvider())
                             .pgCno(originalPgTxn.getPgCno())
@@ -375,7 +410,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             } catch (Exception e) {
                 log.error("PG 환불 통신 오류: masterReservationId={}, pgCno={}",
                         masterReservationId, originalPgTxn.getPgCno(), e);
-                refundBuilder
+                pgRefundBuilder
                         .transactionStatus("PG_REFUND_FAILED")
                         .pgProvider(originalPgTxn.getPgProvider())
                         .pgCno(originalPgTxn.getPgCno())
@@ -383,13 +418,52 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
                         .pgIssuerName(originalPgTxn.getPgIssuerName())
                         .memo(memo + " [PG통신오류: " + e.getMessage() + "]");
             }
-        } else {
-            // PG 결제가 아닌 경우 (현금/PMS 수기 등) — DB 기록만
-            refundBuilder.transactionStatus("COMPLETED");
+
+            firstResult = transactionRepository.save(pgRefundBuilder.build());
         }
 
-        PaymentTransaction refundTxn = refundBuilder.build();
-        return transactionRepository.save(refundTxn);
+        // 2) 비-PG 환불 처리 (현금/카드VAN — DB 기록 + 수동 환불 안내)
+        if (nonPgRefundAmount.compareTo(BigDecimal.ZERO) > 0) {
+            // 비-PG 결제 수단 판별 (최신 비-PG 결제의 수단 사용)
+            String nonPgMethod = nonPgPayments.isEmpty() ? "CASH"
+                    : nonPgPayments.get(nonPgPayments.size() - 1).getPaymentMethod();
+
+            PaymentTransaction nonPgRefund = PaymentTransaction.builder()
+                    .masterReservationId(masterReservationId)
+                    .transactionSeq(seq)
+                    .transactionType("REFUND")
+                    .paymentMethod(nonPgMethod)
+                    .amount(nonPgRefundAmount)
+                    .transactionStatus("COMPLETED")
+                    .memo(memo + " [" + ("CASH".equals(nonPgMethod) ? "현금" : "카드(VAN)") + " 환불 필요]")
+                    .build();
+            PaymentTransaction saved = transactionRepository.save(nonPgRefund);
+
+            log.info("비-PG 환불 기록: masterReservationId={}, method={}, amount={}",
+                    masterReservationId, nonPgMethod, nonPgRefundAmount);
+
+            if (firstResult == null) firstResult = saved;
+        }
+
+        // 3) PG 결제가 없고 비-PG 결제도 없는 경우 (방어 코드)
+        if (firstResult == null) {
+            PaymentTransaction fallback = PaymentTransaction.builder()
+                    .masterReservationId(masterReservationId)
+                    .transactionSeq(seq)
+                    .transactionType("REFUND")
+                    .paymentMethod("CASH")
+                    .amount(refundAmount)
+                    .transactionStatus("COMPLETED")
+                    .memo(memo)
+                    .build();
+            firstResult = transactionRepository.save(fallback);
+        }
+
+        return firstResult;
+    }
+
+    private int getNextSeq(List<PaymentTransaction> txns) {
+        return txns.isEmpty() ? 1 : txns.get(txns.size() - 1).getTransactionSeq() + 1;
     }
 
     @Override
@@ -416,18 +490,26 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             throw new HolaException(ErrorCode.PG_CANCEL_FAILED);
         }
 
-        // 수수료 조회 (부분취소 시 remainAmount로 사용)
+        // 원결제금액 조회 (KICC remainAmount = 취소 가능 잔액 = 원결제금액)
         ReservationPayment payment = paymentRepository
                 .findByMasterReservationId(reservationId).orElse(null);
         BigDecimal cancelFee = (payment != null && payment.getCancelFeeAmount() != null)
                 ? payment.getCancelFeeAmount() : BigDecimal.ZERO;
         boolean isFull = cancelFee.compareTo(BigDecimal.ZERO) == 0;
 
+        // 원본 PAYMENT 트랜잭션에서 원결제금액 조회
+        List<PaymentTransaction> allTxns = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
+        BigDecimal originalPaidAmount = allTxns.stream()
+                .filter(t -> "PAYMENT".equals(t.getTransactionType()) && t.getPgCno() != null)
+                .map(PaymentTransaction::getAmount)
+                .findFirst().orElse(failedTxn.getAmount());
+
         CancelPaymentRequest cancelRequest = CancelPaymentRequest.builder()
                 .pgCno(originalPgCno)
                 .cancelType(isFull ? "FULL" : "PARTIAL")
                 .cancelAmount(failedTxn.getAmount())
-                .remainAmount(cancelFee)
+                .remainAmount(originalPaidAmount)
                 .reason("PG 환불 재시도")
                 .build();
 
@@ -548,5 +630,24 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
 
         payment.updateAmounts(totalRoom, totalService, totalServiceCharge, totalAdjustment, grandTotal);
         payment.updateEarlyLateFee(totalEarlyLateFee);
+    }
+
+    /**
+     * 첫 번째 Leg의 1박 총액 조회 (DailyCharge 기반)
+     */
+    private BigDecimal getFirstNightTotalFromCharges(Long reservationId) {
+        List<SubReservation> subs = subReservationRepository.findByMasterReservationId(reservationId);
+        if (subs.isEmpty()) return BigDecimal.ZERO;
+
+        List<DailyCharge> charges = dailyChargeRepository.findBySubReservationId(subs.get(0).getId());
+        if (charges.isEmpty()) return BigDecimal.ZERO;
+
+        DailyCharge first = charges.get(0);
+        if (first.getTotal() != null) return first.getTotal();
+
+        BigDecimal supply = first.getSupplyPrice() != null ? first.getSupplyPrice() : BigDecimal.ZERO;
+        BigDecimal tax = first.getTax() != null ? first.getTax() : BigDecimal.ZERO;
+        BigDecimal svc = first.getServiceCharge() != null ? first.getServiceCharge() : BigDecimal.ZERO;
+        return supply.add(tax).add(svc);
     }
 }

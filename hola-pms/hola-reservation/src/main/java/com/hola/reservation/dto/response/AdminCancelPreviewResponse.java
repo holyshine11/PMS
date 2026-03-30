@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Admin 예약 취소 수수료 미리보기 응답 DTO
@@ -38,4 +39,19 @@ public class AdminCancelPreviewResponse {
     private String pgCardNo;
     /** PG 발급사명 */
     private String pgIssuerName;
+
+    /** 결제수단별 환불 분배 내역 */
+    private List<RefundBreakdown> refundBreakdowns;
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class RefundBreakdown {
+        private String paymentMethod;   // CARD / CASH
+        private BigDecimal paidAmount;  // 해당 수단 결제액
+        private BigDecimal refundAmount; // 해당 수단 환불 예정액
+        private boolean pgRefund;       // PG 자동 환불 여부
+        private String cardInfo;        // PG 카드 정보 (있을 때만)
+    }
 }

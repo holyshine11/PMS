@@ -66,6 +66,10 @@ public class ReservationPayment extends BaseEntity {
     @Builder.Default
     private BigDecimal refundAmount = BigDecimal.ZERO;
 
+    /** 최초 예약 시점 1박 총액 (취소 수수료 기준 — 업그레이드 후에도 변경 안 됨) */
+    @Column(name = "original_first_night_total", precision = 15, scale = 2)
+    private BigDecimal originalFirstNightTotal;
+
     @Column(name = "payment_date")
     private LocalDateTime paymentDate;
 
@@ -107,6 +111,16 @@ public class ReservationPayment extends BaseEntity {
     public void updateCancelRefund(BigDecimal cancelFeeAmount, BigDecimal refundAmount) {
         this.cancelFeeAmount = cancelFeeAmount;
         this.refundAmount = refundAmount;
+    }
+
+    /**
+     * 최초 예약 시점 1박 총액 저장 (최초 1회만 — null일 때만 설정)
+     */
+    public void saveOriginalFirstNightTotal(BigDecimal firstNightTotal) {
+        if (this.originalFirstNightTotal == null && firstNightTotal != null
+                && firstNightTotal.compareTo(BigDecimal.ZERO) > 0) {
+            this.originalFirstNightTotal = firstNightTotal;
+        }
     }
 
     /**

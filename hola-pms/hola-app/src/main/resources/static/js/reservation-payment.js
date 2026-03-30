@@ -290,9 +290,11 @@ var ReservationPayment = {
         var info = statusMap[status] || { label: status || '미결제', cls: 'bg-secondary' };
         $badge.html('<span class="badge ' + info.cls + '">' + HolaPms.escapeHtml(info.label) + '</span>');
 
-        // 잔액이 0 이하이면 결제 버튼 숨김 (PAID, OVERPAID, grandTotal<=0)
+        // 결제 버튼 표시 조건: 잔액이 0보다 커야 표시
+        // PAID 상태여도 룸 업그레이드/서비스 추가로 remaining > 0이면 추가 결제 허용
+        // OVERPAID는 환불 필요 상태이므로 추가 결제 버튼 숨김
         var remaining = this.paymentData ? Number(this.paymentData.remainingAmount) || 0 : 0;
-        if (status === 'PAID' || status === 'OVERPAID' || remaining <= 0) {
+        if (status === 'OVERPAID' || remaining <= 0) {
             $('#paymentButtonGroup').hide();
         } else {
             $('#paymentButtonGroup').show();
@@ -483,12 +485,21 @@ var ReservationPayment = {
                         + '/payment/transactions/' + txnId + '/retry-refund',
                     type: 'POST',
                     success: function(res) {
-                        if (res.success) {
-                            HolaPms.alert('success', 'PG 환불이 완료되었습니다.');
-                            if (res.data) {
-                                self.bindSummary(res.data);
-                                self.renderPaymentTransactions(res.data.transactions || []);
-                                self.renderCancelInfo(res.data);
+                        if (res.success && res.data) {
+                            // 재시도한 거래의 실제 상태를 확인하여 성공/실패 판단
+                            var updatedTxn = (res.data.transactions || []).find(function(t) {
+                                return t.id === txnId;
+                            });
+                            var refundSucceeded = updatedTxn && updatedTxn.transactionStatus === 'COMPLETED';
+
+                            self.bindSummary(res.data);
+                            self.renderPaymentTransactions(res.data.transactions || []);
+                            self.renderCancelInfo(res.data);
+
+                            if (refundSucceeded) {
+                                HolaPms.alert('success', 'PG 환불이 완료되었습니다.');
+                            } else {
+                                HolaPms.alert('error', 'PG 환불 재시도에 실패했습니다. 다시 시도해주세요.');
                             }
                         }
                     },
@@ -655,12 +666,14 @@ var ReservationPayment = {
         var totalPaid = Number(data.totalPaidAmount) || 0;
 
         // REFUND 거래의 memo에서 정책 설명 추출
+        // memo 형식: "{policyDescription} / 취소 환불 (수수료: X원)" — '/' 앞 부분이 정책 설명
         var policyDesc = '-';
         var transactions = data.transactions || [];
         for (var i = 0; i < transactions.length; i++) {
             var txn = transactions[i];
             if (txn.transactionType === 'REFUND' && txn.memo) {
-                policyDesc = txn.memo;
+                var slashIdx = txn.memo.indexOf(' / ');
+                policyDesc = slashIdx >= 0 ? txn.memo.substring(0, slashIdx) : txn.memo;
                 break;
             }
         }
