@@ -48,6 +48,7 @@ public class PropertyApiController {
     public ResponseEntity<HolaResponse<List<PropertyResponse>>> getProperties(
             @PathVariable Long hotelId,
             @PageableDefault(size = 20) Pageable pageable) {
+        accessControlService.validateHotelAccess(hotelId);
         Page<PropertyResponse> page = propertyService.getProperties(hotelId, pageable);
         return ResponseEntity.ok(
                 HolaResponse.success(page.getContent(), PageInfo.from(page)));
@@ -57,6 +58,7 @@ public class PropertyApiController {
     @Operation(summary = "프로퍼티 상세 조회", description = "프로퍼티 ID로 상세 정보 조회")
     @GetMapping("/api/v1/properties/{id}")
     public ResponseEntity<HolaResponse<PropertyResponse>> getProperty(@PathVariable Long id) {
+        accessControlService.validatePropertyAccess(id);
         return ResponseEntity.ok(HolaResponse.success(propertyService.getProperty(id)));
     }
 
@@ -66,6 +68,7 @@ public class PropertyApiController {
     public ResponseEntity<HolaResponse<PropertyResponse>> createProperty(
             @PathVariable Long hotelId,
             @Valid @RequestBody PropertyCreateRequest request) {
+        accessControlService.validateHotelAccess(hotelId);
         PropertyResponse response = propertyService.createProperty(hotelId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(HolaResponse.success(response));
     }
@@ -76,6 +79,7 @@ public class PropertyApiController {
     public ResponseEntity<HolaResponse<PropertyResponse>> updateProperty(
             @PathVariable Long id,
             @Valid @RequestBody PropertyUpdateRequest request) {
+        accessControlService.validatePropertyAccess(id);
         return ResponseEntity.ok(HolaResponse.success(propertyService.updateProperty(id, request)));
     }
 
@@ -83,6 +87,7 @@ public class PropertyApiController {
     @Operation(summary = "프로퍼티 삭제", description = "프로퍼티 소프트 삭제")
     @DeleteMapping("/api/v1/properties/{id}")
     public ResponseEntity<HolaResponse<Void>> deleteProperty(@PathVariable Long id) {
+        accessControlService.validatePropertyAccess(id);
         propertyService.deleteProperty(id);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -93,6 +98,7 @@ public class PropertyApiController {
     public ResponseEntity<HolaResponse<Map<String, Boolean>>> checkPropertyName(
             @PathVariable Long hotelId,
             @RequestParam String propertyName) {
+        accessControlService.validateHotelAccess(hotelId);
         boolean duplicate = propertyService.existsPropertyName(hotelId, propertyName);
         return ResponseEntity.ok(HolaResponse.success(Collections.singletonMap("duplicate", duplicate)));
     }
@@ -104,6 +110,7 @@ public class PropertyApiController {
     @GetMapping("/api/v1/properties/{propertyId}/settlements")
     public ResponseEntity<HolaResponse<List<PropertySettlementResponse>>> getSettlements(
             @PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(settlementService.getSettlements(propertyId)));
     }
 
@@ -113,6 +120,7 @@ public class PropertyApiController {
     public ResponseEntity<HolaResponse<PropertySettlementResponse>> saveSettlement(
             @PathVariable Long propertyId,
             @Valid @RequestBody PropertySettlementRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(settlementService.saveSettlement(propertyId, request)));
     }
 
@@ -122,6 +130,7 @@ public class PropertyApiController {
     public ResponseEntity<HolaResponse<Void>> deleteSettlement(
             @PathVariable Long propertyId,
             @PathVariable String countryType) {
+        accessControlService.validatePropertyAccess(propertyId);
         settlementService.deleteSettlement(propertyId, countryType);
         return ResponseEntity.ok(HolaResponse.success());
     }
@@ -133,6 +142,7 @@ public class PropertyApiController {
     @GetMapping("/api/v1/properties/{propertyId}/cancellation-fees")
     public ResponseEntity<HolaResponse<List<CancellationFeeResponse>>> getCancellationFees(
             @PathVariable Long propertyId) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(cancellationFeeService.getCancellationFees(propertyId)));
     }
 
@@ -142,6 +152,7 @@ public class PropertyApiController {
     public ResponseEntity<HolaResponse<List<CancellationFeeResponse>>> saveCancellationFees(
             @PathVariable Long propertyId,
             @Valid @RequestBody CancellationFeeSaveRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(cancellationFeeService.saveCancellationFees(propertyId, request)));
     }
 
@@ -153,6 +164,7 @@ public class PropertyApiController {
     public ResponseEntity<HolaResponse<PropertyResponse>> saveTaxServiceCharge(
             @PathVariable Long propertyId,
             @Valid @RequestBody PropertyTaxServiceChargeRequest request) {
+        accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(propertyService.updateTaxServiceCharge(propertyId, request)));
     }
 
