@@ -12,6 +12,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
@@ -85,6 +86,15 @@ public class GlobalExceptionHandler {
                 .badRequest()
                 .body(HolaResponse.error(ErrorCode.INVALID_INPUT.getCode(),
                         "잘못된 파라미터 형식입니다: " + e.getName()));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<HolaResponse<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        log.warn("지원하지 않는 HTTP 메서드: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(HolaResponse.error(ErrorCode.METHOD_NOT_ALLOWED.getCode(),
+                        ErrorCode.METHOD_NOT_ALLOWED.getMessage()));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

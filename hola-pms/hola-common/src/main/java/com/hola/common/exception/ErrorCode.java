@@ -26,6 +26,7 @@ public enum ErrorCode {
     FORBIDDEN("HOLA-0006", "접근 권한이 없습니다.", HttpStatus.FORBIDDEN),
     INVALID_TOKEN("HOLA-0007", "유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED),
     EXPIRED_TOKEN("HOLA-0008", "만료된 토큰입니다.", HttpStatus.UNAUTHORIZED),
+    METHOD_NOT_ALLOWED("HOLA-0009", "지원하지 않는 HTTP 메서드입니다.", HttpStatus.METHOD_NOT_ALLOWED),
 
     // 호텔/프로퍼티 (HOLA-1xxx)
     HOTEL_NOT_FOUND("HOLA-1000", "호텔을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
