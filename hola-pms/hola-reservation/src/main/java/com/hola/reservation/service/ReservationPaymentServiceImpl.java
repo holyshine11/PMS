@@ -353,11 +353,19 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         List<PaymentTransaction> existingTxns = transactionRepository
                 .findByMasterReservationIdOrderByTransactionSeqAsc(masterReservationId);
 
+        // 싱글레그 자동 귀속: sub가 1개면 환불 거래에 subReservationId 자동 할당
+        Long autoSubId = null;
+        List<SubReservation> subs = subReservationRepository.findByMasterReservationId(masterReservationId);
+        if (subs.size() == 1) {
+            autoSubId = subs.get(0).getId();
+        }
+
         // 환불 금액이 0이면 (수수료 전액 차감 케이스) 기록만
         if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
             int nextSeq = getNextSeq(existingTxns);
             PaymentTransaction feeTxn = PaymentTransaction.builder()
                     .masterReservationId(masterReservationId)
+                    .subReservationId(autoSubId)
                     .transactionSeq(nextSeq)
                     .transactionType("REFUND")
                     .paymentMethod("CARD")
@@ -415,6 +423,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
 
             PaymentTransaction.PaymentTransactionBuilder pgRefundBuilder = PaymentTransaction.builder()
                     .masterReservationId(masterReservationId)
+                    .subReservationId(autoSubId)
                     .transactionSeq(seq++)
                     .transactionType("REFUND")
                     .paymentMethod("CARD")
@@ -473,6 +482,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
 
             PaymentTransaction nonPgRefund = PaymentTransaction.builder()
                     .masterReservationId(masterReservationId)
+                    .subReservationId(autoSubId)
                     .transactionSeq(seq)
                     .transactionType("REFUND")
                     .paymentMethod(nonPgMethod)
@@ -492,6 +502,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         if (firstResult == null) {
             PaymentTransaction fallback = PaymentTransaction.builder()
                     .masterReservationId(masterReservationId)
+                    .subReservationId(autoSubId)
                     .transactionSeq(seq)
                     .transactionType("REFUND")
                     .paymentMethod("CASH")
