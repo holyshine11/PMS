@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -57,6 +58,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(HolaResponse.error("HOLA-0004", "중복된 데이터가 존재합니다."));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<HolaResponse<Void>> handleMissingParam(MissingServletRequestParameterException e) {
+        log.warn("필수 파라미터 누락: {}", e.getParameterName());
+        return ResponseEntity
+                .badRequest()
+                .body(HolaResponse.error(ErrorCode.INVALID_INPUT.getCode(),
+                        "필수 파라미터가 누락되었습니다: " + e.getParameterName()));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
