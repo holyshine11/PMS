@@ -1,6 +1,7 @@
 package com.hola.room.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.dto.PageInfo;
 import com.hola.common.security.AccessControlService;
 import com.hola.room.dto.request.RoomTypeCreateRequest;
 import com.hola.room.dto.request.RoomTypeUpdateRequest;
@@ -11,6 +12,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,12 +34,14 @@ public class RoomTypeApiController {
     private final AccessControlService accessControlService;
     private final RoomTypeService roomTypeService;
 
-    @Operation(summary = "타입 목록 조회", description = "프로퍼티 객실 타입 전체 목록")
+    @Operation(summary = "타입 목록 조회", description = "프로퍼티 객실 타입 전체 목록 (페이징)")
     @GetMapping
     public ResponseEntity<HolaResponse<List<RoomTypeListResponse>>> getRoomTypes(
-            @PathVariable Long propertyId) {
+            @PathVariable Long propertyId,
+            @PageableDefault(size = 20) Pageable pageable) {
         accessControlService.validatePropertyAccess(propertyId);
-        return ResponseEntity.ok(HolaResponse.success(roomTypeService.getRoomTypes(propertyId)));
+        Page<RoomTypeListResponse> page = roomTypeService.getRoomTypes(propertyId, pageable);
+        return ResponseEntity.ok(HolaResponse.success(page.getContent(), PageInfo.from(page)));
     }
 
     @Operation(summary = "타입 상세 조회", description = "객실 타입 상세 정보")

@@ -2,6 +2,8 @@ package com.hola.reservation.service;
 
 import com.hola.reservation.dto.request.*;
 import com.hola.reservation.dto.response.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -15,6 +17,10 @@ public interface ReservationService {
     /** 예약 리스트 조회 (프로퍼티별) */
     List<ReservationListResponse> getList(Long propertyId, String status, LocalDate checkInFrom,
                                            LocalDate checkInTo, String keyword);
+
+    /** 예약 리스트 조회 (페이징) */
+    Page<ReservationListResponse> getList(Long propertyId, String status, LocalDate checkInFrom,
+                                           LocalDate checkInTo, String keyword, Pageable pageable);
 
     /** 예약 상세 조회 */
     ReservationDetailResponse getById(Long id, Long propertyId);

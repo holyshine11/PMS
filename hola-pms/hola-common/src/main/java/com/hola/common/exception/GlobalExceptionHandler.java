@@ -93,7 +93,8 @@ public class GlobalExceptionHandler {
         log.debug("정적 리소스 없음: {}", e.getResourcePath());
         return ResponseEntity
                 .status(404)
-                .body(HolaResponse.error("HOLA-0004", "리소스를 찾을 수 없습니다."));
+                .body(HolaResponse.error(ErrorCode.RESOURCE_NOT_FOUND.getCode(),
+                        ErrorCode.RESOURCE_NOT_FOUND.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

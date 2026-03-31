@@ -11,6 +11,8 @@ import com.hola.room.mapper.RoomTypeMapper;
 import com.hola.room.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +46,16 @@ public class RoomTypeServiceImpl implements RoomTypeService {
             long roomCount = roomTypeFloorRepository.countByRoomTypeId(rt.getId());
             return roomTypeMapper.toListResponse(rt, roomClass, roomCount);
         }).toList();
+    }
+
+    @Override
+    public Page<RoomTypeListResponse> getRoomTypes(Long propertyId, Pageable pageable) {
+        return roomTypeRepository.findAllByPropertyIdOrderBySortOrderAscRoomTypeCodeAsc(propertyId, pageable)
+                .map(rt -> {
+                    RoomClass roomClass = roomClassRepository.findById(rt.getRoomClassId()).orElse(null);
+                    long roomCount = roomTypeFloorRepository.countByRoomTypeId(rt.getId());
+                    return roomTypeMapper.toListResponse(rt, roomClass, roomCount);
+                });
     }
 
     @Override

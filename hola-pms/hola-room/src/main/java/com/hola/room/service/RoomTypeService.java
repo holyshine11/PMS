@@ -4,6 +4,8 @@ import com.hola.room.dto.request.RoomTypeCreateRequest;
 import com.hola.room.dto.request.RoomTypeUpdateRequest;
 import com.hola.room.dto.response.RoomTypeListResponse;
 import com.hola.room.dto.response.RoomTypeResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -13,6 +15,8 @@ import java.util.List;
 public interface RoomTypeService {
 
     List<RoomTypeListResponse> getRoomTypes(Long propertyId);
+
+    Page<RoomTypeListResponse> getRoomTypes(Long propertyId, Pageable pageable);
 
     RoomTypeResponse getRoomType(Long id);
 

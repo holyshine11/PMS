@@ -1,6 +1,8 @@
 package com.hola.hotel.repository;
 
 import com.hola.hotel.entity.RoomNumber;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +12,8 @@ import java.util.List;
 public interface RoomNumberRepository extends JpaRepository<RoomNumber, Long> {
 
     List<RoomNumber> findAllByPropertyIdOrderBySortOrderAscRoomNumberAsc(Long propertyId);
+
+    Page<RoomNumber> findAllByPropertyIdOrderBySortOrderAscRoomNumberAsc(Long propertyId, Pageable pageable);
 
     boolean existsByPropertyIdAndRoomNumber(Long propertyId, String roomNumber);
 

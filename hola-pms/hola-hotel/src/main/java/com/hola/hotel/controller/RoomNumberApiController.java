@@ -1,6 +1,7 @@
 package com.hola.hotel.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.dto.PageInfo;
 import com.hola.common.security.AccessControlService;
 import com.hola.hotel.dto.request.RoomNumberRequest;
 import com.hola.hotel.dto.response.RoomNumberResponse;
@@ -9,6 +10,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,11 +30,14 @@ public class RoomNumberApiController {
     private final RoomNumberService roomNumberService;
     private final AccessControlService accessControlService;
 
-    @Operation(summary = "호수 목록 조회", description = "프로퍼티 호수 전체 목록")
+    @Operation(summary = "호수 목록 조회", description = "프로퍼티 호수 전체 목록 (페이징)")
     @GetMapping
-    public ResponseEntity<HolaResponse<List<RoomNumberResponse>>> getRoomNumbers(@PathVariable Long propertyId) {
+    public ResponseEntity<HolaResponse<List<RoomNumberResponse>>> getRoomNumbers(
+            @PathVariable Long propertyId,
+            @PageableDefault(size = 20) Pageable pageable) {
         accessControlService.validatePropertyAccess(propertyId);
-        return ResponseEntity.ok(HolaResponse.success(roomNumberService.getRoomNumbers(propertyId)));
+        Page<RoomNumberResponse> page = roomNumberService.getRoomNumbers(propertyId, pageable);
+        return ResponseEntity.ok(HolaResponse.success(page.getContent(), PageInfo.from(page)));
     }
 
     @Operation(summary = "호수 상세 조회", description = "호수 ID로 상세 정보 조회")

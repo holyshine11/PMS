@@ -28,6 +28,9 @@ import com.hola.reservation.repository.*;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -114,6 +117,17 @@ public class ReservationServiceImpl implements ReservationService {
                 .filter(r -> filterByKeyword(r, keyword))
                 .map(reservationMapper::toReservationListResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<ReservationListResponse> getList(Long propertyId, String status, LocalDate checkInFrom,
+                                                  LocalDate checkInTo, String keyword, Pageable pageable) {
+        // 전체 조회 후 Java 필터링 (Hibernate 6 + PostgreSQL null 파라미터 타입 추론 이슈 회피)
+        List<ReservationListResponse> all = getList(propertyId, status, checkInFrom, checkInTo, keyword);
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), all.size());
+        List<ReservationListResponse> content = start >= all.size() ? List.of() : all.subList(start, end);
+        return new PageImpl<>(content, pageable, all.size());
     }
 
     @Override

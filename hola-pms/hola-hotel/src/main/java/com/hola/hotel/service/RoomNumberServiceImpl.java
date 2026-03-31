@@ -11,6 +11,8 @@ import com.hola.hotel.repository.PropertyRepository;
 import com.hola.hotel.repository.RoomNumberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,12 @@ public class RoomNumberServiceImpl implements RoomNumberService {
         return roomNumberRepository.findAllByPropertyIdOrderBySortOrderAscRoomNumberAsc(propertyId).stream()
                 .map(hotelMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<RoomNumberResponse> getRoomNumbers(Long propertyId, Pageable pageable) {
+        return roomNumberRepository.findAllByPropertyIdOrderBySortOrderAscRoomNumberAsc(propertyId, pageable)
+                .map(hotelMapper::toResponse);
     }
 
     @Override

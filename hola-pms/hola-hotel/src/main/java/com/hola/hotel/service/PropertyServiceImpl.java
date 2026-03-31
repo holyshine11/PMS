@@ -215,10 +215,11 @@ public class PropertyServiceImpl implements PropertyService {
 
     /**
      * 프로퍼티코드 자동 생성 (호텔코드-P001 형태)
+     * soft-delete된 레코드도 포함하여 카운트 → DB 유니크 제약 충돌 방지
      */
     private String generatePropertyCode(Hotel hotel) {
         String prefix = hotel.getHotelCode() + "-P";
-        long count = propertyRepository.countByHotelIdAndPropertyCodeStartingWith(hotel.getId(), prefix);
+        long count = propertyRepository.countAllIncludingDeletedByHotelIdAndPrefix(hotel.getId(), prefix);
         return String.format("%s%03d", prefix, count + 1);
     }
 

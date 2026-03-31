@@ -1,6 +1,7 @@
 package com.hola.reservation.controller;
 
 import com.hola.common.dto.HolaResponse;
+import com.hola.common.dto.PageInfo;
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
 import com.hola.common.security.AccessControlService;
@@ -11,6 +12,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -58,16 +62,18 @@ public class ReservationApiController {
     }
 
     /** 예약 리스트 조회 */
-    @Operation(summary = "예약 목록 조회", description = "예약 리스트 (상태/체크인날짜/키워드 필터)")
+    @Operation(summary = "예약 목록 조회", description = "예약 리스트 (상태/체크인날짜/키워드 필터, 페이징)")
     @GetMapping
     public HolaResponse<List<ReservationListResponse>> getList(
             @PathVariable Long propertyId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkInFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkInTo,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @PageableDefault(size = 20) Pageable pageable) {
         accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.getList(propertyId, status, checkInFrom, checkInTo, keyword));
+        Page<ReservationListResponse> page = reservationService.getList(propertyId, status, checkInFrom, checkInTo, keyword, pageable);
+        return HolaResponse.success(page.getContent(), PageInfo.from(page));
     }
 
     /** 예약 상세 조회 */
