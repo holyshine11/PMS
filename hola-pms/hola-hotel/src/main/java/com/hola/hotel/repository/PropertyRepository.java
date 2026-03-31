@@ -31,6 +31,8 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
 
     boolean existsByHotelIdAndPropertyName(Long hotelId, String propertyName);
 
+    List<Property> findAllByUseYnTrue();
+
     long countByHotelIdAndPropertyCodeStartingWith(Long hotelId, String propertyCodePrefix);
 
     /**

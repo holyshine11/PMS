@@ -46,38 +46,43 @@ public class DashboardServiceImpl implements DashboardService {
         long overnightSold = soldRooms - dayUseRooms;
         BigDecimal totalRevenue = dailyChargeRepository.sumRevenueByPropertyAndDate(propertyId, today);
         BigDecimal dayUseRevenue = dailyChargeRepository.sumDayUseRevenueByPropertyAndDate(propertyId, today);
+        BigDecimal overnightRevenue = totalRevenue.subtract(dayUseRevenue);
 
         BigDecimal occupancyRate = BigDecimal.ZERO;
         BigDecimal adr = BigDecimal.ZERO;
         BigDecimal revPar = BigDecimal.ZERO;
 
-        // OCC%는 숙박 객실만 기준 (Dayuse는 별도 표시)
+        // OCC%/ADR/RevPAR은 숙박 객실만 기준 (Dayuse는 별도 표시)
         if (totalRooms > 0) {
             occupancyRate = BigDecimal.valueOf(overnightSold)
                     .multiply(BigDecimal.valueOf(100))
                     .divide(BigDecimal.valueOf(totalRooms), 1, RoundingMode.HALF_UP);
-            revPar = totalRevenue.divide(BigDecimal.valueOf(totalRooms), 0, RoundingMode.HALF_UP);
+            revPar = overnightRevenue.divide(BigDecimal.valueOf(totalRooms), 0, RoundingMode.HALF_UP);
         }
         if (overnightSold > 0) {
-            adr = totalRevenue.divide(BigDecimal.valueOf(overnightSold), 0, RoundingMode.HALF_UP);
+            adr = overnightRevenue.divide(BigDecimal.valueOf(overnightSold), 0, RoundingMode.HALF_UP);
         }
 
-        // 어제 KPI (전일 대비 트렌드 계산용)
-        long yesterdaySold = subReservationRepository.countSoldRooms(propertyId, yesterday);
+        // 어제 KPI (전일 대비 트렌드 계산용) — 오늘과 동일 기준(숙박만)으로 계산
+        long yesterdaySoldAll = subReservationRepository.countSoldRooms(propertyId, yesterday);
+        long yesterdayDayUse = subReservationRepository.countDayUseRooms(propertyId, yesterday);
+        long yesterdayOvernightSold = yesterdaySoldAll - yesterdayDayUse;
         BigDecimal yesterdayRevenue = dailyChargeRepository.sumRevenueByPropertyAndDate(propertyId, yesterday);
+        BigDecimal yesterdayDayUseRevenue = dailyChargeRepository.sumDayUseRevenueByPropertyAndDate(propertyId, yesterday);
+        BigDecimal yesterdayOvernightRevenue = yesterdayRevenue.subtract(yesterdayDayUseRevenue);
 
         BigDecimal yesterdayOcc = BigDecimal.ZERO;
         BigDecimal yesterdayAdr = BigDecimal.ZERO;
         BigDecimal yesterdayRevPar = BigDecimal.ZERO;
 
         if (totalRooms > 0) {
-            yesterdayOcc = BigDecimal.valueOf(yesterdaySold)
+            yesterdayOcc = BigDecimal.valueOf(yesterdayOvernightSold)
                     .multiply(BigDecimal.valueOf(100))
                     .divide(BigDecimal.valueOf(totalRooms), 1, RoundingMode.HALF_UP);
-            yesterdayRevPar = yesterdayRevenue.divide(BigDecimal.valueOf(totalRooms), 0, RoundingMode.HALF_UP);
+            yesterdayRevPar = yesterdayOvernightRevenue.divide(BigDecimal.valueOf(totalRooms), 0, RoundingMode.HALF_UP);
         }
-        if (yesterdaySold > 0) {
-            yesterdayAdr = yesterdayRevenue.divide(BigDecimal.valueOf(yesterdaySold), 0, RoundingMode.HALF_UP);
+        if (yesterdayOvernightSold > 0) {
+            yesterdayAdr = yesterdayOvernightRevenue.divide(BigDecimal.valueOf(yesterdayOvernightSold), 0, RoundingMode.HALF_UP);
         }
 
         Long hotelId = property != null ? property.getHotel().getId() : null;
@@ -155,7 +160,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public List<DashboardPropertyKpiResponse> getAllPropertyKpis() {
-        List<Property> properties = propertyRepository.findAll();
+        List<Property> properties = propertyRepository.findAllByUseYnTrue();
         List<DashboardPropertyKpiResponse> result = new ArrayList<>();
 
         for (Property property : properties) {
