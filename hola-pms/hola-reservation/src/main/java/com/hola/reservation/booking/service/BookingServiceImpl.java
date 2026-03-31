@@ -67,6 +67,7 @@ import java.math.BigDecimal;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -142,6 +143,8 @@ public class BookingServiceImpl implements BookingService {
                 .address(property.getAddress())
                 .addressDetail(property.getAddressDetail())
                 .logoPath(property.getLogoPath())
+                .sameDayBookingEnabled(property.getSameDayBookingEnabled())
+                .sameDayCutoffTime(property.getSameDayCutoffTime())
                 .build();
     }
 
@@ -151,6 +154,10 @@ public class BookingServiceImpl implements BookingService {
         validateDateRange(request.getCheckIn(), request.getCheckOut());
 
         Property property = findPropertyByCode(propertyCode);
+
+        // 당일 예약 마감시간 검증
+        validateSameDayCutoff(property, request.getCheckIn());
+
         Long propertyId = property.getId();
 
         // 프로퍼티의 활성 객실타입 전체 조회
@@ -428,6 +435,7 @@ public class BookingServiceImpl implements BookingService {
 
         for (BookingCreateRequest.RoomSelection room : rooms) {
             validateDateRange(room.getCheckIn(), room.getCheckOut());
+            validateSameDayCutoff(property, room.getCheckIn());
             validateRateCodeStayDays(room.getRateCodeId(), room.getCheckIn(), room.getCheckOut());
 
             int available = roomAvailabilityService.getAvailableRoomCount(
@@ -692,6 +700,23 @@ public class BookingServiceImpl implements BookingService {
         long nights = ChronoUnit.DAYS.between(checkIn, checkOut);
         if (nights > MAX_STAY_NIGHTS) {
             throw new HolaException(ErrorCode.BOOKING_MAX_STAY_EXCEEDED);
+        }
+    }
+
+    /**
+     * 당일 예약 마감시간 검증 (부킹엔진 전용)
+     */
+    private void validateSameDayCutoff(Property property, LocalDate checkIn) {
+        if (!checkIn.isEqual(LocalDate.now())) {
+            return;
+        }
+        if (!Boolean.TRUE.equals(property.getSameDayBookingEnabled())) {
+            throw new HolaException(ErrorCode.BOOKING_SAME_DAY_DISABLED);
+        }
+        LocalTime now = LocalTime.now();
+        int currentMinutes = now.getHour() * 60 + now.getMinute();
+        if (currentMinutes >= property.getSameDayCutoffTime()) {
+            throw new HolaException(ErrorCode.BOOKING_SAME_DAY_CUTOFF);
         }
     }
 

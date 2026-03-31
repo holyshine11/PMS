@@ -39,6 +39,10 @@ public class PropertyCreateRequest {
     private String dayUseStartTime;
     private String dayUseEndTime;
     private Integer dayUseDefaultHours;
+    // 당일예약 마감 설정
+    private Boolean sameDayBookingEnabled;
+    private Integer sameDayCutoffTime;
+    private Boolean walkInOverride;
 
     private Boolean useYn;
     private Integer sortOrder;

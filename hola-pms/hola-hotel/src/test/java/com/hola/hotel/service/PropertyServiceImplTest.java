@@ -104,7 +104,7 @@ class PropertyServiceImplTest {
             Hotel hotel = createHotel();
             when(hotelRepository.findById(1L)).thenReturn(Optional.of(hotel));
             when(propertyRepository.existsByHotelIdAndPropertyName(any(), eq("새 프로퍼티"))).thenReturn(false);
-            when(propertyRepository.countByHotelIdAndPropertyCodeStartingWith(any(), anyString())).thenReturn(0L);
+            when(propertyRepository.countAllIncludingDeletedByHotelIdAndPrefix(any(), anyString())).thenReturn(0L);
 
             PropertyCreateRequest request = mock(PropertyCreateRequest.class);
             when(request.getPropertyName()).thenReturn("새 프로퍼티");

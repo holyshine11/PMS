@@ -141,6 +141,19 @@ public class Property extends BaseEntity {
     @Builder.Default
     private Integer dayUseDefaultHours = 5;
 
+    // ─── 당일예약 마감 설정 ────────────────────────────
+    @Column(name = "same_day_booking_enabled", nullable = false)
+    @Builder.Default
+    private Boolean sameDayBookingEnabled = true;
+
+    @Column(name = "same_day_cutoff_time", nullable = false)
+    @Builder.Default
+    private Integer sameDayCutoffTime = 1080;
+
+    @Column(name = "walk_in_override", nullable = false)
+    @Builder.Default
+    private Boolean walkInOverride = true;
+
     @OneToMany(mappedBy = "property", fetch = FetchType.LAZY)
     @Builder.Default
     private List<Floor> floors = new ArrayList<>();
@@ -191,6 +204,14 @@ public class Property extends BaseEntity {
         this.dayUseStartTime = dayUseStartTime != null ? dayUseStartTime : "10:00";
         this.dayUseEndTime = dayUseEndTime != null ? dayUseEndTime : "20:00";
         this.dayUseDefaultHours = dayUseDefaultHours != null ? dayUseDefaultHours : 5;
+    }
+
+    /** 당일예약 마감 설정 수정 */
+    public void updateBookingCutoff(Boolean sameDayBookingEnabled, Integer sameDayCutoffTime,
+                                     Boolean walkInOverride) {
+        this.sameDayBookingEnabled = sameDayBookingEnabled != null ? sameDayBookingEnabled : true;
+        this.sameDayCutoffTime = sameDayCutoffTime != null ? sameDayCutoffTime : 1080;
+        this.walkInOverride = walkInOverride != null ? walkInOverride : true;
     }
 
     /** TAX/봉사료 정보 수정 */

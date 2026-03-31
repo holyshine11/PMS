@@ -219,6 +219,19 @@ const PropertyForm = {
                 $('#dayUseEndTime').val(d.dayUseEndTime || '20:00');
                 $('#dayUseDefaultHours').val(d.dayUseDefaultHours || 5);
 
+                // 당일예약 마감 설정
+                if (d.sameDayBookingEnabled === false) {
+                    $('#sameDayBookingEnabledN').prop('checked', true);
+                } else {
+                    $('#sameDayBookingEnabledY').prop('checked', true);
+                }
+                $('#sameDayCutoffTime').val(d.sameDayCutoffTime != null ? d.sameDayCutoffTime : 1080);
+                if (d.walkInOverride === false) {
+                    $('#walkInOverrideN').prop('checked', true);
+                } else {
+                    $('#walkInOverrideY').prop('checked', true);
+                }
+
                 // 주소
                 $('#zipCode').val(d.zipCode || '');
                 $('#address').val(d.address || '');
@@ -480,7 +493,10 @@ const PropertyForm = {
             dayUseEnabled: $('input[name="dayUseEnabled"]:checked').val() === 'true',
             dayUseStartTime: $('#dayUseStartTime').val() || '10:00',
             dayUseEndTime: $('#dayUseEndTime').val() || '20:00',
-            dayUseDefaultHours: parseInt($('#dayUseDefaultHours').val()) || 5
+            dayUseDefaultHours: parseInt($('#dayUseDefaultHours').val()) || 5,
+            sameDayBookingEnabled: $('input[name="sameDayBookingEnabled"]:checked').val() === 'true',
+            sameDayCutoffTime: parseInt($('#sameDayCutoffTime').val()) || 1080,
+            walkInOverride: $('input[name="walkInOverride"]:checked').val() === 'true'
         };
 
         var url, method;

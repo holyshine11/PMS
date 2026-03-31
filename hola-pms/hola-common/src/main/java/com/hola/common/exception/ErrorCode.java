@@ -184,6 +184,8 @@ public enum ErrorCode {
     BOOKING_INVALID_CARD_BIN("HOLA-4082", "유효하지 않은 카드 BIN입니다.", HttpStatus.BAD_REQUEST),
     CANCEL_FEE_UNPAID("HOLA-4083", "취소/노쇼 수수료가 미결제 상태입니다. 수수료 결제 후 처리해주세요.", HttpStatus.BAD_REQUEST),
     CANCEL_UNPAID_BALANCE("HOLA-4084", "미결제 잔액이 있어 취소할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    BOOKING_SAME_DAY_DISABLED("HOLA-4085", "당일 예약이 허용되지 않는 프로퍼티입니다.", HttpStatus.BAD_REQUEST),
+    BOOKING_SAME_DAY_CUTOFF("HOLA-4086", "당일 예약 마감 시간이 지났습니다.", HttpStatus.BAD_REQUEST),
 
     // 부킹 인증 (HOLA-409x)
     BOOKING_AUTH_REQUIRED("HOLA-4090", "API-KEY와 VENDOR-ID 헤더가 필요합니다.", HttpStatus.UNAUTHORIZED),

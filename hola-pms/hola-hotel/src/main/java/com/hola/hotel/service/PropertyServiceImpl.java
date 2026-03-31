@@ -102,6 +102,9 @@ public class PropertyServiceImpl implements PropertyService {
                 .dayUseStartTime(request.getDayUseStartTime() != null ? request.getDayUseStartTime() : "10:00")
                 .dayUseEndTime(request.getDayUseEndTime() != null ? request.getDayUseEndTime() : "20:00")
                 .dayUseDefaultHours(request.getDayUseDefaultHours() != null ? request.getDayUseDefaultHours() : 5)
+                .sameDayBookingEnabled(request.getSameDayBookingEnabled() != null ? request.getSameDayBookingEnabled() : true)
+                .sameDayCutoffTime(request.getSameDayCutoffTime() != null ? request.getSameDayCutoffTime() : 1080)
+                .walkInOverride(request.getWalkInOverride() != null ? request.getWalkInOverride() : true)
                 .build();
 
         if (request.getUseYn() != null && !request.getUseYn()) {
@@ -134,6 +137,10 @@ public class PropertyServiceImpl implements PropertyService {
         property.updateDayUse(
                 request.getDayUseEnabled(), request.getDayUseStartTime(),
                 request.getDayUseEndTime(), request.getDayUseDefaultHours());
+
+        property.updateBookingCutoff(
+                request.getSameDayBookingEnabled(), request.getSameDayCutoffTime(),
+                request.getWalkInOverride());
 
         if (request.getUseYn() != null) {
             if (request.getUseYn()) {

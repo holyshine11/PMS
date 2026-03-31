@@ -44,6 +44,7 @@ import java.math.BigDecimal;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.Function;
@@ -287,6 +288,20 @@ public class ReservationServiceImpl implements ReservationService {
         // 신규 예약은 과거 날짜 체크인 불가
         if (request.getMasterCheckIn().isBefore(LocalDate.now())) {
             throw new HolaException(ErrorCode.RESERVATION_CHECKIN_PAST_DATE);
+        }
+
+        // 당일 예약 마감시간 검증 (walkInOverride 존중)
+        if (request.getMasterCheckIn().isEqual(LocalDate.now())) {
+            if (!Boolean.TRUE.equals(property.getSameDayBookingEnabled())) {
+                throw new HolaException(ErrorCode.BOOKING_SAME_DAY_DISABLED);
+            }
+            if (!Boolean.TRUE.equals(property.getWalkInOverride())) {
+                LocalTime now = LocalTime.now();
+                int currentMinutes = now.getHour() * 60 + now.getMinute();
+                if (currentMinutes >= property.getSameDayCutoffTime()) {
+                    throw new HolaException(ErrorCode.BOOKING_SAME_DAY_CUTOFF);
+                }
+            }
         }
 
         // 레이트코드 판매기간/숙박일수 검증

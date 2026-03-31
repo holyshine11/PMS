@@ -143,10 +143,12 @@ var HolaBooking = (function() {
         endDate: null,       // 'YYYY-MM-DD'
         selecting: false,    // 첫 클릭 후 두 번째 대기 중
         onChange: null,      // callback(startDate, endDate)
+        sameDayCutoff: false, // 당일 예약 마감 여부
 
         init: function(containerId, onChange) {
             this.container = $('#' + containerId);
             this.onChange = onChange;
+            this.sameDayCutoff = false;
             var today = new Date();
             this.baseMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
@@ -215,6 +217,7 @@ var HolaBooking = (function() {
                 var classes = ['bk-calendar-day'];
 
                 if (dateStr < todayStr) classes.push('disabled');
+                else if (dateStr === todayStr && this.sameDayCutoff) classes.push('disabled');
                 if (dateStr === todayStr) classes.push('today');
                 if (dow === 0) classes.push('sunday');
 
@@ -336,6 +339,7 @@ var HolaBooking = (function() {
                     if (res.data) {
                         self.propertyInfo = res.data;
                         self.renderPropertyInfo(res.data);
+                        self.applySameDayCutoff(res.data);
                     }
                 });
         },
@@ -345,6 +349,38 @@ var HolaBooking = (function() {
             $('#propertyName').text(info.propertyName || '객실 예약');
             $('#propertyAddress').text((info.address || '') + (info.addressDetail ? ' ' + info.addressDetail : ''));
             document.title = (info.propertyName || 'Hola') + ' - 객실 예약';
+        },
+
+        applySameDayCutoff: function(info) {
+            if (!info) return;
+            var now = new Date();
+            var currentMinutes = now.getHours() * 60 + now.getMinutes();
+            var todayStr = toDateStr(now);
+            var cutoffPassed = false;
+
+            if (info.sameDayBookingEnabled === false) {
+                cutoffPassed = true;
+            } else if (info.sameDayCutoffTime != null && currentMinutes >= info.sameDayCutoffTime) {
+                cutoffPassed = true;
+            }
+
+            if (cutoffPassed) {
+                Calendar.sameDayCutoff = true;
+                if (Calendar.startDate === todayStr) {
+                    var tmr = new Date(now);
+                    tmr.setDate(tmr.getDate() + 1);
+                    Calendar.startDate = toDateStr(tmr);
+                    var dayAfter = new Date(tmr);
+                    dayAfter.setDate(dayAfter.getDate() + 1);
+                    Calendar.endDate = toDateStr(dayAfter);
+                    this.checkIn = Calendar.startDate;
+                    this.checkOut = Calendar.endDate;
+                    if (Calendar.onChange) {
+                        Calendar.onChange(Calendar.startDate, Calendar.endDate);
+                    }
+                }
+                Calendar.render();
+            }
         },
 
         bindEvents: function() {

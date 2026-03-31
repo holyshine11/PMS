@@ -23,4 +23,6 @@ public class PropertyInfoResponse {
     private final String address;
     private final String addressDetail;
     private final String logoPath;
+    private final Boolean sameDayBookingEnabled;
+    private final Integer sameDayCutoffTime;
 }
