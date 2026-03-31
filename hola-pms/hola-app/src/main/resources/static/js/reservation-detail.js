@@ -445,7 +445,7 @@ var ReservationDetail = {
             : '';
 
         var legHtml = ''
-            + '<div class="card border shadow-sm mb-3 room-leg-card" id="roomLeg_' + seq + '" data-leg-seq="' + seq + '" data-leg-id="' + legId + '">'
+            + '<div class="card border shadow-sm mb-3 room-leg-card" id="roomLeg_' + seq + '" data-leg-seq="' + seq + '" data-leg-id="' + legId + '" data-leg-terminated="' + legTerminated + '">'
             + '  <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#roomLegBody_' + seq + '">'
             + '    <span>' + headerLabel + ' ' + legStatusBadge + summaryInfo + legActionBtn + '</span>'
             + '    <div class="d-flex align-items-center">'
@@ -1368,7 +1368,8 @@ var ReservationDetail = {
 
             // 마지막 활성 객실 삭제 방지 (최소 1개 필수, 종료 상태 레그 제외)
             var activeLegCount = $('.room-leg-card').filter(function() {
-                return !$(this).find('.leg-check-in').prop('disabled');
+                var t = $(this).data('leg-terminated');
+                return t !== true && t !== 'true';
             }).length;
             if (activeLegCount <= 1) {
                 HolaPms.alert('warning', '마지막 객실은 삭제할 수 없습니다. 최소 1개의 객실이 필요합니다.');
@@ -2172,7 +2173,7 @@ var ReservationDetail = {
         $('.room-leg-card').each(function() {
             var $leg = $(this);
             // 종료 상태(취소/체크아웃/노쇼) 레그는 수집 제외
-            if ($leg.find('.leg-check-in').prop('disabled')) return;
+            if ($leg.data('leg-terminated') === true || $leg.data('leg-terminated') === 'true') return;
             var roomTypeId = HolaPms.form.intVal($leg.find('.room-type-id'));
             if (!roomTypeId) return; // 객실타입 미선택 레그 스킵
 
