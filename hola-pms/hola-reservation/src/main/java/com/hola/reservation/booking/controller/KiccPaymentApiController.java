@@ -16,6 +16,7 @@ import com.hola.reservation.booking.gateway.CancelPaymentRequest;
 import com.hola.reservation.booking.pg.kicc.dto.KiccBookingTempData;
 import com.hola.reservation.booking.service.BookingService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -61,7 +62,7 @@ public class KiccPaymentApiController {
     @ResponseBody
     public ResponseEntity<Map<String, Object>> register(
             @RequestParam String propertyCode,
-            @RequestBody BookingCreateRequest request,
+            @Valid @RequestBody BookingCreateRequest request,
             HttpServletRequest httpRequest) {
 
         String clientIp = httpRequest.getRemoteAddr();

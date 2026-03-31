@@ -253,6 +253,12 @@ public class ReservationServiceImpl implements ReservationService {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new HolaException(ErrorCode.PROPERTY_NOT_FOUND));
 
+        // 체크아웃이 체크인보다 앞서는 경우 레이트코드 검증 이전에 먼저 오류 반환
+        if (request.getMasterCheckIn() != null && request.getMasterCheckOut() != null
+                && request.getMasterCheckOut().isBefore(request.getMasterCheckIn())) {
+            throw new HolaException(ErrorCode.SUB_RESERVATION_DATE_INVALID);
+        }
+
         // 레이트코드 필수 검증
         if (request.getRateCodeId() == null) {
             throw new HolaException(ErrorCode.RESERVATION_RATE_REQUIRED);

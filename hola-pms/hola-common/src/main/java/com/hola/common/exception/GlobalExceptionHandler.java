@@ -4,6 +4,7 @@ import com.hola.common.dto.HolaResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,6 +30,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
                 .body(HolaResponse.error(errorCode.getCode(), e.getMessage()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<HolaResponse<Void>> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        log.warn("요청 본문 파싱 실패: {}", e.getMessage());
+        return ResponseEntity
+                .badRequest()
+                .body(HolaResponse.error(ErrorCode.INVALID_INPUT.getCode(), "입력값 형식이 올바르지 않습니다."));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

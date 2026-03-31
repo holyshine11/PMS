@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
 import com.hola.common.dto.HolaResponse;
+import com.hola.reservation.booking.dto.BookingResponse;
 import com.hola.reservation.booking.dto.request.BookingCreateRequest;
 import com.hola.reservation.booking.dto.response.BookingConfirmationResponse;
 import com.hola.reservation.booking.dto.response.BookingValidationResult;
@@ -77,9 +78,9 @@ public class EasyPayApiController {
      */
     @GetMapping("/cards")
     @ResponseBody
-    public ResponseEntity<HolaResponse<List<EasyPayCardResponse>>> getCards(@RequestParam String email) {
+    public ResponseEntity<BookingResponse<List<EasyPayCardResponse>>> getCards(@RequestParam String email) {
         List<EasyPayCardResponse> cards = easyPayCardService.getCardsByEmail(email);
-        return ResponseEntity.ok(HolaResponse.success(cards));
+        return ResponseEntity.ok(BookingResponse.success(cards));
     }
 
     /**
