@@ -33,6 +33,9 @@ public class PaymentSummaryResponse {
     private LocalDateTime paymentDate;
     private String paymentMethod;
 
+    // Leg별 결제 현황
+    private List<LegPaymentInfo> legPayments;
+
     // 결제 조정 내역
     private List<PaymentAdjustmentResponse> adjustments;
 

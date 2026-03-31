@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 
@@ -26,4 +27,16 @@ public class PaymentProcessRequest {
 
     /** 메모 (선택) */
     private String memo;
+
+    /** Leg별 결제 추적용 SubReservation ID (선택 — null이면 마스터 레벨) */
+    @Setter
+    private Long subReservationId;
+
+    /** 기존 3-arg 생성자 호환용 */
+    public PaymentProcessRequest(String paymentMethod, BigDecimal amount, String memo) {
+        this.paymentMethod = paymentMethod;
+        this.amount = amount;
+        this.memo = memo;
+        this.subReservationId = null;
+    }
 }

@@ -118,6 +118,7 @@ public enum ErrorCode {
     SUB_RESERVATION_DATE_INVALID("HOLA-4013", "체크아웃은 체크인 이후여야 합니다.", HttpStatus.BAD_REQUEST),
     RESERVATION_CHECKIN_PAST_DATE("HOLA-4014", "체크인 날짜는 오늘 또는 이후여야 합니다. (과거 날짜 불가)", HttpStatus.BAD_REQUEST),
     SUB_RESERVATION_OCCUPANCY_EXCEEDED("HOLA-4015", "객실 최대 수용 인원을 초과했습니다.", HttpStatus.BAD_REQUEST),
+    SUB_RESERVATION_LAST_LEG("HOLA-4016", "마지막 객실은 삭제할 수 없습니다. 최소 1개의 객실이 필요합니다.", HttpStatus.BAD_REQUEST),
 
     // 가격/결제 (HOLA-402x)
     RESERVATION_RATE_NOT_APPLICABLE("HOLA-4020", "해당 기간에 적용 가능한 요금이 없습니다.", HttpStatus.BAD_REQUEST),
@@ -181,6 +182,7 @@ public enum ErrorCode {
     BOOKING_ALREADY_CANCELED("HOLA-4081", "이미 취소된 예약입니다.", HttpStatus.BAD_REQUEST),
     BOOKING_INVALID_CARD_BIN("HOLA-4082", "유효하지 않은 카드 BIN입니다.", HttpStatus.BAD_REQUEST),
     CANCEL_FEE_UNPAID("HOLA-4083", "취소/노쇼 수수료가 미결제 상태입니다. 수수료 결제 후 처리해주세요.", HttpStatus.BAD_REQUEST),
+    CANCEL_UNPAID_BALANCE("HOLA-4084", "미결제 잔액이 있어 취소할 수 없습니다.", HttpStatus.BAD_REQUEST),
 
     // 부킹 인증 (HOLA-409x)
     BOOKING_AUTH_REQUIRED("HOLA-4090", "API-KEY와 VENDOR-ID 헤더가 필요합니다.", HttpStatus.UNAUTHORIZED),

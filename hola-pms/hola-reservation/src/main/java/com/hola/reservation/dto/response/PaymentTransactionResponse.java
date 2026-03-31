@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 public class PaymentTransactionResponse {
 
     private Long id;
+    private Long subReservationId;
     private Integer transactionSeq;
     private String transactionType;
     private String paymentMethod;

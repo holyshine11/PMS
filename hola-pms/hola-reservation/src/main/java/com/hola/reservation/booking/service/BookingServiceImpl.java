@@ -607,12 +607,17 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // 9. 결제 정보 생성 (PG 필드 포함)
+        // 9. 결제 정보 생성 (PG 필드 포함, 첫 번째 Leg에 귀속)
         reservationPaymentService.recalculatePayment(master.getId());
         String paymentMethod = request.getPayment() != null ? request.getPayment().getMethod() : "CARD";
         String memo = "부킹엔진 결제 - 승인번호: " + paymentResult.getApprovalNo();
+        // 첫 번째 서브예약 ID 조회 (부킹엔진 PG 결제는 첫 번째 Leg에 귀속)
+        Long firstSubId = subReservationRepository.findByMasterReservationId(master.getId())
+                .stream().findFirst().map(SubReservation::getId).orElse(null);
+        PaymentProcessRequest pgPaymentRequest = new PaymentProcessRequest(paymentMethod, validation.getGrandTotal(), memo);
+        pgPaymentRequest.setSubReservationId(firstSubId);
         reservationPaymentService.processPaymentWithPgResult(master.getProperty().getId(), master.getId(),
-                new PaymentProcessRequest(paymentMethod, validation.getGrandTotal(), memo), paymentResult);
+                pgPaymentRequest, paymentResult);
 
         // 10. BookingAuditLog 기록
         saveAuditLog(master.getId(), confirmationNo, "BOOKING_CREATED",
@@ -1116,7 +1121,10 @@ public class BookingServiceImpl implements BookingService {
         var payment = reservationPaymentRepository.findByMasterReservationId(master.getId()).orElse(null);
         if (payment != null) {
             BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
-            refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
+            BigDecimal existingRefund = payment.getRefundAmount() != null ? payment.getRefundAmount() : BigDecimal.ZERO;
+            BigDecimal existingCancelFee = payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO;
+            BigDecimal netPaid = totalPaid.subtract(existingRefund).subtract(existingCancelFee);
+            refundAmt = netPaid.subtract(cancelFee).max(BigDecimal.ZERO);
             payment.updateCancelRefund(cancelFee, refundAmt);
 
             // PG 환불 포함 REFUND 거래 기록
@@ -1131,8 +1139,8 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
 
-            // 취소 후 결제 상태 갱신
-            payment.updatePaymentStatus();
+            // 취소 후 REFUNDED 상태로 확정 (grandTotal은 원본 유지 — 감사 추적용)
+            payment.setPaymentStatusRefunded();
         }
 
         // 서비스 항목 재고 복원

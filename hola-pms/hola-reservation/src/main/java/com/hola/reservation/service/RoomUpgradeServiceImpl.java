@@ -175,29 +175,9 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
             priceDiff = BigDecimal.ZERO;
         }
 
-        // SubReservation roomTypeId 업데이트
+        // SubReservation roomTypeId 업데이트 (객실 타입만 변경, DailyCharge는 원본 유지)
+        // Opera 방식: 예약 시점 요금 유지, 업그레이드 차액은 서비스 항목으로만 반영
         sub.changeRoomType(toRoomTypeId);
-
-        // 대상 객실타입의 레이트코드로 DailyCharge 재계산 (계산 성공 후 교체)
-        Long currentRateCodeId = sub.getMasterReservation().getRateCodeId();
-        Long targetRateCodeId = findRateCodeForRoomType(toRoomTypeId, currentRateCodeId);
-        List<DailyCharge> newCharges = priceCalculationService.calculateDailyCharges(
-                targetRateCodeId, sub.getMasterReservation().getProperty(),
-                sub.getCheckIn(), sub.getCheckOut(), sub.getAdults(), sub.getChildren(), sub);
-        // orphanRemoval 활용: 컬렉션 clear → 새 항목 추가 (JPA 영속성 컨텍스트 일관성 유지)
-        sub.getDailyCharges().clear();
-        dailyChargeRepository.flush();
-        for (DailyCharge dc : newCharges) {
-            DailyCharge charge = DailyCharge.builder()
-                    .subReservation(sub)
-                    .chargeDate(dc.getChargeDate())
-                    .supplyPrice(dc.getSupplyPrice())
-                    .tax(dc.getTax())
-                    .serviceCharge(dc.getServiceCharge())
-                    .total(dc.getTotal())
-                    .build();
-            sub.getDailyCharges().add(charge);
-        }
 
         // PAID/UPSELL인 경우 차액을 ReservationServiceItem으로 자동 부과
         if (("PAID".equals(request.getUpgradeType()) || "UPSELL".equals(request.getUpgradeType()))

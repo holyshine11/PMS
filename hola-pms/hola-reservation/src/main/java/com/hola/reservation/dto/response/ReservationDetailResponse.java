@@ -46,6 +46,9 @@ public class ReservationDetailResponse {
     private String marketCodeName;
     private Long reservationChannelId;
 
+    // 레이트코드 기반 stayType (OVERNIGHT / DAY_USE)
+    private String stayType;
+
     // 프로모션/OTA
     private String promotionType;
     private String promotionCode;

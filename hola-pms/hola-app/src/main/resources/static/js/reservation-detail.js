@@ -208,7 +208,20 @@ var ReservationDetail = {
         if (self.isReadonly) $('#readonlyAlert').removeClass('d-none');
 
         var subs = data.subReservations || [];
-        self.isDayUse = subs.length > 0 && subs[0].stayType === 'DAY_USE';
+        // 레이트코드 기반 stayType 우선, fallback으로 첫 번째 sub 확인
+        self.isDayUse = data.stayType === 'DAY_USE'
+            || (subs.length > 0 && subs[0].stayType === 'DAY_USE');
+
+        // Dayuse 이용시간(시) — 기존 Leg에서 추출 (새 Leg 추가 시 동일 시간 적용)
+        self.dayUseDurationHours = null;
+        if (self.isDayUse) {
+            var dayUseSub = subs.find(function(s) { return s.dayUseStartTime && s.dayUseEndTime; });
+            if (dayUseSub) {
+                var start = dayUseSub.dayUseStartTime.split(':');
+                var end = dayUseSub.dayUseEndTime.split(':');
+                self.dayUseDurationHours = parseInt(end[0]) - parseInt(start[0]);
+            }
+        }
 
         // ── Tab 1: 예약정보 ──
         $('#masterReservationNoDisplay').val(data.masterReservationNo || '');
@@ -384,8 +397,10 @@ var ReservationDetail = {
             checkOut = $('#masterCheckOut').val() || '';
         }
 
-        // Leg별 상태 (얼리/레이트 체크박스 제어에 사용)
+        // Leg별 상태 (편집 제어에 사용)
         var legStatus = legData ? (legData.roomReservationStatus || '') : '';
+        // 종료 상태 Leg: 모든 편집 컨트롤 비활성화
+        var legTerminated = ['CHECKED_OUT', 'CANCELED', 'NO_SHOW'].indexOf(legStatus) !== -1;
 
         // 상태에 따른 얼리/레이트 체크박스 활성화 제어 (Leg 상태 기준)
         // RESERVED: 둘 다 편집 가능 (사전 요청)
@@ -434,10 +449,8 @@ var ReservationDetail = {
             + '  <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#roomLegBody_' + seq + '">'
             + '    <span>' + headerLabel + ' ' + legStatusBadge + summaryInfo + legActionBtn + '</span>'
             + '    <div class="d-flex align-items-center">'
-            + (legId && self.isUpgradeable() ? '    <button class="btn btn-outline-primary btn-sm me-1 upgrade-btn" data-leg-id="' + legId + '" data-room-type-id="' + roomTypeId + '" data-room-type-name="' + HolaPms.escapeHtml(roomTypeName) + '"><i class="fas fa-arrow-up me-1"></i>업그레이드</button>' : '')
-            + '    <button class="btn btn-outline-danger btn-sm remove-leg-btn me-2" data-leg="' + seq + '" data-leg-id="' + legId + '">'
-            + '      <i class="fas fa-times"></i>'
-            + '    </button>'
+            + (legId && !legTerminated && self.isUpgradeable() ? '    <button class="btn btn-outline-primary btn-sm me-1 upgrade-btn" data-leg-id="' + legId + '" data-room-type-id="' + roomTypeId + '" data-room-type-name="' + HolaPms.escapeHtml(roomTypeName) + '"><i class="fas fa-arrow-up me-1"></i>업그레이드</button>' : '')
+            + (!legTerminated ? '    <button class="btn btn-outline-danger btn-sm remove-leg-btn me-2" data-leg="' + seq + '" data-leg-id="' + legId + '"><i class="fas fa-times"></i></button>' : '')
             + '    <i class="fas fa-chevron-down collapse-arrow"></i>'
             + '    </div>'
             + '  </div>'
@@ -448,8 +461,8 @@ var ReservationDetail = {
             + '      <div class="col-sm-4">'
             + '        <div class="input-group">'
             + '          <input type="text" class="form-control room-type-name" readonly placeholder="선택" value="' + HolaPms.escapeHtml(roomTypeName) + '">'
-            + '          <button class="btn btn-outline-secondary room-type-search-btn" type="button"><i class="fas fa-search"></i></button>'
-            + '          <button class="btn btn-outline-danger room-type-clear-btn" type="button"><i class="fas fa-times"></i></button>'
+            + (!legTerminated ? '          <button class="btn btn-outline-secondary room-type-search-btn" type="button"><i class="fas fa-search"></i></button>' : '')
+            + (!legTerminated ? '          <button class="btn btn-outline-danger room-type-clear-btn" type="button"><i class="fas fa-times"></i></button>' : '')
             + '        </div>'
             + '        <input type="hidden" class="room-type-id" value="' + roomTypeId + '">'
             + '      </div>'
@@ -457,8 +470,8 @@ var ReservationDetail = {
             + '      <div class="col-sm-4">'
             + '        <div class="input-group">'
             + '          <input type="text" class="form-control room-number-display" readonly placeholder="미배정" value="' + HolaPms.escapeHtml(roomDisplay === '미배정' ? '' : roomDisplay) + '">'
-            + '          <button class="btn btn-outline-secondary room-assign-btn" type="button"><i class="fas fa-search"></i></button>'
-            + '          <button class="btn btn-outline-danger room-assign-clear-btn" type="button"><i class="fas fa-times"></i></button>'
+            + (!legTerminated ? '          <button class="btn btn-outline-secondary room-assign-btn" type="button"><i class="fas fa-search"></i></button>' : '')
+            + (!legTerminated ? '          <button class="btn btn-outline-danger room-assign-clear-btn" type="button"><i class="fas fa-times"></i></button>' : '')
             + '        </div>'
             + '        <input type="hidden" class="floor-id" value="' + floorId + '">'
             + '        <input type="hidden" class="room-number-id" value="' + roomNumberId + '">'
@@ -466,16 +479,16 @@ var ReservationDetail = {
             + '    </div>'
             + '    <div class="row mb-3">'
             + '      <label class="col-sm-2 col-form-label">체크인</label>'
-            + '      <div class="col-sm-4"><input type="date" class="form-control leg-check-in" value="' + checkIn + '"></div>'
+            + '      <div class="col-sm-4"><input type="date" class="form-control leg-check-in" value="' + checkIn + '"' + (legTerminated ? ' disabled' : '') + '></div>'
             + '      <label class="col-sm-2 col-form-label">체크아웃</label>'
-            + '      <div class="col-sm-4"><input type="date" class="form-control leg-check-out" value="' + checkOut + '"></div>'
+            + '      <div class="col-sm-4"><input type="date" class="form-control leg-check-out" value="' + checkOut + '"' + (legTerminated ? ' disabled' : '') + '></div>'
             + '    </div>'
             + self.renderActualTimeRow(actualCheckInTime, actualCheckOutTime, earlyCheckInFee, lateCheckOutFee)
             + '    <div class="row mb-3">'
             + '      <label class="col-sm-2 col-form-label">성인</label>'
-            + '      <div class="col-sm-2"><input type="number" class="form-control leg-adults" value="' + adults + '" min="1" max="99"></div>'
+            + '      <div class="col-sm-2"><input type="number" class="form-control leg-adults" value="' + adults + '" min="1" max="99"' + (legTerminated ? ' disabled' : '') + '></div>'
             + '      <label class="col-sm-2 col-form-label">아동</label>'
-            + '      <div class="col-sm-2"><input type="number" class="form-control leg-children" value="' + children + '" min="0" max="99"></div>'
+            + '      <div class="col-sm-2"><input type="number" class="form-control leg-children" value="' + children + '" min="0" max="99"' + (legTerminated ? ' disabled' : '') + '></div>'
             + '    </div>'
             + '    <div class="row mb-3">'
             + '      <label class="col-sm-2 col-form-label">얼리체크인</label>'
@@ -506,13 +519,13 @@ var ReservationDetail = {
             + '        <span class="service-count-badge" id="serviceCount_' + seq + '">' + (legData && legData.services && legData.services.length > 0 ? ' (' + legData.services.length + '건)' : '') + '</span>'
             + '        <i class="fas fa-chevron-down collapse-arrow ms-1" style="font-size:10px;"></i>'
             + '      </span>'
-            + '      <button class="btn btn-outline-primary btn-sm add-service-btn" data-leg="' + seq + '" data-leg-id="' + legId + '" type="button">'
+            + (!legTerminated ? '      <button class="btn btn-outline-primary btn-sm add-service-btn" data-leg="' + seq + '" data-leg-id="' + legId + '" type="button">'
             + '        <i class="fas fa-plus me-1"></i>서비스 추가'
-            + '      </button>'
+            + '      </button>' : '')
             + '    </div>'
             + '    <div class="collapse" id="serviceCollapse_' + seq + '">'
             + '    <div class="service-list" id="serviceList_' + seq + '">'
-            + self.renderServiceItems(legData ? legData.services : [], seq, legId)
+            + self.renderServiceItems(legData ? legData.services : [], seq, legId, legTerminated)
             + '    </div>'
             + '    </div>'
             + '    <div class="service-add-form d-none" id="serviceAddForm_' + seq + '">'
@@ -528,7 +541,7 @@ var ReservationDetail = {
             + '        <div class="col-sm-2">'
             + '          <input type="date" class="form-control form-control-sm service-date"'
             + (legData && legData.checkIn ? ' min="' + legData.checkIn + '"' : '')
-            + (legData && legData.checkOut ? ' max="' + (function(d){ var dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()-1); return dt.toISOString().slice(0,10); })(legData.checkOut) + '"' : '')
+            + (legData && legData.checkOut ? ' max="' + (function(d){ var dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()-1); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); })(legData.checkOut) + '"' : '')
             + '>'
             + '        </div>'
             + '        <div class="col-sm-3 d-flex gap-1">'
@@ -617,7 +630,7 @@ var ReservationDetail = {
     /**
      * 서비스 항목 목록 렌더링
      */
-    renderServiceItems: function(services, seq, legId) {
+    renderServiceItems: function(services, seq, legId, legTerminated) {
         if (!services || services.length === 0) {
             return '<div class="text-muted small text-center py-1">등록된 서비스가 없습니다.</div>';
         }
@@ -634,7 +647,7 @@ var ReservationDetail = {
             var dateStr = svc.serviceDate ? svc.serviceDate : '';
 
             var deleteBtn = '';
-            if (!self.isReadonly) {
+            if (!self.isReadonly && !legTerminated) {
                 deleteBtn = '<button class="btn btn-outline-danger btn-sm py-0 px-1 remove-service-btn" '
                     + 'data-leg-id="' + legId + '" data-service-id="' + svc.id + '"'
                     + (isRateIncluded ? ' data-rate-included="true"' : '') + '>'
@@ -843,6 +856,7 @@ var ReservationDetail = {
             // VIEW 전용 모드: 모든 input/select/textarea disabled, 버튼 숨김
             $('#formContainer input, #formContainer select, #formContainer textarea').prop('disabled', true);
             $('#saveBtn, #addRoomBtn, #addMemoBtn, #cardPaymentBtn, #cashPaymentBtn, #addAdjustmentBtn').hide();
+            $('.leg-card-pay-btn, .leg-payment-buttons').hide();
             $('#statusChangeGroup').hide();
             $('.remove-leg-btn, .room-type-search-btn, .room-assign-btn, .room-type-clear-btn, .room-assign-clear-btn').hide();
             $('#rateCodeSearchBtn, #marketCodeSearchBtn, #rateCodeClearBtn, #marketCodeClearBtn').hide();
@@ -989,8 +1003,11 @@ var ReservationDetail = {
                     var d = res.data;
                     var fmt = function(v) { return Number(v || 0).toLocaleString('ko-KR') + '원'; };
 
+                    // 모달 초기화 (이전 상태 잔류 방지)
+                    $('#cpNonPgRefundRow').addClass('d-none');
+
                     $('#cancelPreviewTitle').text(isNoShow ? '노쇼 처리 확인' : '예약 취소 확인');
-                    $('#cpReservationNo').text(d.masterReservationNo);
+                    $('#cpReservationNo').text(d.subReservationNo || d.masterReservationNo);
                     $('#cpGuestName').text(d.guestNameKo);
                     $('#cpCheckInOut').text(d.checkIn + ' ~ ' + d.checkOut);
                     $('#cpFirstNight').text(fmt(d.firstNightTotal));
@@ -1045,32 +1062,75 @@ var ReservationDetail = {
                         }
                     }
 
+                    // 미결제 잔액 표시 및 버튼 차단 (취소 시만, 노쇼는 제외)
+                    var unpaidBalance = Number(d.unpaidBalance || 0);
+                    if (!isNoShow && unpaidBalance > 0) {
+                        $('#cpOutstandingRow').removeClass('d-none');
+                        $('#cpOutstandingAmt').text(fmt(unpaidBalance));
+                        $('#cpRefundRow').addClass('d-none');
+                        $('#cpFeeAlert').removeClass('d-none')
+                            .html('<i class="fas fa-exclamation-triangle me-1"></i>미결제 잔액 ' + fmt(unpaidBalance) + '을 먼저 결제해주세요. 결제정보 탭에서 결제 후 취소가 가능합니다.');
+                        $('#cancelConfirmBtn').prop('disabled', true)
+                            .html('<i class="fas fa-lock me-1"></i>미결제 잔액 결제 필요');
+                        HolaPms.modal.show('#cancelPreviewModal');
+                        return;
+                    }
+
                     // 미결제 수수료 표시 및 버튼 차단
                     var outstanding = Number(d.outstandingCancelFee || 0);
                     if (outstanding > 0) {
                         $('#cpOutstandingRow').removeClass('d-none');
                         $('#cpOutstandingAmt').text(fmt(d.outstandingCancelFee));
                         $('#cpRefundRow').addClass('d-none');
-                        $('#cpFeeAlert').removeClass('d-none');
+                        $('#cpFeeAlert').removeClass('d-none')
+                            .html('<i class="fas fa-exclamation-triangle me-1"></i>취소/노쇼 수수료가 미결제 상태입니다. 결제정보 탭에서 수수료를 결제한 후 처리해주세요.');
                         $('#cancelConfirmBtn').prop('disabled', true)
                             .html('<i class="fas fa-lock me-1"></i>수수료 결제 필요');
                     } else {
                         $('#cpOutstandingRow').addClass('d-none');
                         $('#cpRefundRow').removeClass('d-none');
                         $('#cpFeeAlert').addClass('d-none');
+
+                        // 비-PG(현금/VAN) 환불 안내 표시
+                        var nonPgAmt = Number(d.nonPgRefundAmount || 0);
+                        if (nonPgAmt > 0) {
+                            var nonPgMethodLabel = d.nonPgRefundMethod === 'CARD' ? '카드(VAN)' : '현금';
+                            $('#cpNonPgRefundRow').removeClass('d-none');
+                            $('#cpNonPgRefundInfo').html(
+                                '<i class="fas fa-exclamation-circle text-warning me-1"></i>'
+                                + nonPgMethodLabel + ' 환불 <strong>' + fmt(nonPgAmt) + '</strong>'
+                                + ' -- 관리자 수동 환불 처리 필요'
+                            );
+                        } else {
+                            $('#cpNonPgRefundRow').removeClass('d-none').addClass('d-none');
+                        }
+
                         var btnLabel = isNoShow ? '노쇼 확인' : '취소 확인';
                         $('#cancelConfirmBtn').prop('disabled', false)
                             .html('<i class="fas fa-ban me-1"></i>' + btnLabel)
                             .off('click').on('click', function() {
-                                HolaPms.modal.hide('#cancelPreviewModal');
-                                if (legId) {
-                                    // Leg 단위 취소/노쇼 → changeStatus
-                                    var newStatus = isNoShow ? 'NO_SHOW' : 'CANCELED';
-                                    self.changeStatus(newStatus, legId);
-                                } else if (isNoShow) {
-                                    self.changeStatus('NO_SHOW');
+                                // 비-PG 환불이 있으면 관리자 확인 alert 표시
+                                var proceedWithCancel = function() {
+                                    HolaPms.modal.hide('#cancelPreviewModal');
+                                    if (legId) {
+                                        var newStatus = isNoShow ? 'NO_SHOW' : 'CANCELED';
+                                        self.changeStatus(newStatus, legId);
+                                    } else if (isNoShow) {
+                                        self.changeStatus('NO_SHOW');
+                                    } else {
+                                        self.executeCancel();
+                                    }
+                                };
+
+                                if (nonPgAmt > 0) {
+                                    var nonPgLabel = d.nonPgRefundMethod === 'CARD' ? '카드(VAN)' : '현금';
+                                    var confirmMsg = nonPgLabel + ' 결제 ' + fmt(nonPgAmt)
+                                        + ' 환불 처리가 필요합니다.\n환불 처리를 확인하셨습니까?';
+                                    if (confirm(confirmMsg)) {
+                                        proceedWithCancel();
+                                    }
                                 } else {
-                                    self.executeCancel();
+                                    proceedWithCancel();
                                 }
                             });
                     }
@@ -1306,9 +1366,19 @@ var ReservationDetail = {
             var legSeq = $btn.data('leg');
             var legId = $btn.data('leg-id');
 
+            // 마지막 활성 객실 삭제 방지 (최소 1개 필수, 종료 상태 레그 제외)
+            var activeLegCount = $('.room-leg-card').filter(function() {
+                return !$(this).find('.leg-check-in').prop('disabled');
+            }).length;
+            if (activeLegCount <= 1) {
+                HolaPms.alert('warning', '마지막 객실은 삭제할 수 없습니다. 최소 1개의 객실이 필요합니다.');
+                return;
+            }
+
             if (legId) {
                 // 서버에 존재하는 레그 → API 삭제
                 HolaPms.confirm('이 객실을 삭제하시겠습니까?', function() {
+                    $btn.prop('disabled', true);
                     HolaPms.ajax({
                         url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/legs/' + legId,
                         type: 'DELETE',
@@ -1319,7 +1389,12 @@ var ReservationDetail = {
                                     self.updateRoomLegsEmpty();
                                 });
                                 HolaPms.alert('success', '객실이 삭제되었습니다.');
+                            } else {
+                                $btn.prop('disabled', false);
                             }
+                        },
+                        error: function() {
+                            $btn.prop('disabled', false);
                         }
                     });
                 });
@@ -1408,7 +1483,7 @@ var ReservationDetail = {
                 if (checkOut) {
                     var maxDate = new Date(checkOut + 'T00:00:00');
                     maxDate.setDate(maxDate.getDate() - 1);
-                    $dateInput.attr('max', maxDate.toISOString().slice(0, 10));
+                    $dateInput.attr('max', maxDate.getFullYear() + '-' + String(maxDate.getMonth()+1).padStart(2,'0') + '-' + String(maxDate.getDate()).padStart(2,'0'));
                 }
             }
         });
@@ -1434,7 +1509,7 @@ var ReservationDetail = {
             self.removeServiceFromLeg(legId, serviceId, isRateIncluded);
         });
 
-        // 카드결제 버튼: VAN 모듈 연동 전 안내
+        // 카드결제 버튼 (글로벌 - 싱글레그): VAN 모듈 연동 전 안내
         $('#cardPaymentBtn').on('click', function() {
             HolaPms.alert('info', '카드결제는 VAN 모듈 연동 후 사용 가능합니다.');
         });
@@ -1444,9 +1519,29 @@ var ReservationDetail = {
             ReservationPayment.printInvoice();
         });
 
-        // 현금결제 버튼
+        // 현금결제 버튼 (글로벌 - 싱글레그)
         $('#cashPaymentBtn').on('click', function() {
             ReservationPayment.openCashPaymentModal();
+        });
+
+        // Per-Leg 결제 버튼 (멀티레그 - 이벤트 위임)
+        $(document).off('click.legPay').on('click.legPay', '.leg-card-pay-btn', function() {
+            var $btn = $(this);
+            var legContext = {
+                subId: $btn.data('sub-id'),
+                legIndex: $btn.data('leg-index'),
+                legLabel: $btn.data('leg-label'),
+                legTotal: $btn.data('leg-total'),
+                legPaid: $btn.data('leg-paid'),
+                legRemaining: $btn.data('leg-remaining')
+            };
+            var method = $btn.data('pay-method');
+
+            if (method === 'card') {
+                HolaPms.alert('info', '카드결제는 VAN 모듈 연동 후 사용 가능합니다.');
+            } else if (method === 'cash') {
+                ReservationPayment.openCashPaymentModal(legContext);
+            }
         });
 
         // 현금결제 확인 버튼
@@ -2076,6 +2171,8 @@ var ReservationDetail = {
         var subReservations = [];
         $('.room-leg-card').each(function() {
             var $leg = $(this);
+            // 종료 상태(취소/체크아웃/노쇼) 레그는 수집 제외
+            if ($leg.find('.leg-check-in').prop('disabled')) return;
             var roomTypeId = HolaPms.form.intVal($leg.find('.room-type-id'));
             if (!roomTypeId) return; // 객실타입 미선택 레그 스킵
 
@@ -2095,7 +2192,9 @@ var ReservationDetail = {
                 adults: parseInt($leg.find('.leg-adults').val()) || 1,
                 children: parseInt($leg.find('.leg-children').val()) || 0,
                 earlyCheckIn: $leg.find('.leg-early-checkin').val() === 'true',
-                lateCheckOut: $leg.find('.leg-late-checkout').val() === 'true'
+                lateCheckOut: $leg.find('.leg-late-checkout').val() === 'true',
+                stayType: self.isDayUse ? 'DAY_USE' : 'OVERNIGHT',
+                dayUseDurationHours: self.isDayUse ? self.dayUseDurationHours : null
             };
 
             // 기존 레그 ID가 있으면 포함
@@ -2236,8 +2335,8 @@ var ReservationDetail = {
                 return false;
             }
             // 객실타입 최대 수용 인원 검증
-            if (sub.roomTypeId && self.allRoomTypes) {
-                var rt = self.allRoomTypes.find(function(t) { return t.id === sub.roomTypeId; });
+            if (sub.roomTypeId && this.allRoomTypes) {
+                var rt = this.allRoomTypes.find(function(t) { return t.id === sub.roomTypeId; });
                 if (rt) {
                     if ((sub.adults || 1) > (rt.maxAdults || 99)) {
                         HolaPms.alert('warning', '객실 #' + (i + 1) + '의 성인 수가 최대 수용 인원(' + rt.maxAdults + '명)을 초과합니다.');

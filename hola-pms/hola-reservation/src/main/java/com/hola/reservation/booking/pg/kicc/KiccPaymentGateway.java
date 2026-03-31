@@ -167,9 +167,15 @@ public class KiccPaymentGateway implements PaymentGateway {
         // 취소 유형 결정
         String reviseTypeCode = request.isPartialCancel() ? "32" : "40";
 
-        // HMAC 생성
+        // HMAC 생성 (pgCno + "|" + shopTransactionId, HmacSHA256, Base64)
+        // ⚠️ 테스트 환경에서 "메시지인증값 검증에 실패했습니다" 오류 발생 시:
+        //    KICC_SECRET_KEY 환경변수에 실제 테스트 시크릿키(T5102001)가 설정되지 않은 것.
+        //    application-local.yml 주석 참조.
         String msgAuthValue = KiccHmacUtils.generateForRevise(
                 properties.getSecretKey(), request.getPgCno(), shopTransactionId);
+
+        log.debug("[KICC] 취소요청 - pgCno: {}, reviseTypeCode: {}, shopTransactionId: {}, mallId: {}",
+                request.getPgCno(), reviseTypeCode, shopTransactionId, properties.getMallId());
 
         KiccReviseRequest kiccRequest = KiccReviseRequest.builder()
                 .mallId(properties.getMallId())

@@ -89,8 +89,8 @@ KICC 이지페이 API와 통신할 수 있는 기반 인프라 구축
 ```yaml
 # application-local.yml
 kicc:
-  mall-id: T5102001           # 테스트 상점ID
-  secret-key: ${KICC_SECRET_KEY}  # 환경변수
+  mall-id: T0022110           # 테스트 상점ID
+  secret-key: ${easypay!KICCTEST}  # 환경변수
   api-domain: https://testpgapi.easypay.co.kr
   return-base-url: http://localhost:8080
   timeout-seconds: 30

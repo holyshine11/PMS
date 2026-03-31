@@ -117,7 +117,13 @@ public class KiccApiClient {
         KiccReviseResponse response = post(url, request, KiccReviseResponse.class);
 
         if (!response.isSuccess()) {
-            log.error("[KICC] 취소/환불 실패 - resCd: {}, resMsg: {}", response.getResCd(), response.getResMsg());
+            // "메시지인증값 검증에 실패했습니다" 오류 시 → KICC_SECRET_KEY 환경변수 확인 필요
+            if (response.getResMsg() != null && response.getResMsg().contains("메시지인증값")) {
+                log.error("[KICC] 취소/환불 HMAC 인증 실패 - mallId: {}. KICC_SECRET_KEY 환경변수를 실제 테스트/운영 시크릿키로 설정하세요. resCd: {}, resMsg: {}",
+                        properties.getMallId(), response.getResCd(), response.getResMsg());
+            } else {
+                log.error("[KICC] 취소/환불 실패 - resCd: {}, resMsg: {}", response.getResCd(), response.getResMsg());
+            }
             throw new HolaException(ErrorCode.PG_CANCEL_FAILED, response.getResMsg());
         }
 

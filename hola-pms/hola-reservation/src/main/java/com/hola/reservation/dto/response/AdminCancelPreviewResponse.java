@@ -19,6 +19,8 @@ public class AdminCancelPreviewResponse {
 
     private Long reservationId;
     private String masterReservationNo;
+    /** Leg 단위 취소 시 해당 Leg 예약번호 (전체 취소 시 null) */
+    private String subReservationNo;
     private String guestNameKo;
     private String checkIn;
     private String checkOut;
@@ -31,6 +33,10 @@ public class AdminCancelPreviewResponse {
     private BigDecimal refundAmount;
     /** 미결제 수수료 (cancelFee - totalPaid, 0 이상) — 0보다 크면 상태 변경 차단 */
     private BigDecimal outstandingCancelFee;
+    /** 예약 총액 (grandTotal) */
+    private BigDecimal grandTotal;
+    /** 미결제 잔액 (grandTotal - totalPaid, 0 이상) — 0보다 크면 상태 변경 차단 */
+    private BigDecimal unpaidBalance;
     private String policyDescription;
 
     /** PG 결제 여부 (환불이 PG 경유인지 표시용) */
@@ -39,6 +45,13 @@ public class AdminCancelPreviewResponse {
     private String pgCardNo;
     /** PG 발급사명 */
     private String pgIssuerName;
+
+    /** PG 자동 환불 금액 */
+    private BigDecimal pgRefundAmount;
+    /** 비-PG(현금/VAN) 수동 환불 금액 */
+    private BigDecimal nonPgRefundAmount;
+    /** 비-PG 환불 수단 (CASH / CARD) */
+    private String nonPgRefundMethod;
 
     /** 결제수단별 환불 분배 내역 */
     private List<RefundBreakdown> refundBreakdowns;

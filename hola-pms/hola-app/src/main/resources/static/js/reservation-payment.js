@@ -81,9 +81,7 @@ var ReservationPayment = {
      * 결제 요약 바인딩
      */
     bindSummary: function(data) {
-        $('#totalRoomAmount').text(this.formatCurrency(data.totalRoomAmount));
-        $('#totalServiceAmount').text(this.formatCurrency(data.totalServiceAmount));
-        $('#totalServiceChargeAmount').text(this.formatCurrency(data.totalServiceChargeAmount));
+        // 얼리/레이트, 조정, 합계는 공통 영역에 바인딩
         $('#totalEarlyLateFee').text(this.formatCurrency(data.totalEarlyLateFee));
         $('#totalAdjustmentAmount').text(this.formatCurrency(data.totalAdjustmentAmount));
         $('#grandTotal').text(this.formatCurrency(data.grandTotal));
@@ -92,14 +90,27 @@ var ReservationPayment = {
         var grandTotal = Number(data.grandTotal) || 0;
         var totalPaid = Number(data.totalPaidAmount) || 0;
         var remaining = Number(data.remainingAmount) || 0;
+        var cancelFee = Number(data.cancelFeeAmount) || 0;
+        var refund = Number(data.refundAmount) || 0;
 
-        var displayHtml = '총액 <strong>' + this.formatCurrency(grandTotal) + '</strong>';
-        if (totalPaid > 0) {
+        var displayHtml;
+        if (data.paymentStatus === 'REFUNDED') {
+            // 취소/노쇼 환불 완료 상태: 총액/결제/환불/수수료 표시
+            displayHtml = '총액 <strong>' + this.formatCurrency(grandTotal) + '</strong>';
             displayHtml += ' &nbsp;|&nbsp; 결제 <strong>' + this.formatCurrency(totalPaid) + '</strong>';
-            if (remaining < 0) {
-                displayHtml += ' &nbsp;|&nbsp; <strong class="text-warning">환불필요 ' + this.formatCurrency(Math.abs(remaining)) + '</strong>';
-            } else {
-                displayHtml += ' &nbsp;|&nbsp; 잔액 <strong class="text-danger">' + this.formatCurrency(remaining) + '</strong>';
+            displayHtml += ' &nbsp;|&nbsp; 환불 <strong class="text-primary">' + this.formatCurrency(refund) + '</strong>';
+            if (cancelFee > 0) {
+                displayHtml += ' &nbsp;|&nbsp; 수수료 <strong>' + this.formatCurrency(cancelFee) + '</strong>';
+            }
+        } else {
+            displayHtml = '총액 <strong>' + this.formatCurrency(grandTotal) + '</strong>';
+            if (totalPaid > 0) {
+                displayHtml += ' &nbsp;|&nbsp; 결제 <strong>' + this.formatCurrency(totalPaid) + '</strong>';
+                if (remaining < 0) {
+                    displayHtml += ' &nbsp;|&nbsp; <strong class="text-warning">환불필요 ' + this.formatCurrency(Math.abs(remaining)) + '</strong>';
+                } else if (remaining > 0) {
+                    displayHtml += ' &nbsp;|&nbsp; 잔액 <strong class="text-danger">' + this.formatCurrency(remaining) + '</strong>';
+                }
             }
         }
         $('#paidAmountDisplay').html(displayHtml);
@@ -113,6 +124,8 @@ var ReservationPayment = {
 
     /**
      * 요금 세부 내역 렌더링 (reservationData 기반)
+     * - 멀티레그(subs.length > 1): Leg별 카드 레이아웃
+     * - 싱글레그(subs.length == 1): 기존 카테고리형 레이아웃
      */
     renderChargeBreakdown: function() {
         var self = this;
@@ -120,22 +133,256 @@ var ReservationPayment = {
         if (!data || !data.subReservations) return;
 
         var subs = data.subReservations;
+        var isMultiLeg = subs.length > 1;
+
+        if (isMultiLeg) {
+            this.renderMultiLegBreakdown(subs);
+        } else {
+            this.renderSingleLegBreakdown(subs);
+        }
+    },
+
+    /**
+     * Leg별 상태 배지 HTML
+     */
+    getLegStatusBadge: function(status) {
+        var map = {
+            RESERVED: { label: '예약', cls: 'bg-primary' },
+            CONFIRMED: { label: '확정', cls: 'bg-info' },
+            CHECK_IN: { label: '체크인', cls: 'bg-success' },
+            CHECKED_OUT: { label: '체크아웃', cls: 'bg-secondary' },
+            CANCELED: { label: '취소됨', cls: 'bg-secondary' },
+            NO_SHOW: { label: '노쇼', cls: 'bg-danger' }
+        };
+        var info = map[status] || { label: status || '-', cls: 'bg-secondary' };
+        return '<span class="badge ' + info.cls + ' ms-2" style="font-size:0.7rem;">' + HolaPms.escapeHtml(info.label) + '</span>';
+    },
+
+    /**
+     * 멀티레그 Leg별 카드 렌더링
+     */
+    renderMultiLegBreakdown: function(subs) {
+        var self = this;
         var totalSupply = 0, totalTax = 0, totalSvcChg = 0;
+        var html = '';
 
-        // ── 1. 객실 요금 세부 (일별 공급가 + 세액) ──
-        var roomHtml = '';
+        // 결제 상태 정보
+        var rsvStatus = self.reservationData ? self.reservationData.reservationStatus : '';
+        var isCanceledOrNoShow = rsvStatus === 'CANCELED' || rsvStatus === 'NO_SHOW';
+        var paymentStatus = self.paymentData ? self.paymentData.paymentStatus : '';
+        var isPaymentComplete = paymentStatus === 'OVERPAID' || paymentStatus === 'REFUNDED';
+
+        // Leg별 결제 현황 데이터 (API에서 반환)
+        var legPayments = (self.paymentData && self.paymentData.legPayments) || [];
+        var legPaymentMap = {};
+        legPayments.forEach(function(lp) {
+            legPaymentMap[lp.subReservationId] = lp;
+        });
+
         subs.forEach(function(sub, idx) {
-            if (sub.roomReservationStatus === 'CANCELED') return;
-            var charges = sub.dailyCharges || [];
-            if (charges.length === 0) return;
+            var isCanceled = sub.roomReservationStatus === 'CANCELED';
+            var legNum = idx + 1;
+            var label = sub.roomTypeName || ('객실 #' + legNum);
+            var legLabel = 'Leg #' + legNum + ' - ' + label;
+            var rowClass = isCanceled ? ' class="text-decoration-line-through text-muted"' : '';
 
-            var label = sub.roomTypeName || ('객실 #' + (idx + 1));
-            if (subs.length > 1) label = 'Leg #' + (idx + 1) + ' - ' + label;
+            // ── Leg 소계 계산 ──
+            var legRoomSupply = 0, legRoomTax = 0, legSvcChg = 0, legServiceTotal = 0;
+            (sub.dailyCharges || []).forEach(function(c) {
+                legRoomSupply += Number(c.supplyPrice) || 0;
+                legRoomTax += Number(c.tax) || 0;
+                legSvcChg += Number(c.serviceCharge) || 0;
+            });
+            (sub.services || []).forEach(function(svc) {
+                if (Number(svc.totalPrice) > 0) {
+                    legServiceTotal += Number(svc.totalPrice) || 0;
+                }
+            });
+            var legTotal = legRoomSupply + legRoomTax + legSvcChg + legServiceTotal;
 
-            roomHtml += '<div class="charge-detail-wrap">';
-            if (subs.length > 1) {
-                roomHtml += '<div class="text-muted small mb-1">' + HolaPms.escapeHtml(label) + '</div>';
+            // Per-Leg 결제 현황 (API legPayments 데이터 사용)
+            var legPmtInfo = legPaymentMap[sub.id] || {};
+            var legPaid = Number(legPmtInfo.legPaid) || 0;
+            var legRefunded = Number(legPmtInfo.legRefunded) || 0;
+            var legRemaining = legPmtInfo.legRemaining != null ? Number(legPmtInfo.legRemaining) : legTotal;
+
+            if (!isCanceled) {
+                totalSupply += legRoomSupply;
+                totalTax += legRoomTax;
+                totalSvcChg += legSvcChg;
+                // 서비스 supply/tax 합산
+                (sub.services || []).forEach(function(svc) {
+                    if (Number(svc.totalPrice) > 0) {
+                        var unitP = Number(svc.unitPrice) || 0;
+                        var qty = svc.quantity || 1;
+                        totalSupply += unitP * qty;
+                        totalTax += Number(svc.tax) || 0;
+                    }
+                });
             }
+
+            // ── Leg 카드 시작 ──
+            html += '<div class="leg-card' + (isCanceled ? ' leg-card-canceled' : '') + '" data-sub-id="' + sub.id + '">';
+
+            // 카드 헤더: Leg # - RoomType [상태배지]    합계: XXX원
+            html += '<div class="leg-card-header">';
+            html += '<div class="d-flex align-items-center">';
+            html += '<span class="leg-card-title">' + HolaPms.escapeHtml(legLabel) + '</span>';
+            html += self.getLegStatusBadge(sub.roomReservationStatus);
+            html += '</div>';
+            html += '<span class="leg-card-total' + (isCanceled ? ' text-decoration-line-through text-muted' : '') + '">';
+            html += '합계: ' + self.formatCurrency(legTotal);
+            // Per-Leg 결제 상태 표시
+            if (!isCanceled && legPaid > 0) {
+                var netLegPaid = legPaid - legRefunded;
+                if (netLegPaid >= legTotal) {
+                    html += ' <span class="badge bg-success ms-1" style="font-size:0.65rem;">결제완료</span>';
+                } else if (netLegPaid > 0) {
+                    html += ' <span class="badge bg-info ms-1" style="font-size:0.65rem;">부분결제</span>';
+                }
+            }
+            html += '</span>';
+            html += '</div>';
+
+            // 카드 바디
+            html += '<div class="leg-card-body">';
+
+            // ── 객실 요금 ──
+            var charges = sub.dailyCharges || [];
+            if (charges.length > 0) {
+                var roomAmount = legRoomSupply + legRoomTax;
+                html += '<div class="leg-section">';
+                html += '<div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#legRoomDetail' + idx + '" style="cursor:pointer">';
+                html += '<span><i class="fas fa-caret-right me-1 toggle-icon"></i>객실 요금</span>';
+                html += '<span' + (isCanceled ? ' class="text-decoration-line-through text-muted"' : '') + '>' + self.formatCurrency(roomAmount) + '</span>';
+                html += '</div>';
+                html += '<div id="legRoomDetail' + idx + '" style="display:none" class="mt-2">';
+                html += '<div class="charge-detail-wrap">';
+                html += '<table class="table table-sm charge-detail-table">';
+                html += '<thead><tr>'
+                    + '<th class="col-date">날짜</th>'
+                    + '<th class="col-amount">공급가</th>'
+                    + '<th class="col-amount">세액</th>'
+                    + '<th class="col-amount">소계</th>'
+                    + '</tr></thead><tbody>';
+
+                charges.forEach(function(c) {
+                    var sp = Number(c.supplyPrice) || 0;
+                    var tx = Number(c.tax) || 0;
+                    html += '<tr' + rowClass + '>'
+                        + '<td class="col-date">' + c.chargeDate + '</td>'
+                        + '<td class="col-amount">' + self.formatCurrency(sp) + '</td>'
+                        + '<td class="col-amount">' + self.formatCurrency(tx) + '</td>'
+                        + '<td class="col-amount">' + self.formatCurrency(sp + tx) + '</td>'
+                        + '</tr>';
+                });
+
+                html += '</tbody></table></div></div></div>';
+            }
+
+            // ── 유료 서비스 ──
+            var legServices = (sub.services || []).filter(function(svc) { return Number(svc.totalPrice) > 0; });
+            html += '<div class="leg-section">';
+            html += '<div class="d-flex justify-content-between align-items-center">';
+            html += '<span class="ps-3">유료 서비스</span>';
+            html += '<span' + (isCanceled ? ' class="text-decoration-line-through text-muted"' : '') + '>' + self.formatCurrency(legServiceTotal) + '</span>';
+            html += '</div>';
+
+            if (legServices.length > 0) {
+                html += '<div class="charge-detail-wrap">';
+                html += '<table class="table table-sm charge-detail-table">';
+                html += '<thead><tr>'
+                    + '<th class="col-label">항목</th>'
+                    + '<th class="col-qty">수량</th>'
+                    + '<th class="col-amount">단가</th>'
+                    + '<th class="col-amount">세액</th>'
+                    + '<th class="col-amount">합계</th>'
+                    + '</tr></thead><tbody>';
+
+                legServices.forEach(function(svc) {
+                    var typeLabel = svc.serviceName || (svc.serviceOptionId ? '서비스 #' + svc.serviceOptionId : '객실 업그레이드');
+                    if (svc.serviceDate) typeLabel += ' (' + svc.serviceDate + ')';
+                    var unitP = Number(svc.unitPrice) || 0;
+                    var qty = svc.quantity || 1;
+                    var sTax = Number(svc.tax) || 0;
+                    var sTotal = Number(svc.totalPrice) || 0;
+
+                    html += '<tr' + rowClass + '>'
+                        + '<td class="col-label">' + HolaPms.escapeHtml(typeLabel) + '</td>'
+                        + '<td class="col-qty">' + qty + '</td>'
+                        + '<td class="col-amount">' + self.formatCurrency(unitP) + '</td>'
+                        + '<td class="col-amount">' + self.formatCurrency(sTax) + '</td>'
+                        + '<td class="col-amount">' + self.formatCurrency(sTotal) + '</td>'
+                        + '</tr>';
+                });
+
+                html += '</tbody></table></div>';
+            }
+            html += '</div>';
+
+            // ── 봉사료 ──
+            html += '<div class="leg-section">';
+            html += '<div class="d-flex justify-content-between align-items-center">';
+            html += '<span class="ps-3">봉사료</span>';
+            html += '<span' + (isCanceled ? ' class="text-decoration-line-through text-muted"' : '') + '>' + self.formatCurrency(legSvcChg) + '</span>';
+            html += '</div>';
+            html += '</div>';
+
+            // ── Per-Leg 결제 버튼 (해당 Leg의 잔액 > 0, 취소/노쇼/완납 아닌 경우, Leg 미취소) ──
+            var showLegPayButton = !isCanceled && !isCanceledOrNoShow && !isPaymentComplete
+                && !self.isOta && legRemaining > 0;
+            if (showLegPayButton) {
+                html += '<div class="leg-payment-buttons mt-2 pt-2 border-top">';
+                // 결제/잔액 요약 라인
+                if (legPaid > 0) {
+                    html += '<div class="mb-1 small text-muted">';
+                    html += '결제: ' + self.formatCurrency(legPaid - legRefunded) + ' / 잔액: ' + self.formatCurrency(legRemaining);
+                    html += '</div>';
+                }
+                html += '<button class="btn btn-primary btn-sm me-1 leg-card-pay-btn" '
+                    + 'data-sub-id="' + sub.id + '" data-leg-index="' + legNum + '" '
+                    + 'data-leg-label="' + HolaPms.escapeHtml(legLabel) + '" data-leg-total="' + legTotal + '" '
+                    + 'data-leg-paid="' + (legPaid - legRefunded) + '" data-leg-remaining="' + legRemaining + '" '
+                    + 'data-pay-method="card">'
+                    + '<i class="fas fa-credit-card me-1"></i>카드결제</button>';
+                html += '<button class="btn btn-success btn-sm leg-card-pay-btn" '
+                    + 'data-sub-id="' + sub.id + '" data-leg-index="' + legNum + '" '
+                    + 'data-leg-label="' + HolaPms.escapeHtml(legLabel) + '" data-leg-total="' + legTotal + '" '
+                    + 'data-leg-paid="' + (legPaid - legRefunded) + '" data-leg-remaining="' + legRemaining + '" '
+                    + 'data-pay-method="cash">'
+                    + '<i class="fas fa-money-bill-wave me-1"></i>현금결제</button>';
+                html += '</div>';
+            }
+
+            html += '</div>'; // leg-card-body 끝
+            html += '</div>'; // leg-card 끝
+        });
+
+        $('#chargeBreakdown').html(html);
+
+        // 멀티레그일 때 글로벌 결제 버튼 숨김
+        $('#paymentButtonGroup').hide();
+
+        // ── 공급가/세액/봉사료 소계 바인딩 ──
+        $('#totalSupplyPrice').text(self.formatCurrency(totalSupply));
+        $('#totalTaxAmount').text(self.formatCurrency(totalTax));
+        $('#totalSvcChgSubtotal').text(self.formatCurrency(totalSvcChg));
+    },
+
+    /**
+     * 싱글레그 카테고리형 렌더링 (기존 로직 유지)
+     */
+    renderSingleLegBreakdown: function(subs) {
+        var self = this;
+        var sub = subs[0];
+        var totalSupply = 0, totalTax = 0, totalSvcChg = 0;
+        var html = '';
+
+        // ── 1. 객실 요금 ──
+        var charges = sub.dailyCharges || [];
+        var roomHtml = '';
+        if (charges.length > 0) {
+            roomHtml += '<div class="charge-detail-wrap">';
             roomHtml += '<table class="table table-sm charge-detail-table">';
             roomHtml += '<thead><tr>'
                 + '<th class="col-date">날짜</th>'
@@ -144,13 +391,12 @@ var ReservationPayment = {
                 + '<th class="col-amount">소계</th>'
                 + '</tr></thead><tbody>';
 
-            var subSupply = 0, subTax = 0;
             charges.forEach(function(c) {
                 var sp = Number(c.supplyPrice) || 0;
                 var tx = Number(c.tax) || 0;
                 var sc = Number(c.serviceCharge) || 0;
-                subSupply += sp;
-                subTax += tx;
+                totalSupply += sp;
+                totalTax += tx;
                 totalSvcChg += sc;
 
                 roomHtml += '<tr>'
@@ -161,34 +407,17 @@ var ReservationPayment = {
                     + '</tr>';
             });
 
-            // 멀티 레그: 소계
-            if (subs.length > 1) {
-                roomHtml += '<tr class="row-subtotal">'
-                    + '<td class="col-date">소계</td>'
-                    + '<td class="col-amount">' + self.formatCurrency(subSupply) + '</td>'
-                    + '<td class="col-amount">' + self.formatCurrency(subTax) + '</td>'
-                    + '<td class="col-amount">' + self.formatCurrency(subSupply + subTax) + '</td>'
-                    + '</tr>';
-            }
-
             roomHtml += '</tbody></table></div>';
-            totalSupply += subSupply;
-            totalTax += subTax;
+        }
+        var totalRoomAmount = 0;
+        charges.forEach(function(c) {
+            totalRoomAmount += (Number(c.supplyPrice) || 0) + (Number(c.tax) || 0);
         });
 
-        $('#roomDetailContent').html(roomHtml || '<div class="charge-empty">객실 요금 내역이 없습니다.</div>');
-
-        // ── 2. 유료 서비스 요금 세부 ──
+        // ── 2. 유료 서비스 ──
         var svcHtml = '';
-        var paidServices = [];
-        subs.forEach(function(sub) {
-            if (sub.roomReservationStatus === 'CANCELED') return;
-            (sub.services || []).forEach(function(svc) {
-                if (Number(svc.totalPrice) > 0) {
-                    paidServices.push(svc);
-                }
-            });
-        });
+        var paidServices = (sub.services || []).filter(function(svc) { return Number(svc.totalPrice) > 0; });
+        var totalServiceAmount = 0;
 
         if (paidServices.length > 0) {
             svcHtml += '<div class="charge-detail-wrap">';
@@ -201,18 +430,17 @@ var ReservationPayment = {
                 + '<th class="col-amount">합계</th>'
                 + '</tr></thead><tbody>';
 
-            paidServices.forEach(function(s) {
-                var typeLabel = s.serviceName || (s.serviceOptionId ? '서비스 #' + s.serviceOptionId : '객실 업그레이드');
-                if (s.serviceDate) typeLabel += ' (' + s.serviceDate + ')';
+            paidServices.forEach(function(svc) {
+                var typeLabel = svc.serviceName || (svc.serviceOptionId ? '서비스 #' + svc.serviceOptionId : '객실 업그레이드');
+                if (svc.serviceDate) typeLabel += ' (' + svc.serviceDate + ')';
+                var unitP = Number(svc.unitPrice) || 0;
+                var qty = svc.quantity || 1;
+                var sTax = Number(svc.tax) || 0;
+                var sTotal = Number(svc.totalPrice) || 0;
 
-                var unitP = Number(s.unitPrice) || 0;
-                var qty = s.quantity || 1;
-                var sTax = Number(s.tax) || 0;
-                var sTotal = Number(s.totalPrice) || 0;
-                var sSupply = unitP * qty;
-
-                totalSupply += sSupply;
+                totalSupply += unitP * qty;
                 totalTax += sTax;
+                totalServiceAmount += sTotal;
 
                 svcHtml += '<tr>'
                     + '<td class="col-label">' + HolaPms.escapeHtml(typeLabel) + '</td>'
@@ -226,45 +454,65 @@ var ReservationPayment = {
             svcHtml += '</tbody></table></div>';
         }
 
-        $('#serviceDetailContent').html(svcHtml || '<div class="charge-empty">유료 서비스 내역이 없습니다.</div>');
-
-        // ── 3. 봉사료 세부 (일별) ──
+        // ── 3. 봉사료 ──
         var chgHtml = '';
-        subs.forEach(function(sub, idx) {
-            if (sub.roomReservationStatus === 'CANCELED') return;
-            var charges = sub.dailyCharges || [];
-            var hasChg = charges.some(function(c) { return Number(c.serviceCharge) > 0; });
-            if (!hasChg) return;
-
-            var label = sub.roomTypeName || ('객실 #' + (idx + 1));
-            if (subs.length > 1) label = 'Leg #' + (idx + 1) + ' - ' + label;
-
+        var hasChg = charges.some(function(c) { return Number(c.serviceCharge) > 0; });
+        if (hasChg) {
             chgHtml += '<div class="charge-detail-wrap">';
-            if (subs.length > 1) {
-                chgHtml += '<div class="text-muted small mb-1">' + HolaPms.escapeHtml(label) + '</div>';
-            }
             chgHtml += '<table class="table table-sm charge-detail-table">';
             chgHtml += '<thead><tr><th class="col-date">날짜</th><th class="col-amount">봉사료</th></tr></thead><tbody>';
 
-            var subSvcChg = 0;
             charges.forEach(function(c) {
                 var sc = Number(c.serviceCharge) || 0;
                 if (sc > 0) {
-                    subSvcChg += sc;
                     chgHtml += '<tr><td class="col-date">' + c.chargeDate + '</td>'
                         + '<td class="col-amount">' + self.formatCurrency(sc) + '</td></tr>';
                 }
             });
 
-            if (subs.length > 1) {
-                chgHtml += '<tr class="row-subtotal"><td class="col-date">소계</td>'
-                    + '<td class="col-amount">' + self.formatCurrency(subSvcChg) + '</td></tr>';
-            }
-
             chgHtml += '</tbody></table></div>';
-        });
+        }
 
-        $('#svcChgDetailContent').html(chgHtml || '<div class="charge-empty">봉사료 내역이 없습니다.</div>');
+        // ── HTML 조합: 카테고리형 토글 ──
+        var breakdownHtml = '';
+
+        // 객실 요금
+        breakdownHtml += '<div class="border-bottom py-2">';
+        breakdownHtml += '<div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#roomDetail" style="cursor:pointer">';
+        breakdownHtml += '<span><i class="fas fa-caret-right me-1 toggle-icon"></i>객실 요금</span>';
+        breakdownHtml += '<span>' + self.formatCurrency(totalRoomAmount) + '</span>';
+        breakdownHtml += '</div>';
+        breakdownHtml += '<div id="roomDetail" style="display:none" class="mt-2">';
+        breakdownHtml += roomHtml || '<div class="charge-empty">객실 요금 내역이 없습니다.</div>';
+        breakdownHtml += '</div></div>';
+
+        // 유료 서비스
+        breakdownHtml += '<div class="border-bottom py-2">';
+        breakdownHtml += '<div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#serviceDetail" style="cursor:pointer">';
+        breakdownHtml += '<span><i class="fas fa-caret-right me-1 toggle-icon"></i>유료 서비스 요금</span>';
+        breakdownHtml += '<span>' + self.formatCurrency(totalServiceAmount) + '</span>';
+        breakdownHtml += '</div>';
+        breakdownHtml += '<div id="serviceDetail" style="display:none" class="mt-2">';
+        breakdownHtml += svcHtml || '<div class="charge-empty">유료 서비스 내역이 없습니다.</div>';
+        breakdownHtml += '</div></div>';
+
+        // 봉사료
+        breakdownHtml += '<div class="border-bottom py-2">';
+        breakdownHtml += '<div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#svcChgDetail" style="cursor:pointer">';
+        breakdownHtml += '<span><i class="fas fa-caret-right me-1 toggle-icon"></i>봉사료</span>';
+        breakdownHtml += '<span>' + self.formatCurrency(totalSvcChg) + '</span>';
+        breakdownHtml += '</div>';
+        breakdownHtml += '<div id="svcChgDetail" style="display:none" class="mt-2">';
+        breakdownHtml += chgHtml || '<div class="charge-empty">봉사료 내역이 없습니다.</div>';
+        breakdownHtml += '</div></div>';
+
+        $('#chargeBreakdown').html(breakdownHtml);
+
+        // 싱글레그: 결제 버튼 표시 여부는 renderPaymentStatus에서 결정
+        // (여기서 show() 하면 PAID/OVERPAID 등에서도 버튼이 보이는 버그 발생)
+        if (this.paymentData) {
+            this.renderPaymentStatus(this.paymentData.paymentStatus);
+        }
 
         // ── 공급가/세액/봉사료 소계 바인딩 ──
         $('#totalSupplyPrice').text(self.formatCurrency(totalSupply));
@@ -290,11 +538,19 @@ var ReservationPayment = {
         var info = statusMap[status] || { label: status || '미결제', cls: 'bg-secondary' };
         $badge.html('<span class="badge ' + info.cls + '">' + HolaPms.escapeHtml(info.label) + '</span>');
 
-        // 결제 버튼 표시 조건: 잔액이 0보다 커야 표시
-        // PAID 상태여도 룸 업그레이드/서비스 추가로 remaining > 0이면 추가 결제 허용
-        // OVERPAID는 환불 필요 상태이므로 추가 결제 버튼 숨김
+        // 결제 버튼 표시 조건
+        // 멀티레그: 글로벌 버튼 숨김 (per-Leg 버튼은 renderMultiLegBreakdown에서 렌더링)
+        // 싱글레그: 잔액 > 0이고 취소/노쇼가 아닌 경우 표시
         var remaining = this.paymentData ? Number(this.paymentData.remainingAmount) || 0 : 0;
-        if (status === 'OVERPAID' || remaining <= 0) {
+        var rsvStatus = this.reservationData ? this.reservationData.reservationStatus : '';
+        var isCanceledOrNoShow = rsvStatus === 'CANCELED' || rsvStatus === 'NO_SHOW';
+        var subs = this.reservationData ? this.reservationData.subReservations || [] : [];
+        var isMultiLeg = subs.length > 1;
+
+        if (isMultiLeg) {
+            // 멀티레그: 글로벌 버튼 항상 숨김
+            $('#paymentButtonGroup').hide();
+        } else if (status === 'OVERPAID' || status === 'REFUNDED' || isCanceledOrNoShow || remaining <= 0) {
             $('#paymentButtonGroup').hide();
         } else {
             $('#paymentButtonGroup').show();
@@ -303,9 +559,16 @@ var ReservationPayment = {
 
     /**
      * 현금결제 모달 열기
+     * @param {Object} [legContext] - Leg 컨텍스트 (멀티레그에서 per-Leg 결제 시)
+     * @param {number} legContext.subId - SubReservation ID
+     * @param {number} legContext.legIndex - Leg 번호 (1-based)
+     * @param {string} legContext.legLabel - Leg 라벨 (e.g. "Leg #1 - RYL-K")
+     * @param {number} legContext.legTotal - Leg 합계 금액
      */
-    openCashPaymentModal: function() {
+    openCashPaymentModal: function(legContext) {
         var self = this;
+        // Leg 컨텍스트 저장 (결제 처리 시 memo에 반영)
+        self._currentLegContext = legContext || null;
 
         // 모달 열기 전 최신 결제 정보 재조회
         HolaPms.ajax({
@@ -322,11 +585,26 @@ var ReservationPayment = {
                     var totalPaid = Number(res.data.totalPaidAmount) || 0;
                     var remaining = Number(res.data.remainingAmount) || 0;
 
-                    $('#cashGrandTotalDisplay').val(self.formatCurrency(grandTotal));
-                    $('#cashPaidDisplay').val(self.formatCurrency(totalPaid));
-                    $('#cashRemainingDisplay').val(self.formatCurrency(remaining));
-                    $('#cashPaymentAmount').val(remaining > 0 ? Math.floor(remaining) : '');
-                    $('#cashPaymentMemo').val('');
+                    // Leg 컨텍스트가 있으면 Leg 단위 금액 표시
+                    if (legContext) {
+                        $('#cashPaymentModalTitle').text(legContext.legLabel + ' 현금결제');
+                        var legTotal = Number(legContext.legTotal) || 0;
+                        var legPaid = Number(legContext.legPaid) || 0;
+                        var legRemaining = legContext.legRemaining != null ? Number(legContext.legRemaining) : legTotal;
+
+                        $('#cashGrandTotalDisplay').val(self.formatCurrency(legTotal));
+                        $('#cashPaidDisplay').val(self.formatCurrency(legPaid));
+                        $('#cashRemainingDisplay').val(self.formatCurrency(legRemaining));
+                        $('#cashPaymentAmount').val(legRemaining > 0 ? Math.floor(legRemaining) : '');
+                        $('#cashPaymentMemo').val(legContext.legLabel);
+                    } else {
+                        $('#cashPaymentModalTitle').text('현금 결제');
+                        $('#cashGrandTotalDisplay').val(self.formatCurrency(grandTotal));
+                        $('#cashPaidDisplay').val(self.formatCurrency(totalPaid));
+                        $('#cashRemainingDisplay').val(self.formatCurrency(remaining));
+                        $('#cashPaymentAmount').val(remaining > 0 ? Math.floor(remaining) : '');
+                        $('#cashPaymentMemo').val('');
+                    }
 
                     HolaPms.modal.show('#cashPaymentModal');
                 }
@@ -350,7 +628,8 @@ var ReservationPayment = {
         var requestData = {
             paymentMethod: 'CASH',
             amount: amount,
-            memo: memo || null
+            memo: memo || null,
+            subReservationId: (self._currentLegContext && self._currentLegContext.subId) ? self._currentLegContext.subId : null
         };
 
         HolaPms.ajax({
@@ -364,6 +643,7 @@ var ReservationPayment = {
                     if (res.data) {
                         self.paymentData = res.data;
                         self.bindSummary(res.data);
+                        self.renderChargeBreakdown(); // Leg별 결제 버튼 재렌더링
                         self.renderAdjustments(res.data.adjustments || []);
                         self.renderPaymentTransactions(res.data.transactions || []);
                     }
@@ -412,13 +692,31 @@ var ReservationPayment = {
         var hasPgInfo = transactions.some(function(t) { return t.pgProvider && t.pgProvider !== 'MOCK'; });
         // PG 환불 실패 건 존재 여부
         var hasFailedRefund = transactions.some(function(t) { return t.transactionStatus === 'PG_REFUND_FAILED'; });
+        // 수동 확인 환불 건 존재 여부
+        var hasManualConfirmed = transactions.some(function(t) { return t.transactionStatus === 'MANUAL_CONFIRMED'; });
+        // 상태 컬럼 표시 여부 (PG실패 또는 수동확인 있을 때)
+        var showStatusColumn = hasFailedRefund || hasManualConfirmed;
+        // 멀티레그 여부 (Leg 컬럼 표시 여부)
+        var subs = self.reservationData ? self.reservationData.subReservations || [] : [];
+        var isMultiLeg = subs.length > 1;
+        // subId → Leg 라벨 매핑 (멀티레그 시)
+        var subLabelMap = {};
+        if (isMultiLeg) {
+            subs.forEach(function(sub, idx) {
+                var label = sub.roomTypeName || ('객실 #' + (idx + 1));
+                subLabelMap[sub.id] = 'Leg #' + (idx + 1) + ' - ' + label;
+            });
+        }
 
         var html = '<table class="table table-bordered table-sm mb-0 align-middle">'
             + '<thead class="table-light">'
             + '<tr>'
             + '  <th style="width:50px" class="text-center">NO</th>'
-            + '  <th style="width:80px" class="text-center">유형</th>'
-            + '  <th style="width:80px" class="text-center">결제수단</th>'
+            + '  <th style="width:80px" class="text-center">유형</th>';
+        if (isMultiLeg) {
+            html += '  <th style="width:120px" class="text-center">객실</th>';
+        }
+        html += '  <th style="width:80px" class="text-center">결제수단</th>'
             + '  <th style="width:120px" class="text-center">금액</th>';
         if (hasPgInfo) {
             html += '  <th style="width:100px" class="text-center">PG승인번호</th>'
@@ -429,7 +727,7 @@ var ReservationPayment = {
         html += '  <th class="text-center">메모</th>'
             + '  <th style="width:80px" class="text-center">처리자</th>'
             + '  <th style="width:180px" class="text-center">처리일시</th>';
-        if (hasFailedRefund) {
+        if (showStatusColumn) {
             html += '  <th style="width:120px" class="text-center">상태</th>';
         }
         html += '</tr>'
@@ -443,8 +741,12 @@ var ReservationPayment = {
 
             html += '<tr>'
                 + '<td class="text-center">' + (idx + 1) + '</td>'
-                + '<td class="text-center ' + typeStyle + '">' + typeLabel + '</td>'
-                + '<td class="text-center">' + methodLabel + '</td>'
+                + '<td class="text-center ' + typeStyle + '">' + typeLabel + '</td>';
+            if (isMultiLeg) {
+                var legLabel = txn.subReservationId ? (subLabelMap[txn.subReservationId] || 'Leg') : '-';
+                html += '<td class="text-center small">' + HolaPms.escapeHtml(legLabel) + '</td>';
+            }
+            html += '<td class="text-center">' + methodLabel + '</td>'
                 + '<td class="text-center">' + self.formatCurrency(txn.amount) + '</td>';
             if (hasPgInfo) {
                 var installment = (txn.pgInstallmentMonth != null && txn.pgInstallmentMonth !== undefined)
@@ -457,12 +759,18 @@ var ReservationPayment = {
             html += '<td class="text-center">' + HolaPms.escapeHtml(txn.memo || '-') + '</td>'
                 + '<td class="text-center">' + HolaPms.escapeHtml(txn.createdBy || '-') + '</td>'
                 + '<td class="text-center text-nowrap">' + HolaPms.escapeHtml(createdAt) + '</td>';
-            if (hasFailedRefund) {
+            if (showStatusColumn) {
                 if (txn.transactionStatus === 'PG_REFUND_FAILED') {
                     html += '<td class="text-center">'
                         + '<span class="badge bg-danger mb-1">PG환불실패</span><br>'
                         + '<button class="btn btn-warning btn-sm retry-refund-btn" data-txn-id="' + txn.id + '">'
                         + '<i class="fas fa-redo me-1"></i>재시도</button></td>';
+                } else if (txn.transactionStatus === 'MANUAL_CONFIRMED') {
+                    html += '<td class="text-center">'
+                        + '<span class="badge" style="background:#fd7e14;color:#fff;">수동환불(확인)</span></td>';
+                } else if (txn.transactionType === 'REFUND' && txn.transactionStatus === 'COMPLETED' && txn.pgCno) {
+                    html += '<td class="text-center">'
+                        + '<span class="badge" style="background:#0582CA;color:#fff;">PG환불</span></td>';
                 } else {
                     html += '<td></td>';
                 }
@@ -474,7 +782,7 @@ var ReservationPayment = {
         $content.html(html);
 
         // PG 환불 재시도 버튼 이벤트
-        if (hasFailedRefund) {
+        if (showStatusColumn && hasFailedRefund) {
             $content.off('click', '.retry-refund-btn').on('click', '.retry-refund-btn', function() {
                 var txnId = $(this).data('txn-id');
                 var $btn = $(this);
@@ -655,59 +963,160 @@ var ReservationPayment = {
      * 취소/환불 정보 섹션 렌더링
      */
     renderCancelInfo: function(data) {
+        var self = this;
         var cancelFee = Number(data.cancelFeeAmount) || 0;
         var refund = Number(data.refundAmount) || 0;
+        var transactions = data.transactions || [];
 
-        if (cancelFee <= 0 && refund <= 0) {
+        // 환불/수수료 거래가 하나도 없으면 숨김
+        var hasRefundActivity = transactions.some(function(t) {
+            return t.transactionType === 'REFUND' || t.transactionType === 'CANCEL_FEE';
+        });
+        if (!hasRefundActivity && cancelFee <= 0 && refund <= 0) {
             $('#cancelInfoSection').hide();
             return;
         }
 
         var totalPaid = Number(data.totalPaidAmount) || 0;
+        var adjustTotal = Number(data.totalAdjustmentAmount) || 0;
+        var fmt = function(v) { return self.formatCurrency(v); };
+        var esc = HolaPms.escapeHtml;
 
-        // REFUND 거래의 memo에서 정책 설명 추출
-        // memo 형식: "{policyDescription} / 취소 환불 (수수료: X원)" — '/' 앞 부분이 정책 설명
-        var policyDesc = '-';
-        var transactions = data.transactions || [];
-        for (var i = 0; i < transactions.length; i++) {
-            var txn = transactions[i];
-            if (txn.transactionType === 'REFUND' && txn.memo) {
-                var slashIdx = txn.memo.indexOf(' / ');
-                policyDesc = slashIdx >= 0 ? txn.memo.substring(0, slashIdx) : txn.memo;
-                break;
-            }
+        // Leg 라벨 매핑
+        var subs = self.reservationData ? self.reservationData.subReservations || [] : [];
+        var subLabelMap = {};
+        var subStatusMap = {};
+        subs.forEach(function(sub, idx) {
+            subLabelMap[sub.id] = 'Leg #' + (idx + 1) + ' - ' + (sub.roomTypeName || '');
+            subStatusMap[sub.id] = sub.roomReservationStatus;
+        });
+
+        var methodLabels = { CARD: '카드', CASH: '현금', TRANSFER: '계좌이체' };
+
+        // ── 전체 요약 카드 ──
+        var html = '<div class="bg-light rounded p-3 mb-3">';
+        html += '<div class="row mb-2"><div class="col-sm-3 text-muted">총 결제액</div><div class="col-sm-9">' + fmt(totalPaid) + '</div></div>';
+        html += '<div class="row mb-2"><div class="col-sm-3 text-muted">총 취소 수수료</div><div class="col-sm-9" style="color:#EF476F;">' + fmt(cancelFee) + '</div></div>';
+        html += '<div class="row mb-2"><div class="col-sm-3 text-muted">총 환불 금액</div><div class="col-sm-9" style="color:#0582CA;">' + fmt(refund) + '</div></div>';
+        if (adjustTotal !== 0) {
+            html += '<div class="row mb-2"><div class="col-sm-3 text-muted">조정 금액</div><div class="col-sm-9">'
+                + (adjustTotal > 0 ? '+' : '') + fmt(adjustTotal) + '</div></div>';
         }
+        html += '</div>';
 
-        $('#cancelPolicyDesc').text(policyDesc);
-        $('#cancelFeeDisplay').text(this.formatCurrency(cancelFee));
-        $('#cancelTotalPaid').text(this.formatCurrency(totalPaid));
-        $('#cancelRefundAmt').text(this.formatCurrency(refund));
+        // ── 거래를 Leg별로 그룹핑 ──
+        var legGroups = {};     // subReservationId → { payments:[], refunds:[], cancelFees:[] }
+        var unassigned = { payments: [], refunds: [], cancelFees: [] };
 
-        // PG 환불 상세 정보 표시
-        var pgRefundTxn = null;
-        for (var j = 0; j < transactions.length; j++) {
-            if (transactions[j].transactionType === 'REFUND' && transactions[j].pgCno) {
-                pgRefundTxn = transactions[j];
-                break;
-            }
-        }
-        if (pgRefundTxn) {
-            var pgDetail = (pgRefundTxn.pgIssuerName || '') + ' ' + (pgRefundTxn.pgCardNo || '');
-            if (pgRefundTxn.pgApprovalNo) {
-                pgDetail += ' (승인번호: ' + pgRefundTxn.pgApprovalNo + ')';
-            }
-            if (pgRefundTxn.transactionStatus === 'PG_REFUND_FAILED') {
-                pgDetail = 'PG 환불 실패 — 결제 이력에서 재시도 가능';
-                $('#cancelPgRefundDetail').css('color', '#EF476F');
+        transactions.forEach(function(txn) {
+            var key = txn.subReservationId;
+            var target;
+            if (key && subLabelMap[key]) {
+                if (!legGroups[key]) legGroups[key] = { payments: [], refunds: [], cancelFees: [] };
+                target = legGroups[key];
             } else {
-                $('#cancelPgRefundDetail').css('color', '#0582CA');
+                target = unassigned;
             }
-            $('#cancelPgRefundDetail').text(pgDetail.trim());
-            $('#cancelPgRefundRow').removeClass('d-none');
-        } else {
-            $('#cancelPgRefundRow').addClass('d-none');
+            if (txn.transactionType === 'PAYMENT') target.payments.push(txn);
+            else if (txn.transactionType === 'REFUND') target.refunds.push(txn);
+            else if (txn.transactionType === 'CANCEL_FEE') target.cancelFees.push(txn);
+        });
+
+        // 취소/환불 활동이 있는 Leg만 표시
+        var renderTxnDetail = function(txn, typeLabel) {
+            var method = methodLabels[txn.paymentMethod] || esc(txn.paymentMethod || '-');
+            var line = '<span class="me-2">' + typeLabel + '</span>';
+            if (txn.pgCno) {
+                // PG 거래
+                line += method + '(PG) <strong>' + fmt(txn.amount) + '</strong>';
+                if (txn.pgIssuerName || txn.pgCardNo) {
+                    line += ' - ' + esc(txn.pgIssuerName || '') + ' ' + esc(txn.pgCardNo || '');
+                }
+                if (txn.pgApprovalNo) line += ' (승인번호: ' + esc(txn.pgApprovalNo) + ')';
+                if (txn.transactionStatus === 'PG_REFUND_FAILED') {
+                    line += ' <span class="badge bg-danger ms-1">PG환불실패</span>';
+                }
+            } else if (txn.transactionStatus === 'MANUAL_CONFIRMED') {
+                // 수동 환불 확인 완료
+                line += method + ' <strong>' + fmt(txn.amount) + '</strong>';
+                line += ' <span class="badge" style="background:#fd7e14;color:#fff;">수동환불(확인)</span>';
+            } else {
+                // 현금/VAN 등
+                line += method + ' <strong>' + fmt(txn.amount) + '</strong>';
+            }
+            return line;
+        };
+
+        var renderLegCard = function(subId, group, label) {
+            if (group.refunds.length === 0 && group.cancelFees.length === 0) return '';
+
+            var status = subId ? subStatusMap[subId] : null;
+            var statusBadge = '';
+            if (status) statusBadge = ' ' + HolaPms.reservationStatus.styledBadge(status);
+
+            var card = '<div class="border rounded p-3 mb-2">';
+            card += '<div class="mb-2"><strong>' + esc(label) + '</strong>' + statusBadge + '</div>';
+
+            // 정책 설명 (REFUND memo에서 추출)
+            var policyDesc = '';
+            group.refunds.forEach(function(r) {
+                if (r.memo && !policyDesc) policyDesc = r.memo;
+            });
+            if (policyDesc) {
+                card += '<div class="row mb-1"><div class="col-sm-3 text-muted small">적용 정책</div><div class="col-sm-9 small">' + esc(policyDesc) + '</div></div>';
+            }
+
+            // 수수료
+            group.cancelFees.forEach(function(txn) {
+                card += '<div class="row mb-1"><div class="col-sm-3 text-muted small">취소 수수료</div><div class="col-sm-9 small" style="color:#EF476F;">'
+                    + renderTxnDetail(txn, '') + '</div></div>';
+            });
+
+            // 결제 내역
+            group.payments.forEach(function(txn) {
+                card += '<div class="row mb-1"><div class="col-sm-3 text-muted small">결제</div><div class="col-sm-9 small">'
+                    + renderTxnDetail(txn, '') + '</div></div>';
+            });
+
+            // 환불 내역
+            group.refunds.forEach(function(txn) {
+                card += '<div class="row mb-1"><div class="col-sm-3 text-muted small">환불</div><div class="col-sm-9 small" style="color:#0582CA;">'
+                    + renderTxnDetail(txn, '') + '</div></div>';
+            });
+
+            card += '</div>';
+            return card;
+        };
+
+        // Leg 순서대로 렌더링
+        subs.forEach(function(sub) {
+            if (legGroups[sub.id]) {
+                html += renderLegCard(sub.id, legGroups[sub.id], subLabelMap[sub.id]);
+            }
+        });
+
+        // 공통 환불 (특정 객실에 귀속되지 않은 거래)
+        if (unassigned.refunds.length > 0 || unassigned.cancelFees.length > 0) {
+            html += renderLegCard(null, unassigned, '공통 환불');
         }
 
+        // 조정 내역 상세 (있는 경우)
+        var adjustments = data.adjustments || [];
+        if (adjustments.length > 0) {
+            html += '<div class="border rounded p-3 mb-2">';
+            html += '<div class="mb-2"><strong>조정 내역</strong></div>';
+            adjustments.forEach(function(adj) {
+                var adjAmt = Number(adj.amount) || 0;
+                var sign = adjAmt >= 0 ? '+' : '';
+                html += '<div class="row mb-1"><div class="col-sm-3 text-muted small">'
+                    + esc(adj.adjustmentType || '-') + '</div>'
+                    + '<div class="col-sm-5 small">' + esc(adj.reason || '-') + '</div>'
+                    + '<div class="col-sm-4 small text-end">' + sign + fmt(adjAmt) + '</div></div>';
+            });
+            html += '</div>';
+        }
+
+        $('#cancelInfoContent').html(html);
         $('#cancelInfoSection').show();
     },
 
@@ -813,24 +1222,28 @@ var ReservationPayment = {
 
         // 1. 객실 요금 (일별)
         subs.forEach(function(sub, idx) {
-            if (sub.roomReservationStatus === 'CANCELED') return;
+            var isCanceled = sub.roomReservationStatus === 'CANCELED';
             var charges = sub.dailyCharges || [];
             if (charges.length === 0) return;
 
             var label = sub.roomTypeName || ('객실 #' + (idx + 1));
             if (subs.length > 1) label = 'Leg #' + (idx + 1) + ' - ' + label;
+            var cancelSuffix = isCanceled ? ' [취소됨]' : '';
+            var rowStyle = isCanceled ? ' style="text-decoration: line-through; color: #999;"' : '';
 
-            chargeRows += '<tr class="section-header"><td colspan="4">' + HolaPms.escapeHtml(label) + '</td></tr>';
+            chargeRows += '<tr class="section-header"><td colspan="4">' + HolaPms.escapeHtml(label + cancelSuffix) + '</td></tr>';
 
             charges.forEach(function(c) {
                 var sp = Number(c.supplyPrice) || 0;
                 var tx = Number(c.tax) || 0;
                 var sc = Number(c.serviceCharge) || 0;
-                totalSupply += sp;
-                totalTax += tx;
-                totalSvcChg += sc;
+                if (!isCanceled) {
+                    totalSupply += sp;
+                    totalTax += tx;
+                    totalSvcChg += sc;
+                }
 
-                chargeRows += '<tr>'
+                chargeRows += '<tr' + rowStyle + '>'
                     + '<td class="ps-4">' + c.chargeDate + '</td>'
                     + '<td class="text-end">' + fmt(sp) + '</td>'
                     + '<td class="text-end">' + fmt(tx) + '</td>'
@@ -842,26 +1255,32 @@ var ReservationPayment = {
         // 2. 유료 서비스
         var paidServices = [];
         subs.forEach(function(sub) {
-            if (sub.roomReservationStatus === 'CANCELED') return;
+            var isCanceled = sub.roomReservationStatus === 'CANCELED';
             (sub.services || []).forEach(function(svc) {
-                if (Number(svc.totalPrice) > 0) paidServices.push(svc);
+                if (Number(svc.totalPrice) > 0) paidServices.push({ svc: svc, canceled: isCanceled });
             });
         });
 
         if (paidServices.length > 0) {
             chargeRows += '<tr class="section-header"><td colspan="4">유료 서비스</td></tr>';
-            paidServices.forEach(function(s) {
+            paidServices.forEach(function(item) {
+                var s = item.svc;
+                var isCanceled = item.canceled;
                 var sLabel = s.serviceName || (s.serviceOptionId ? '서비스 #' + s.serviceOptionId : '객실 업그레이드');
                 if (s.serviceDate) sLabel += ' (' + s.serviceDate + ')';
+                var cancelSuffix = isCanceled ? ' [취소]' : '';
+                var rowStyle = isCanceled ? ' style="text-decoration: line-through; color: #999;"' : '';
                 var unitP = Number(s.unitPrice) || 0;
                 var qty = s.quantity || 1;
                 var sTax = Number(s.tax) || 0;
                 var sTotal = Number(s.totalPrice) || 0;
-                totalSupply += (unitP * qty);
-                totalTax += sTax;
+                if (!isCanceled) {
+                    totalSupply += (unitP * qty);
+                    totalTax += sTax;
+                }
 
-                chargeRows += '<tr>'
-                    + '<td class="ps-4">' + HolaPms.escapeHtml(sLabel) + ' x' + qty + '</td>'
+                chargeRows += '<tr' + rowStyle + '>'
+                    + '<td class="ps-4">' + HolaPms.escapeHtml(sLabel + cancelSuffix) + ' x' + qty + '</td>'
                     + '<td class="text-end">' + fmt(unitP * qty) + '</td>'
                     + '<td class="text-end">' + fmt(sTax) + '</td>'
                     + '<td class="text-end">' + fmt(sTotal) + '</td>'

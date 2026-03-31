@@ -105,4 +105,36 @@ class ReservationPaymentTest {
         assertThat(payment.getCancelFeeAmount()).isEqualByComparingTo(new BigDecimal("30000"));
         assertThat(payment.getRefundAmount()).isEqualByComparingTo(new BigDecimal("70000"));
     }
+
+    @Test
+    @DisplayName("setPaymentStatusRefunded - 취소 후 REFUNDED 상태, grandTotal 원본 유지")
+    void setPaymentStatusRefunded_preservesGrandTotal() {
+        // 멀티 레그: Leg1(PG 결제), Leg2(미결제) — 취소 시 환불 처리 후
+        ReservationPayment payment = createPayment(new BigDecimal("798600"), new BigDecimal("653400"));
+        payment.updateCancelRefund(new BigDecimal("174240"), new BigDecimal("479160"));
+
+        payment.setPaymentStatusRefunded();
+
+        // grandTotal은 원본 유지 (감사 추적용)
+        assertThat(payment.getGrandTotal()).isEqualByComparingTo(new BigDecimal("798600"));
+        assertThat(payment.getPaymentStatus()).isEqualTo("REFUNDED");
+        // totalPaidAmount 유지 (실제 결제한 금액 이력)
+        assertThat(payment.getTotalPaidAmount()).isEqualByComparingTo(new BigDecimal("653400"));
+        // 취소 수수료/환불 금액도 유지
+        assertThat(payment.getCancelFeeAmount()).isEqualByComparingTo(new BigDecimal("174240"));
+        assertThat(payment.getRefundAmount()).isEqualByComparingTo(new BigDecimal("479160"));
+    }
+
+    @Test
+    @DisplayName("setPaymentStatusRefunded - 결제 없이 취소 (무료 취소)")
+    void setPaymentStatusRefunded_noPaidAmount() {
+        ReservationPayment payment = createPayment(new BigDecimal("200000"), BigDecimal.ZERO);
+        payment.updateCancelRefund(BigDecimal.ZERO, BigDecimal.ZERO);
+
+        payment.setPaymentStatusRefunded();
+
+        // grandTotal은 원본 유지 (감사 추적용)
+        assertThat(payment.getGrandTotal()).isEqualByComparingTo(new BigDecimal("200000"));
+        assertThat(payment.getPaymentStatus()).isEqualTo("REFUNDED");
+    }
 }

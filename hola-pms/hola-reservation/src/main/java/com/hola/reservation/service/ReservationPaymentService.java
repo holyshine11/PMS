@@ -3,11 +3,13 @@ package com.hola.reservation.service;
 import com.hola.reservation.booking.gateway.PaymentResult;
 import com.hola.reservation.dto.request.PaymentAdjustmentRequest;
 import com.hola.reservation.dto.request.PaymentProcessRequest;
+import com.hola.reservation.dto.response.LegPaymentInfo;
 import com.hola.reservation.dto.response.PaymentAdjustmentResponse;
 import com.hola.reservation.dto.response.PaymentSummaryResponse;
 import com.hola.reservation.entity.PaymentTransaction;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 예약 결제 서비스 인터페이스
@@ -38,7 +40,21 @@ public interface ReservationPaymentService {
                                             BigDecimal cancelFee, String memo);
 
     /**
+     * Leg 단위 PG 환불 처리 (특정 Leg의 결제건만 환불)
+     * @param subReservationId 환불 대상 Leg의 SubReservation ID
+     * @return 생성된 REFUND 트랜잭션 (환불 금액이 0이면 null)
+     */
+    PaymentTransaction processRefundForLeg(Long masterReservationId, Long subReservationId,
+                                            BigDecimal refundAmount, BigDecimal cancelFee, String memo);
+
+    /**
      * PG 환불 재시도 (PG_REFUND_FAILED 상태 거래의 PG 취소 재처리)
      */
     PaymentSummaryResponse retryPgRefund(Long propertyId, Long reservationId, Long transactionId);
+
+    /**
+     * Leg별 결제 현황 계산
+     * @return 각 Leg의 요금/결제/환불/잔액 정보
+     */
+    List<LegPaymentInfo> calculatePerLegPayments(Long masterReservationId);
 }

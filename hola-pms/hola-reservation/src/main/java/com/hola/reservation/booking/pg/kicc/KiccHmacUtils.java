@@ -4,7 +4,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.Base64;
+import java.util.HexFormat;
 
 /**
  * KICC 메시지 인증값 (HmacSHA256) 유틸리티
@@ -34,7 +34,7 @@ public class KiccHmacUtils {
                     secretKey.getBytes(StandardCharsets.UTF_8), ALGORITHM);
             mac.init(keySpec);
             byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
+            return HexFormat.of().formatHex(hash);
         } catch (Exception e) {
             throw new IllegalStateException("HMAC 생성 실패", e);
         }

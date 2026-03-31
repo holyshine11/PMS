@@ -106,11 +106,22 @@ public class ReservationPayment extends BaseEntity {
     }
 
     /**
-     * 취소 수수료 및 환불 금액 업데이트
+     * 취소 수수료 및 환불 금액 누적 (부분 Leg 취소 → 전체 취소 시 이전 값에 합산)
      */
     public void updateCancelRefund(BigDecimal cancelFeeAmount, BigDecimal refundAmount) {
-        this.cancelFeeAmount = cancelFeeAmount;
-        this.refundAmount = refundAmount;
+        BigDecimal existingFee = this.cancelFeeAmount != null ? this.cancelFeeAmount : BigDecimal.ZERO;
+        BigDecimal existingRefund = this.refundAmount != null ? this.refundAmount : BigDecimal.ZERO;
+        this.cancelFeeAmount = existingFee.add(cancelFeeAmount);
+        this.refundAmount = existingRefund.add(refundAmount);
+    }
+
+    /**
+     * 취소/노쇼 환불 처리 완료 후 결제 상태를 REFUNDED로 직접 설정
+     * grandTotal은 원본 유지 (감사 추적용), paymentStatus만 변경
+     * (일반 updatePaymentStatus()는 cancel 흐름을 인식하지 못하므로 별도 메서드 사용)
+     */
+    public void setPaymentStatusRefunded() {
+        this.paymentStatus = "REFUNDED";
     }
 
     /**
@@ -124,20 +135,30 @@ public class ReservationPayment extends BaseEntity {
     }
 
     /**
-     * 결제 상태 자동 판단: totalPaidAmount vs grandTotal 비교
+     * 결제 상태 자동 판단: 순결제액(totalPaid - refund) vs grandTotal 비교
+     * - REFUNDED 상태는 취소/노쇼 전용이므로 자동 판단에서 보호 (덮어쓰지 않음)
+     * - 순결제액 = totalPaidAmount - refundAmount (환불 차감 후 실제 보유 금액)
      * - grandTotal <= 0: 결제 불필요 (조정으로 0 이하)
-     * - totalPaid > grandTotal: 초과결제 (환불 필요)
-     * - totalPaid == grandTotal: 결제완료
-     * - totalPaid > 0: 부분결제
+     * - 순결제액 > grandTotal: 초과결제 (환불 필요)
+     * - 순결제액 == grandTotal: 결제완료
+     * - 순결제액 > 0: 부분결제
      * - 그 외: 미결제
      */
     public void updatePaymentStatus() {
+        // REFUNDED 상태는 취소/노쇼 흐름에서 명시적으로 설정된 것이므로 보호
+        if ("REFUNDED".equals(this.paymentStatus)) {
+            return;
+        }
         BigDecimal gt = this.grandTotal != null ? this.grandTotal : BigDecimal.ZERO;
         BigDecimal paid = this.totalPaidAmount != null ? this.totalPaidAmount : BigDecimal.ZERO;
+        BigDecimal refund = this.refundAmount != null ? this.refundAmount : BigDecimal.ZERO;
+        BigDecimal cancelFee = this.cancelFeeAmount != null ? this.cancelFeeAmount : BigDecimal.ZERO;
+        // 순결제액: 총 결제 - 환불 - 취소수수료 (수수료는 패널티 수익이므로 활성 예약 결제에 미포함)
+        BigDecimal netPaid = paid.subtract(refund).subtract(cancelFee);
 
         // grandTotal이 0 이하인 경우
         if (gt.compareTo(BigDecimal.ZERO) <= 0) {
-            if (paid.compareTo(BigDecimal.ZERO) > 0) {
+            if (netPaid.compareTo(BigDecimal.ZERO) > 0) {
                 // 이미 결제한 금액이 있으면 환불 필요 (조정으로 grandTotal이 0 이하로 내려간 경우)
                 this.paymentStatus = "OVERPAID";
             } else {
@@ -147,13 +168,13 @@ public class ReservationPayment extends BaseEntity {
             return;
         }
 
-        int cmp = paid.compareTo(gt);
+        int cmp = netPaid.compareTo(gt);
         if (cmp > 0) {
             // 초과결제 (조정으로 grandTotal 감소) → 환불 필요
             this.paymentStatus = "OVERPAID";
         } else if (cmp == 0) {
             this.paymentStatus = "PAID";
-        } else if (paid.compareTo(BigDecimal.ZERO) > 0) {
+        } else if (netPaid.compareTo(BigDecimal.ZERO) > 0) {
             this.paymentStatus = "PARTIAL";
         } else {
             this.paymentStatus = "UNPAID";

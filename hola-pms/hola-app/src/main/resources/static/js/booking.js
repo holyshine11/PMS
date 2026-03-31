@@ -1373,10 +1373,17 @@ var HolaBooking = (function() {
             var self = this;
             $('#btnConfirmCancel').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> 취소 처리 중...');
 
+            var cancelData = {};
+            if (self.reservationData && self.reservationData.guestEmail) {
+                cancelData.email = self.reservationData.guestEmail;
+            } else if (self.reservationData && self.reservationData.guestPhone) {
+                cancelData.phone = self.reservationData.guestPhone;
+            }
+
             api({
                 url: API_BASE + '/reservations/' + encodeURIComponent(this.confirmationNo) + '/cancel',
                 method: 'POST',
-                data: JSON.stringify({})
+                data: JSON.stringify(cancelData)
             }).done(function(res) {
                 if (res.data) {
                     $('#cancelPreview').hide();

@@ -29,6 +29,10 @@ public class PaymentTransaction {
     @Column(name = "master_reservation_id", nullable = false)
     private Long masterReservationId;
 
+    /** Leg별 결제 추적용 (null이면 마스터 레벨 결제) */
+    @Column(name = "sub_reservation_id")
+    private Long subReservationId;
+
     @Column(name = "transaction_seq", nullable = false)
     private Integer transactionSeq;
 

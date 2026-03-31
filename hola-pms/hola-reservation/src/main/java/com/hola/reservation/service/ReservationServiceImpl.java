@@ -161,6 +161,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .gender(response.getGender())
                 .nationality(response.getNationality())
                 .rateCodeId(response.getRateCodeId())
+                .stayType(isDayUseRateCode(response.getRateCodeId()) ? "DAY_USE" : "OVERNIGHT")
                 .rateCodeName(response.getRateCodeId() != null ?
                     rateCodeRepository.findById(response.getRateCodeId())
                         .map(rc -> rc.getRateNameKo()).orElse(null) : null)
@@ -455,12 +456,35 @@ public class ReservationServiceImpl implements ReservationService {
         var cancelResult = cancellationPolicyService.calculateCancelFee(
                 propertyId, master.getMasterCheckIn(), firstNightSupply, noShow);
 
-        // 결제 정보 조회
+        // 결제 정보 조회: Leg 단위 취소 시 해당 Leg의 결제 현황 사용
         BigDecimal totalPaid = BigDecimal.ZERO;
-        ReservationPayment payment = reservationPaymentRepository
-                .findByMasterReservationId(master.getId()).orElse(null);
-        if (payment != null && payment.getTotalPaidAmount() != null) {
-            totalPaid = payment.getTotalPaidAmount();
+        BigDecimal grandTotal = BigDecimal.ZERO;
+        BigDecimal unpaidBalance = BigDecimal.ZERO;
+        String targetSubNo = null;
+
+        if (subReservationId != null) {
+            // Leg 단위: 해당 Leg의 결제 현황으로 계산
+            List<LegPaymentInfo> legPayments = paymentService.calculatePerLegPayments(master.getId());
+            LegPaymentInfo legInfo = legPayments.stream()
+                    .filter(lp -> lp.getSubReservationId().equals(subReservationId))
+                    .findFirst().orElse(null);
+            if (legInfo != null) {
+                grandTotal = legInfo.getLegTotal();
+                totalPaid = legInfo.getLegPaid().subtract(legInfo.getLegRefunded());
+                unpaidBalance = legInfo.getLegRemaining();
+                targetSubNo = legInfo.getSubReservationNo();
+            }
+        } else {
+            // 전체 취소: Master 결제 현황
+            ReservationPayment payment = reservationPaymentRepository
+                    .findByMasterReservationId(master.getId()).orElse(null);
+            if (payment != null) {
+                if (payment.getTotalPaidAmount() != null) totalPaid = payment.getTotalPaidAmount();
+                if (payment.getGrandTotal() != null) grandTotal = payment.getGrandTotal();
+                BigDecimal refund = payment.getRefundAmount() != null ? payment.getRefundAmount() : BigDecimal.ZERO;
+                totalPaid = totalPaid.subtract(refund);
+            }
+            unpaidBalance = grandTotal.subtract(totalPaid).max(BigDecimal.ZERO);
         }
 
         BigDecimal cancelFee = cancelResult.feeAmount();
@@ -471,15 +495,22 @@ public class ReservationServiceImpl implements ReservationService {
         List<PaymentTransaction> txns = paymentTransactionRepository
                 .findByMasterReservationIdOrderByTransactionSeqAsc(master.getId());
 
+        // Leg 단위 취소 시 해당 Leg의 결제만 필터링
+        final Long targetSubId = subReservationId;
+        List<PaymentTransaction> paymentTxns = txns.stream()
+                .filter(t -> "PAYMENT".equals(t.getTransactionType()))
+                .filter(t -> targetSubId == null || targetSubId.equals(t.getSubReservationId()))
+                .toList();
+
         boolean isPgPayment = false;
         String pgCardNo = null;
         String pgIssuerName = null;
 
         // PG / 비-PG 결제 분리
-        List<PaymentTransaction> pgPayments = txns.stream()
-                .filter(t -> "PAYMENT".equals(t.getTransactionType()) && t.getPgCno() != null).toList();
-        List<PaymentTransaction> nonPgPayments = txns.stream()
-                .filter(t -> "PAYMENT".equals(t.getTransactionType()) && t.getPgCno() == null).toList();
+        List<PaymentTransaction> pgPayments = paymentTxns.stream()
+                .filter(t -> t.getPgCno() != null).toList();
+        List<PaymentTransaction> nonPgPayments = paymentTxns.stream()
+                .filter(t -> t.getPgCno() == null).toList();
 
         if (!pgPayments.isEmpty()) {
             isPgPayment = true;
@@ -489,31 +520,35 @@ public class ReservationServiceImpl implements ReservationService {
 
         // 환불 분배 내역 계산
         List<AdminCancelPreviewResponse.RefundBreakdown> breakdowns = new ArrayList<>();
+        BigDecimal pgRefundTotal = BigDecimal.ZERO;
+        BigDecimal nonPgRefundTotal = BigDecimal.ZERO;
+        String nonPgMethodResult = null;
+
         if (refundAmt.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal pgPaidTotal = pgPayments.stream()
                     .map(PaymentTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
             BigDecimal nonPgPaidTotal = nonPgPayments.stream()
                     .map(PaymentTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal pgRefund = refundAmt.min(pgPaidTotal);
-            BigDecimal nonPgRefund = refundAmt.subtract(pgRefund);
+            pgRefundTotal = refundAmt.min(pgPaidTotal);
+            nonPgRefundTotal = refundAmt.subtract(pgRefundTotal);
 
-            if (pgRefund.compareTo(BigDecimal.ZERO) > 0) {
+            if (pgRefundTotal.compareTo(BigDecimal.ZERO) > 0) {
                 breakdowns.add(AdminCancelPreviewResponse.RefundBreakdown.builder()
                         .paymentMethod("CARD")
                         .paidAmount(pgPaidTotal)
-                        .refundAmount(pgRefund)
+                        .refundAmount(pgRefundTotal)
                         .pgRefund(true)
                         .cardInfo((pgIssuerName != null ? pgIssuerName + " " : "") + (pgCardNo != null ? pgCardNo : ""))
                         .build());
             }
-            if (nonPgRefund.compareTo(BigDecimal.ZERO) > 0) {
-                String nonPgMethod = nonPgPayments.isEmpty() ? "CASH"
+            if (nonPgRefundTotal.compareTo(BigDecimal.ZERO) > 0) {
+                nonPgMethodResult = nonPgPayments.isEmpty() ? "CASH"
                         : nonPgPayments.get(nonPgPayments.size() - 1).getPaymentMethod();
                 breakdowns.add(AdminCancelPreviewResponse.RefundBreakdown.builder()
-                        .paymentMethod(nonPgMethod)
+                        .paymentMethod(nonPgMethodResult)
                         .paidAmount(nonPgPaidTotal)
-                        .refundAmount(nonPgRefund)
+                        .refundAmount(nonPgRefundTotal)
                         .pgRefund(false)
                         .build());
             }
@@ -522,6 +557,7 @@ public class ReservationServiceImpl implements ReservationService {
         return AdminCancelPreviewResponse.builder()
                 .reservationId(master.getId())
                 .masterReservationNo(master.getMasterReservationNo())
+                .subReservationNo(targetSubNo)
                 .guestNameKo(master.getGuestNameKo())
                 .checkIn(master.getMasterCheckIn().toString())
                 .checkOut(master.getMasterCheckOut().toString())
@@ -532,10 +568,15 @@ public class ReservationServiceImpl implements ReservationService {
                 .totalPaidAmount(totalPaid)
                 .refundAmount(refundAmt)
                 .outstandingCancelFee(outstandingCancelFee)
+                .grandTotal(grandTotal)
+                .unpaidBalance(unpaidBalance)
                 .policyDescription(cancelResult.policyDescription())
                 .pgPayment(isPgPayment)
                 .pgCardNo(pgCardNo)
                 .pgIssuerName(pgIssuerName)
+                .pgRefundAmount(pgRefundTotal)
+                .nonPgRefundAmount(nonPgRefundTotal)
+                .nonPgRefundMethod(nonPgMethodResult)
                 .refundBreakdowns(breakdowns)
                 .build();
     }
@@ -551,6 +592,9 @@ public class ReservationServiceImpl implements ReservationService {
             throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
         }
 
+        // 미결제 잔액 검증 + 취소 수수료 검증
+        validateUnpaidBalance(master);
+
         // 취소 수수료 계산
         BigDecimal firstNightSupply = getFirstNightTotal(master.getId());
         var cancelResult = cancellationPolicyService.calculateCancelFee(
@@ -561,14 +605,18 @@ public class ReservationServiceImpl implements ReservationService {
                 .findByMasterReservationId(master.getId()).orElse(null);
         if (payment != null) {
             BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+            BigDecimal existingRefund = payment.getRefundAmount() != null ? payment.getRefundAmount() : BigDecimal.ZERO;
+            BigDecimal existingCancelFee = payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO;
+            // 순결제액: 활성 예약에 할당된 금액 (이전 환불 + 이전 취소수수료 차감)
+            BigDecimal netPaid = totalPaid.subtract(existingRefund).subtract(existingCancelFee);
             BigDecimal cancelFee = cancelResult.feeAmount();
 
-            // 취소 수수료 미결제 검증: 수수료 > 기결제액이면 차단
-            if (cancelFee.compareTo(BigDecimal.ZERO) > 0 && totalPaid.compareTo(cancelFee) < 0) {
+            // 취소 수수료 미결제 검증: 수수료 > 순결제액이면 차단
+            if (cancelFee.compareTo(BigDecimal.ZERO) > 0 && netPaid.compareTo(cancelFee) < 0) {
                 throw new HolaException(ErrorCode.CANCEL_FEE_UNPAID);
             }
 
-            BigDecimal refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
+            BigDecimal refundAmt = netPaid.subtract(cancelFee).max(BigDecimal.ZERO);
 
             payment.updateCancelRefund(cancelFee, refundAmt);
 
@@ -583,8 +631,8 @@ public class ReservationServiceImpl implements ReservationService {
                         cancelFee, memo);
             }
 
-            // 취소 후 결제 상태 갱신
-            payment.updatePaymentStatus();
+            // 취소 후 REFUNDED 상태로 확정 (grandTotal은 원본 유지 — 감사 추적용)
+            payment.setPaymentStatusRefunded();
         }
 
         // 서비스 재고 복원
@@ -747,6 +795,11 @@ public class ReservationServiceImpl implements ReservationService {
                     throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
                 }
                 validateCancelFeePayment(master, propertyId, "NO_SHOW".equals(newStatus));
+
+                // 미결제 잔액 검증: 개별 Leg 취소 시 해당 Leg의 결제 상태만 확인
+                if ("CANCELED".equals(newStatus)) {
+                    validateLegUnpaidBalance(master, targetSub);
+                }
             }
 
             applyStatusChange(targetSub, newStatus);
@@ -774,6 +827,11 @@ public class ReservationServiceImpl implements ReservationService {
                 }
                 // 취소/노쇼 수수료 미결제 검증
                 validateCancelFeePayment(master, propertyId, "NO_SHOW".equals(newStatus));
+
+                // 미결제 잔액 검증: grandTotal > totalPaid이면 취소 차단
+                if ("CANCELED".equals(newStatus)) {
+                    validateUnpaidBalance(master);
+                }
 
                 for (SubReservation sub : master.getSubReservations()) {
                     if (!"CANCELED".equals(sub.getRoomReservationStatus())
@@ -836,9 +894,14 @@ public class ReservationServiceImpl implements ReservationService {
             processCancel(master, propertyId);
         }
 
-        // 부분 Leg 취소 시 초과결제 환불 처리 (마스터는 CANCELED가 아닌 경우)
+        // 부분 Leg 취소 시 해당 Leg 결제분 환불 (마스터는 CANCELED가 아닌 경우)
         if ("CANCELED".equals(newStatus) && !"CANCELED".equals(derivedStatus)) {
-            processPartialLegCancelRefund(master);
+            // 취소 대상 Leg 특정
+            SubReservation canceledTarget = null;
+            if (request.getSubReservationId() != null) {
+                canceledTarget = findSubAndValidateOwnership(request.getSubReservationId(), master);
+            }
+            processPartialLegCancelRefund(master, canceledTarget);
         }
 
         log.info("예약 상태 변경: {} → {} (마스터: {}, 예약번호: {})",
@@ -985,6 +1048,46 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     /**
+     * 미결제 잔액 검증 (Master 전체) — grandTotal > 순결제액이면 취소 차단
+     * 전체 취소(cancel(), 전체 상태변경) 경로에서 사용
+     */
+    private void validateUnpaidBalance(MasterReservation master) {
+        ReservationPayment payment = reservationPaymentRepository
+                .findByMasterReservationId(master.getId()).orElse(null);
+        if (payment == null) return;
+
+        BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
+        BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+        BigDecimal refund = payment.getRefundAmount() != null ? payment.getRefundAmount() : BigDecimal.ZERO;
+        BigDecimal cancelFee = payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO;
+        BigDecimal netPaid = totalPaid.subtract(refund).subtract(cancelFee);
+
+        if (grandTotal.compareTo(netPaid) > 0) {
+            BigDecimal unpaid = grandTotal.subtract(netPaid);
+            throw new HolaException(ErrorCode.CANCEL_UNPAID_BALANCE,
+                    "미결제 잔액 " + unpaid.setScale(0, java.math.RoundingMode.DOWN) + "원을 먼저 결제해주세요");
+        }
+    }
+
+    /**
+     * Leg별 미결제 잔액 검증 — 해당 Leg의 요금 vs 해당 Leg에 귀속된 결제를 비교
+     * 개별 Leg 취소 경로에서 사용 (다른 Leg 미결제로 차단하지 않음)
+     */
+    private void validateLegUnpaidBalance(MasterReservation master, SubReservation targetSub) {
+        List<LegPaymentInfo> legPayments = paymentService.calculatePerLegPayments(master.getId());
+        LegPaymentInfo legInfo = legPayments.stream()
+                .filter(lp -> lp.getSubReservationId().equals(targetSub.getId()))
+                .findFirst().orElse(null);
+        if (legInfo == null) return;
+
+        if (legInfo.getLegRemaining().compareTo(BigDecimal.ZERO) > 0) {
+            throw new HolaException(ErrorCode.CANCEL_UNPAID_BALANCE,
+                    "Leg #" + getLegIndex(master, targetSub) + " 미결제 잔액 "
+                    + legInfo.getLegRemaining().setScale(0, java.math.RoundingMode.DOWN) + "원을 먼저 결제해주세요");
+        }
+    }
+
+    /**
      * 마지막 활성 Leg 여부 판별 (체크아웃 잔액 검증 필요 여부)
      */
     private boolean isLastActiveLeg(SubReservation targetSub, MasterReservation master) {
@@ -1017,108 +1120,211 @@ public class ReservationServiceImpl implements ReservationService {
      * cancel() 직접 호출 경로는 이미 처리되므로 이 메서드는 changeStatus 전용.
      */
     private void processCancel(MasterReservation master, Long propertyId) {
-        BigDecimal firstNightSupply = getFirstNightTotal(master.getId());
-        var cancelResult = cancellationPolicyService.calculateCancelFee(
-                propertyId, master.getMasterCheckIn(), firstNightSupply);
+        // Leg 단위 환불: 아직 환불되지 않은 Leg 각각에 대해 개별 처리
+        // (이미 부분 취소로 환불된 Leg는 기존 환불 거래가 있으므로 스킵됨)
+        List<SubReservation> canceledLegs = master.getSubReservations().stream()
+                .filter(s -> "CANCELED".equals(s.getRoomReservationStatus()))
+                .toList();
 
+        for (SubReservation leg : canceledLegs) {
+            Long subId = leg.getId();
+
+            // 이미 환불 거래가 있는 Leg는 건너뜀 (부분 취소로 이미 처리됨)
+            boolean alreadyRefunded = paymentTransactionRepository
+                    .findBySubReservationIdOrderByTransactionSeqAsc(subId).stream()
+                    .anyMatch(t -> "REFUND".equals(t.getTransactionType()));
+            if (alreadyRefunded) continue;
+
+            processPartialLegCancelRefund(master, leg);
+        }
+
+        // 최종 결제 상태 갱신
         ReservationPayment payment = reservationPaymentRepository
                 .findByMasterReservationId(master.getId()).orElse(null);
         if (payment != null) {
-            BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
-            BigDecimal cancelFee = cancelResult.feeAmount();
-
-            // 취소 수수료 미결제 검증: 수수료 > 기결제액이면 차단
-            if (cancelFee.compareTo(BigDecimal.ZERO) > 0 && totalPaid.compareTo(cancelFee) < 0) {
-                throw new HolaException(ErrorCode.CANCEL_FEE_UNPAID);
-            }
-
-            BigDecimal refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
-
-            payment.updateCancelRefund(cancelFee, refundAmt);
-
-            // 환불 거래 기록 (OTA는 PG 환불 차단)
-            if (refundAmt.compareTo(BigDecimal.ZERO) > 0 || cancelFee.compareTo(BigDecimal.ZERO) > 0) {
-                String memo = cancelResult.policyDescription() + " / 취소 환불 (수수료: " + cancelFee + "원)";
-                if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
-                    memo += " [OTA 예약 — PG 환불은 OTA 채널에서 처리 필요]";
-                }
-                paymentService.processRefundWithPg(master.getId(),
-                        Boolean.TRUE.equals(master.getIsOtaManaged()) ? BigDecimal.ZERO : refundAmt,
-                        cancelFee, memo);
-            }
-
-            // 취소 후 결제 상태 갱신
-            payment.updatePaymentStatus();
+            payment.setPaymentStatusRefunded();
         }
 
-        log.info("취소 처리(changeStatus 경로): {}, OTA={}, 수수료: {}, 정책: {}",
-                master.getMasterReservationNo(), master.getIsOtaManaged(),
-                cancelResult.feeAmount(), cancelResult.policyDescription());
+        log.info("취소 처리(changeStatus 경로): {}, OTA={}, legs={}",
+                master.getMasterReservationNo(), master.getIsOtaManaged(), canceledLegs.size());
     }
 
     /**
      * 노쇼 처리 — 수수료 계산 + 환불 거래 기록
      */
     private void processNoShow(MasterReservation master, Long propertyId) {
-        BigDecimal firstNightSupply = getFirstNightTotal(master.getId());
-        var cancelResult = cancellationPolicyService.calculateCancelFee(
-                propertyId, master.getMasterCheckIn(), firstNightSupply, true);
+        // Leg 단위 노쇼 환불: 각 Leg별 결제수단에 맞게 개별 처리
+        List<SubReservation> noShowLegs = master.getSubReservations().stream()
+                .filter(s -> "NO_SHOW".equals(s.getRoomReservationStatus()))
+                .toList();
 
-        ReservationPayment payment = reservationPaymentRepository
-                .findByMasterReservationId(master.getId()).orElse(null);
-        if (payment != null) {
-            BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
-            BigDecimal cancelFee = cancelResult.feeAmount();
-            BigDecimal refundAmt = totalPaid.subtract(cancelFee).max(BigDecimal.ZERO);
+        for (SubReservation leg : noShowLegs) {
+            Long subId = leg.getId();
 
-            payment.updateCancelRefund(cancelFee, refundAmt);
+            // 이미 환불 거래가 있는 Leg는 건너뜀
+            boolean alreadyRefunded = paymentTransactionRepository
+                    .findBySubReservationIdOrderByTransactionSeqAsc(subId).stream()
+                    .anyMatch(t -> "REFUND".equals(t.getTransactionType()));
+            if (alreadyRefunded) continue;
 
-            // 환불 거래 기록 (OTA는 PG 환불 차단)
+            // Leg별 노쇼 수수료 계산
+            BigDecimal firstNightForSub = getFirstNightTotalForSub(subId);
+            var cancelResult = cancellationPolicyService.calculateCancelFee(
+                    propertyId, leg.getCheckIn(), firstNightForSub, true);
+
+            // Leg에 귀속된 결제액
+            BigDecimal legPaid = paymentTransactionRepository
+                    .findBySubReservationIdOrderByTransactionSeqAsc(subId).stream()
+                    .filter(t -> "PAYMENT".equals(t.getTransactionType()))
+                    .map(PaymentTransaction::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal cancelFee = cancelResult.feeAmount().min(legPaid);
+            BigDecimal refundAmt = legPaid.subtract(cancelFee).max(BigDecimal.ZERO);
+
+            ReservationPayment payment = reservationPaymentRepository
+                    .findByMasterReservationId(master.getId()).orElse(null);
+            if (payment != null) {
+                payment.updateCancelRefund(cancelFee, refundAmt);
+            }
+
+            // RoomType 라벨
+            String roomTypeLabel = "객실";
+            if (leg.getRoomTypeId() != null) {
+                roomTypeLabel = roomTypeRepository.findById(leg.getRoomTypeId())
+                        .map(RoomType::getRoomTypeCode).orElse("객실");
+            }
+            String legLabel = "Leg #" + getLegIndex(master, leg) + " - " + roomTypeLabel;
+
             if (refundAmt.compareTo(BigDecimal.ZERO) > 0 || cancelFee.compareTo(BigDecimal.ZERO) > 0) {
-                String memo = cancelResult.policyDescription() + " / 노쇼 환불 (수수료: " + cancelFee + "원)";
+                String memo = cancelResult.policyDescription() + " / " + legLabel + " 노쇼 환불";
+                if (cancelFee.compareTo(BigDecimal.ZERO) > 0) {
+                    memo += " (수수료: " + cancelFee.setScale(0, java.math.RoundingMode.DOWN) + "원)";
+                }
                 if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
                     memo += " [OTA 예약 — PG 환불은 OTA 채널에서 처리 필요]";
                 }
-                paymentService.processRefundWithPg(master.getId(),
+                paymentService.processRefundForLeg(master.getId(), subId,
                         Boolean.TRUE.equals(master.getIsOtaManaged()) ? BigDecimal.ZERO : refundAmt,
                         cancelFee, memo);
             }
-
-            // 노쇼 후 결제 상태 갱신
-            payment.updatePaymentStatus();
         }
 
-        log.info("노쇼 처리: {}, OTA={}, 수수료: {}, 정책: {}",
-                master.getMasterReservationNo(), master.getIsOtaManaged(),
-                cancelResult.feeAmount(), cancelResult.policyDescription());
+        // 최종 결제 상태 갱신
+        ReservationPayment payment = reservationPaymentRepository
+                .findByMasterReservationId(master.getId()).orElse(null);
+        if (payment != null) {
+            payment.setPaymentStatusRefunded();
+        }
+
+        log.info("노쇼 처리: {}, OTA={}, legs={}",
+                master.getMasterReservationNo(), master.getIsOtaManaged(), noShowLegs.size());
     }
 
     /**
-     * 부분 Leg 취소 시 초과결제 환불 처리
-     * Leg 취소로 grandTotal이 감소하여 totalPaid > grandTotal이 되면 초과분 환불
+     * 부분 Leg 취소 시 해당 Leg에 귀속된 결제분 환불 처리
+     * 취소된 Leg의 결제 거래만 대상으로 환불 (PG 자동, 비PG MANUAL_CONFIRMED)
+     *
+     * @param canceledTarget 취소 대상 Leg (null이면 전체 일괄 취소 경로에서 호출)
      */
-    private void processPartialLegCancelRefund(MasterReservation master) {
+    private void processPartialLegCancelRefund(MasterReservation master, SubReservation canceledTarget) {
         // grandTotal 재계산 (취소된 Leg 제외)
         paymentService.recalculatePayment(master.getId());
 
+        // 취소 대상 Leg 특정 (명시적으로 전달받거나, 전체 취소 경로인 경우 방금 취소된 Leg 검색)
+        SubReservation canceledLeg = canceledTarget;
+        if (canceledLeg == null) {
+            // 전체 일괄 취소 경로: 가장 마지막에 취소된 Leg (방어 코드)
+            canceledLeg = master.getSubReservations().stream()
+                    .filter(s -> "CANCELED".equals(s.getRoomReservationStatus()))
+                    .reduce((first, second) -> second)
+                    .orElse(null);
+        }
+
+        if (canceledLeg == null) return;
+
+        Long subId = canceledLeg.getId();
+        Long propertyId = master.getProperty().getId();
+
+        // 해당 Leg에 귀속된 결제 거래 조회
+        List<PaymentTransaction> legPaymentTxns = paymentTransactionRepository
+                .findBySubReservationIdOrderByTransactionSeqAsc(subId).stream()
+                .filter(t -> "PAYMENT".equals(t.getTransactionType()))
+                .toList();
+
+        // 해당 Leg에 귀속된 기존 환불 누적액
+        BigDecimal alreadyRefunded = paymentTransactionRepository
+                .findBySubReservationIdOrderByTransactionSeqAsc(subId).stream()
+                .filter(t -> "REFUND".equals(t.getTransactionType()))
+                .map(PaymentTransaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal legPaid = legPaymentTxns.stream()
+                .map(PaymentTransaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 환불 가능액 = Leg 결제 - 기환불
+        BigDecimal refundable = legPaid.subtract(alreadyRefunded).max(BigDecimal.ZERO);
+
+        if (refundable.compareTo(BigDecimal.ZERO) <= 0) {
+            log.info("부분 Leg 취소: {}의 환불 대상 결제건 없음", canceledLeg.getSubReservationNo());
+            return;
+        }
+
+        // Leg 단위 취소 수수료 계산
+        BigDecimal firstNightForSub = getFirstNightTotalForSub(subId);
+        var cancelResult = cancellationPolicyService.calculateCancelFee(
+                propertyId, canceledLeg.getCheckIn(), firstNightForSub);
+        BigDecimal cancelFee = cancelResult.feeAmount().min(refundable); // 수수료가 환불액 초과하지 않도록
+        BigDecimal refundAmt = refundable.subtract(cancelFee).max(BigDecimal.ZERO);
+
+        // RoomType 코드 조회 (메모용)
+        String roomTypeLabel = "객실";
+        if (canceledLeg.getRoomTypeId() != null) {
+            roomTypeLabel = roomTypeRepository.findById(canceledLeg.getRoomTypeId())
+                    .map(RoomType::getRoomTypeCode)
+                    .orElse("객실");
+        }
+        String legLabel = "Leg #" + getLegIndex(master, canceledLeg) + " - " + roomTypeLabel;
+
+        // ReservationPayment에 취소 수수료 + 환불 금액 누적
         ReservationPayment payment = reservationPaymentRepository
                 .findByMasterReservationId(master.getId()).orElse(null);
-        if (payment == null) return;
+        if (payment != null) {
+            payment.updateCancelRefund(cancelFee, refundAmt);
+        }
 
-        BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
-        BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
-        BigDecimal overpaid = totalPaid.subtract(grandTotal);
+        // Leg 단위 환불 거래 기록
+        if (refundAmt.compareTo(BigDecimal.ZERO) > 0 || cancelFee.compareTo(BigDecimal.ZERO) > 0) {
+            String memo = legLabel + " 취소 환불";
+            if (cancelFee.compareTo(BigDecimal.ZERO) > 0) {
+                memo += " (수수료: " + cancelFee.setScale(0, java.math.RoundingMode.DOWN) + "원)";
+            }
+            if (Boolean.TRUE.equals(master.getIsOtaManaged())) {
+                memo += " [OTA 예약 — PG 환불은 OTA 채널에서 처리 필요]";
+            }
+            paymentService.processRefundForLeg(master.getId(), subId,
+                    Boolean.TRUE.equals(master.getIsOtaManaged()) ? BigDecimal.ZERO : refundAmt,
+                    cancelFee, memo);
+        }
 
-        if (overpaid.compareTo(BigDecimal.ZERO) <= 0) return;
+        if (payment != null) {
+            payment.updatePaymentStatus();
+        }
 
-        // 초과결제분 환불 처리 (수수료 없이 전액 환불)
-        payment.updateCancelRefund(BigDecimal.ZERO, overpaid);
-        paymentService.processRefundWithPg(master.getId(), overpaid, BigDecimal.ZERO,
-                "부분 Leg 취소 환불 (초과결제 " + overpaid + "원)");
-        payment.updatePaymentStatus();
+        log.info("부분 Leg 취소 환불: {}, Leg={}, 환불={}원, 수수료={}원",
+                master.getMasterReservationNo(), canceledLeg.getSubReservationNo(), refundAmt, cancelFee);
+    }
 
-        log.info("부분 Leg 취소 환불: {}, 초과결제분: {}원",
-                master.getMasterReservationNo(), overpaid);
+    /**
+     * Leg 순번 조회 (1-based)
+     */
+    private int getLegIndex(MasterReservation master, SubReservation target) {
+        List<SubReservation> subs = master.getSubReservations();
+        for (int i = 0; i < subs.size(); i++) {
+            if (subs.get(i).getId().equals(target.getId())) return i + 1;
+        }
+        return 0;
     }
 
     @Override
@@ -1247,6 +1453,14 @@ public class ReservationServiceImpl implements ReservationService {
         // RESERVED 상태만 개별 삭제 가능
         if (!"RESERVED".equals(sub.getRoomReservationStatus())) {
             throw new HolaException(ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED);
+        }
+
+        // 마지막 활성 Leg는 삭제 불가 (최소 1개 필수)
+        long activeCount = master.getSubReservations().stream()
+                .filter(s -> !"CANCELED".equals(s.getRoomReservationStatus()))
+                .count();
+        if (activeCount <= 1) {
+            throw new HolaException(ErrorCode.SUB_RESERVATION_LAST_LEG);
         }
 
         sub.updateStatus("CANCELED");
@@ -1425,7 +1639,17 @@ public class ReservationServiceImpl implements ReservationService {
                 throw new HolaException(ErrorCode.DAY_USE_NOT_ENABLED);
             }
             effectiveCheckOut = request.getCheckIn().plusDays(1);
-            timeSlot = DayUseTimeSlot.from(property, request.getDayUseDurationHours());
+
+            // 이용시간 결정: 요청값 → 기존 활성 Dayuse Leg → 프로퍼티 기본값
+            Integer durationHours = request.getDayUseDurationHours();
+            if (durationHours == null) {
+                durationHours = master.getSubReservations().stream()
+                        .filter(s -> s.isDayUse() && !"CANCELED".equals(s.getRoomReservationStatus()))
+                        .findFirst()
+                        .map(s -> s.getDayUseTimeSlot() != null ? s.getDayUseTimeSlot().durationHours() : null)
+                        .orElse(null);
+            }
+            timeSlot = DayUseTimeSlot.from(property, durationHours);
         }
 
         validateDates(request.getCheckIn(), effectiveCheckOut);

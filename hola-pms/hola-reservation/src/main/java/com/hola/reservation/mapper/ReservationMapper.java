@@ -271,11 +271,21 @@ public class ReservationMapper {
     }
 
     /**
-     * 결제 요약 → 응답 변환
+     * 결제 요약 → 응답 변환 (legPayments 없는 호출 — 하위 호환)
      */
     public PaymentSummaryResponse toPaymentSummaryResponse(ReservationPayment payment,
                                                             List<PaymentAdjustment> adjustments,
                                                             List<PaymentTransaction> transactions) {
+        return toPaymentSummaryResponse(payment, adjustments, transactions, null);
+    }
+
+    /**
+     * 결제 요약 → 응답 변환 (legPayments 포함)
+     */
+    public PaymentSummaryResponse toPaymentSummaryResponse(ReservationPayment payment,
+                                                            List<PaymentAdjustment> adjustments,
+                                                            List<PaymentTransaction> transactions,
+                                                            List<LegPaymentInfo> legPayments) {
         List<PaymentAdjustmentResponse> adjustmentResponses = adjustments != null
                 ? adjustments.stream()
                     .map(this::toPaymentAdjustmentResponse)
@@ -290,6 +300,10 @@ public class ReservationMapper {
 
         BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
         BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+        BigDecimal refund = payment.getRefundAmount() != null ? payment.getRefundAmount() : BigDecimal.ZERO;
+        BigDecimal cancelFee = payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO;
+        // 잔액 = grandTotal - 순결제액(총결제 - 환불 - 취소수수료)
+        BigDecimal netPaid = totalPaid.subtract(refund).subtract(cancelFee);
 
         return PaymentSummaryResponse.builder()
                 .id(payment.getId())
@@ -302,10 +316,11 @@ public class ReservationMapper {
                 .grandTotal(grandTotal)
                 .totalPaidAmount(totalPaid)
                 .cancelFeeAmount(payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO)
-                .refundAmount(payment.getRefundAmount() != null ? payment.getRefundAmount() : BigDecimal.ZERO)
-                .remainingAmount(grandTotal.subtract(totalPaid).max(BigDecimal.ZERO))
+                .refundAmount(refund)
+                .remainingAmount(grandTotal.subtract(netPaid).max(BigDecimal.ZERO))
                 .paymentDate(payment.getPaymentDate())
                 .paymentMethod(payment.getPaymentMethod())
+                .legPayments(legPayments)
                 .adjustments(adjustmentResponses)
                 .transactions(transactionResponses)
                 .build();
@@ -317,6 +332,7 @@ public class ReservationMapper {
     public PaymentTransactionResponse toPaymentTransactionResponse(PaymentTransaction transaction) {
         return PaymentTransactionResponse.builder()
                 .id(transaction.getId())
+                .subReservationId(transaction.getSubReservationId())
                 .transactionSeq(transaction.getTransactionSeq())
                 .transactionType(transaction.getTransactionType())
                 .paymentMethod(transaction.getPaymentMethod())

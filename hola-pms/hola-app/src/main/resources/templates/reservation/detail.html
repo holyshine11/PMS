@@ -266,55 +266,24 @@
                             </button>
                         </div>
 
-                        <!-- 요금 항목별 명세 (토글형) -->
+                        <!-- 요금 항목별 명세 (JS가 동적으로 렌더링) -->
                         <div id="chargeBreakdown">
-                            <!-- 1. 객실 요금 -->
-                            <div class="border-bottom py-2">
-                                <div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#roomDetail" style="cursor:pointer">
-                                    <span><i class="fas fa-caret-right me-1 toggle-icon"></i>객실 요금</span>
-                                    <span id="totalRoomAmount">0원</span>
-                                </div>
-                                <div id="roomDetail" style="display:none" class="mt-2">
-                                    <div id="roomDetailContent"></div>
-                                </div>
-                            </div>
+                            <!-- 멀티레그: Leg별 카드 / 싱글레그: 기존 카테고리형 -->
+                        </div>
 
-                            <!-- 2. 유료 서비스 요금 -->
-                            <div class="border-bottom py-2">
-                                <div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#serviceDetail" style="cursor:pointer">
-                                    <span><i class="fas fa-caret-right me-1 toggle-icon"></i>유료 서비스 요금</span>
-                                    <span id="totalServiceAmount">0원</span>
-                                </div>
-                                <div id="serviceDetail" style="display:none" class="mt-2">
-                                    <div id="serviceDetailContent"></div>
-                                </div>
+                        <!-- 얼리체크인/레이트체크아웃 (공통) -->
+                        <div class="border-bottom py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="ps-3">얼리체크인/레이트체크아웃</span>
+                                <span id="totalEarlyLateFee">0원</span>
                             </div>
+                        </div>
 
-                            <!-- 3. 봉사료 -->
-                            <div class="border-bottom py-2">
-                                <div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#svcChgDetail" style="cursor:pointer">
-                                    <span><i class="fas fa-caret-right me-1 toggle-icon"></i>봉사료</span>
-                                    <span id="totalServiceChargeAmount">0원</span>
-                                </div>
-                                <div id="svcChgDetail" style="display:none" class="mt-2">
-                                    <div id="svcChgDetailContent"></div>
-                                </div>
-                            </div>
-
-                            <!-- 4. 얼리체크인/레이트체크아웃 -->
-                            <div class="border-bottom py-2">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="ps-3">얼리체크인/레이트체크아웃</span>
-                                    <span id="totalEarlyLateFee">0원</span>
-                                </div>
-                            </div>
-
-                            <!-- 5. 조정 금액 -->
-                            <div class="border-bottom py-2">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="ps-3">조정 금액</span>
-                                    <span id="totalAdjustmentAmount">0원</span>
-                                </div>
+                        <!-- 조정 금액 (공통) -->
+                        <div class="border-bottom py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="ps-3">조정 금액</span>
+                                <span id="totalAdjustmentAmount">0원</span>
                             </div>
                         </div>
 
@@ -361,28 +330,7 @@
                             <h6 class="fw-bold mb-3 mt-4">
                                 <i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 취소/환불 정보
                             </h6>
-                            <div class="bg-light rounded p-3">
-                                <div class="row mb-2">
-                                    <div class="col-sm-3 text-muted">적용 정책</div>
-                                    <div class="col-sm-9" id="cancelPolicyDesc">-</div>
-                                </div>
-                                <div class="row mb-2">
-                                    <div class="col-sm-3 text-muted">취소 수수료</div>
-                                    <div class="col-sm-9" id="cancelFeeDisplay" style="color:#EF476F;">-</div>
-                                </div>
-                                <div class="row mb-2">
-                                    <div class="col-sm-3 text-muted">총 결제액</div>
-                                    <div class="col-sm-9" id="cancelTotalPaid">-</div>
-                                </div>
-                                <div class="row mb-2">
-                                    <div class="col-sm-3 text-muted">환불 금액</div>
-                                    <div class="col-sm-9" id="cancelRefundAmt" style="color:#0582CA;">-</div>
-                                </div>
-                                <div class="row d-none" id="cancelPgRefundRow">
-                                    <div class="col-sm-3 text-muted">PG 환불</div>
-                                    <div class="col-sm-9" id="cancelPgRefundDetail">-</div>
-                                </div>
-                            </div>
+                            <div id="cancelInfoContent"></div>
                         </div>
 
                         <!-- 결제 이력 -->
@@ -686,6 +634,11 @@
                     </div>
                     <div class="d-none px-2 pb-2" id="cpRefundBreakdowns" style="border-top:1px dashed #dee2e6; margin-top:4px; padding-top:6px;">
                     </div>
+                    <div class="row mb-2 d-none" id="cpNonPgRefundRow">
+                        <div class="col-12">
+                            <div class="alert alert-warning small mb-0 py-2" id="cpNonPgRefundInfo"></div>
+                        </div>
+                    </div>
                     <div class="row mb-2 d-none" id="cpOutstandingRow">
                         <label class="col-sm-5 col-form-label" style="color:#EF476F;">미결제 수수료</label>
                         <div class="col-sm-7 d-flex align-items-center"><span id="cpOutstandingAmt" style="color:#EF476F;">-</span></div>
@@ -709,7 +662,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title">현금 결제</h5>
+                    <h5 class="modal-title" id="cashPaymentModalTitle">현금 결제</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">

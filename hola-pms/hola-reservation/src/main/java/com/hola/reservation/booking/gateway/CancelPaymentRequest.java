@@ -21,7 +21,7 @@ public class CancelPaymentRequest {
     /** 취소 금액 (부분취소 시) */
     private final BigDecimal cancelAmount;
 
-    /** 취소 후 잔액 (부분취소 시 검증용) */
+    /** 취소 가능 잔액 — KICC: 원결제금액 (부분취소 시 검증용) */
     private final BigDecimal remainAmount;
 
     /** 취소 사유 */

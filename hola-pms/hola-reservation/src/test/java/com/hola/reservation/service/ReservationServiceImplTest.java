@@ -765,11 +765,48 @@ class ReservationServiceImplTest {
         }
 
         @Test
-        @DisplayName("NO_SHOW 처리 - 취소 수수료 + REFUND 거래 생성")
+        @DisplayName("NO_SHOW 처리 - 취소 수수료 + REFUND 거래 생성 (Leg별)")
         void changeStatus_NO_SHOW_환불() {
-            // given
-            MasterReservation master = createMaster("RESERVED");
-            SubReservation sub = createSub(master, SUB_ID, "RESERVED");
+            // given — 노쇼는 체크인 날짜가 과거여야 처리 가능
+            LocalDate pastCheckIn = LocalDate.now().minusDays(1);
+            LocalDate pastCheckOut = pastCheckIn.plusDays(2);
+
+            MasterReservation master = MasterReservation.builder()
+                    .property(property)
+                    .masterReservationNo("GMP260601-0001")
+                    .confirmationNo("HK4F29XP")
+                    .reservationStatus("RESERVED")
+                    .masterCheckIn(pastCheckIn)
+                    .masterCheckOut(pastCheckOut)
+                    .guestNameKo("홍길동")
+                    .rateCodeId(RATE_CODE_ID)
+                    .isOtaManaged(false)
+                    .subReservations(new ArrayList<>())
+                    .build();
+            setId(master, MASTER_ID);
+            setId(property, PROPERTY_ID);
+            SubReservation sub = SubReservation.builder()
+                    .masterReservation(master)
+                    .subReservationNo("GMP260601-0001-01")
+                    .roomReservationStatus("RESERVED")
+                    .roomTypeId(1L)
+                    .floorId(1L)
+                    .roomNumberId(1L)
+                    .adults(2)
+                    .children(0)
+                    .checkIn(pastCheckIn)
+                    .checkOut(pastCheckOut)
+                    .earlyCheckIn(false)
+                    .lateCheckOut(false)
+                    .earlyCheckInFee(BigDecimal.ZERO)
+                    .lateCheckOutFee(BigDecimal.ZERO)
+                    .guests(new ArrayList<>())
+                    .dailyCharges(new ArrayList<>())
+                    .services(new ArrayList<>())
+                    .build();
+            setId(sub, SUB_ID);
+            master.getSubReservations().add(sub);
+
             ReservationStatusRequest request = ReservationStatusRequest.builder()
                     .newStatus("NO_SHOW").build();
 
@@ -788,24 +825,37 @@ class ReservationServiceImplTest {
             CancelFeeResult cancelResult = new CancelFeeResult(
                     new BigDecimal("100000"), new BigDecimal("100"), "노쇼 수수료 100%");
 
+            // Leg에 귀속된 결제 거래 (processNoShow에서 per-leg 결제액 조회)
+            PaymentTransaction legPaymentTxn = PaymentTransaction.builder()
+                    .masterReservationId(MASTER_ID)
+                    .subReservationId(SUB_ID)
+                    .transactionSeq(1)
+                    .transactionType("PAYMENT")
+                    .paymentMethod("CARD")
+                    .amount(new BigDecimal("200000"))
+                    .build();
+
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
             when(subReservationRepository.findByMasterReservationId(MASTER_ID))
                     .thenReturn(List.of(sub));
             when(dailyChargeRepository.findBySubReservationId(SUB_ID))
                     .thenReturn(List.of(charge));
             when(cancellationPolicyService.calculateCancelFee(
-                    eq(PROPERTY_ID), eq(CHECK_IN), eq(new BigDecimal("100000")), eq(true)))
+                    eq(PROPERTY_ID), eq(pastCheckIn), eq(new BigDecimal("100000")), eq(true)))
                     .thenReturn(cancelResult);
             when(reservationPaymentRepository.findByMasterReservationId(MASTER_ID))
                     .thenReturn(Optional.of(payment));
+            when(paymentTransactionRepository.findBySubReservationIdOrderByTransactionSeqAsc(SUB_ID))
+                    .thenReturn(List.of(legPaymentTxn));
 
             // when
             reservationService.changeStatus(MASTER_ID, PROPERTY_ID, request);
 
             // then
             assertThat(master.getReservationStatus()).isEqualTo("NO_SHOW");
-            verify(paymentService).processRefundWithPg(
+            verify(paymentService).processRefundForLeg(
                     eq(MASTER_ID),
+                    eq(SUB_ID),
                     argThat(amt -> amt.compareTo(new BigDecimal("100000")) == 0),
                     argThat(fee -> fee.compareTo(new BigDecimal("100000")) == 0),
                     anyString());
@@ -849,10 +899,10 @@ class ReservationServiceImplTest {
         }
 
         @Test
-        @DisplayName("CHECK_IN 상태 취소 불가 - RESERVATION_STATUS_CHANGE_NOT_ALLOWED (RESERVED만 취소 가능)")
-        void cancel_CHECK_IN_불가() {
-            // given
-            MasterReservation master = createMaster("CHECK_IN");
+        @DisplayName("CHECKED_OUT 상태 취소 불가 - RESERVATION_STATUS_CHANGE_NOT_ALLOWED")
+        void cancel_CHECKED_OUT_불가() {
+            // given - RESERVED, CHECK_IN만 취소 가능. CHECKED_OUT은 불가
+            MasterReservation master = createMaster("CHECKED_OUT");
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
 
             // when & then
@@ -1188,11 +1238,12 @@ class ReservationServiceImplTest {
         }
 
         @Test
-        @DisplayName("레그 삭제 - RESERVED 상태만 가능")
+        @DisplayName("레그 삭제 - RESERVED 상태만 가능 (활성 Leg 2개 이상)")
         void deleteLeg_RESERVED_정상() {
             // given
             MasterReservation master = createMaster("RESERVED");
             SubReservation sub = createSub(master, SUB_ID, "RESERVED");
+            createSub(master, SUB_ID + 1, "RESERVED"); // 2nd active leg (마지막 Leg 삭제 방지)
 
             when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
             when(subReservationRepository.findById(SUB_ID)).thenReturn(Optional.of(sub));

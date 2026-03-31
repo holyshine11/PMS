@@ -11,6 +11,7 @@ import com.hola.reservation.dto.response.PaymentSummaryResponse;
 import com.hola.reservation.entity.*;
 import com.hola.reservation.mapper.ReservationMapper;
 import com.hola.reservation.repository.*;
+import com.hola.room.repository.RoomTypeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -56,6 +57,8 @@ class ReservationPaymentServiceImplTest {
     private DailyChargeRepository dailyChargeRepository;
     @Mock
     private ReservationServiceItemRepository serviceItemRepository;
+    @Mock
+    private RoomTypeRepository roomTypeRepository;
     @Mock
     private ReservationMapper reservationMapper;
 
@@ -253,7 +256,7 @@ class ReservationPaymentServiceImplTest {
 
             PaymentSummaryResponse expected = PaymentSummaryResponse.builder()
                     .paymentStatus("PARTIAL").grandTotal(new BigDecimal("300000")).build();
-            when(reservationMapper.toPaymentSummaryResponse(payment, adjustments, transactions))
+            when(reservationMapper.toPaymentSummaryResponse(eq(payment), eq(adjustments), eq(transactions), any()))
                     .thenReturn(expected);
 
             // when
@@ -261,7 +264,7 @@ class ReservationPaymentServiceImplTest {
 
             // then
             assertThat(result.getPaymentStatus()).isEqualTo("PARTIAL");
-            verify(reservationMapper).toPaymentSummaryResponse(payment, adjustments, transactions);
+            verify(reservationMapper).toPaymentSummaryResponse(eq(payment), eq(adjustments), eq(transactions), any());
         }
 
         @Test
@@ -312,7 +315,7 @@ class ReservationPaymentServiceImplTest {
 
             PaymentSummaryResponse expected = PaymentSummaryResponse.builder()
                     .paymentStatus("PAID").build();
-            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any()))
+            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any(), any()))
                     .thenReturn(expected);
 
             PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("300000"));
@@ -342,7 +345,7 @@ class ReservationPaymentServiceImplTest {
                     .thenReturn(Collections.emptyList());
             when(transactionRepository.save(any(PaymentTransaction.class)))
                     .thenAnswer(inv -> inv.getArgument(0));
-            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any()))
+            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any(), any()))
                     .thenReturn(PaymentSummaryResponse.builder().build());
 
             PaymentProcessRequest request = createPayRequest("CASH", null); // null = 잔액 전액
@@ -465,7 +468,7 @@ class ReservationPaymentServiceImplTest {
 
             PaymentSummaryResponse expected = PaymentSummaryResponse.builder()
                     .paymentStatus("PAID").build();
-            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any()))
+            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any(), any()))
                     .thenReturn(expected);
 
             PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("300000"));
@@ -524,7 +527,7 @@ class ReservationPaymentServiceImplTest {
                     .thenReturn(List.of(txn1, txn2));
             when(transactionRepository.save(any(PaymentTransaction.class)))
                     .thenAnswer(inv -> inv.getArgument(0));
-            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any()))
+            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any(), any()))
                     .thenReturn(PaymentSummaryResponse.builder().build());
 
             PaymentProcessRequest request = createPayRequest("CARD", new BigDecimal("100000"));
