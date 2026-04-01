@@ -97,14 +97,17 @@ var ReservationPayment = {
 
         // 잔액 색상 분기
         var $remaining = $('#summaryRemainingAmount');
+        var $remainingBox = $('#summaryRemainingBox');
+        $remainingBox.removeClass('ps-remaining-due ps-remaining-refund ps-remaining-clear');
         if (remaining < 0) {
-            $remaining.text('환불필요 ' + this.formatCurrency(Math.abs(remaining)))
-                .removeClass('text-danger').addClass('text-warning');
+            $remaining.text('환불필요 ' + this.formatCurrency(Math.abs(remaining)));
+            $remainingBox.addClass('ps-remaining-refund');
         } else if (remaining > 0) {
-            $remaining.text(this.formatCurrency(remaining))
-                .removeClass('text-warning').addClass('text-danger');
+            $remaining.text(this.formatCurrency(remaining));
+            $remainingBox.addClass('ps-remaining-due');
         } else {
-            $remaining.text('0원').removeClass('text-danger text-warning');
+            $remaining.text('0원');
+            $remainingBox.addClass('ps-remaining-clear');
         }
 
         // 환불 상태 시 추가 정보 행 표시
@@ -537,7 +540,7 @@ var ReservationPayment = {
         };
 
         var info = statusMap[status] || { label: status || '미결제', cls: 'bg-secondary' };
-        $badge.html('<span class="badge ' + info.cls + ' fs-6">' + HolaPms.escapeHtml(info.label) + '</span>');
+        $badge.html('<span class="badge ' + info.cls + '">' + HolaPms.escapeHtml(info.label) + '</span>');
 
         // 결제 버튼 표시 조건
         var remaining = this.paymentData ? Number(this.paymentData.remainingAmount) || 0 : 0;

@@ -650,14 +650,85 @@ label,
 .payment-summary-card {
     border-top: 3px solid #003554;
 }
-.payment-summary-amount {
-    font-size: 1.25rem;
+/* 메인 그리드: 순수 타이포그래피 기반, 배경/테두리 없음 */
+.payment-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    padding: 20px 0 16px;
+}
+.payment-summary-box {
+    text-align: center;
+    padding: 0 16px;
+    position: relative;
+}
+/* 세로 구분선: 얇고 짧게 */
+.payment-summary-box + .payment-summary-box::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 15%;
+    height: 70%;
+    width: 1px;
+    background: #e2e5e9;
+}
+.payment-summary-box .ps-label {
+    font-size: 0.7rem;
+    color: #98a2ad;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+.payment-summary-box .ps-value {
     font-weight: 700;
-    line-height: 1.3;
+    line-height: 1;
+    letter-spacing: -0.5px;
 }
-.payment-summary-item {
-    padding: 8px 0;
+/* 총 청구액: 가장 큰 앵커 — 타이포 크기로 위계 */
+.payment-summary-box.ps-total .ps-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #051923;
 }
+/* 결제액 */
+.payment-summary-box.ps-paid .ps-value {
+    font-size: 1.3rem;
+    color: #0582CA;
+}
+/* 잔액 기본 */
+.payment-summary-box.ps-remaining .ps-value {
+    font-size: 1.3rem;
+    color: #212529;
+}
+/* 잔액: 미결제 */
+.payment-summary-box.ps-remaining-due .ps-value { color: #EF476F; }
+/* 잔액: 환불필요 */
+.payment-summary-box.ps-remaining-refund .ps-value { color: #d68100; }
+/* 잔액: 완납 — 뮤트 처리 */
+.payment-summary-box.ps-remaining-clear .ps-value { color: #c4cad0; }
+/* 환불/수수료 하위 행: 아이콘 없이, 인라인 텍스트, 중앙 정렬 */
+.payment-summary-sub {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 48px;
+    padding: 12px 16px 0;
+    margin-top: 2px;
+    border-top: 1px solid #f0f1f3;
+}
+.payment-summary-sub .ps-sub-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.payment-summary-sub .ps-sub-label {
+    font-size: 0.72rem;
+    color: #98a2ad;
+}
+.payment-summary-sub .ps-sub-value {
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+.payment-summary-sub .ps-sub-value.ps-refund { color: #0582CA; }
+.payment-summary-sub .ps-sub-value.ps-fee { color: #EF476F; }
 .payment-section-toggle {
     cursor: pointer;
     transition: color var(--hola-transition);
