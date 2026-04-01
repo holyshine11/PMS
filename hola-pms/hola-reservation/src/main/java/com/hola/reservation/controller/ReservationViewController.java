@@ -1,9 +1,11 @@
 package com.hola.reservation.controller;
 
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * 예약 관리 View 컨트롤러
@@ -34,5 +36,15 @@ public class ReservationViewController {
     @GetMapping("/{id}")
     public String detail(@PathVariable Long id) {
         return "reservation/detail";
+    }
+
+    /** 인보이스 출력 */
+    @GetMapping("/{id}/invoice")
+    public String invoice(@PathVariable Long id,
+                          @RequestParam Long propertyId,
+                          Model model) {
+        model.addAttribute("reservationId", id);
+        model.addAttribute("propertyId", propertyId);
+        return "reservation/invoice";
     }
 }

@@ -6,9 +6,9 @@ var ReservationDetail = {
     _roomStatusBadge: function(unavailableType, defaultLabel) {
         switch (unavailableType) {
             case 'OOO': return '<span class="badge bg-secondary">OOO</span>';
-            case 'OOS': return '<span class="badge" style="background:#e9ecef;color:#333">OOS</span>';
-            case 'DIRTY': return '<span class="badge" style="background:#ffc107;color:#000">DIRTY</span>';
-            case 'PICKUP': return '<span class="badge" style="background:#fd7e14;color:#fff">PICKUP</span>';
+            case 'OOS': return '<span class="badge badge-oos">OOS</span>';
+            case 'DIRTY': return '<span class="badge badge-dirty">DIRTY</span>';
+            case 'PICKUP': return '<span class="badge badge-pickup">PICKUP</span>';
             default: return '<span class="badge bg-danger">' + (defaultLabel || '불가') + '</span>';
         }
     },
@@ -60,31 +60,29 @@ var ReservationDetail = {
         self.reservationId = pathParts[pathParts.length - 1];
 
         self.bindEvents();
-        self.reload();
 
         // URL tab 파라미터로 탭 자동 활성화 (운영현황 등에서 특정 탭으로 이동 시)
         var urlParams = new URLSearchParams(window.location.search);
         var targetTab = urlParams.get('tab');
-        if (targetTab) {
-            var tabMap = { detail: '#tabDetail', payment: '#tabPayment', deposit: '#tabDeposit', etc: '#tabEtc' };
-            var tabSelector = tabMap[targetTab];
-            if (tabSelector) {
-                // 데이터 로드 후 탭 전환 (약간의 딜레이)
-                setTimeout(function() {
-                    var $tabLink = $('a[href="' + tabSelector + '"]');
-                    if ($tabLink.length) {
-                        var tab = new bootstrap.Tab($tabLink[0]);
-                        tab.show();
-                    }
-                }, 300);
+        var tabMap = { detail: '#tabDetail', payment: '#tabPayment', deposit: '#tabDeposit', etc: '#tabEtc' };
+        var pendingTabSelector = targetTab ? tabMap[targetTab] : null;
+
+        self.reload(function() {
+            // 데이터 로드 완료 후 탭 전환 (콜백 기반, setTimeout 제거)
+            if (pendingTabSelector) {
+                var $tabLink = $('a[href="' + pendingTabSelector + '"]');
+                if ($tabLink.length) {
+                    var tab = new bootstrap.Tab($tabLink[0]);
+                    tab.show();
+                }
             }
-        }
+        });
     },
 
     /**
      * 컨텍스트 기반 새로고침
      */
-    reload: function() {
+    reload: function(callback) {
         var self = this;
         self.propertyId = HolaPms.context.getPropertyId();
         if (!self.propertyId) {
@@ -95,13 +93,13 @@ var ReservationDetail = {
         $('#contextAlert').addClass('d-none');
         self.loadReservationChannels();
         self.loadPaidServiceOptions();
-        self.loadData();
+        self.loadData(callback);
     },
 
     /**
      * 예약 데이터 조회
      */
-    loadData: function() {
+    loadData: function(callback) {
         var self = this;
         HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId,
@@ -110,6 +108,7 @@ var ReservationDetail = {
                 if (res.success && res.data) {
                     self.bindData(res.data);
                 }
+                if (callback) callback();
             }
         });
     },
@@ -331,10 +330,10 @@ var ReservationDetail = {
                 if (legCollapseState.hasOwnProperty(seq)) {
                     if (legCollapseState[seq]) {
                         $legBody.addClass('show');
-                        $header.removeClass('collapsed');
+                        $header.removeClass('collapsed').attr('aria-expanded', 'true');
                     } else {
                         $legBody.removeClass('show');
-                        $header.addClass('collapsed');
+                        $header.addClass('collapsed').attr('aria-expanded', 'false');
                     }
                 }
                 var $svcCollapse = $('#serviceCollapse_' + seq);
@@ -450,7 +449,7 @@ var ReservationDetail = {
             + '    <span>' + headerLabel + ' ' + legStatusBadge + summaryInfo + legActionBtn + '</span>'
             + '    <div class="d-flex align-items-center">'
             + (legId && !legTerminated && self.isUpgradeable() ? '    <button class="btn btn-outline-primary btn-sm me-1 upgrade-btn" data-leg-id="' + legId + '" data-room-type-id="' + roomTypeId + '" data-room-type-name="' + HolaPms.escapeHtml(roomTypeName) + '"><i class="fas fa-arrow-up me-1"></i>업그레이드</button>' : '')
-            + (!legTerminated ? '    <button class="btn btn-outline-danger btn-sm remove-leg-btn me-2" data-leg="' + seq + '" data-leg-id="' + legId + '"><i class="fas fa-times"></i></button>' : '')
+            + (!legTerminated ? '    <button class="btn btn-outline-danger btn-sm remove-leg-btn me-2" data-leg="' + seq + '" data-leg-id="' + legId + '" aria-label="객실 삭제"><i class="fas fa-times"></i></button>' : '')
             + '    <i class="fas fa-chevron-down collapse-arrow"></i>'
             + '    </div>'
             + '  </div>'
@@ -461,8 +460,8 @@ var ReservationDetail = {
             + '      <div class="col-sm-4">'
             + '        <div class="input-group">'
             + '          <input type="text" class="form-control room-type-name" readonly placeholder="선택" value="' + HolaPms.escapeHtml(roomTypeName) + '">'
-            + (!legTerminated ? '          <button class="btn btn-outline-secondary room-type-search-btn" type="button"><i class="fas fa-search"></i></button>' : '')
-            + (!legTerminated ? '          <button class="btn btn-outline-danger room-type-clear-btn" type="button"><i class="fas fa-times"></i></button>' : '')
+            + (!legTerminated ? '          <button class="btn btn-outline-secondary room-type-search-btn" type="button" aria-label="객실타입 검색"><i class="fas fa-search"></i></button>' : '')
+            + (!legTerminated ? '          <button class="btn btn-outline-danger room-type-clear-btn" type="button" aria-label="객실타입 초기화"><i class="fas fa-times"></i></button>' : '')
             + '        </div>'
             + '        <input type="hidden" class="room-type-id" value="' + roomTypeId + '">'
             + '      </div>'
@@ -470,8 +469,8 @@ var ReservationDetail = {
             + '      <div class="col-sm-4">'
             + '        <div class="input-group">'
             + '          <input type="text" class="form-control room-number-display" readonly placeholder="미배정" value="' + HolaPms.escapeHtml(roomDisplay === '미배정' ? '' : roomDisplay) + '">'
-            + (!legTerminated ? '          <button class="btn btn-outline-secondary room-assign-btn" type="button"><i class="fas fa-search"></i></button>' : '')
-            + (!legTerminated ? '          <button class="btn btn-outline-danger room-assign-clear-btn" type="button"><i class="fas fa-times"></i></button>' : '')
+            + (!legTerminated ? '          <button class="btn btn-outline-secondary room-assign-btn" type="button" aria-label="객실 배정"><i class="fas fa-search"></i></button>' : '')
+            + (!legTerminated ? '          <button class="btn btn-outline-danger room-assign-clear-btn" type="button" aria-label="객실배정 초기화"><i class="fas fa-times"></i></button>' : '')
             + '        </div>'
             + '        <input type="hidden" class="floor-id" value="' + floorId + '">'
             + '        <input type="hidden" class="room-number-id" value="' + roomNumberId + '">'
@@ -530,21 +529,21 @@ var ReservationDetail = {
             + '    </div>'
             + '    <div class="service-add-form d-none" id="serviceAddForm_' + seq + '">'
             + '      <div class="row g-2 align-items-end">'
-            + '        <div class="col-sm-5">'
+            + '        <div class="col-12 col-md-5">'
             + '          <select class="form-select form-select-sm service-option-select">'
             + '            <option value="">서비스 선택</option>'
             + '          </select>'
             + '        </div>'
-            + '        <div class="col-sm-2">'
+            + '        <div class="col-4 col-md-2">'
             + '          <input type="number" class="form-control form-control-sm service-qty" value="1" min="1" max="99">'
             + '        </div>'
-            + '        <div class="col-sm-2">'
+            + '        <div class="col-8 col-md-2">'
             + '          <input type="date" class="form-control form-control-sm service-date"'
             + (legData && legData.checkIn ? ' min="' + legData.checkIn + '"' : '')
             + (legData && legData.checkOut ? ' max="' + (function(d){ var dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()-1); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); })(legData.checkOut) + '"' : '')
             + '>'
             + '        </div>'
-            + '        <div class="col-sm-3 d-flex gap-1">'
+            + '        <div class="col-12 col-md-3 d-flex gap-1">'
             + '          <button class="btn btn-primary btn-sm confirm-add-service-btn" data-leg="' + seq + '" data-leg-id="' + legId + '">추가</button>'
             + '          <button class="btn btn-outline-secondary btn-sm cancel-add-service-btn" data-leg="' + seq + '">취소</button>'
             + '        </div>'
@@ -600,7 +599,7 @@ var ReservationDetail = {
         // 레이트 체크아웃 요금 배지
         var lateBadge = '';
         if (lateCheckOutFee > 0) {
-            lateBadge = ' <span class="badge ms-1" style="background-color:#EF476F;">레이트 체크아웃 ₩' + formatFee(lateCheckOutFee) + '</span>';
+            lateBadge = ' <span class="badge bg-danger ms-1">레이트 체크아웃 ₩' + formatFee(lateCheckOutFee) + '</span>';
         }
 
         return ''
@@ -650,7 +649,8 @@ var ReservationDetail = {
             if (!self.isReadonly && !legTerminated) {
                 deleteBtn = '<button class="btn btn-outline-danger btn-sm py-0 px-1 remove-service-btn" '
                     + 'data-leg-id="' + legId + '" data-service-id="' + svc.id + '"'
-                    + (isRateIncluded ? ' data-rate-included="true"' : '') + '>'
+                    + (isRateIncluded ? ' data-rate-included="true"' : '')
+                    + ' aria-label="서비스 삭제: ' + HolaPms.escapeHtml(name) + '">'
                     + '<i class="fas fa-times"></i></button>';
             }
 
@@ -1153,7 +1153,7 @@ var ReservationDetail = {
                 if (res.success) {
                     HolaPms.popup.notifyParent('canceled', self.reservationId);
                     HolaPms.alert('success', '예약이 취소되었습니다.');
-                    setTimeout(function() { location.reload(); }, 500);
+                    location.reload();
                 }
             }
         });
@@ -1172,7 +1172,7 @@ var ReservationDetail = {
                 if (res.success) {
                     HolaPms.popup.notifyParent('statusChanged', self.reservationId);
                     HolaPms.alert('success', '상태가 변경되었습니다.');
-                    setTimeout(function() { location.reload(); }, 500);
+                    location.reload();
                 }
             },
             error: function(xhr) {
@@ -1598,7 +1598,8 @@ var ReservationDetail = {
                         render: function(d, t, row) {
                             return '<input type="radio" name="rateCodeSelect" value="' + row.id
                                 + '" data-code="' + HolaPms.escapeHtml(row.rateCode || '')
-                                + '" data-name="' + HolaPms.escapeHtml(row.rateNameKo || '') + '">';
+                                + '" data-name="' + HolaPms.escapeHtml(row.rateNameKo || '')
+                                + '" aria-label="선택: ' + HolaPms.escapeHtml(row.rateCode || '') + '">';
                         }
                     }
                 ]
@@ -1653,7 +1654,8 @@ var ReservationDetail = {
                         render: function(d, t, row) {
                             return '<input type="radio" name="marketCodeSelect" value="' + row.id
                                 + '" data-code="' + HolaPms.escapeHtml(row.marketCode || '')
-                                + '" data-name="' + HolaPms.escapeHtml(row.marketName || '') + '">';
+                                + '" data-name="' + HolaPms.escapeHtml(row.marketName || '')
+                                + '" aria-label="선택: ' + HolaPms.escapeHtml(row.marketCode || '') + '">';
                         }
                     }
                 ]
@@ -1755,7 +1757,7 @@ var ReservationDetail = {
         }
 
         var html = '<div class="table-responsive">';
-        html += '<table class="table table-hover table-bordered mb-0" style="min-width:650px">';
+        html += '<table class="table table-hover mb-0" style="min-width:650px">';
         html += '<thead class="table-light"><tr>';
         html += '<th style="width:50px" class="text-center">NO</th>';
         html += '<th style="min-width:90px">객실타입</th>';
@@ -1780,7 +1782,8 @@ var ReservationDetail = {
                 html += '<td class="text-center">' + (isMapped ? '<span class="badge bg-primary">매핑</span>' : '-') + '</td>';
             }
             html += '<td class="text-center"><input type="radio" name="roomTypeSelect" value="' + rt.id
-                + '" data-code="' + HolaPms.escapeHtml(rt.roomTypeCode || '') + '"></td>';
+                + '" data-code="' + HolaPms.escapeHtml(rt.roomTypeCode || '')
+                + '" aria-label="선택: ' + HolaPms.escapeHtml(rt.roomTypeCode || '') + '"></td>';
             html += '</tr>';
         });
 
@@ -2091,6 +2094,7 @@ var ReservationDetail = {
                         html += ' data-floor-id="' + floor.floorId + '"';
                         html += ' data-room-number="' + HolaPms.escapeHtml(room.roomNumber) + '"';
                         html += ' data-floor-name="' + HolaPms.escapeHtml(floor.floorName) + '"';
+                        html += ' aria-label="선택: ' + HolaPms.escapeHtml(floor.floorName) + ' ' + HolaPms.escapeHtml(room.roomNumber) + '"';
                         html += disabled + '></td>';
                         html += '<td class="text-center">' + HolaPms.escapeHtml(room.roomNumber) + '</td>';
                         html += '<td class="text-center">' + (room.descriptionKo ? HolaPms.escapeHtml(room.descriptionKo) : '-') + '</td>';
@@ -2292,27 +2296,36 @@ var ReservationDetail = {
      * 유효성 검증
      */
     validate: function(data) {
+        // 이전 검증 상태 초기화
+        $('#formContainer [aria-invalid]').removeAttr('aria-invalid');
+
+        var markInvalid = function(selector) { $(selector).attr('aria-invalid', 'true'); };
+
         if (!data.masterCheckIn) {
             HolaPms.alert('warning', '체크인 날짜를 입력해주세요.');
             $('a[href="#tabReservation"]').tab('show');
+            markInvalid('#masterCheckIn');
             $('#masterCheckIn').focus();
             return false;
         }
         if (!data.masterCheckOut) {
             HolaPms.alert('warning', '체크아웃 날짜를 입력해주세요.');
             $('a[href="#tabReservation"]').tab('show');
+            markInvalid('#masterCheckOut');
             $('#masterCheckOut').focus();
             return false;
         }
         if (!this.isDayUse && data.masterCheckIn >= data.masterCheckOut) {
             HolaPms.alert('warning', '체크아웃 날짜는 체크인 날짜 이후여야 합니다.');
             $('a[href="#tabReservation"]').tab('show');
+            markInvalid('#masterCheckOut');
             $('#masterCheckOut').focus();
             return false;
         }
         if (!data.guestNameKo && !data.guestLastNameEn) {
             HolaPms.alert('warning', '예약자명(국문) 또는 영문 성을 입력해주세요.');
             $('a[href="#tabReservation"]').tab('show');
+            markInvalid('#guestNameKo');
             $('#guestNameKo').focus();
             return false;
         }
@@ -2406,7 +2419,7 @@ var ReservationDetail = {
                     self.saveDeposit(function() {
                         HolaPms.popup.notifyParent('saved', self.reservationId);
                         HolaPms.alert('success', '예약이 수정되었습니다.');
-                        setTimeout(function() { self.loadData(); }, 500);
+                        self.loadData();
                     });
                 }
             }

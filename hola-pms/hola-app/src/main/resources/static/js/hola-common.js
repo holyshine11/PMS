@@ -461,6 +461,20 @@ const HolaPms = {
         /** 상태 정보 객체 반환 */
         get: function(status) {
             return this[status] || { label: status || '-', cls: 'bg-secondary', bg: '#6c757d', color: '#fff', softBg: 'rgba(108,117,125,0.08)', softColor: '#6c757d' };
+        },
+        /** 캘린더/타임라인용 상태 색상 (연한 배경 + 진한 텍스트 + 테두리) */
+        _viewColors: {
+            'RESERVED':    { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' },
+            'CHECK_IN':    { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7' },
+            'INHOUSE':     { bg: '#003554', text: '#ffffff', border: '#002940' },
+            'CHECKED_OUT': { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db' },
+            'CANCELED':    { bg: '#fef2f2', text: '#991b1b', border: '#fecaca' },
+            'NO_SHOW':     { bg: '#fefce8', text: '#854d0e', border: '#fde68a' },
+            'DAY_USE':     { bg: '#f5f3ff', text: '#6d28d9', border: '#c4b5fd' },
+            'DAY_OFF':     { bg: '#ecfdf5', text: '#047857', border: '#6ee7b7' }
+        },
+        viewColor: function(status) {
+            return this._viewColors[status] || { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db' };
         }
     },
 

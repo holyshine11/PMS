@@ -121,7 +121,7 @@ var ReservationTableView = {
                     orderable: false,
                     render: function(data, type, row) {
                         var id = row.id;
-                        return '<a href="javascript:void(0)" onclick="HolaPms.popup.openReservationDetail(' + id + ')" class="btn btn-sm btn-outline-primary">' +
+                        return '<a href="javascript:void(0)" onclick="HolaPms.popup.openReservationDetail(' + id + ')" class="btn btn-sm btn-outline-primary" aria-label="예약 상세 보기">' +
                                '<i class="fas fa-eye"></i></a>';
                     },
                     className: 'text-center',
@@ -172,17 +172,6 @@ var ReservationTableView = {
      * 상태별 배지 HTML
      */
     getStatusBadge: function(status) {
-        var map = {
-            'RESERVED':    { label: '예약',       bg: '#0582CA' },
-            'CHECK_IN':    { label: '체크인',     bg: '#17a2b8' },
-            'INHOUSE':     { label: '투숙중',     bg: '#003554' },
-            'CHECKED_OUT': { label: '체크아웃',   bg: '#6c757d' },
-            'CANCELED':    { label: '취소',       bg: '#EF476F' },
-            'NO_SHOW':     { label: '노쇼',       bg: '#ffc107', color: '#000' }
-        };
-
-        var info = map[status] || { label: status || '-', bg: '#6c757d' };
-        var textColor = info.color || '#fff';
-        return '<span class="badge" style="background-color:' + info.bg + '; color:' + textColor + '">' + info.label + '</span>';
+        return HolaPms.reservationStatus.styledBadge(status);
     }
 };

@@ -34,23 +34,23 @@
     </div>
 
     <!-- Row 2: 상태 필터 + 키워드 검색 + 기간 (한 줄) -->
-    <div id="searchCard" style="display:none;">
+    <div id="searchCard" class="d-none">
         <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
             <!-- 상태 필터 버튼 -->
             <div class="d-flex flex-wrap gap-1" id="statusFilterGroup">
-                <button class="btn btn-sm status-filter-btn active" data-status="" style="background:#051923; color:#fff; border:2px solid #051923;">전체</button>
-                <button class="btn btn-sm status-filter-btn" data-status="RESERVED" style="background:#d4edff; color:#0582CA; border:2px solid transparent;">예약</button>
-                <button class="btn btn-sm status-filter-btn" data-status="INHOUSE" style="background:#003554; color:#ffffff; border:2px solid transparent;">투숙중</button>
-                <button class="btn btn-sm status-filter-btn" data-status="CHECKED_OUT" style="background:#e2e3e5; color:#383d41; border:2px solid transparent;">체크아웃</button>
-                <button class="btn btn-sm status-filter-btn" data-status="CANCELED" style="background:#f8d7da; color:#721c24; border:2px solid transparent;">취소</button>
-                <button class="btn btn-sm status-filter-btn" data-status="NO_SHOW" style="background:#fff3cd; color:#856404; border:2px solid transparent;">노쇼</button>
+                <button class="btn btn-sm status-filter-btn active" data-status="">전체</button>
+                <button class="btn btn-sm status-filter-btn" data-status="RESERVED">예약</button>
+                <button class="btn btn-sm status-filter-btn" data-status="INHOUSE">투숙중</button>
+                <button class="btn btn-sm status-filter-btn" data-status="CHECKED_OUT">체크아웃</button>
+                <button class="btn btn-sm status-filter-btn" data-status="CANCELED">취소</button>
+                <button class="btn btn-sm status-filter-btn" data-status="NO_SHOW">노쇼</button>
             </div>
 
-            <span class="border-start" style="height:20px;"></span>
+            <span class="border-start divider-v"></span>
 
             <!-- 키워드 검색 -->
             <input type="text" class="form-control form-control-sm" id="keyword"
-                   placeholder="예약번호/이름/전화번호" style="width:170px;">
+                   placeholder="예약번호/이름/전화번호" style="min-width:120px; max-width:200px; flex:1;">
             <button class="btn btn-primary btn-sm" id="searchBtn">
                 <i class="fas fa-search me-1"></i>검색
             </button>
@@ -60,10 +60,10 @@
 
             <!-- 테이블뷰 기간 선택 (테이블뷰 활성 시만 표시) -->
             <div class="d-flex align-items-center gap-2 d-none" id="tablePeriodGroup">
-                <span class="border-start" style="height:20px;"></span>
-                <input type="date" class="form-control form-control-sm" id="searchDateFrom" style="width:140px;">
+                <span class="border-start divider-v"></span>
+                <input type="date" class="form-control form-control-sm" id="searchDateFrom" style="min-width:120px; max-width:160px; flex:1;">
                 <span class="text-muted">~</span>
-                <input type="date" class="form-control form-control-sm" id="searchDateTo" style="width:140px;">
+                <input type="date" class="form-control form-control-sm" id="searchDateTo" style="min-width:120px; max-width:160px; flex:1;">
                 <div class="btn-group btn-group-sm" role="group">
                     <button class="btn btn-outline-secondary active" data-period="3">3개월</button>
                     <button class="btn btn-outline-secondary" data-period="6">6개월</button>
@@ -74,17 +74,17 @@
     </div>
 
     <!-- 타임라인뷰 컨테이너 -->
-    <div id="timelineViewContainer" style="display:none;">
+    <div id="timelineViewContainer" class="d-none">
         <!-- JS에서 동적 생성 -->
     </div>
 
     <!-- 캘린더뷰 컨테이너 -->
-    <div id="calendarViewContainer" style="display:none;">
+    <div id="calendarViewContainer" class="d-none">
         <!-- JS에서 동적 생성 -->
     </div>
 
     <!-- 테이블뷰 컨테이너 -->
-    <div id="tableViewContainer" class="card border-0 shadow-sm" style="display:none;">
+    <div id="tableViewContainer" class="card border-0 shadow-sm d-none">
         <div class="card-body">
             <table id="reservationTable" class="table table-hover mb-0" style="width:100%">
                 <thead class="table-light">
@@ -120,15 +120,15 @@
             var pid = ctx && ctx.propertyId ? ctx.propertyId : HolaPms.context.getPropertyId();
             if (!pid) {
                 $('#contextAlert').removeClass('d-none');
-                $('#searchCard').hide();
+                $('#searchCard').addClass('d-none');
                 $('#viewToggleGroup').addClass('d-none');
-                $('#timelineViewContainer').hide();
-                $('#calendarViewContainer').hide();
-                $('#tableViewContainer').hide();
+                $('#timelineViewContainer').addClass('d-none');
+                $('#calendarViewContainer').addClass('d-none');
+                $('#tableViewContainer').addClass('d-none');
                 return;
             }
             $('#contextAlert').addClass('d-none');
-            $('#searchCard').show();
+            $('#searchCard').removeClass('d-none');
             $('#viewToggleGroup').removeClass('d-none');
 
             if (!viewsInitialized) {
@@ -157,9 +157,9 @@
         $('#timelineViewBtn').on('click', function() {
             $('#timelineViewBtn, #calendarViewBtn, #tableViewBtn').removeClass('active');
             $(this).addClass('active');
-            $('#timelineViewContainer').show();
-            $('#calendarViewContainer').hide();
-            $('#tableViewContainer').hide();
+            $('#timelineViewContainer').removeClass('d-none');
+            $('#calendarViewContainer').addClass('d-none');
+            $('#tableViewContainer').addClass('d-none');
             $('#tablePeriodGroup').addClass('d-none');
             ReservationTimelineView.loadToday(getSearchParams());
         });
@@ -168,9 +168,9 @@
         $('#calendarViewBtn').on('click', function() {
             $('#timelineViewBtn, #calendarViewBtn, #tableViewBtn').removeClass('active');
             $(this).addClass('active');
-            $('#timelineViewContainer').hide();
-            $('#calendarViewContainer').show();
-            $('#tableViewContainer').hide();
+            $('#timelineViewContainer').addClass('d-none');
+            $('#calendarViewContainer').removeClass('d-none');
+            $('#tableViewContainer').addClass('d-none');
             $('#tablePeriodGroup').addClass('d-none');
             ReservationCalendarView.load(getSearchParams());
         });
@@ -179,9 +179,9 @@
         $('#tableViewBtn').on('click', function() {
             $('#timelineViewBtn, #calendarViewBtn, #tableViewBtn').removeClass('active');
             $(this).addClass('active');
-            $('#timelineViewContainer').hide();
-            $('#tableViewContainer').show();
-            $('#calendarViewContainer').hide();
+            $('#timelineViewContainer').addClass('d-none');
+            $('#tableViewContainer').removeClass('d-none');
+            $('#calendarViewContainer').addClass('d-none');
             $('#tablePeriodGroup').removeClass('d-none');
 
             // 날짜 미설정 시 기본 3개월
@@ -212,8 +212,8 @@
 
         // 상태 필터 버튼 클릭
         $('#statusFilterGroup').on('click', 'button[data-status]', function() {
-            $('#statusFilterGroup button').removeClass('active').css('border-color', 'transparent').css('box-shadow', 'none');
-            $(this).addClass('active').css('border-color', '#051923').css('box-shadow', '0 0 0 1px #051923');
+            $('#statusFilterGroup button').removeClass('active');
+            $(this).addClass('active');
             doSearch();
         });
 
@@ -224,9 +224,9 @@
 
         // 초기화 버튼
         $('#resetBtn').on('click', function() {
-            $('#statusFilterGroup button').removeClass('active').css('border-color', 'transparent').css('box-shadow', 'none');
+            $('#statusFilterGroup button').removeClass('active');
             var $all = $('#statusFilterGroup button[data-status=""]');
-            $all.addClass('active').css('border-color', '#051923').css('box-shadow', '0 0 0 1px #051923');
+            $all.addClass('active');
             $('#keyword').val('');
             // 기간 초기화 (과거 3개월)
             if (!$('#tablePeriodGroup').hasClass('d-none')) {
@@ -248,8 +248,8 @@
             $('#contextAlert').removeClass('d-none');
             return;
         }
-        $('#searchCard').show();
-        $('#viewToggleGroup').css('display', '').removeClass('d-none');
+        $('#searchCard').removeClass('d-none');
+        $('#viewToggleGroup').removeClass('d-none');
         initViews(propertyId);
 
         /**
@@ -257,7 +257,7 @@
          */
         function initViews(pid) {
             // 디폴트: 타임라인 뷰 — show 먼저 해서 calcDayWidth가 정확하도록
-            $('#timelineViewContainer').show();
+            $('#timelineViewContainer').removeClass('d-none');
             ReservationTimelineView.init(pid);
             ReservationCalendarView.init(pid);
             ReservationTableView.init(pid);
@@ -278,9 +278,9 @@
                 $('#timelineViewBtn').addClass('active');
             }
 
-            $('#timelineViewContainer').toggle(isTimeline);
-            $('#calendarViewContainer').toggle(isCalendar);
-            $('#tableViewContainer').toggle(isTable);
+            $('#timelineViewContainer').toggleClass('d-none', !isTimeline);
+            $('#calendarViewContainer').toggleClass('d-none', !isCalendar);
+            $('#tableViewContainer').toggleClass('d-none', !isTable);
             $('#tablePeriodGroup').toggleClass('d-none', !isTable);
         }
 

@@ -184,6 +184,30 @@ Mapper
 
 `설계/` 디렉토리: IA설계(`01.IA설계/`), 화면설계(`02.화면설계/` — 공통~시스템관리 7종), ERD(`99.기타자료/bwpms-논리.pdf`), 코드체계(`99.기타자료/코드관리_v0.1.xlsx`)
 
+## Design Context
+
+### Users & Purpose
+- **Primary**: 호텔 운영 관리자 (프론트데스크, 객실관리, 예약팀). 하루 8시간+ 사용
+- **Secondary**: 하우스키핑 직원 (모바일), 호텔 관리자 (대시보드/리포트)
+- **Job**: 객실 재고, 예약, 요금, 하우스키핑을 한 곳에서 실수 없이 관리
+- **Tech proficiency**: IT 전문가가 아닌 호텔 실무자. 새 직원 온보딩 잦음
+
+### Brand Personality
+- **3 words**: 전문적 · 깔끔 · 실용적
+- **Emotional goal**: 신뢰감 + 안정감 — "이 시스템은 믿을 수 있다"
+- **Reference**: Cloudbeds, Mews PMS (업계 표준 호텔 PMS)
+- **Anti-reference**: 화려하지만 느린 UI, 과도한 애니메이션, 불필요한 일러스트/마스코트
+
+### Design Principles
+1. **Clarity over decoration** — 장식보다 정보 전달 우선. 라벨·상태·액션이 한눈에 구분
+2. **Density with breathing room** — 정보 밀도 유지 + 적절한 여백으로 시각적 피로 방지
+3. **Consistent patterns, zero surprises** — 동일 액션은 어디서든 동일하게 동작하고 보임
+4. **Progressive disclosure** — 핵심 정보 먼저, 상세는 필요할 때 접근
+5. **Fail-safe interactions** — 되돌릴 수 없는 액션엔 확인 단계. 에러는 해결 방법 안내
+
+### Accessibility
+- WCAG AA 기본 수준: 색상 대비 4.5:1, 키보드 탐색, 포커스 인디케이터
+
 ## 모델 라우팅 (서브에이전트)
 
 | 모델 | 기준 |

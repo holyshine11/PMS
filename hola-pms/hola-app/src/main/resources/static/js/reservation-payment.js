@@ -81,39 +81,40 @@ var ReservationPayment = {
      * 결제 요약 바인딩
      */
     bindSummary: function(data) {
-        // 얼리/레이트, 조정, 합계는 공통 영역에 바인딩
+        // 요금 명세 공통 영역 바인딩
         $('#totalEarlyLateFee').text(this.formatCurrency(data.totalEarlyLateFee));
         $('#totalAdjustmentAmount').text(this.formatCurrency(data.totalAdjustmentAmount));
-        $('#grandTotal').text(this.formatCurrency(data.grandTotal));
 
-        // 결제 누적액/잔액 표시
+        // 결제 요약 카드 바인딩
         var grandTotal = Number(data.grandTotal) || 0;
         var totalPaid = Number(data.totalPaidAmount) || 0;
         var remaining = Number(data.remainingAmount) || 0;
         var cancelFee = Number(data.cancelFeeAmount) || 0;
         var refund = Number(data.refundAmount) || 0;
 
-        var displayHtml;
-        if (data.paymentStatus === 'REFUNDED') {
-            // 취소/노쇼 환불 완료 상태: 총액/결제/환불/수수료 표시
-            displayHtml = '총액 <strong>' + this.formatCurrency(grandTotal) + '</strong>';
-            displayHtml += ' &nbsp;|&nbsp; 결제 <strong>' + this.formatCurrency(totalPaid) + '</strong>';
-            displayHtml += ' &nbsp;|&nbsp; 환불 <strong class="text-primary">' + this.formatCurrency(refund) + '</strong>';
-            if (cancelFee > 0) {
-                displayHtml += ' &nbsp;|&nbsp; 수수료 <strong>' + this.formatCurrency(cancelFee) + '</strong>';
-            }
+        $('#summaryGrandTotal').text(this.formatCurrency(grandTotal));
+        $('#summaryPaidAmount').text(this.formatCurrency(totalPaid));
+
+        // 잔액 색상 분기
+        var $remaining = $('#summaryRemainingAmount');
+        if (remaining < 0) {
+            $remaining.text('환불필요 ' + this.formatCurrency(Math.abs(remaining)))
+                .removeClass('text-danger').addClass('text-warning');
+        } else if (remaining > 0) {
+            $remaining.text(this.formatCurrency(remaining))
+                .removeClass('text-warning').addClass('text-danger');
         } else {
-            displayHtml = '총액 <strong>' + this.formatCurrency(grandTotal) + '</strong>';
-            if (totalPaid > 0) {
-                displayHtml += ' &nbsp;|&nbsp; 결제 <strong>' + this.formatCurrency(totalPaid) + '</strong>';
-                if (remaining < 0) {
-                    displayHtml += ' &nbsp;|&nbsp; <strong class="text-warning">환불필요 ' + this.formatCurrency(Math.abs(remaining)) + '</strong>';
-                } else if (remaining > 0) {
-                    displayHtml += ' &nbsp;|&nbsp; 잔액 <strong class="text-danger">' + this.formatCurrency(remaining) + '</strong>';
-                }
-            }
+            $remaining.text('0원').removeClass('text-danger text-warning');
         }
-        $('#paidAmountDisplay').html(displayHtml);
+
+        // 환불 상태 시 추가 정보 행 표시
+        if (data.paymentStatus === 'REFUNDED') {
+            $('#summaryRefundAmount').text(this.formatCurrency(refund));
+            $('#summaryCancelFee').text(this.formatCurrency(cancelFee));
+            $('#refundSummaryRow').removeClass('d-none');
+        } else {
+            $('#refundSummaryRow').addClass('d-none');
+        }
 
         // 결제 상태 배지
         this.renderPaymentStatus(data.paymentStatus);
@@ -361,7 +362,7 @@ var ReservationPayment = {
         $('#chargeBreakdown').html(html);
 
         // 멀티레그일 때 글로벌 결제 버튼 숨김
-        $('#paymentButtonGroup').hide();
+        $('#paymentButtonGroup').addClass('d-none');
 
         // ── 공급가/세액/봉사료 소계 바인딩 ──
         $('#totalSupplyPrice').text(self.formatCurrency(totalSupply));
@@ -476,33 +477,33 @@ var ReservationPayment = {
         // ── HTML 조합: 카테고리형 토글 ──
         var breakdownHtml = '';
 
-        // 객실 요금
+        // 객실 요금 (기본 펼침)
         breakdownHtml += '<div class="border-bottom py-2">';
         breakdownHtml += '<div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#roomDetail" style="cursor:pointer">';
-        breakdownHtml += '<span><i class="fas fa-caret-right me-1 toggle-icon"></i>객실 요금</span>';
+        breakdownHtml += '<span><i class="fas fa-caret-down me-1 toggle-icon"></i>객실 요금</span>';
         breakdownHtml += '<span>' + self.formatCurrency(totalRoomAmount) + '</span>';
         breakdownHtml += '</div>';
-        breakdownHtml += '<div id="roomDetail" style="display:none" class="mt-2">';
+        breakdownHtml += '<div id="roomDetail" class="mt-2">';
         breakdownHtml += roomHtml || '<div class="charge-empty">객실 요금 내역이 없습니다.</div>';
         breakdownHtml += '</div></div>';
 
-        // 유료 서비스
+        // 유료 서비스 (기본 펼침)
         breakdownHtml += '<div class="border-bottom py-2">';
         breakdownHtml += '<div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#serviceDetail" style="cursor:pointer">';
-        breakdownHtml += '<span><i class="fas fa-caret-right me-1 toggle-icon"></i>유료 서비스 요금</span>';
+        breakdownHtml += '<span><i class="fas fa-caret-down me-1 toggle-icon"></i>유료 서비스 요금</span>';
         breakdownHtml += '<span>' + self.formatCurrency(totalServiceAmount) + '</span>';
         breakdownHtml += '</div>';
-        breakdownHtml += '<div id="serviceDetail" style="display:none" class="mt-2">';
+        breakdownHtml += '<div id="serviceDetail" class="mt-2">';
         breakdownHtml += svcHtml || '<div class="charge-empty">유료 서비스 내역이 없습니다.</div>';
         breakdownHtml += '</div></div>';
 
-        // 봉사료
+        // 봉사료 (기본 펼침)
         breakdownHtml += '<div class="border-bottom py-2">';
         breakdownHtml += '<div class="d-flex justify-content-between align-items-center charge-toggle" data-target="#svcChgDetail" style="cursor:pointer">';
-        breakdownHtml += '<span><i class="fas fa-caret-right me-1 toggle-icon"></i>봉사료</span>';
+        breakdownHtml += '<span><i class="fas fa-caret-down me-1 toggle-icon"></i>봉사료</span>';
         breakdownHtml += '<span>' + self.formatCurrency(totalSvcChg) + '</span>';
         breakdownHtml += '</div>';
-        breakdownHtml += '<div id="svcChgDetail" style="display:none" class="mt-2">';
+        breakdownHtml += '<div id="svcChgDetail" class="mt-2">';
         breakdownHtml += chgHtml || '<div class="charge-empty">봉사료 내역이 없습니다.</div>';
         breakdownHtml += '</div></div>';
 
@@ -536,25 +537,18 @@ var ReservationPayment = {
         };
 
         var info = statusMap[status] || { label: status || '미결제', cls: 'bg-secondary' };
-        $badge.html('<span class="badge ' + info.cls + '">' + HolaPms.escapeHtml(info.label) + '</span>');
+        $badge.html('<span class="badge ' + info.cls + ' fs-6">' + HolaPms.escapeHtml(info.label) + '</span>');
 
         // 결제 버튼 표시 조건
-        // 멀티레그: 글로벌 버튼 숨김 (per-Leg 버튼은 renderMultiLegBreakdown에서 렌더링)
-        // 싱글레그: 잔액 > 0이고 취소/노쇼가 아닌 경우 표시
         var remaining = this.paymentData ? Number(this.paymentData.remainingAmount) || 0 : 0;
         var rsvStatus = this.reservationData ? this.reservationData.reservationStatus : '';
         var isCanceledOrNoShow = rsvStatus === 'CANCELED' || rsvStatus === 'NO_SHOW';
         var subs = this.reservationData ? this.reservationData.subReservations || [] : [];
         var isMultiLeg = subs.length > 1;
 
-        if (isMultiLeg) {
-            // 멀티레그: 글로벌 버튼 항상 숨김
-            $('#paymentButtonGroup').hide();
-        } else if (status === 'OVERPAID' || status === 'REFUNDED' || isCanceledOrNoShow || remaining <= 0) {
-            $('#paymentButtonGroup').hide();
-        } else {
-            $('#paymentButtonGroup').show();
-        }
+        var hideBtn = isMultiLeg || status === 'OVERPAID' || status === 'REFUNDED'
+            || isCanceledOrNoShow || remaining <= 0;
+        $('#paymentButtonGroup').toggleClass('d-none', hideBtn);
     },
 
     /**
@@ -661,6 +655,9 @@ var ReservationPayment = {
         var $collapse = $('#paymentHistoryCollapse');
         var $icon = $('#paymentHistoryToggleIcon');
 
+        // 건수 배지 업데이트
+        $('#paymentHistoryCount').text(transactions ? transactions.length : 0);
+
         if (!transactions || transactions.length === 0) {
             $content.html('<p class="text-center text-muted py-3">결제 이력이 없습니다.</p>');
             $collapse.removeClass('show');
@@ -672,117 +669,97 @@ var ReservationPayment = {
         $collapse.addClass('show');
         $icon.removeClass('fa-caret-down').addClass('fa-caret-up');
 
-        var methodLabels = {
-            CARD: '카드',
-            CASH: '현금'
-        };
+        var methodLabels = { CARD: '카드', CASH: '현금' };
+        var typeLabels = { PAYMENT: '결제', REFUND: '환불', CANCEL_FEE: '취소수수료' };
+        var typeStyles = { REFUND: 'text-primary', CANCEL_FEE: 'text-danger' };
 
-        var typeLabels = {
-            PAYMENT: '결제',
-            REFUND: '환불',
-            CANCEL_FEE: '취소수수료'
-        };
-
-        var typeStyles = {
-            REFUND: 'text-primary',
-            CANCEL_FEE: 'text-danger'
-        };
-
-        // PG 결제 정보가 하나라도 있는지 확인
-        var hasPgInfo = transactions.some(function(t) { return t.pgProvider && t.pgProvider !== 'MOCK'; });
         // PG 환불 실패 건 존재 여부
         var hasFailedRefund = transactions.some(function(t) { return t.transactionStatus === 'PG_REFUND_FAILED'; });
-        // 수동 확인 환불 건 존재 여부
-        var hasManualConfirmed = transactions.some(function(t) { return t.transactionStatus === 'MANUAL_CONFIRMED'; });
-        // 상태 컬럼 표시 여부 (PG실패 또는 수동확인 있을 때)
-        var showStatusColumn = hasFailedRefund || hasManualConfirmed;
-        // 멀티레그 여부 (Leg 컬럼 표시 여부)
+        // 멀티레그 여부
         var subs = self.reservationData ? self.reservationData.subReservations || [] : [];
         var isMultiLeg = subs.length > 1;
-        // subId → Leg 라벨 매핑 (멀티레그 시)
         var subLabelMap = {};
         if (isMultiLeg) {
             subs.forEach(function(sub, idx) {
-                var label = sub.roomTypeName || ('객실 #' + (idx + 1));
-                subLabelMap[sub.id] = 'Leg #' + (idx + 1) + ' - ' + label;
+                subLabelMap[sub.id] = 'Leg #' + (idx + 1) + ' - ' + (sub.roomTypeName || '객실 #' + (idx + 1));
             });
         }
 
-        var html = '<table class="table table-bordered table-sm mb-0 align-middle">'
-            + '<thead class="table-light">'
-            + '<tr>'
-            + '  <th style="width:50px" class="text-center">NO</th>'
-            + '  <th style="width:80px" class="text-center">유형</th>';
-        if (isMultiLeg) {
-            html += '  <th style="width:120px" class="text-center">객실</th>';
-        }
-        html += '  <th style="width:80px" class="text-center">결제수단</th>'
-            + '  <th style="width:120px" class="text-center">금액</th>';
-        if (hasPgInfo) {
-            html += '  <th style="width:100px" class="text-center">PG승인번호</th>'
-                + '  <th style="width:100px" class="text-center">카드사</th>'
-                + '  <th style="width:140px" class="text-center">카드번호</th>'
-                + '  <th style="width:60px" class="text-center">할부</th>';
-        }
-        html += '  <th class="text-center">메모</th>'
-            + '  <th style="width:80px" class="text-center">처리자</th>'
-            + '  <th style="width:180px" class="text-center">처리일시</th>';
-        if (showStatusColumn) {
-            html += '  <th style="width:120px" class="text-center">상태</th>';
-        }
-        html += '</tr>'
-            + '</thead><tbody>';
+        // 핵심 5컬럼 + 멀티레그 시 객실 컬럼
+        var colCount = isMultiLeg ? 6 : 5;
+        var html = '<table class="table table-sm mb-0 align-middle txn-history-table">'
+            + '<thead><tr>'
+            + '<th class="text-center" style="width:40px">NO</th>'
+            + '<th class="text-center" style="width:70px">유형</th>';
+        if (isMultiLeg) html += '<th class="text-center">객실</th>';
+        html += '<th class="text-center" style="width:70px">수단</th>'
+            + '<th class="text-end" style="width:110px">금액</th>'
+            + '<th class="text-center" style="width:140px">일시</th>'
+            + '</tr></thead><tbody>';
 
         transactions.forEach(function(txn, idx) {
             var methodLabel = methodLabels[txn.paymentMethod] || HolaPms.escapeHtml(txn.paymentMethod);
-            var createdAt = txn.createdAt ? txn.createdAt.replace('T', ' ').substring(0, 19) : '-';
+            var createdAt = txn.createdAt ? txn.createdAt.replace('T', ' ').substring(0, 16) : '-';
             var typeLabel = typeLabels[txn.transactionType] || HolaPms.escapeHtml(txn.transactionType || '결제');
             var typeStyle = typeStyles[txn.transactionType] || '';
 
-            html += '<tr>'
+            // 상태 배지
+            var statusHtml = '';
+            if (txn.transactionStatus === 'PG_REFUND_FAILED') {
+                statusHtml = ' <span class="badge bg-danger">실패</span>';
+            } else if (txn.transactionStatus === 'MANUAL_CONFIRMED') {
+                statusHtml = ' <span class="badge badge-manual-refund">수동확인</span>';
+            }
+
+            // PG 상세 서브행 판단 (메인행 클래스 결정에 필요)
+            var hasPg = txn.pgCno || txn.pgApprovalNo || txn.pgIssuerName;
+            var hasMemo = txn.memo;
+            var hasDetailRow = hasPg || hasMemo || txn.transactionStatus === 'PG_REFUND_FAILED';
+
+            // 메인 행
+            html += '<tr class="txn-main-row' + (hasDetailRow ? ' has-detail' : '') + '">'
                 + '<td class="text-center">' + (idx + 1) + '</td>'
-                + '<td class="text-center ' + typeStyle + '">' + typeLabel + '</td>';
+                + '<td class="text-center ' + typeStyle + '">' + typeLabel + statusHtml + '</td>';
             if (isMultiLeg) {
-                var legLabel = txn.subReservationId ? (subLabelMap[txn.subReservationId] || 'Leg') : '-';
-                html += '<td class="text-center small">' + HolaPms.escapeHtml(legLabel) + '</td>';
+                var legLabel = txn.subReservationId ? (subLabelMap[txn.subReservationId] || '-') : '-';
+                html += '<td class="small">' + HolaPms.escapeHtml(legLabel) + '</td>';
             }
             html += '<td class="text-center">' + methodLabel + '</td>'
-                + '<td class="text-center">' + self.formatCurrency(txn.amount) + '</td>';
-            if (hasPgInfo) {
-                var installment = (txn.pgInstallmentMonth != null && txn.pgInstallmentMonth !== undefined)
-                    ? (txn.pgInstallmentMonth === 0 ? '일시불' : txn.pgInstallmentMonth + '개월') : '-';
-                html += '<td class="text-center">' + HolaPms.escapeHtml(txn.pgApprovalNo || txn.approvalNo || '-') + '</td>'
-                    + '<td class="text-center">' + HolaPms.escapeHtml(txn.pgIssuerName || '-') + '</td>'
-                    + '<td class="text-center text-nowrap" style="font-size:0.8125rem;letter-spacing:0.5px;">' + HolaPms.escapeHtml(txn.pgCardNo || '-') + '</td>'
-                    + '<td class="text-center">' + installment + '</td>';
-            }
-            html += '<td class="text-center">' + HolaPms.escapeHtml(txn.memo || '-') + '</td>'
-                + '<td class="text-center">' + HolaPms.escapeHtml(txn.createdBy || '-') + '</td>'
-                + '<td class="text-center text-nowrap">' + HolaPms.escapeHtml(createdAt) + '</td>';
-            if (showStatusColumn) {
-                if (txn.transactionStatus === 'PG_REFUND_FAILED') {
-                    html += '<td class="text-center">'
-                        + '<span class="badge bg-danger mb-1">PG환불실패</span><br>'
-                        + '<button class="btn btn-warning btn-sm retry-refund-btn" data-txn-id="' + txn.id + '">'
-                        + '<i class="fas fa-redo me-1"></i>재시도</button></td>';
-                } else if (txn.transactionStatus === 'MANUAL_CONFIRMED') {
-                    html += '<td class="text-center">'
-                        + '<span class="badge" style="background:#fd7e14;color:#fff;">수동환불(확인)</span></td>';
-                } else if (txn.transactionType === 'REFUND' && txn.transactionStatus === 'COMPLETED' && txn.pgCno) {
-                    html += '<td class="text-center">'
-                        + '<span class="badge" style="background:#0582CA;color:#fff;">PG환불</span></td>';
-                } else {
-                    html += '<td></td>';
+                + '<td class="text-end fw-medium">' + self.formatCurrency(txn.amount) + '</td>'
+                + '<td class="text-center text-nowrap small">' + HolaPms.escapeHtml(createdAt) + '</td>'
+                + '</tr>';
+            if (hasDetailRow) {
+                html += '<tr class="txn-detail-row"><td></td><td colspan="' + (colCount - 1) + '">';
+                var details = [];
+                if (txn.pgIssuerName) details.push(HolaPms.escapeHtml(txn.pgIssuerName));
+                if (txn.pgCardNo) details.push(HolaPms.escapeHtml(txn.pgCardNo));
+                if (txn.pgApprovalNo || txn.approvalNo) details.push('승인 ' + HolaPms.escapeHtml(txn.pgApprovalNo || txn.approvalNo));
+                if (txn.pgInstallmentMonth != null) {
+                    details.push(txn.pgInstallmentMonth === 0 ? '일시불' : txn.pgInstallmentMonth + '개월');
                 }
+                if (details.length > 0) {
+                    html += '<span class="text-muted">' + details.join(' · ') + '</span>';
+                }
+                if (hasMemo) {
+                    html += (details.length > 0 ? '<br>' : '') + '<span class="text-muted">메모: ' + HolaPms.escapeHtml(txn.memo) + '</span>';
+                }
+                if (txn.createdBy) {
+                    html += (details.length > 0 || hasMemo ? ' · ' : '') + '<span class="text-muted">처리자: ' + HolaPms.escapeHtml(txn.createdBy) + '</span>';
+                }
+                // PG 환불 실패 시 재시도 버튼
+                if (txn.transactionStatus === 'PG_REFUND_FAILED') {
+                    html += '<br><button class="btn btn-warning btn-sm mt-1 retry-refund-btn" data-txn-id="' + txn.id + '">'
+                        + '<i class="fas fa-redo me-1"></i>PG 환불 재시도</button>';
+                }
+                html += '</td></tr>';
             }
-            html += '</tr>';
         });
 
         html += '</tbody></table>';
         $content.html(html);
 
         // PG 환불 재시도 버튼 이벤트
-        if (showStatusColumn && hasFailedRefund) {
+        if (hasFailedRefund) {
             $content.off('click', '.retry-refund-btn').on('click', '.retry-refund-btn', function() {
                 var txnId = $(this).data('txn-id');
                 var $btn = $(this);
@@ -794,25 +771,17 @@ var ReservationPayment = {
                     type: 'POST',
                     success: function(res) {
                         if (res.success && res.data) {
-                            // 재시도한 거래의 실제 상태를 확인하여 성공/실패 판단
-                            var updatedTxn = (res.data.transactions || []).find(function(t) {
-                                return t.id === txnId;
-                            });
+                            var updatedTxn = (res.data.transactions || []).find(function(t) { return t.id === txnId; });
                             var refundSucceeded = updatedTxn && updatedTxn.transactionStatus === 'COMPLETED';
-
                             self.bindSummary(res.data);
                             self.renderPaymentTransactions(res.data.transactions || []);
                             self.renderCancelInfo(res.data);
-
-                            if (refundSucceeded) {
-                                HolaPms.alert('success', 'PG 환불이 완료되었습니다.');
-                            } else {
-                                HolaPms.alert('error', 'PG 환불 재시도에 실패했습니다. 다시 시도해주세요.');
-                            }
+                            HolaPms.alert(refundSucceeded ? 'success' : 'error',
+                                refundSucceeded ? 'PG 환불이 완료되었습니다.' : 'PG 환불 재시도에 실패했습니다.');
                         }
                     },
                     error: function() {
-                        $btn.prop('disabled', false).html('<i class="fas fa-redo me-1"></i>재시도');
+                        $btn.prop('disabled', false).html('<i class="fas fa-redo me-1"></i>PG 환불 재시도');
                         HolaPms.alert('error', 'PG 환불 재시도에 실패했습니다.');
                     }
                 });
@@ -833,19 +802,17 @@ var ReservationPayment = {
             return;
         }
 
-        var html = '<table class="table table-bordered table-sm align-middle">'
-            + '<thead class="table-light">'
-            + '<tr>'
-            + '  <th style="width:50px" class="text-center">NO</th>'
-            + '  <th style="width:60px" class="text-center">구분</th>'
-            + '  <th style="width:120px" class="text-end">공급가</th>'
-            + '  <th style="width:120px" class="text-end">세금</th>'
-            + '  <th style="width:120px" class="text-end">합계</th>'
-            + '  <th class="text-center">사유</th>'
-            + '  <th style="width:80px" class="text-center">작성자</th>'
-            + '  <th style="width:180px" class="text-center">일시</th>'
-            + '</tr>'
-            + '</thead><tbody>';
+        var html = '<table class="table table-sm mb-0 align-middle txn-history-table">'
+            + '<thead><tr>'
+            + '<th class="text-center" style="width:40px">NO</th>'
+            + '<th class="text-center" style="width:50px">구분</th>'
+            + '<th class="text-end" style="width:100px">공급가</th>'
+            + '<th class="text-end" style="width:100px">세금</th>'
+            + '<th class="text-end" style="width:100px">합계</th>'
+            + '<th>사유</th>'
+            + '<th class="text-center" style="width:70px">작성자</th>'
+            + '<th class="text-center" style="width:130px">일시</th>'
+            + '</tr></thead><tbody>';
 
         adjustments.forEach(function(adj, idx) {
             var signLabel = adj.adjustmentSign === '+' ? '<span class="text-success">+</span>' : '<span class="text-danger">-</span>';
@@ -973,7 +940,7 @@ var ReservationPayment = {
             return t.transactionType === 'REFUND' || t.transactionType === 'CANCEL_FEE';
         });
         if (!hasRefundActivity && cancelFee <= 0 && refund <= 0) {
-            $('#cancelInfoSection').hide();
+            $('#cancelInfoSection').addClass('d-none');
             return;
         }
 
@@ -996,8 +963,8 @@ var ReservationPayment = {
         // ── 전체 요약 카드 ──
         var html = '<div class="bg-light rounded p-3 mb-3">';
         html += '<div class="row mb-2"><div class="col-sm-3 text-muted">총 결제액</div><div class="col-sm-9">' + fmt(totalPaid) + '</div></div>';
-        html += '<div class="row mb-2"><div class="col-sm-3 text-muted">총 취소 수수료</div><div class="col-sm-9" style="color:#EF476F;">' + fmt(cancelFee) + '</div></div>';
-        html += '<div class="row mb-2"><div class="col-sm-3 text-muted">총 환불 금액</div><div class="col-sm-9" style="color:#0582CA;">' + fmt(refund) + '</div></div>';
+        html += '<div class="row mb-2"><div class="col-sm-3 text-muted">총 취소 수수료</div><div class="col-sm-9 text-danger">' + fmt(cancelFee) + '</div></div>';
+        html += '<div class="row mb-2"><div class="col-sm-3 text-muted">총 환불 금액</div><div class="col-sm-9 text-primary">' + fmt(refund) + '</div></div>';
         if (adjustTotal !== 0) {
             html += '<div class="row mb-2"><div class="col-sm-3 text-muted">조정 금액</div><div class="col-sm-9">'
                 + (adjustTotal > 0 ? '+' : '') + fmt(adjustTotal) + '</div></div>';
@@ -1039,7 +1006,7 @@ var ReservationPayment = {
             } else if (txn.transactionStatus === 'MANUAL_CONFIRMED') {
                 // 수동 환불 확인 완료
                 line += method + ' <strong>' + fmt(txn.amount) + '</strong>';
-                line += ' <span class="badge" style="background:#fd7e14;color:#fff;">수동환불(확인)</span>';
+                line += ' <span class="badge badge-manual-refund">수동환불(확인)</span>';
             } else {
                 // 현금/VAN 등
                 line += method + ' <strong>' + fmt(txn.amount) + '</strong>';
@@ -1068,7 +1035,7 @@ var ReservationPayment = {
 
             // 수수료
             group.cancelFees.forEach(function(txn) {
-                card += '<div class="row mb-1"><div class="col-sm-3 text-muted small">취소 수수료</div><div class="col-sm-9 small" style="color:#EF476F;">'
+                card += '<div class="row mb-1"><div class="col-sm-3 text-muted small">취소 수수료</div><div class="col-sm-9 small text-danger">'
                     + renderTxnDetail(txn, '') + '</div></div>';
             });
 
@@ -1080,7 +1047,7 @@ var ReservationPayment = {
 
             // 환불 내역
             group.refunds.forEach(function(txn) {
-                card += '<div class="row mb-1"><div class="col-sm-3 text-muted small">환불</div><div class="col-sm-9 small" style="color:#0582CA;">'
+                card += '<div class="row mb-1"><div class="col-sm-3 text-muted small">환불</div><div class="col-sm-9 small text-primary">'
                     + renderTxnDetail(txn, '') + '</div></div>';
             });
 
@@ -1106,18 +1073,18 @@ var ReservationPayment = {
             html += '<div class="border rounded p-3 mb-2">';
             html += '<div class="mb-2"><strong>조정 내역</strong></div>';
             adjustments.forEach(function(adj) {
-                var adjAmt = Number(adj.amount) || 0;
-                var sign = adjAmt >= 0 ? '+' : '';
+                var adjAmt = Number(adj.totalAmount) || 0;
+                var sign = adj.adjustmentSign === '+' ? '+' : '-';
                 html += '<div class="row mb-1"><div class="col-sm-3 text-muted small">'
-                    + esc(adj.adjustmentType || '-') + '</div>'
-                    + '<div class="col-sm-5 small">' + esc(adj.reason || '-') + '</div>'
-                    + '<div class="col-sm-4 small text-end">' + sign + fmt(adjAmt) + '</div></div>';
+                    + sign + '</div>'
+                    + '<div class="col-sm-5 small">' + esc(adj.comment || '-') + '</div>'
+                    + '<div class="col-sm-4 small text-end">' + fmt(adjAmt) + '</div></div>';
             });
             html += '</div>';
         }
 
         $('#cancelInfoContent').html(html);
-        $('#cancelInfoSection').show();
+        $('#cancelInfoSection').removeClass('d-none');
     },
 
     /**
@@ -1129,387 +1096,17 @@ var ReservationPayment = {
     },
 
     /**
-     * 인보이스 출력 (새 창)
+     * 인보이스 출력 (새 창 — Thymeleaf 템플릿)
      */
     printInvoice: function() {
-        var self = this;
-        var resData = self.reservationData;
-        var payData = self.paymentData;
-
-        if (!resData) {
+        if (!this.reservationId || !this.propertyId) {
             HolaPms.alert('warning', '예약 정보를 먼저 로드해주세요.');
             return;
         }
-
-        // 프로퍼티 정보 조회 후 인보이스 생성
-        HolaPms.ajax({
-            url: '/api/v1/properties/' + self.propertyId,
-            type: 'GET',
-            success: function(res) {
-                if (res.success && res.data) {
-                    self.generateInvoice(res.data, resData, payData);
-                }
-            },
-            error: function() {
-                // 프로퍼티 정보 없어도 인보이스 출력 시도
-                self.generateInvoice(null, resData, payData);
-            }
-        });
-    },
-
-    /**
-     * 인보이스 HTML 생성 + 새 창 열기
-     */
-    generateInvoice: function(property, resData, payData) {
-        var self = this;
-        var fmt = function(amt) {
-            if (amt === null || amt === undefined) return '0';
-            return Number(amt).toLocaleString();
-        };
-
-        // 프로퍼티 정보
-        var hotelName = (property && property.propertyName) || 'Hotel';
-        var hotelAddr = '';
-        if (property) {
-            hotelAddr = (property.address || '') + (property.addressDetail ? ' ' + property.addressDetail : '');
-        }
-        var hotelPhone = (property && property.phone) || '';
-        var hotelEmail = (property && property.email) || '';
-        var bizNumber = (property && property.businessNumber) || '';
-        var logoPath = (property && property.logoPath) || '';
-        var repName = (property && property.representativeName) || '';
-
-        // 예약 정보
-        var reservationNo = resData.masterReservationNo || '-';
-        var confirmNo = resData.confirmationNo || '-';
-        var guestName = resData.guestNameKo || '-';
-        var guestEmail = resData.email || '';
-        var guestPhone = '';
-        if (resData.phoneCountryCode && resData.phoneNumber) {
-            guestPhone = resData.phoneCountryCode + ' ' + resData.phoneNumber;
-        } else if (resData.phoneNumber) {
-            guestPhone = resData.phoneNumber;
-        }
-        var checkIn = resData.masterCheckIn || '-';
-        var checkOut = resData.masterCheckOut || '-';
-
-        // 숙박일수
-        var nights = 0;
-        if (resData.masterCheckIn && resData.masterCheckOut) {
-            var d1 = new Date(resData.masterCheckIn);
-            var d2 = new Date(resData.masterCheckOut);
-            nights = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
-        }
-
-        // 객실 정보
-        var subs = resData.subReservations || [];
-        var roomTypeNames = [];
-        subs.forEach(function(sub) {
-            if (sub.roomReservationStatus !== 'CANCELED' && sub.roomTypeName) {
-                roomTypeNames.push(sub.roomTypeName);
-            }
-        });
-
-        // 발행일
-        var today = new Date();
-        var issueDate = today.getFullYear() + '-'
-            + String(today.getMonth() + 1).padStart(2, '0') + '-'
-            + String(today.getDate()).padStart(2, '0');
-
-        // ── 요금 명세 상세 테이블 ──
-        var chargeRows = '';
-        var totalSupply = 0, totalTax = 0, totalSvcChg = 0;
-
-        // 1. 객실 요금 (일별)
-        subs.forEach(function(sub, idx) {
-            var isCanceled = sub.roomReservationStatus === 'CANCELED';
-            var charges = sub.dailyCharges || [];
-            if (charges.length === 0) return;
-
-            var label = sub.roomTypeName || ('객실 #' + (idx + 1));
-            if (subs.length > 1) label = 'Leg #' + (idx + 1) + ' - ' + label;
-            var cancelSuffix = isCanceled ? ' [취소됨]' : '';
-            var rowStyle = isCanceled ? ' style="text-decoration: line-through; color: #999;"' : '';
-
-            chargeRows += '<tr class="section-header"><td colspan="4">' + HolaPms.escapeHtml(label + cancelSuffix) + '</td></tr>';
-
-            charges.forEach(function(c) {
-                var sp = Number(c.supplyPrice) || 0;
-                var tx = Number(c.tax) || 0;
-                var sc = Number(c.serviceCharge) || 0;
-                if (!isCanceled) {
-                    totalSupply += sp;
-                    totalTax += tx;
-                    totalSvcChg += sc;
-                }
-
-                chargeRows += '<tr' + rowStyle + '>'
-                    + '<td class="ps-4">' + c.chargeDate + '</td>'
-                    + '<td class="text-end">' + fmt(sp) + '</td>'
-                    + '<td class="text-end">' + fmt(tx) + '</td>'
-                    + '<td class="text-end">' + fmt(sp + tx) + '</td>'
-                    + '</tr>';
-            });
-        });
-
-        // 2. 유료 서비스
-        var paidServices = [];
-        subs.forEach(function(sub) {
-            var isCanceled = sub.roomReservationStatus === 'CANCELED';
-            (sub.services || []).forEach(function(svc) {
-                if (Number(svc.totalPrice) > 0) paidServices.push({ svc: svc, canceled: isCanceled });
-            });
-        });
-
-        if (paidServices.length > 0) {
-            chargeRows += '<tr class="section-header"><td colspan="4">유료 서비스</td></tr>';
-            paidServices.forEach(function(item) {
-                var s = item.svc;
-                var isCanceled = item.canceled;
-                var sLabel = s.serviceName || (s.serviceOptionId ? '서비스 #' + s.serviceOptionId : '객실 업그레이드');
-                if (s.serviceDate) sLabel += ' (' + s.serviceDate + ')';
-                var cancelSuffix = isCanceled ? ' [취소]' : '';
-                var rowStyle = isCanceled ? ' style="text-decoration: line-through; color: #999;"' : '';
-                var unitP = Number(s.unitPrice) || 0;
-                var qty = s.quantity || 1;
-                var sTax = Number(s.tax) || 0;
-                var sTotal = Number(s.totalPrice) || 0;
-                if (!isCanceled) {
-                    totalSupply += (unitP * qty);
-                    totalTax += sTax;
-                }
-
-                chargeRows += '<tr' + rowStyle + '>'
-                    + '<td class="ps-4">' + HolaPms.escapeHtml(sLabel + cancelSuffix) + ' x' + qty + '</td>'
-                    + '<td class="text-end">' + fmt(unitP * qty) + '</td>'
-                    + '<td class="text-end">' + fmt(sTax) + '</td>'
-                    + '<td class="text-end">' + fmt(sTotal) + '</td>'
-                    + '</tr>';
-            });
-        }
-
-        // 3. 봉사료
-        if (totalSvcChg > 0) {
-            chargeRows += '<tr class="section-header"><td colspan="4">봉사료</td></tr>';
-            chargeRows += '<tr>'
-                + '<td class="ps-4">봉사료 합계</td>'
-                + '<td class="text-end" colspan="2"></td>'
-                + '<td class="text-end">' + fmt(totalSvcChg) + '</td>'
-                + '</tr>';
-        }
-
-        // 4. 얼리체크인/레이트체크아웃
-        var earlyLateFee = payData ? Number(payData.totalEarlyLateFee) || 0 : 0;
-        if (earlyLateFee > 0) {
-            chargeRows += '<tr>'
-                + '<td>얼리체크인/레이트체크아웃</td>'
-                + '<td class="text-end" colspan="2"></td>'
-                + '<td class="text-end">' + fmt(earlyLateFee) + '</td>'
-                + '</tr>';
-        }
-
-        // 5. 조정 금액
-        var adjAmount = payData ? Number(payData.totalAdjustmentAmount) || 0 : 0;
-        if (adjAmount !== 0) {
-            chargeRows += '<tr>'
-                + '<td>금액 조정</td>'
-                + '<td class="text-end" colspan="2"></td>'
-                + '<td class="text-end">' + fmt(adjAmount) + '</td>'
-                + '</tr>';
-        }
-
-        // 합계 정보
-        var grandTotal = payData ? Number(payData.grandTotal) || 0 : 0;
-        var totalPaid = payData ? Number(payData.totalPaidAmount) || 0 : 0;
-        var remaining = payData ? Number(payData.remainingAmount) || 0 : 0;
-
-        // ── 결제 이력 테이블 ──
-        var txnRows = '';
-        var transactions = (payData && payData.transactions) || [];
-        var methodLabels = { CARD: '카드', CASH: '현금' };
-        var typeLabels = { PAYMENT: '결제', REFUND: '환불', CANCEL_FEE: '취소수수료' };
-
-        if (transactions.length > 0) {
-            transactions.forEach(function(txn, idx) {
-                var createdAt = txn.createdAt ? txn.createdAt.replace('T', ' ').substring(0, 16) : '-';
-                txnRows += '<tr>'
-                    + '<td class="text-center">' + (idx + 1) + '</td>'
-                    + '<td class="text-center">' + (typeLabels[txn.transactionType] || txn.transactionType) + '</td>'
-                    + '<td class="text-center">' + (methodLabels[txn.paymentMethod] || txn.paymentMethod) + '</td>'
-                    + '<td class="text-end">' + fmt(txn.amount) + '원</td>'
-                    + '<td class="text-center">' + HolaPms.escapeHtml(createdAt) + '</td>'
-                    + '</tr>';
-            });
-        }
-
-        // 로고 이미지 (절대 경로)
-        var logoImg = '';
-        if (logoPath) {
-            logoImg = '<img src="' + window.location.origin + logoPath + '" alt="Hotel Logo" style="max-height:60px; max-width:200px; object-fit:contain;">';
-        }
-
-        // ── 인보이스 HTML ──
-        var html = '<!DOCTYPE html>'
-            + '<html lang="ko"><head><meta charset="UTF-8">'
-            + '<title>Invoice - ' + HolaPms.escapeHtml(reservationNo) + '</title>'
-            + '<style>'
-            + '  @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css");'
-            + '  * { margin: 0; padding: 0; box-sizing: border-box; }'
-            + '  body { font-family: "Pretendard", -apple-system, sans-serif; font-size: 12px; color: #333; padding: 40px; line-height: 1.5; }'
-            + '  .invoice-container { max-width: 800px; margin: 0 auto; }'
-
-            // 헤더
-            + '  .invoice-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #051923; padding-bottom: 20px; margin-bottom: 24px; }'
-            + '  .hotel-info { flex: 1; }'
-            + '  .hotel-name { font-size: 22px; font-weight: 700; color: #051923; margin-bottom: 4px; }'
-            + '  .hotel-detail { font-size: 11px; color: #666; line-height: 1.6; }'
-            + '  .invoice-title-area { text-align: right; }'
-            + '  .invoice-title { font-size: 28px; font-weight: 800; color: #003554; letter-spacing: 2px; }'
-            + '  .invoice-logo { margin-bottom: 8px; text-align: right; }'
-
-            // 정보 그리드
-            + '  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }'
-            + '  .info-box { background: #f8f9fa; border-radius: 6px; padding: 16px; }'
-            + '  .info-box-title { font-size: 11px; font-weight: 700; color: #003554; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 6px; }'
-            + '  .info-row { display: flex; justify-content: space-between; margin-bottom: 3px; }'
-            + '  .info-label { color: #888; font-size: 11px; }'
-            + '  .info-value { font-weight: 500; font-size: 11px; }'
-
-            // 테이블
-            + '  .charge-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }'
-            + '  .charge-table th { background: #051923; color: #fff; padding: 8px 12px; font-size: 11px; font-weight: 600; }'
-            + '  .charge-table td { padding: 6px 12px; border-bottom: 1px solid #eee; font-size: 11px; }'
-            + '  .charge-table .section-header td { background: #f0f4f8; font-weight: 600; color: #003554; font-size: 11px; padding: 6px 12px; }'
-            + '  .charge-table .ps-4 { padding-left: 28px; }'
-            + '  .text-end { text-align: right; }'
-            + '  .text-center { text-align: center; }'
-
-            // 합계 영역
-            + '  .summary-area { display: flex; justify-content: flex-end; margin-bottom: 24px; }'
-            + '  .summary-box { width: 320px; }'
-            + '  .summary-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; }'
-            + '  .summary-row.subtotal { border-top: 1px solid #dee2e6; margin-top: 4px; padding-top: 8px; }'
-            + '  .summary-row.grand-total { background: #051923; color: #fff; padding: 10px 16px; border-radius: 4px; font-size: 14px; font-weight: 700; margin-top: 8px; }'
-            + '  .summary-row.paid { color: #0582CA; font-weight: 600; }'
-            + '  .summary-row.balance { color: #EF476F; font-weight: 700; font-size: 13px; }'
-
-            // 결제 이력
-            + '  .section-title { font-size: 13px; font-weight: 700; color: #003554; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #003554; }'
-            + '  .txn-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }'
-            + '  .txn-table th { background: #f0f4f8; padding: 6px 10px; font-size: 11px; font-weight: 600; color: #003554; border-bottom: 1px solid #dee2e6; }'
-            + '  .txn-table td { padding: 6px 10px; font-size: 11px; border-bottom: 1px solid #eee; }'
-
-            // 서명
-            + '  .signature-area { margin-top: 40px; display: flex; justify-content: space-between; }'
-            + '  .sig-box { width: 45%; text-align: center; }'
-            + '  .sig-line { border-top: 1px solid #333; margin-top: 60px; padding-top: 8px; font-size: 11px; color: #666; }'
-
-            // 푸터
-            + '  .invoice-footer { margin-top: 40px; text-align: center; font-size: 10px; color: #aaa; border-top: 1px solid #eee; padding-top: 16px; }'
-
-            // 프린트
-            + '  @media print { body { padding: 20px; } .no-print { display: none !important; } @page { margin: 15mm; } }'
-            + '  .print-btn { position: fixed; top: 20px; right: 20px; padding: 10px 24px; background: #003554; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-family: "Pretendard", sans-serif; }'
-            + '  .print-btn:hover { background: #051923; }'
-            + '</style>'
-            + '</head><body>'
-            + '<button class="print-btn no-print" onclick="window.print()"><i class="fas"></i>프린트</button>'
-            + '<div class="invoice-container">'
-
-            // 헤더
-            + '<div class="invoice-header">'
-            + '  <div class="hotel-info">'
-            + '    <div class="hotel-name">' + HolaPms.escapeHtml(hotelName) + '</div>'
-            + '    <div class="hotel-detail">'
-            + (hotelAddr ? HolaPms.escapeHtml(hotelAddr) + '<br>' : '')
-            + (hotelPhone ? 'TEL: ' + HolaPms.escapeHtml(hotelPhone) : '')
-            + (hotelEmail ? ' &nbsp;|&nbsp; EMAIL: ' + HolaPms.escapeHtml(hotelEmail) : '')
-            + (bizNumber ? '<br>사업자등록번호: ' + HolaPms.escapeHtml(bizNumber) : '')
-            + (repName ? ' &nbsp;|&nbsp; 대표: ' + HolaPms.escapeHtml(repName) : '')
-            + '    </div>'
-            + '  </div>'
-            + '  <div class="invoice-title-area">'
-            + (logoImg ? '<div class="invoice-logo">' + logoImg + '</div>' : '')
-            + '    <div class="invoice-title">INVOICE</div>'
-            + '  </div>'
-            + '</div>'
-
-            // 정보 그리드
-            + '<div class="info-grid">'
-            + '  <div class="info-box">'
-            + '    <div class="info-box-title">Guest Information</div>'
-            + '    <div class="info-row"><span class="info-label">성명</span><span class="info-value">' + HolaPms.escapeHtml(guestName) + '</span></div>'
-            + (guestPhone ? '<div class="info-row"><span class="info-label">연락처</span><span class="info-value">' + HolaPms.escapeHtml(guestPhone) + '</span></div>' : '')
-            + (guestEmail ? '<div class="info-row"><span class="info-label">이메일</span><span class="info-value">' + HolaPms.escapeHtml(guestEmail) + '</span></div>' : '')
-            + '  </div>'
-            + '  <div class="info-box">'
-            + '    <div class="info-box-title">Reservation Details</div>'
-            + '    <div class="info-row"><span class="info-label">예약번호</span><span class="info-value">' + HolaPms.escapeHtml(reservationNo) + '</span></div>'
-            + '    <div class="info-row"><span class="info-label">확인번호</span><span class="info-value">' + HolaPms.escapeHtml(confirmNo) + '</span></div>'
-            + '    <div class="info-row"><span class="info-label">체크인</span><span class="info-value">' + checkIn + '</span></div>'
-            + '    <div class="info-row"><span class="info-label">체크아웃</span><span class="info-value">' + checkOut + '</span></div>'
-            + '    <div class="info-row"><span class="info-label">숙박일수</span><span class="info-value">' + nights + '박</span></div>'
-            + '    <div class="info-row"><span class="info-label">객실타입</span><span class="info-value">' + HolaPms.escapeHtml(roomTypeNames.join(', ') || '-') + '</span></div>'
-            + '    <div class="info-row"><span class="info-label">발행일</span><span class="info-value">' + issueDate + '</span></div>'
-            + '  </div>'
-            + '</div>'
-
-            // 요금 명세 테이블
-            + '<div class="section-title">Charge Details / 요금 명세</div>'
-            + '<table class="charge-table">'
-            + '<thead><tr><th style="text-align:left">항목</th><th style="text-align:right">공급가</th><th style="text-align:right">세액</th><th style="text-align:right">소계</th></tr></thead>'
-            + '<tbody>'
-            + chargeRows
-            + '</tbody></table>'
-
-            // 합계 영역
-            + '<div class="summary-area">'
-            + '  <div class="summary-box">'
-            + '    <div class="summary-row subtotal"><span>공급가 합계</span><span>' + fmt(totalSupply) + '원</span></div>'
-            + '    <div class="summary-row"><span>세액 합계</span><span>' + fmt(totalTax) + '원</span></div>'
-            + (totalSvcChg > 0 ? '<div class="summary-row"><span>봉사료 합계</span><span>' + fmt(totalSvcChg) + '원</span></div>' : '')
-            + '    <div class="summary-row grand-total"><span>총 청구 금액</span><span>' + fmt(grandTotal) + '원</span></div>'
-            + (totalPaid > 0 ? '<div class="summary-row paid"><span>결제 완료</span><span>' + fmt(totalPaid) + '원</span></div>' : '')
-            + (remaining > 0 ? '<div class="summary-row balance"><span>잔액</span><span>' + fmt(remaining) + '원</span></div>' : '')
-            + '  </div>'
-            + '</div>';
-
-        // 결제 이력
-        if (txnRows) {
-            html += '<div class="section-title">Payment History / 결제 이력</div>'
-                + '<table class="txn-table">'
-                + '<thead><tr><th>NO</th><th>유형</th><th>수단</th><th style="text-align:right">금액</th><th>일시</th></tr></thead>'
-                + '<tbody>' + txnRows + '</tbody></table>';
-        }
-
-        // 서명 영역
-        html += '<div class="signature-area">'
-            + '  <div class="sig-box">'
-            + '    <div class="sig-line">Guest Signature / 투숙객 서명</div>'
-            + '  </div>'
-            + '  <div class="sig-box">'
-            + '    <div class="sig-line">Hotel Authorized / 호텔 담당자</div>'
-            + '  </div>'
-            + '</div>';
-
-        // 푸터
-        html += '<div class="invoice-footer">'
-            + HolaPms.escapeHtml(hotelName)
-            + (hotelAddr ? ' | ' + HolaPms.escapeHtml(hotelAddr) : '')
-            + (hotelPhone ? ' | TEL ' + HolaPms.escapeHtml(hotelPhone) : '')
-            + '<br>Thank you for staying with us.'
-            + '</div>';
-
-        html += '</div></body></html>';
-
-        // 새 창 열기
-        var win = window.open('', '_blank', 'width=900,height=700');
-        if (win) {
-            win.document.write(html);
-            win.document.close();
-        } else {
+        var url = '/admin/reservations/' + this.reservationId + '/invoice?propertyId=' + this.propertyId;
+        var win = window.open(url, '_blank', 'width=900,height=700');
+        if (!win) {
             HolaPms.alert('warning', '팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
         }
-    },
-
+    }
 };

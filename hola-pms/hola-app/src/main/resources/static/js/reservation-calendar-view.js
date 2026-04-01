@@ -172,12 +172,12 @@ var ReservationCalendarView = {
         // 헤더: 월 이동 + 오늘 + 상태 범례
         html += '<div class="d-flex align-items-center justify-content-between mb-2">';
         html += '<div class="d-flex align-items-center">';
-        html += '<button class="btn btn-outline-secondary btn-sm me-2" id="calPrevBtn"><i class="fas fa-chevron-left"></i></button>';
+        html += '<button class="btn btn-outline-secondary btn-sm me-2" id="calPrevBtn" aria-label="이전 달"><i class="fas fa-chevron-left"></i></button>';
         html += '<span class="fw-bold" style="font-size:0.95rem;">' + this.currentYear + '.' + this.padZero(this.currentMonth) + '</span>';
-        html += '<button class="btn btn-outline-secondary btn-sm ms-2" id="calNextBtn"><i class="fas fa-chevron-right"></i></button>';
+        html += '<button class="btn btn-outline-secondary btn-sm ms-2" id="calNextBtn" aria-label="다음 달"><i class="fas fa-chevron-right"></i></button>';
         html += '<button class="btn btn-outline-primary btn-sm ms-3" id="calTodayBtn">오늘</button>';
         html += '</div>';
-        html += '<div class="d-flex align-items-center gap-2 flex-wrap" style="font-size:0.75rem;">';
+        html += '<div class="tl-legend">';
         var legendItems = [
             { label: '예약', status: 'RESERVED' },
             { label: '투숙중', status: 'INHOUSE' },
@@ -187,8 +187,8 @@ var ReservationCalendarView = {
         ];
         for (var li = 0; li < legendItems.length; li++) {
             var lc = this.getStatusColor(legendItems[li].status);
-            html += '<span class="d-inline-flex align-items-center">';
-            html += '<span style="display:inline-block; width:12px; height:12px; border-radius:2px; background:' + lc.bg + '; border:1px solid #ccc; margin-right:3px;"></span>';
+            html += '<span class="tl-legend-item">';
+            html += '<span class="tl-legend-dot" style="background:' + lc.bg + ';border-color:' + (lc.border || '#ccc') + ';"></span>';
             html += legendItems[li].label;
             html += '</span>';
         }
@@ -505,15 +505,7 @@ var ReservationCalendarView = {
      * 상태별 색상
      */
     getStatusColor: function(status) {
-        var map = {
-            'RESERVED':    { bg: '#d4edff', text: '#0582CA' },
-            'CHECK_IN':    { bg: '#d1ecf1', text: '#0c5460' },
-            'INHOUSE':     { bg: '#003554', text: '#ffffff' },
-            'CHECKED_OUT': { bg: '#e2e3e5', text: '#383d41' },
-            'CANCELED':    { bg: '#f8d7da', text: '#721c24' },
-            'NO_SHOW':     { bg: '#fff3cd', text: '#856404' }
-        };
-        return map[status] || { bg: '#e2e3e5', text: '#383d41' };
+        return HolaPms.reservationStatus.viewColor(status);
     },
 
     /**

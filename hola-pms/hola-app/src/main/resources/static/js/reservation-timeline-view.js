@@ -213,15 +213,15 @@ var ReservationTimelineView = {
     buildToolbar: function() {
         var h = '<div class="tl-toolbar">';
         h += '<div class="tl-nav">';
-        h += '<button class="tl-nav-btn" id="tlPrevBtn" title="이전 30일"><i class="fas fa-chevron-left"></i></button>';
+        h += '<button class="tl-nav-btn" id="tlPrevBtn" title="이전 30일" aria-label="이전 30일"><i class="fas fa-chevron-left"></i></button>';
         h += '<button class="tl-nav-btn tl-nav-today" id="tlTodayBtn">오늘</button>';
-        h += '<button class="tl-nav-btn" id="tlNextBtn" title="다음 30일"><i class="fas fa-chevron-right"></i></button>';
+        h += '<button class="tl-nav-btn" id="tlNextBtn" title="다음 30일" aria-label="다음 30일"><i class="fas fa-chevron-right"></i></button>';
         h += '<span class="tl-period" id="tlPeriod"></span>';
         h += '</div>';
         h += '<div class="tl-controls">';
         h += '<div class="tl-btn-group">';
-        h += '<button class="tl-ctrl-btn" id="tlExpandAll" title="전체 펼치기"><i class="fas fa-expand-alt"></i></button>';
-        h += '<button class="tl-ctrl-btn" id="tlCollapseAll" title="전체 접기"><i class="fas fa-compress-alt"></i></button>';
+        h += '<button class="tl-ctrl-btn" id="tlExpandAll" title="전체 펼치기" aria-label="전체 펼치기"><i class="fas fa-expand-alt"></i></button>';
+        h += '<button class="tl-ctrl-btn" id="tlCollapseAll" title="전체 접기" aria-label="전체 접기"><i class="fas fa-compress-alt"></i></button>';
         h += '</div>';
         h += '<div class="tl-legend">';
         var leg = [['예약','RESERVED'],['투숙중','INHOUSE'],['체크아웃','CHECKED_OUT'],['취소','CANCELED'],['노쇼','NO_SHOW']];
@@ -720,17 +720,7 @@ var ReservationTimelineView = {
     },
 
     getStatusColor: function(s) {
-        var map = {
-            'RESERVED':    { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' },
-            'CHECK_IN':    { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7' },
-            'INHOUSE':     { bg: '#003554', text: '#ffffff', border: '#002940' },
-            'CHECKED_OUT': { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db' },
-            'CANCELED':    { bg: '#fef2f2', text: '#991b1b', border: '#fecaca' },
-            'NO_SHOW':     { bg: '#fefce8', text: '#854d0e', border: '#fde68a' },
-            'DAY_USE':     { bg: '#f5f3ff', text: '#6d28d9', border: '#c4b5fd' },
-            'DAY_OFF':     { bg: '#ecfdf5', text: '#047857', border: '#6ee7b7' }
-        };
-        return map[s] || { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db' };
+        return HolaPms.reservationStatus.viewColor(s);
     },
 
     getStatusIcon: function(s) {

@@ -55,7 +55,7 @@
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
                         <!-- 예약 기본 정보 -->
-                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 예약 기본 정보</h6>
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary section-icon"></i> 예약 기본 정보</h6>
                         <div class="row mb-3">
                             <label class="col-sm-2 col-form-label">예약번호</label>
                             <div class="col-sm-4">
@@ -81,8 +81,8 @@
                             <div class="col-sm-4">
                                 <div class="input-group">
                                     <input type="text" class="form-control" id="rateCodeName" readonly placeholder="선택">
-                                    <button class="btn btn-outline-secondary" type="button" id="rateCodeSearchBtn"><i class="fas fa-search"></i></button>
-                                    <button class="btn btn-outline-danger" type="button" id="rateCodeClearBtn"><i class="fas fa-times"></i></button>
+                                    <button class="btn btn-outline-secondary" type="button" id="rateCodeSearchBtn" aria-label="레이트코드 검색"><i class="fas fa-search"></i></button>
+                                    <button class="btn btn-outline-danger" type="button" id="rateCodeClearBtn" aria-label="레이트코드 초기화"><i class="fas fa-times"></i></button>
                                 </div>
                                 <input type="hidden" id="rateCodeId">
                             </div>
@@ -90,8 +90,8 @@
                             <div class="col-sm-4">
                                 <div class="input-group">
                                     <input type="text" class="form-control" id="marketCodeName" readonly placeholder="선택">
-                                    <button class="btn btn-outline-secondary" type="button" id="marketCodeSearchBtn"><i class="fas fa-search"></i></button>
-                                    <button class="btn btn-outline-danger" type="button" id="marketCodeClearBtn"><i class="fas fa-times"></i></button>
+                                    <button class="btn btn-outline-secondary" type="button" id="marketCodeSearchBtn" aria-label="마켓코드 검색"><i class="fas fa-search"></i></button>
+                                    <button class="btn btn-outline-danger" type="button" id="marketCodeClearBtn" aria-label="마켓코드 초기화"><i class="fas fa-times"></i></button>
                                 </div>
                                 <input type="hidden" id="marketCodeId">
                             </div>
@@ -110,7 +110,7 @@
                         </div>
 
                         <!-- 예약자 정보 -->
-                        <h6 class="fw-bold mb-3 mt-4"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 예약자 정보</h6>
+                        <h6 class="fw-bold mb-3 mt-4"><i class="fas fa-square me-1 text-primary section-icon"></i> 예약자 정보</h6>
                         <div class="row mb-3">
                             <label class="col-sm-2 col-form-label">예약자명(국문)</label>
                             <div class="col-sm-4">
@@ -165,7 +165,7 @@
                         </div>
 
                         <!-- OTA 정보 -->
-                        <h6 class="fw-bold mb-3 mt-4"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> OTA 정보</h6>
+                        <h6 class="fw-bold mb-3 mt-4"><i class="fas fa-square me-1 text-primary section-icon"></i> OTA 정보</h6>
                         <div class="row mb-3">
                             <label class="col-sm-2 col-form-label">OTA 관리</label>
                             <div class="col-sm-4">
@@ -188,7 +188,7 @@
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold mb-0"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 객실 목록</h6>
+                            <h6 class="fw-bold mb-0"><i class="fas fa-square me-1 text-primary section-icon"></i> 객실 목록</h6>
                             <button class="btn btn-primary btn-sm" id="addRoomBtn">
                                 <i class="fas fa-plus me-1"></i>객실 추가
                             </button>
@@ -208,7 +208,7 @@
             <div class="tab-pane fade" id="tabDeposit" role="tabpanel">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
-                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 예치금 정보</h6>
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary section-icon"></i> 예치금 정보</h6>
                         <div class="row mb-3">
                             <label class="col-sm-2 col-form-label">예치 방법</label>
                             <div class="col-sm-4">
@@ -257,18 +257,58 @@
 
             <!-- ═══ Tab 4: 결제정보 ═══ -->
             <div class="tab-pane fade" id="tabPayment" role="tabpanel">
-                <div class="card border-0 shadow-sm">
+                <!-- ── 결제 요약 카드 (상단 고정) ── -->
+                <div class="card border-0 shadow-sm mb-3 payment-summary-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold mb-0"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 요금 명세</h6>
-                            <button class="btn btn-outline-secondary btn-sm" id="printInvoiceBtn">
+                            <span id="paymentStatusBadge"></span>
+                            <button class="btn btn-outline-secondary btn-sm" id="printInvoiceBtn" aria-label="인보이스 출력">
                                 <i class="fas fa-print me-1"></i>인보이스 출력
                             </button>
                         </div>
+                        <div class="row text-center gx-0" id="paymentSummaryRow">
+                            <div class="col-4 payment-summary-item">
+                                <div class="text-muted small mb-1">총 청구액</div>
+                                <div class="payment-summary-amount" id="summaryGrandTotal">0원</div>
+                            </div>
+                            <div class="col-4 payment-summary-item border-start border-end">
+                                <div class="text-muted small mb-1">결제액</div>
+                                <div class="payment-summary-amount text-primary" id="summaryPaidAmount">0원</div>
+                            </div>
+                            <div class="col-4 payment-summary-item">
+                                <div class="text-muted small mb-1">잔액</div>
+                                <div class="payment-summary-amount" id="summaryRemainingAmount">0원</div>
+                            </div>
+                        </div>
+                        <!-- 환불 상태 시 추가 정보 행 -->
+                        <div class="row text-center gx-0 mt-2 d-none" id="refundSummaryRow">
+                            <div class="col-6 payment-summary-item">
+                                <div class="text-muted small mb-1">환불액</div>
+                                <div class="payment-summary-amount text-primary" id="summaryRefundAmount">0원</div>
+                            </div>
+                            <div class="col-6 payment-summary-item border-start">
+                                <div class="text-muted small mb-1">수수료</div>
+                                <div class="payment-summary-amount text-danger" id="summaryCancelFee">0원</div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-center gap-2 mt-3" id="paymentButtonGroup">
+                            <button class="btn btn-primary btn-sm" id="cardPaymentBtn">
+                                <i class="fas fa-credit-card me-1"></i>카드결제
+                            </button>
+                            <button class="btn btn-success btn-sm" id="cashPaymentBtn">
+                                <i class="fas fa-money-bill-wave me-1"></i>현금결제
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-                        <!-- 요금 항목별 명세 (JS가 동적으로 렌더링) -->
+                <!-- ── 요금 명세 ── -->
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary section-icon"></i> 요금 명세</h6>
+
                         <div id="chargeBreakdown">
-                            <!-- 멀티레그: Leg별 카드 / 싱글레그: 기존 카테고리형 -->
+                            <!-- 멀티레그: Leg별 카드 / 싱글레그: 카테고리형 -->
                         </div>
 
                         <!-- 얼리체크인/레이트체크아웃 (공통) -->
@@ -288,7 +328,7 @@
                         </div>
 
                         <!-- 공급가/세액/봉사료 소계 -->
-                        <div class="bg-light rounded p-3 mt-3 mb-2">
+                        <div class="bg-light rounded p-3 mt-3">
                             <div class="d-flex justify-content-between mb-1">
                                 <span class="text-muted small">공급가 합계</span>
                                 <span class="small" id="totalSupplyPrice">0원</span>
@@ -302,41 +342,26 @@
                                 <span class="small" id="totalSvcChgSubtotal">0원</span>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- 최종 합계 -->
-                        <div class="d-flex justify-content-between align-items-center bg-dark text-white rounded p-3 mb-3">
-                            <span>최종 합계</span>
-                            <span id="grandTotal">0원</span>
-                        </div>
+                <!-- ── 취소/환불 정보 (CANCELED/NO_SHOW 시) ── -->
+                <div id="cancelInfoSection" class="card border-0 shadow-sm mb-3 d-none">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="fas fa-square me-1 text-primary section-icon"></i> 취소/환불 정보
+                        </h6>
+                        <div id="cancelInfoContent"></div>
+                    </div>
+                </div>
 
-                        <!-- 결제 상태/버튼 -->
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div class="d-flex align-items-center">
-                                <span id="paymentStatusBadge"></span>
-                                <span class="ms-3 small" id="paidAmountDisplay"></span>
-                            </div>
-                            <div id="paymentButtonGroup">
-                                <button class="btn btn-primary btn-sm me-1" id="cardPaymentBtn">
-                                    <i class="fas fa-credit-card me-1"></i>카드결제
-                                </button>
-                                <button class="btn btn-success btn-sm" id="cashPaymentBtn">
-                                    <i class="fas fa-money-bill-wave me-1"></i>현금결제
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- 취소/환불 정보 (CANCELED/NO_SHOW 상태일 때만 표시) -->
-                        <div id="cancelInfoSection" style="display:none;">
-                            <h6 class="fw-bold mb-3 mt-4">
-                                <i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 취소/환불 정보
-                            </h6>
-                            <div id="cancelInfoContent"></div>
-                        </div>
-
-                        <!-- 결제 이력 -->
-                        <h6 class="fw-bold mb-2 mt-4" style="cursor:pointer" id="paymentHistoryToggle">
-                            <i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i>
+                <!-- ── 결제 이력 ── -->
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-2 payment-section-toggle" id="paymentHistoryToggle">
+                            <i class="fas fa-square me-1 text-primary section-icon"></i>
                             결제 이력
+                            <span class="badge bg-secondary ms-1 fw-normal" id="paymentHistoryCount" style="font-size:0.7rem;">0</span>
                             <i class="fas fa-caret-down ms-1" id="paymentHistoryToggleIcon"></i>
                         </h6>
                         <div class="collapse" id="paymentHistoryCollapse">
@@ -344,9 +369,13 @@
                                 <p class="text-center text-muted py-3">결제 이력이 없습니다.</p>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- 금액 조정 -->
-                        <h6 class="fw-bold mb-3 mt-4"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 금액 조정</h6>
+                <!-- ── 금액 조정 ── -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary section-icon"></i> 금액 조정</h6>
                         <div id="adjustmentList"><!-- 동적 생성 --></div>
                         <button class="btn btn-outline-primary btn-sm mt-2" id="addAdjustmentBtn">
                             <i class="fas fa-plus me-1"></i>조정 추가
@@ -359,7 +388,7 @@
             <div class="tab-pane fade" id="tabEtc" role="tabpanel">
                 <div class="card border-0 shadow-sm mb-3">
                     <div class="card-body">
-                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 고객 요청사항</h6>
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary section-icon"></i> 고객 요청사항</h6>
                         <div class="row mb-3">
                             <div class="col-12">
                                 <textarea class="form-control" id="customerRequest" rows="4" placeholder="고객 요청사항을 입력하세요."></textarea>
@@ -369,7 +398,7 @@
                 </div>
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
-                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 관리자 메모</h6>
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary section-icon"></i> 관리자 메모</h6>
                         <div class="input-group mb-3">
                             <input type="text" class="form-control" id="newMemoContent" placeholder="메모를 입력하세요.">
                             <button class="btn btn-primary" id="addMemoBtn">등록</button>
@@ -420,7 +449,7 @@
                         </div>
                     </div>
                     <div class="table-responsive">
-                        <table id="rateCodeSelectTable" class="table table-hover table-bordered mb-0" style="min-width:600px">
+                        <table id="rateCodeSelectTable" class="table table-hover mb-0" style="min-width:600px">
                             <thead class="table-light">
                             <tr>
                                 <th style="width:50px" class="text-center">NO</th>
@@ -461,7 +490,7 @@
                         </div>
                     </div>
                     <div class="table-responsive">
-                        <table id="marketCodeSelectTable" class="table table-hover table-bordered mb-0" style="min-width:500px">
+                        <table id="marketCodeSelectTable" class="table table-hover mb-0" style="min-width:500px">
                             <thead class="table-light">
                             <tr>
                                 <th style="width:50px" class="text-center">NO</th>
@@ -519,7 +548,7 @@
 
     <!-- ═══ 객실 배정 모달 ═══ -->
     <div class="modal fade" id="roomAssignModal" tabindex="-1">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-lg-down">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
                     <h5 class="modal-title"><i class="fas fa-door-open me-2"></i>객실 배정</h5>
@@ -527,19 +556,19 @@
                 </div>
                 <div class="modal-body p-0">
                     <!-- 요금 요약 -->
-                    <div id="assignPriceSummary" class="border-bottom p-3" style="background: linear-gradient(135deg, #051923 0%, #003554 100%);">
+                    <div id="assignPriceSummary" class="border-bottom p-3 bg-hola-gradient-dark">
                         <div class="row text-center">
                             <div class="col-4">
-                                <small class="d-block mb-1" style="color: rgba(255,255,255,0.7); font-size: 0.75rem; letter-spacing: 0.5px;">총 요금</small>
-                                <span id="assignTotalPrice" class="d-block" style="color: #fff; font-size: 1.25rem; font-weight: 700;">-</span>
+                                <small class="d-block mb-1 assign-summary-label">총 요금</small>
+                                <span id="assignTotalPrice" class="d-block assign-summary-value">-</span>
                             </div>
-                            <div class="col-4 border-start border-end" style="border-color: rgba(255,255,255,0.15) !important;">
-                                <small class="d-block mb-1" style="color: rgba(255,255,255,0.7); font-size: 0.75rem; letter-spacing: 0.5px;">1박 평균</small>
-                                <span id="assignAvgNightly" class="d-block" style="color: #fff; font-size: 1.25rem; font-weight: 700;">-</span>
+                            <div class="col-4 border-start border-end assign-summary-divider">
+                                <small class="d-block mb-1 assign-summary-label">1박 평균</small>
+                                <span id="assignAvgNightly" class="d-block assign-summary-value">-</span>
                             </div>
                             <div class="col-4">
-                                <small class="d-block mb-1" style="color: rgba(255,255,255,0.7); font-size: 0.75rem; letter-spacing: 0.5px;">숙박일수</small>
-                                <span id="assignNights" class="d-block" style="color: #fff; font-size: 1.25rem; font-weight: 700;">-</span>
+                                <small class="d-block mb-1 assign-summary-label">숙박일수</small>
+                                <span id="assignNights" class="d-block assign-summary-value">-</span>
                             </div>
                         </div>
                     </div>
@@ -617,8 +646,8 @@
                         <div class="col-sm-7 d-flex align-items-center"><span id="cpPolicyDesc" class="text-muted small">-</span></div>
                     </div>
                     <div class="row mb-2">
-                        <label class="col-sm-5 col-form-label" style="color:#EF476F;">취소 수수료</label>
-                        <div class="col-sm-7 d-flex align-items-center"><span id="cpCancelFeeAmt" style="color:#EF476F;">-</span></div>
+                        <label class="col-sm-5 col-form-label text-danger">취소 수수료</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpCancelFeeAmt" class="text-danger">-</span></div>
                     </div>
                     <div class="row mb-2">
                         <label class="col-sm-5 col-form-label">총 결제액</label>
@@ -629,8 +658,8 @@
                         <div class="col-sm-7 d-flex align-items-center"><span id="cpPgCardInfo" class="text-muted">-</span></div>
                     </div>
                     <div class="row mb-2" id="cpRefundRow">
-                        <label class="col-sm-5 col-form-label" style="color:#0582CA;">환불 예정액</label>
-                        <div class="col-sm-7 d-flex align-items-center"><span id="cpRefundAmt" style="color:#0582CA;">-</span></div>
+                        <label class="col-sm-5 col-form-label text-primary">환불 예정액</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpRefundAmt" class="text-primary">-</span></div>
                     </div>
                     <div class="d-none px-2 pb-2" id="cpRefundBreakdowns" style="border-top:1px dashed #dee2e6; margin-top:4px; padding-top:6px;">
                     </div>
@@ -640,8 +669,8 @@
                         </div>
                     </div>
                     <div class="row mb-2 d-none" id="cpOutstandingRow">
-                        <label class="col-sm-5 col-form-label" style="color:#EF476F;">미결제 수수료</label>
-                        <div class="col-sm-7 d-flex align-items-center"><span id="cpOutstandingAmt" style="color:#EF476F;">-</span></div>
+                        <label class="col-sm-5 col-form-label text-danger">미결제 수수료</label>
+                        <div class="col-sm-7 d-flex align-items-center"><span id="cpOutstandingAmt" class="text-danger">-</span></div>
                     </div>
                     <div class="alert alert-warning small mb-0 d-none" id="cpFeeAlert">
                         <i class="fas fa-exclamation-triangle me-1"></i>취소/노쇼 수수료가 미결제 상태입니다. 결제정보 탭에서 수수료를 결제한 후 처리해주세요.
@@ -713,9 +742,9 @@
     <div class="modal fade" id="upgradeModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header bg-dark text-white">
                     <h5 class="modal-title"><i class="fas fa-arrow-up me-1"></i>객실 업그레이드</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="upgradeLegId">
@@ -737,7 +766,7 @@
                     <!-- 미리보기 영역 -->
                     <div id="upgradePreviewArea" class="d-none">
                         <hr>
-                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary" style="font-size:8px;"></i> 차액 미리보기</h6>
+                        <h6 class="fw-bold mb-3"><i class="fas fa-square me-1 text-primary section-icon"></i> 차액 미리보기</h6>
                         <div class="row mb-2">
                             <div class="col-sm-4">
                                 <small class="text-muted">현재 객실</small>
