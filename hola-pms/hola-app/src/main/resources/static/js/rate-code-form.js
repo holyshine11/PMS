@@ -189,9 +189,9 @@ var RateCodeForm = {
             return;
         }
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId,
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 if (res.success && res.data) {
                     var d = res.data;
@@ -222,18 +222,15 @@ var RateCodeForm = {
 
                     self.setEditMode();
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
 
     loadRoomTypeDetails: function(propertyId, roomTypeIds) {
         var self = this;
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/room-types',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 if (res.success && res.data) {
                     self.selectedRoomTypes = res.data
@@ -262,9 +259,9 @@ var RateCodeForm = {
             return;
         }
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/rate-codes/check-code',
-            method: 'GET',
+            type: 'GET',
             data: { rateCode: code },
             success: function(res) {
                 if (res.data.duplicate) {
@@ -274,9 +271,6 @@ var RateCodeForm = {
                     $('#codeCheckResult').text('사용 가능한 코드입니다.').removeClass('text-danger').addClass('text-primary');
                     self.duplicateChecked = true;
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -384,11 +378,10 @@ var RateCodeForm = {
             };
         }
 
-        $.ajax({
+        HolaPms.ajax({
             url: url,
-            method: method,
-            contentType: 'application/json',
-            data: JSON.stringify(data),
+            type: method,
+            data: data,
             success: function(res) {
                 if (res.success) {
                     var msg = self.editId ? '수정되었습니다.' : '등록되었습니다.';
@@ -399,9 +392,6 @@ var RateCodeForm = {
                         HolaPms.alertAndRedirect('success', msg, '/admin/rate-codes');
                     }
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -413,16 +403,13 @@ var RateCodeForm = {
         if (!confirm('정말 삭제하시겠습니까?')) return;
 
         var propertyId = HolaPms.context.getPropertyId();
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId,
-            method: 'DELETE',
+            type: 'DELETE',
             success: function(res) {
                 if (res.success) {
                     HolaPms.alertAndRedirect('success', '삭제되었습니다.', '/admin/rate-codes');
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -444,9 +431,9 @@ var RateCodeForm = {
         var propertyId = HolaPms.context.getPropertyId();
         var keyword = $.trim($('#modalMarketCodeSearch').val()).toLowerCase();
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/market-codes',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 var tbody = $('#modalMarketCodeTable tbody');
                 tbody.empty();
@@ -508,9 +495,9 @@ var RateCodeForm = {
         var keyword = $.trim($('#modalRoomTypeSearch').val()).toLowerCase();
         var selectedIds = self.selectedRoomTypes.map(function(rt) { return rt.id; });
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/room-types',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 var tbody = $('#modalRoomTypeTable tbody');
                 tbody.empty();
@@ -594,9 +581,9 @@ var RateCodeForm = {
         var propertyId = HolaPms.context.getPropertyId();
         if (!propertyId) return;
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId,
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 if (res.success && res.data && res.data.taxRate != null) {
                     self.taxRate = parseFloat(res.data.taxRate);
@@ -612,9 +599,9 @@ var RateCodeForm = {
         var propertyId = HolaPms.context.getPropertyId();
         if (!propertyId) return;
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId + '/pricing',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 if (res.success && res.data) {
                     var d = res.data;
@@ -1129,18 +1116,14 @@ var RateCodeForm = {
 
         var data = self.collectPricingData();
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId + '/pricing',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(data),
+            type: 'POST',
+            data: data,
             success: function(res) {
                 if (res.success) {
                     HolaPms.alert('success', '요금정보가 저장되었습니다.');
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -1155,13 +1138,13 @@ var RateCodeForm = {
         if (!propertyId) return;
 
         // 2개 API 병렬 호출
-        var optionsReq = $.ajax({
+        var optionsReq = HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/paid-service-options',
-            method: 'GET'
+            type: 'GET'
         });
-        var mappingReq = $.ajax({
+        var mappingReq = HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId + '/option-pricing',
-            method: 'GET'
+            type: 'GET'
         });
 
         $.when(optionsReq, mappingReq).done(function(optionsRes, mappingRes) {
@@ -1342,18 +1325,14 @@ var RateCodeForm = {
 
         var ids = Array.from(self.selectedOptionIds);
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId + '/option-pricing',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(ids),
+            type: 'POST',
+            data: ids,
             success: function(res) {
                 if (res.success) {
                     HolaPms.alert('success', '옵션요금이 저장되었습니다.');
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -1379,9 +1358,9 @@ var RateCodeForm = {
         var propertyId = HolaPms.context.getPropertyId();
         if (!propertyId || !self.editId) return;
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId + '/dayuse-rates',
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 if (res.success) {
                     self.renderDayUseRates(res.data || []);
@@ -1456,19 +1435,17 @@ var RateCodeForm = {
 
         var desc = $('#dayUseDescInput').val().trim() || '';
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId + '/dayuse-rates',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ durationHours: hours, supplyPrice: price, description: desc }),
+            type: 'POST',
+            data: { durationHours: hours, supplyPrice: price, description: desc },
             success: function(res) {
                 if (res.success) {
                     HolaPms.modal.hide('#dayUseRateModal');
                     HolaPms.alert('success', 'Dayuse 요금이 등록되었습니다.');
                     self.loadDayUseRates();
                 }
-            },
-            error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+            }
         });
     },
 
@@ -1476,16 +1453,15 @@ var RateCodeForm = {
         var self = this;
         var propertyId = HolaPms.context.getPropertyId();
         HolaPms.confirm('이 요금을 삭제하시겠습니까?', function() {
-            $.ajax({
+            HolaPms.ajax({
                 url: '/api/v1/properties/' + propertyId + '/rate-codes/' + self.editId + '/dayuse-rates/' + rateId,
-                method: 'DELETE',
+                type: 'DELETE',
                 success: function(res) {
                     if (res.success) {
                         HolaPms.alert('success', '삭제되었습니다.');
                         self.loadDayUseRates();
                     }
-                },
-                error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+                }
             });
         });
     }

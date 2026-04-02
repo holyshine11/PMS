@@ -71,9 +71,9 @@ var RoomClassForm = {
             return;
         }
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/room-classes/' + self.editId,
-            method: 'GET',
+            type: 'GET',
             success: function(res) {
                 if (res.success && res.data) {
                     var d = res.data;
@@ -83,9 +83,6 @@ var RoomClassForm = {
                     $('input[name="useYn"][value="' + d.useYn + '"]').prop('checked', true);
                     self.setEditMode();
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -105,9 +102,9 @@ var RoomClassForm = {
             return;
         }
 
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/room-classes/check-code',
-            method: 'GET',
+            type: 'GET',
             data: { roomClassCode: code },
             success: function(res) {
                 if (res.data.duplicate) {
@@ -117,9 +114,6 @@ var RoomClassForm = {
                     $('#codeCheckResult').text('사용 가능한 코드입니다.').removeClass('text-danger').addClass('text-primary');
                     self.duplicateChecked = true;
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -177,18 +171,14 @@ var RoomClassForm = {
             };
         }
 
-        $.ajax({
+        HolaPms.ajax({
             url: url,
-            method: method,
-            contentType: 'application/json',
-            data: JSON.stringify(data),
+            type: method,
+            data: data,
             success: function(res) {
                 if (res.success) {
                     HolaPms.alertAndRedirect('success', self.editId ? '수정되었습니다.' : '등록되었습니다.', '/admin/room-classes');
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -200,16 +190,13 @@ var RoomClassForm = {
         if (!confirm('정말 삭제하시겠습니까?')) return;
 
         var propertyId = HolaPms.context.getPropertyId();
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/room-classes/' + self.editId,
-            method: 'DELETE',
+            type: 'DELETE',
             success: function(res) {
                 if (res.success) {
                     HolaPms.alertAndRedirect('success', '삭제되었습니다.', '/admin/room-classes');
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     }

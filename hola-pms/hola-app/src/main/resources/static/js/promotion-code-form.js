@@ -81,8 +81,9 @@ var PromotionCodeForm = {
     loadData: function(id) {
         var self = this;
         var propertyId = HolaPms.context.getPropertyId();
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/promotion-codes/' + id,
+            type: 'GET',
             success: function(res) {
                 var data = res.data;
 
@@ -131,9 +132,6 @@ var PromotionCodeForm = {
                 if (data.useYn === false) {
                     $('#btnDelete').show();
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -146,8 +144,9 @@ var PromotionCodeForm = {
         }
         var propertyId = HolaPms.context.getPropertyId();
         var self = this;
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/promotion-codes/check-code',
+            type: 'GET',
             data: { promotionCode: code },
             success: function(res) {
                 if (res.data.duplicate) {
@@ -157,9 +156,6 @@ var PromotionCodeForm = {
                     $('#codeCheckResult').html('<span class="text-success"><i class="fas fa-check-circle"></i> 사용 가능한 코드입니다.</span>');
                     self.codeChecked = true;
                 }
-            },
-            error: function(xhr) {
-                HolaPms.handleAjaxError(xhr);
             }
         });
     },
@@ -216,26 +212,22 @@ var PromotionCodeForm = {
         var self = this;
         if (this.isEditMode) {
             var id = $('#promotionCodeId').val();
-            $.ajax({
+            HolaPms.ajax({
                 url: '/api/v1/properties/' + propertyId + '/promotion-codes/' + id,
-                method: 'PUT',
-                contentType: 'application/json',
-                data: JSON.stringify(requestData),
+                type: 'PUT',
+                data: requestData,
                 success: function() {
                     HolaPms.alertAndRedirect('success', '저장되었습니다.', '/admin/promotion-codes');
-                },
-                error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+                }
             });
         } else {
-            $.ajax({
+            HolaPms.ajax({
                 url: '/api/v1/properties/' + propertyId + '/promotion-codes',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(requestData),
+                type: 'POST',
+                data: requestData,
                 success: function(res) {
                     HolaPms.alertAndRedirect('success', '등록되었습니다.', '/admin/promotion-codes');
-                },
-                error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+                }
             });
         }
     },
@@ -244,13 +236,12 @@ var PromotionCodeForm = {
         if (!confirm('삭제하시겠습니까?')) return;
         var id = $('#promotionCodeId').val();
         var propertyId = HolaPms.context.getPropertyId();
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/promotion-codes/' + id,
-            method: 'DELETE',
+            type: 'DELETE',
             success: function() {
                 HolaPms.alertAndRedirect('success', '삭제되었습니다.', '/admin/promotion-codes');
-            },
-            error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+            }
         });
     },
 
@@ -263,13 +254,13 @@ var PromotionCodeForm = {
     loadRateCodes: function() {
         var self = this;
         var propertyId = HolaPms.context.getPropertyId();
-        $.ajax({
+        HolaPms.ajax({
             url: '/api/v1/properties/' + propertyId + '/rate-codes',
+            type: 'GET',
             success: function(res) {
                 self.allRateCodes = res.data || [];
                 self.renderRateCodeTable(self.allRateCodes);
-            },
-            error: function(xhr) { HolaPms.handleAjaxError(xhr); }
+            }
         });
     },
 
