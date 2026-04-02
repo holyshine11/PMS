@@ -26,6 +26,28 @@ const HolaPms = {
         return s.charAt(0) + '**' + s.charAt(len - 1);
     },
 
+    /**
+     * ISO 날짜/시간 문자열을 'YYYY-MM-DD HH:mm:ss' 형식으로 변환
+     * @param {string} isoString - ISO 형식 문자열 (예: '2024-01-01T12:30:45')
+     * @returns {string} 포맷된 문자열 또는 빈값 시 '-'
+     */
+    formatDateTime: function(isoString) {
+        if (!isoString) return '-';
+        return String(isoString).replace('T', ' ').substring(0, 19);
+    },
+
+    /**
+     * 숫자를 한국식 천단위 콤마 형식으로 변환
+     * @param {number|string} amount - 금액
+     * @returns {string} 포맷된 문자열 (null/undefined/0 → '0')
+     */
+    formatCurrency: function(amount) {
+        if (amount == null || amount === '') return '0';
+        var n = Number(amount);
+        if (isNaN(n)) return '0';
+        return n.toLocaleString('ko-KR');
+    },
+
     maskPhone: function(phone) {
         if (!phone) return phone;
         var s = phone.replace(/[^0-9-]/g, '');
