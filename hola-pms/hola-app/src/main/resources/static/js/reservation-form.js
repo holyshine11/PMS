@@ -461,7 +461,7 @@ var ReservationForm = {
 
             if (options && options.length > 0) {
                 options.forEach(function(opt) {
-                    var price = Number(opt.vatIncludedPrice || 0).toLocaleString('ko-KR');
+                    var price = HolaPms.formatCurrency(opt.vatIncludedPrice || 0);
                     rowHtml += '<option value="' + opt.id + '">'
                         + HolaPms.escapeHtml(opt.serviceNameKo) + ' (' + price + '원)'
                         + '</option>';
@@ -932,7 +932,7 @@ var ReservationForm = {
                 self.assignData = res.data;
                 var d = res.data;
                 var formatPrice = function(amount) {
-                    return amount != null ? Number(amount).toLocaleString('ko-KR') : '-';
+                    return amount != null ? HolaPms.formatCurrency(amount) : '-';
                 };
                 $('#assignTotalPrice').text(formatPrice(d.currentLegTotalPrice) + ' ' + (d.currency || ''));
                 $('#assignAvgNightly').text(formatPrice(d.currentAvgNightly) + ' ' + (d.currency || ''));

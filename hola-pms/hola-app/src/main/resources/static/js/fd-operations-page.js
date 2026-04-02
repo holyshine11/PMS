@@ -428,7 +428,7 @@ var FdOperations = {
             success: function (res) {
                 if (res.success && res.data) {
                     var d = res.data;
-                    var fmt = function (v) { return Number(v || 0).toLocaleString('ko-KR') + '원'; };
+                    var fmt = function (v) { return HolaPms.formatCurrency(v || 0) + '원'; };
 
                     $('#fdCancelPreviewTitle').text(isNoShow ? '노쇼 처리 확인' : '예약 취소 확인');
                     $('#fdCpReservationNo').text(d.masterReservationNo);

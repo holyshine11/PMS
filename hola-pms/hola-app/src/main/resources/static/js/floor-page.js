@@ -198,7 +198,7 @@ const FloorPage = {
                 }
 
                 if (data.updatedAt) {
-                    $('#flUpdatedAt').val(data.updatedAt.replace('T', ' ').substring(0, 19));
+                    $('#flUpdatedAt').val(HolaPms.formatDateTime(data.updatedAt));
                 } else {
                     $('#flUpdatedAt').val('');
                 }

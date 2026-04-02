@@ -176,7 +176,7 @@ var PaidServiceOptionForm = {
 
                     // 최종 수정일시
                     var ts = d.updatedAt || d.createdAt;
-                    $('#updatedAt').text(ts ? ts.replace('T', ' ').substring(0, 19) : '-');
+                    $('#updatedAt').text(HolaPms.formatDateTime(ts));
 
                     self.setEditMode();
                 }

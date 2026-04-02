@@ -203,7 +203,7 @@ const MarketCodePage = {
 
                 // 최종 수정일 표시
                 if (data.updatedAt) {
-                    $('#mcUpdatedAt').val(data.updatedAt.replace('T', ' ').substring(0, 19));
+                    $('#mcUpdatedAt').val(HolaPms.formatDateTime(data.updatedAt));
                 } else {
                     $('#mcUpdatedAt').val('');
                 }

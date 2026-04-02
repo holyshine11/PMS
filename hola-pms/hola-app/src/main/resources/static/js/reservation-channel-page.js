@@ -210,7 +210,7 @@ const ReservationChannelPage = {
 
                 // 최종 수정일 표시
                 if (data.updatedAt) {
-                    $('#rcUpdatedAt').val(data.updatedAt.replace('T', ' ').substring(0, 19));
+                    $('#rcUpdatedAt').val(HolaPms.formatDateTime(data.updatedAt));
                 } else {
                     $('#rcUpdatedAt').val('');
                 }

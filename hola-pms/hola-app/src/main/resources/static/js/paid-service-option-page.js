@@ -107,8 +107,7 @@ var PaidServiceOptionPage = {
                     className: 'text-end',
                     render: function(data, type, row) {
                         if (data == null) return '-';
-                        var formatted = Number(data).toLocaleString('ko-KR');
-                        return formatted;
+                        return HolaPms.formatCurrency(data);
                     }
                 },
                 {
@@ -120,7 +119,7 @@ var PaidServiceOptionPage = {
                     data: 'updatedAt',
                     className: 'text-center',
                     render: function(data) {
-                        return data ? data.replace('T', ' ').substring(0, 19) : '-';
+                        return HolaPms.formatDateTime(data);
                     }
                 }
             ]

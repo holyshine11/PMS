@@ -159,7 +159,7 @@ var RoomTypeForm = {
 
                     // 최종 수정일시
                     if (d.updatedAt) {
-                        $('#updatedAt').text(d.updatedAt.replace('T', ' ').substring(0, 19));
+                        $('#updatedAt').text(HolaPms.formatDateTime(d.updatedAt));
                     }
 
                     // 층/호수 데이터 복원

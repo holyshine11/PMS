@@ -73,7 +73,7 @@ var RoomClassPage = {
                     data: 'updatedAt',
                     className: 'text-center',
                     render: function(data) {
-                        return data ? data.replace('T', ' ').substring(0, 19) : '-';
+                        return HolaPms.formatDateTime(data);
                     }
                 }
             ]

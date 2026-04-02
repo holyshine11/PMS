@@ -198,7 +198,7 @@ const RoomNumberPage = {
                 }
 
                 if (data.updatedAt) {
-                    $('#rnUpdatedAt').val(data.updatedAt.replace('T', ' ').substring(0, 19));
+                    $('#rnUpdatedAt').val(HolaPms.formatDateTime(data.updatedAt));
                 } else {
                     $('#rnUpdatedAt').val('');
                 }
