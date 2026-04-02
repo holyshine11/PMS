@@ -179,7 +179,14 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * 예약 생성 통합 테스트
+     * - Flyway 테스트 환경에서 flyway.target=5.8.0으로 설정되어 있어 레이트 가격 데이터(V5_9_0+)가 없음
+     * - 가용 검색 결과에서 rateCodeId를 동적으로 확보해야 하므로 guard clause로 스킵하던 패턴을 제거하고
+     *   테스트 데이터 마이그레이션 확장 후 활성화 필요
+     */
     @Test
+    @org.junit.jupiter.api.Disabled("레이트 가격 데이터(V5_9_0+)가 test profile의 flyway.target=5.8.0에 미포함. 가용검색 결과가 비어 guard clause로 무의미하게 통과됨")
     @DisplayName("유효한 예약 요청 시 201 반환 및 확인번호 포함")
     void createBooking_validRequest_201() throws Exception {
         // 프로퍼티 + 객실타입 조회 (Flyway 데이터)
@@ -211,10 +218,9 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
         // 검색 결과에서 rateCodeId 추출 (BookingResponse 형식)
         var searchNode = objectMapper.readTree(searchResult);
         var dataArray = searchNode.get("result").get("data");
-        if (dataArray == null || !dataArray.isArray() || dataArray.isEmpty()) {
-            // 가용 객실이 없으면 테스트 스킵 (테스트 데이터 의존)
-            return;
-        }
+        assertThat(dataArray).isNotNull();
+        assertThat(dataArray.isArray()).isTrue();
+        assertThat(dataArray.isEmpty()).isFalse();
 
         // STD-D 타입의 첫 번째 레이트옵션 사용
         Long rateCodeId = null;
@@ -230,10 +236,7 @@ class BookingApiIntegrationTest extends BaseIntegrationTest {
             }
         }
 
-        if (rateCodeId == null) {
-            // 해당 객실에 적용 가능한 레이트 없으면 스킵
-            return;
-        }
+        assertThat(rateCodeId).as("STD-D 객실에 적용 가능한 레이트코드가 필요합니다").isNotNull();
 
         Map<String, Object> request = buildBookingRequest(
                 roomTypeId, rateCodeId, checkIn, checkOut, true);

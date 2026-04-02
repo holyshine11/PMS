@@ -16,8 +16,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.*;
 
 /**
@@ -59,7 +59,7 @@ class AccessControlServiceTest {
         when(adminUserRepository.findByLoginIdAndDeletedAtIsNull("admin"))
                 .thenReturn(Optional.of(superAdmin));
 
-        assertDoesNotThrow(() -> accessControlService.validateHotelAccess(999L));
+        assertThatCode(() -> accessControlService.validateHotelAccess(999L)).doesNotThrowAnyException();
     }
 
     @Test
@@ -70,7 +70,7 @@ class AccessControlServiceTest {
         when(adminUserRepository.findByLoginIdAndDeletedAtIsNull("hoteladmin"))
                 .thenReturn(Optional.of(hotelAdmin));
 
-        assertDoesNotThrow(() -> accessControlService.validateHotelAccess(1L));
+        assertThatCode(() -> accessControlService.validateHotelAccess(1L)).doesNotThrowAnyException();
     }
 
     @Test
@@ -95,7 +95,7 @@ class AccessControlServiceTest {
         when(adminUserRepository.findByLoginIdAndDeletedAtIsNull("admin"))
                 .thenReturn(Optional.of(superAdmin));
 
-        assertDoesNotThrow(() -> accessControlService.validatePropertyAccess(999L));
+        assertThatCode(() -> accessControlService.validatePropertyAccess(999L)).doesNotThrowAnyException();
     }
 
     @Test
@@ -108,7 +108,7 @@ class AccessControlServiceTest {
         when(adminUserPropertyRepository.existsByAdminUserIdAndPropertyId(propAdmin.getId(), 10L))
                 .thenReturn(true);
 
-        assertDoesNotThrow(() -> accessControlService.validatePropertyAccess(10L));
+        assertThatCode(() -> accessControlService.validatePropertyAccess(10L)).doesNotThrowAnyException();
     }
 
     @Test
