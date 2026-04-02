@@ -4,10 +4,10 @@ import com.hola.common.dto.HolaResponse;
 import com.hola.common.dto.PageInfo;
 import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
-import com.hola.common.security.AccessControlService;
+import com.hola.common.security.PropertyAccess;
 import com.hola.reservation.dto.request.*;
 import com.hola.reservation.dto.response.*;
-import com.hola.reservation.service.ReservationService;
+import com.hola.reservation.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,37 +33,45 @@ import java.util.Map;
 public class ReservationApiController {
 
     private final ReservationService reservationService;
-    private final AccessControlService accessControlService;
+    private final ReservationStatusService statusService;
+    private final ReservationViewService viewService;
+    private final ReservationLegService legService;
+    private final ReservationAncillaryService ancillaryService;
+
+    // ─── 뷰 ──────────────────────────
 
     /** 캘린더뷰: 기간 내 예약 날짜별 그룹핑 조회 */
     @Operation(summary = "캘린더뷰 데이터 조회", description = "기간 내 예약 날짜별 그룹핑 조회")
     @GetMapping("/calendar")
+    @PropertyAccess
     public HolaResponse<Map<String, List<ReservationCalendarResponse>>> getCalendarData(
             @PathVariable Long propertyId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword) {
-        accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.getCalendarData(propertyId, startDate, endDate, status, keyword));
+        return HolaResponse.success(viewService.getCalendarData(propertyId, startDate, endDate, status, keyword));
     }
 
     /** 타임라인뷰: 기간 내 예약 객실별 그룹핑 조회 */
     @Operation(summary = "타임라인뷰 데이터 조회", description = "기간 내 예약을 객실별로 그룹핑 조회 (Y축=객실, X축=날짜)")
     @GetMapping("/timeline")
+    @PropertyAccess
     public HolaResponse<ReservationTimelineResponse> getTimelineData(
             @PathVariable Long propertyId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword) {
-        accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.getTimelineData(propertyId, startDate, endDate, status, keyword));
+        return HolaResponse.success(viewService.getTimelineData(propertyId, startDate, endDate, status, keyword));
     }
+
+    // ─── CRUD ──────────────────────────
 
     /** 예약 리스트 조회 */
     @Operation(summary = "예약 목록 조회", description = "예약 리스트 (상태/체크인날짜/키워드 필터, 페이징)")
     @GetMapping
+    @PropertyAccess
     public HolaResponse<List<ReservationListResponse>> getList(
             @PathVariable Long propertyId,
             @RequestParam(required = false) String status,
@@ -71,7 +79,6 @@ public class ReservationApiController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkInTo,
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 20) Pageable pageable) {
-        accessControlService.validatePropertyAccess(propertyId);
         Page<ReservationListResponse> page = reservationService.getList(propertyId, status, checkInFrom, checkInTo, keyword, pageable);
         return HolaResponse.success(page.getContent(), PageInfo.from(page));
     }
@@ -79,9 +86,9 @@ public class ReservationApiController {
     /** 예약 상세 조회 */
     @Operation(summary = "예약 상세 조회", description = "예약 ID로 마스터/서브 예약 상세 정보 조회")
     @GetMapping("/{id}")
+    @PropertyAccess
     public HolaResponse<ReservationDetailResponse> getById(@PathVariable Long propertyId,
                                                             @PathVariable Long id) {
-        accessControlService.validatePropertyAccess(propertyId);
         return HolaResponse.success(reservationService.getById(id, propertyId));
     }
 
@@ -89,107 +96,113 @@ public class ReservationApiController {
     @Operation(summary = "예약 등록", description = "새 예약 생성 (마스터 + 서브 예약)")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PropertyAccess
     public HolaResponse<ReservationDetailResponse> create(@PathVariable Long propertyId,
                                                            @Valid @RequestBody ReservationCreateRequest request) {
-        accessControlService.validatePropertyAccess(propertyId);
         return HolaResponse.success(reservationService.create(propertyId, request));
     }
 
     /** 예약 수정 */
     @Operation(summary = "예약 수정", description = "예약 기본정보 수정")
     @PutMapping("/{id}")
+    @PropertyAccess
     public HolaResponse<ReservationDetailResponse> update(@PathVariable Long propertyId,
                                                            @PathVariable Long id,
                                                            @Valid @RequestBody ReservationUpdateRequest request) {
-        accessControlService.validatePropertyAccess(propertyId);
         return HolaResponse.success(reservationService.update(id, propertyId, request));
     }
 
-    /** 예약 취소/노쇼 수수료 미리보기 (subReservationId 지정 시 Leg별 1박 요금 기준) */
+    /** 예약 취소/노쇼 수수료 미리보기 */
     @Operation(summary = "취소/노쇼 수수료 미리보기", description = "예약 취소 또는 노쇼 시 수수료 미리보기")
     @GetMapping("/{id}/cancel-preview")
+    @PropertyAccess
     public HolaResponse<AdminCancelPreviewResponse> getCancelPreview(
             @PathVariable Long propertyId,
             @PathVariable Long id,
             @RequestParam(required = false, defaultValue = "false") boolean noShow,
             @RequestParam(required = false) Long subReservationId) {
-        accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.getCancelPreview(id, propertyId, noShow, subReservationId));
+        return HolaResponse.success(statusService.getCancelPreview(id, propertyId, noShow, subReservationId));
     }
 
     /** 예약 취소 */
     @Operation(summary = "예약 취소", description = "예약 취소 처리")
     @DeleteMapping("/{id}")
+    @PropertyAccess
     public HolaResponse<Void> cancel(@PathVariable Long propertyId,
                                       @PathVariable Long id) {
-        accessControlService.validatePropertyAccess(propertyId);
-        reservationService.cancel(id, propertyId);
+        statusService.cancel(id, propertyId);
         return HolaResponse.success();
     }
 
     /** 예약 삭제 (SUPER_ADMIN 전용, CHECKED_OUT 상태만) */
     @Operation(summary = "예약 삭제", description = "예약 물리 삭제 (SUPER_ADMIN, CHECKED_OUT만)")
     @DeleteMapping("/{id}/delete")
+    @PropertyAccess
     public HolaResponse<Void> deleteReservation(@PathVariable Long propertyId,
                                                  @PathVariable Long id) {
-        accessControlService.validatePropertyAccess(propertyId);
         reservationService.deleteReservation(id, propertyId);
         return HolaResponse.success();
     }
 
+    // ─── 상태 변경 ──────────────────────────
+
     /** 예약 상태 변경 */
     @Operation(summary = "예약 상태 변경", description = "CHECK_IN, INHOUSE, CHECKED_OUT 등 상태 전환")
     @PutMapping("/{id}/status")
+    @PropertyAccess
     public HolaResponse<Void> changeStatus(@PathVariable Long propertyId,
                                             @PathVariable Long id,
                                             @Valid @RequestBody ReservationStatusRequest request) {
-        accessControlService.validatePropertyAccess(propertyId);
-        reservationService.changeStatus(id, propertyId, request);
+        statusService.changeStatus(id, propertyId, request);
         return HolaResponse.success();
     }
+
+    // ─── Leg (서브 예약) ──────────────────────────
 
     /** 서브 예약(객실 레그) 추가 */
     @Operation(summary = "서브 예약 추가", description = "마스터 예약에 서브 예약(객실 레그) 추가")
     @PostMapping("/{id}/legs")
     @ResponseStatus(HttpStatus.CREATED)
+    @PropertyAccess
     public HolaResponse<SubReservationResponse> addLeg(@PathVariable Long propertyId,
                                                         @PathVariable Long id,
                                                         @Valid @RequestBody SubReservationRequest request) {
-        accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.addLeg(id, propertyId, request));
+        return HolaResponse.success(legService.addLeg(id, propertyId, request));
     }
 
     /** 서브 예약 수정 */
     @Operation(summary = "서브 예약 수정", description = "서브 예약 정보 수정")
     @PutMapping("/{id}/legs/{legId}")
+    @PropertyAccess
     public HolaResponse<SubReservationResponse> updateLeg(@PathVariable Long propertyId,
                                                            @PathVariable Long id,
                                                            @PathVariable Long legId,
                                                            @Valid @RequestBody SubReservationRequest request) {
-        accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.updateLeg(id, propertyId, legId, request));
+        return HolaResponse.success(legService.updateLeg(id, propertyId, legId, request));
     }
 
     /** 서브 예약 삭제 */
     @Operation(summary = "서브 예약 삭제", description = "서브 예약 삭제")
     @DeleteMapping("/{id}/legs/{legId}")
+    @PropertyAccess
     public HolaResponse<Void> deleteLeg(@PathVariable Long propertyId,
                                          @PathVariable Long id,
                                          @PathVariable Long legId) {
-        accessControlService.validatePropertyAccess(propertyId);
-        reservationService.deleteLeg(id, propertyId, legId);
+        legService.deleteLeg(id, propertyId, legId);
         return HolaResponse.success();
     }
+
+    // ─── 가용성 ──────────────────────────
 
     /** 객실 가용성 조회 */
     @Operation(summary = "객실 가용성 조회", description = "객실타입/기간별 가용 객실 수 확인")
     @GetMapping("/availability")
+    @PropertyAccess
     public HolaResponse<Map<String, Object>> checkAvailability(
             @PathVariable Long propertyId,
             @RequestParam Long roomTypeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkIn,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkOut) {
-        accessControlService.validatePropertyAccess(propertyId);
         int available = reservationService.checkAvailability(propertyId, roomTypeId, checkIn, checkOut);
         return HolaResponse.success(Map.of(
                 "roomTypeId", roomTypeId,
@@ -200,73 +213,75 @@ public class ReservationApiController {
         ));
     }
 
+    // ─── 부속 (메모/예치금/서비스) ──────────────────────────
+
     /** 예약 메모 조회 */
     @Operation(summary = "예약 메모 조회", description = "예약에 등록된 메모 목록")
     @GetMapping("/{id}/memos")
+    @PropertyAccess
     public HolaResponse<List<ReservationMemoResponse>> getMemos(@PathVariable Long propertyId,
                                                                  @PathVariable Long id) {
-        accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.getMemos(id, propertyId));
+        return HolaResponse.success(ancillaryService.getMemos(id, propertyId));
     }
 
     /** 예약 메모 등록 */
     @Operation(summary = "예약 메모 등록", description = "예약에 메모 추가")
     @PostMapping("/{id}/memos")
     @ResponseStatus(HttpStatus.CREATED)
+    @PropertyAccess
     public HolaResponse<ReservationMemoResponse> addMemo(@PathVariable Long propertyId,
                                                           @PathVariable Long id,
                                                           @RequestBody Map<String, String> body) {
-        accessControlService.validatePropertyAccess(propertyId);
         String content = body.get("content");
         if (content == null || content.isBlank()) {
             throw new HolaException(ErrorCode.INVALID_INPUT);
         }
-        return HolaResponse.success(reservationService.addMemo(id, propertyId, content));
+        return HolaResponse.success(ancillaryService.addMemo(id, propertyId, content));
     }
 
     /** 예치금 등록 */
     @Operation(summary = "예치금 등록", description = "예약에 예치금 추가")
     @PostMapping("/{id}/deposit")
     @ResponseStatus(HttpStatus.CREATED)
+    @PropertyAccess
     public HolaResponse<ReservationDepositResponse> addDeposit(@PathVariable Long propertyId,
                                                                 @PathVariable Long id,
                                                                 @Valid @RequestBody ReservationDepositRequest request) {
-        accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.addDeposit(id, propertyId, request));
+        return HolaResponse.success(ancillaryService.addDeposit(id, propertyId, request));
+    }
+
+    /** 예치금 수정 */
+    @Operation(summary = "예치금 수정", description = "예치금 정보 수정")
+    @PutMapping("/{id}/deposit/{depositId}")
+    @PropertyAccess
+    public HolaResponse<ReservationDepositResponse> updateDeposit(@PathVariable Long propertyId,
+                                                                   @PathVariable Long id,
+                                                                   @PathVariable Long depositId,
+                                                                   @Valid @RequestBody ReservationDepositRequest request) {
+        return HolaResponse.success(ancillaryService.updateDeposit(id, propertyId, depositId, request));
     }
 
     /** 유료 서비스 추가 */
     @Operation(summary = "유료 서비스 추가", description = "서브 예약에 유료 서비스 추가")
     @PostMapping("/{id}/legs/{legId}/services")
     @ResponseStatus(HttpStatus.CREATED)
+    @PropertyAccess
     public HolaResponse<ReservationServiceResponse> addService(@PathVariable Long propertyId,
                                                                 @PathVariable Long id,
                                                                 @PathVariable Long legId,
                                                                 @Valid @RequestBody ReservationServiceRequest request) {
-        accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.addService(id, legId, propertyId, request));
+        return HolaResponse.success(ancillaryService.addService(id, legId, propertyId, request));
     }
 
     /** 유료 서비스 삭제 */
     @Operation(summary = "유료 서비스 삭제", description = "서브 예약의 유료 서비스 삭제")
     @DeleteMapping("/{id}/legs/{legId}/services/{serviceId}")
+    @PropertyAccess
     public HolaResponse<Void> removeService(@PathVariable Long propertyId,
                                               @PathVariable Long id,
                                               @PathVariable Long legId,
                                               @PathVariable Long serviceId) {
-        accessControlService.validatePropertyAccess(propertyId);
-        reservationService.removeService(id, legId, serviceId, propertyId);
+        ancillaryService.removeService(id, legId, serviceId, propertyId);
         return HolaResponse.success();
-    }
-
-    /** 예치금 수정 */
-    @Operation(summary = "예치금 수정", description = "예치금 정보 수정")
-    @PutMapping("/{id}/deposit/{depositId}")
-    public HolaResponse<ReservationDepositResponse> updateDeposit(@PathVariable Long propertyId,
-                                                                   @PathVariable Long id,
-                                                                   @PathVariable Long depositId,
-                                                                   @Valid @RequestBody ReservationDepositRequest request) {
-        accessControlService.validatePropertyAccess(propertyId);
-        return HolaResponse.success(reservationService.updateDeposit(id, propertyId, depositId, request));
     }
 }
