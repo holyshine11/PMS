@@ -36,7 +36,7 @@ var PaidServiceOptionPage = {
 
     initTable: function() {
         var self = this;
-        this.table = $('#paidServiceOptionTable').DataTable({
+        this.table = $('#paidServiceOptionTable').DataTable($.extend({}, HolaPms.dataTableDefaults, {
             processing: true,
             serverSide: false,
             ajax: function(data, callback) {
@@ -64,10 +64,8 @@ var PaidServiceOptionPage = {
                     }
                 });
             },
-            pageLength: 20,
             ordering: false,
             dom: 'rtip',
-            language: HolaPms.dataTableLanguage,
             columns: [
                 {
                     data: null,
@@ -123,7 +121,7 @@ var PaidServiceOptionPage = {
                     }
                 }
             ]
-        });
+        }));
     },
 
     bindEvents: function() {

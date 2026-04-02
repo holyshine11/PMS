@@ -39,7 +39,7 @@ var FreeServiceOptionPage = {
 
     initTable: function() {
         var self = this;
-        this.table = $('#freeServiceOptionTable').DataTable({
+        this.table = $('#freeServiceOptionTable').DataTable($.extend({}, HolaPms.dataTableDefaults, {
             processing: true,
             serverSide: false,
             ajax: function(data, callback) {
@@ -67,10 +67,8 @@ var FreeServiceOptionPage = {
                     }
                 });
             },
-            pageLength: 20,
             ordering: false,
             dom: 'rtip',
-            language: HolaPms.dataTableLanguage,
             columns: [
                 {
                     data: null,
@@ -117,7 +115,7 @@ var FreeServiceOptionPage = {
                     }
                 }
             ]
-        });
+        }));
     },
 
     bindEvents: function() {

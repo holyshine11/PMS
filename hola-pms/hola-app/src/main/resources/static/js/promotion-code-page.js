@@ -25,7 +25,7 @@ var PromotionCodePage = {
 
     initTable: function() {
         var self = this;
-        this.table = $('#promotionCodeTable').DataTable({
+        this.table = $('#promotionCodeTable').DataTable($.extend({}, HolaPms.dataTableDefaults, {
             processing: true,
             serverSide: false,
             ajax: function(data, callback) {
@@ -57,10 +57,8 @@ var PromotionCodePage = {
                     }
                 });
             },
-            pageLength: 20,
             ordering: false,
             dom: 'rtip',
-            language: HolaPms.dataTableLanguage,
             columns: [
                 {
                     data: null,
@@ -104,7 +102,7 @@ var PromotionCodePage = {
                     }
                 }
             ]
-        });
+        }));
     },
 
     bindEvents: function() {

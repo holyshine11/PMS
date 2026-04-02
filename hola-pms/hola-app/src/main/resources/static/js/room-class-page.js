@@ -11,7 +11,7 @@ var RoomClassPage = {
     },
 
     initTable: function() {
-        this.table = $('#roomClassTable').DataTable({
+        this.table = $('#roomClassTable').DataTable($.extend({}, HolaPms.dataTableDefaults, {
             processing: true,
             serverSide: false,
             ajax: function(data, callback) {
@@ -39,10 +39,8 @@ var RoomClassPage = {
                     }
                 });
             },
-            pageLength: 20,
             ordering: false,
             dom: 'rtip',
-            language: HolaPms.dataTableLanguage,
             columns: [
                 {
                     data: null,
@@ -77,7 +75,7 @@ var RoomClassPage = {
                     }
                 }
             ]
-        });
+        }));
     },
 
     bindEvents: function() {

@@ -13,7 +13,7 @@ var RateCodePage = {
 
     initTable: function() {
         var self = this;
-        this.table = $('#rateCodeTable').DataTable({
+        this.table = $('#rateCodeTable').DataTable($.extend({}, HolaPms.dataTableDefaults, {
             processing: true,
             serverSide: false,
             ajax: function(data, callback) {
@@ -45,10 +45,8 @@ var RateCodePage = {
                     }
                 });
             },
-            pageLength: 20,
             ordering: false,
             dom: 'rtip',
-            language: HolaPms.dataTableLanguage,
             columns: [
                 {
                     data: null,
@@ -120,7 +118,7 @@ var RateCodePage = {
                     }
                 }
             ]
-        });
+        }));
     },
 
     bindEvents: function() {
