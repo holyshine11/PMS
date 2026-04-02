@@ -467,7 +467,7 @@ var RateCodeForm = {
     selectMarketCode: function(id, name) {
         $('#marketCodeId').val(id);
         $('#marketCodeName').val(name);
-        bootstrap.Modal.getInstance(document.getElementById('marketCodeModal')).hide();
+        HolaPms.modal.hide('#marketCodeModal');
     },
 
     clearMarketCode: function() {
@@ -539,7 +539,7 @@ var RateCodeForm = {
             });
         });
         self.renderRoomTypes();
-        bootstrap.Modal.getInstance(document.getElementById('roomTypeModal')).hide();
+        HolaPms.modal.hide('#roomTypeModal');
     },
 
     renderRoomTypes: function() {
@@ -1296,7 +1296,7 @@ var RateCodeForm = {
         }
 
         self.renderOptionSections();
-        bootstrap.Modal.getInstance(document.getElementById('paidOptionModal')).hide();
+        HolaPms.modal.hide('#paidOptionModal');
     },
 
     removeOption: function(optionId) {

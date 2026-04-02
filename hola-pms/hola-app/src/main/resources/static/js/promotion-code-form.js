@@ -248,7 +248,7 @@ var PromotionCodeForm = {
     // ===== 레이트 코드 조회 모달 =====
     openRateCodeModal: function() {
         this.loadRateCodes();
-        new bootstrap.Modal('#rateCodeModal').show();
+        HolaPms.modal.show('#rateCodeModal');
     },
 
     loadRateCodes: function() {
@@ -328,7 +328,7 @@ var PromotionCodeForm = {
         $('#rateCodeName').val(rateCodeName);
         // 모달 닫기 전 포커스를 모달 외부로 이동 (aria-hidden 경고 방지)
         $('#rateCodeName').focus();
-        bootstrap.Modal.getInstance(document.getElementById('rateCodeModal')).hide();
+        HolaPms.modal.hide('#rateCodeModal');
     }
 };
 

@@ -258,8 +258,7 @@ var RoomTypeForm = {
             this.classPopupTable.ajax.url('/api/v1/properties/' + propertyId + '/room-classes').load();
         }
 
-        var modal = new bootstrap.Modal(document.getElementById('classPopupModal'));
-        modal.show();
+        HolaPms.modal.show('#classPopupModal');
     },
 
     searchClass: function() {
@@ -292,7 +291,7 @@ var RoomTypeForm = {
         $('#roomClassId').val(this.selectedClassId);
         $('#roomClassDisplay').text(this.selectedClassCode + ' - ' + this.selectedClassName);
 
-        bootstrap.Modal.getInstance(document.getElementById('classPopupModal')).hide();
+        HolaPms.modal.hide('#classPopupModal');
     },
 
     // === 층/호수 팝업 ===
@@ -304,8 +303,7 @@ var RoomTypeForm = {
         }
 
         this.renderFloorPopup();
-        var modal = new bootstrap.Modal(document.getElementById('floorPopupModal'));
-        modal.show();
+        HolaPms.modal.show('#floorPopupModal');
     },
 
     renderFloorPopup: function() {
@@ -618,8 +616,7 @@ var RoomTypeForm = {
             $('#freeServicePopupTable .free-svc-check').prop('checked', isChecked);
         });
 
-        var modal = new bootstrap.Modal(document.getElementById('freeServicePopupModal'));
-        modal.show();
+        HolaPms.modal.show('#freeServicePopupModal');
     },
 
     searchFreeService: function() {
@@ -653,7 +650,7 @@ var RoomTypeForm = {
         });
 
         self.updateServiceDisplay(serviceType);
-        bootstrap.Modal.getInstance(document.getElementById('freeServicePopupModal')).hide();
+        HolaPms.modal.hide('#freeServicePopupModal');
     },
 
     removeServiceOption: function(serviceType, optionId) {
@@ -768,8 +765,7 @@ var RoomTypeForm = {
             $('#paidServicePopupTable .paid-svc-check').prop('checked', isChecked);
         });
 
-        var modal = new bootstrap.Modal(document.getElementById('paidServicePopupModal'));
-        modal.show();
+        HolaPms.modal.show('#paidServicePopupModal');
     },
 
     searchPaidService: function() {
@@ -799,7 +795,7 @@ var RoomTypeForm = {
         });
 
         self.updatePaidServiceDisplay();
-        bootstrap.Modal.getInstance(document.getElementById('paidServicePopupModal')).hide();
+        HolaPms.modal.hide('#paidServicePopupModal');
     },
 
     removePaidServiceOption: function(optionId) {
