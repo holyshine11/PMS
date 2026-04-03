@@ -16,4 +16,11 @@ public interface ReservationLegService {
 
     /** 서브 예약 삭제 */
     void deleteLeg(Long reservationId, Long propertyId, Long legId);
+
+    /** 얼리/레이트 요금 등록 (시간대 선택 즉시 확정) */
+    java.math.BigDecimal registerEarlyLateFee(Long reservationId, Long propertyId, Long legId,
+                                               String policyType, int policyIndex);
+
+    /** 얼리/레이트 요금 해제 */
+    void removeEarlyLateFee(Long reservationId, Long propertyId, Long legId, String policyType);
 }

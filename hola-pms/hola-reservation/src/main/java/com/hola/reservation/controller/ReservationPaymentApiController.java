@@ -69,6 +69,16 @@ public class ReservationPaymentApiController {
         return HolaResponse.success(paymentService.retryPgRefund(propertyId, reservationId, transactionId));
     }
 
+    /** 개별 PG 결제 건 취소 (예약 유지, 해당 결제만 KICC 취소) */
+    @Operation(summary = "PG 결제 취소", description = "개별 PG 결제 건을 KICC를 통해 취소. 예약은 유지됨")
+    @PostMapping("/transactions/{transactionId}/pg-cancel")
+    public HolaResponse<PaymentSummaryResponse> cancelPgTransaction(@PathVariable Long propertyId,
+                                                                      @PathVariable Long reservationId,
+                                                                      @PathVariable Long transactionId) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(paymentService.cancelPgTransaction(propertyId, reservationId, transactionId));
+    }
+
     /** VAN 취소에 필요한 원거래 정보 조회 */
     @Operation(summary = "VAN 취소 정보 조회", description = "VAN 취소에 필요한 원거래 authCode, rrn, amount 조회")
     @GetMapping("/transactions/{transactionId}/van-cancel-info")

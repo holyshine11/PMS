@@ -15,6 +15,9 @@ public interface RoomUpgradeService {
     /** 업그레이드 미리보기 (차액 계산) */
     UpgradePreviewResponse previewUpgrade(Long subReservationId, Long toRoomTypeId);
 
+    /** 업그레이드 미리보기 (관리자 레이트코드 선택) */
+    UpgradePreviewResponse previewUpgrade(Long subReservationId, Long toRoomTypeId, Long selectedRateCodeId);
+
     /** 업그레이드 실행 */
     RoomUpgradeHistoryResponse executeUpgrade(Long subReservationId, RoomUpgradeRequest request);
 

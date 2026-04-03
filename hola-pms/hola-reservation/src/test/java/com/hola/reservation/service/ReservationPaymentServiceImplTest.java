@@ -5,6 +5,9 @@ import com.hola.common.exception.HolaException;
 import com.hola.hotel.entity.Hotel;
 import com.hola.hotel.entity.Property;
 import com.hola.hotel.service.WorkstationService;
+import com.hola.reservation.booking.gateway.CancelPaymentRequest;
+import com.hola.reservation.booking.gateway.PaymentGateway;
+import com.hola.reservation.booking.gateway.PaymentResult;
 import com.hola.reservation.dto.request.PaymentAdjustmentRequest;
 import com.hola.reservation.dto.request.PaymentProcessRequest;
 import com.hola.reservation.dto.request.VanResultPayload;
@@ -66,6 +69,8 @@ class ReservationPaymentServiceImplTest {
     private ReservationMapper reservationMapper;
     @Mock
     private WorkstationService workstationService;
+    @Mock
+    private PaymentGateway paymentGateway;
     @Mock
     private ObjectMapper objectMapper;
 
@@ -1148,6 +1153,225 @@ class ReservationPaymentServiceImplTest {
             assertThat(saved.getPaymentChannel()).isEqualTo("VAN");
             assertThat(saved.getVanAuthCode()).isEqualTo("C67890");
             assertThat(saved.getAmount()).isEqualByComparingTo(new BigDecimal("100000"));
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    //  cancelPgTransaction - PG 개별 결제 취소 (7개)
+    // ═══════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("cancelPgTransaction - PG 개별 결제 취소")
+    class CancelPgTransaction {
+
+        private static final Long TXN_ID = 50L;
+
+        private PaymentTransaction createPgPayment(Long id, BigDecimal amount) {
+            PaymentTransaction txn = PaymentTransaction.builder()
+                    .masterReservationId(RESERVATION_ID)
+                    .subReservationId(SUB_ID)
+                    .transactionSeq(1)
+                    .transactionType("PAYMENT")
+                    .paymentMethod("CARD")
+                    .paymentChannel("PG")
+                    .amount(amount)
+                    .pgCno("PG_CNO_001")
+                    .pgProvider("KICC")
+                    .pgCardNo("9490****844")
+                    .pgIssuerName("비씨카드")
+                    .pgAcquirerName("국민카드")
+                    .pgInstallmentMonth(0)
+                    .pgCardType("CREDIT")
+                    .transactionStatus("COMPLETED")
+                    .build();
+            setId(txn, id);
+            return txn;
+        }
+
+        private PaymentTransaction createPgRefund(Long id, BigDecimal amount) {
+            PaymentTransaction txn = PaymentTransaction.builder()
+                    .masterReservationId(RESERVATION_ID)
+                    .transactionSeq(2)
+                    .transactionType("REFUND")
+                    .paymentMethod("CARD")
+                    .amount(amount)
+                    .pgProvider("KICC")
+                    .pgCno("CANCEL_PG_CNO_001")
+                    .transactionStatus("COMPLETED")
+                    .build();
+            setId(txn, id);
+            return txn;
+        }
+
+        private void stubCommon(PaymentTransaction pgPayment, List<PaymentTransaction> allTxns) {
+            stubMasterFound();
+            when(transactionRepository.findById(TXN_ID)).thenReturn(Optional.of(pgPayment));
+            when(transactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(RESERVATION_ID))
+                    .thenReturn(allTxns);
+        }
+
+        private void stubRecalculateAndResponse() {
+            when(subReservationRepository.findByMasterReservationId(RESERVATION_ID))
+                    .thenReturn(List.of(defaultSub));
+            when(dailyChargeRepository.findBySubReservationId(SUB_ID))
+                    .thenReturn(Collections.emptyList());
+            when(serviceItemRepository.findBySubReservationId(SUB_ID))
+                    .thenReturn(Collections.emptyList());
+            when(adjustmentRepository.findByMasterReservationIdOrderByAdjustmentSeqAsc(RESERVATION_ID))
+                    .thenReturn(Collections.emptyList());
+            when(paymentRepository.findByMasterReservationId(RESERVATION_ID))
+                    .thenReturn(Optional.of(createPayment("PAID", new BigDecimal("254100"), new BigDecimal("254100"))));
+            when(transactionRepository.save(any(PaymentTransaction.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any(), any()))
+                    .thenReturn(PaymentSummaryResponse.builder().paymentStatus("REFUNDED").build());
+        }
+
+        @Test
+        @DisplayName("트랜잭션이 존재하지 않으면 PG_CANCEL_NOT_ALLOWED")
+        void notFoundTransaction_throwsException() {
+            stubMasterFound();
+            when(transactionRepository.findById(TXN_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.cancelPgTransaction(PROPERTY_ID, RESERVATION_ID, TXN_ID))
+                    .isInstanceOf(HolaException.class)
+                    .satisfies(ex -> assertThat(((HolaException) ex).getErrorCode()).isEqualTo(ErrorCode.PG_CANCEL_NOT_ALLOWED));
+        }
+
+        @Test
+        @DisplayName("PG가 아닌 거래(VAN/수동)는 PG_CANCEL_NOT_ALLOWED")
+        void nonPgTransaction_throwsException() {
+            stubMasterFound();
+            PaymentTransaction vanTxn = PaymentTransaction.builder()
+                    .masterReservationId(RESERVATION_ID)
+                    .transactionType("PAYMENT")
+                    .paymentMethod("CARD")
+                    .paymentChannel("VAN")
+                    .amount(new BigDecimal("100000"))
+                    .build();
+            setId(vanTxn, TXN_ID);
+            when(transactionRepository.findById(TXN_ID)).thenReturn(Optional.of(vanTxn));
+
+            assertThatThrownBy(() -> service.cancelPgTransaction(PROPERTY_ID, RESERVATION_ID, TXN_ID))
+                    .isInstanceOf(HolaException.class)
+                    .satisfies(ex -> assertThat(((HolaException) ex).getErrorCode()).isEqualTo(ErrorCode.PG_CANCEL_NOT_ALLOWED));
+        }
+
+        @Test
+        @DisplayName("이미 전액 환불된 PG 결제는 PG_ALREADY_CANCELLED")
+        void alreadyFullyRefunded_throwsException() {
+            PaymentTransaction pgPayment = createPgPayment(TXN_ID, new BigDecimal("254100"));
+            PaymentTransaction pgRefund = createPgRefund(99L, new BigDecimal("254100"));
+
+            stubCommon(pgPayment, List.of(pgPayment, pgRefund));
+
+            assertThatThrownBy(() -> service.cancelPgTransaction(PROPERTY_ID, RESERVATION_ID, TXN_ID))
+                    .isInstanceOf(HolaException.class)
+                    .satisfies(ex -> assertThat(((HolaException) ex).getErrorCode()).isEqualTo(ErrorCode.PG_ALREADY_CANCELLED));
+        }
+
+        @Test
+        @DisplayName("KICC 취소 성공 시 COMPLETED REFUND 생성 + payment.updateCancelRefund 호출")
+        void kiccSuccess_createsCompletedRefund() {
+            PaymentTransaction pgPayment = createPgPayment(TXN_ID, new BigDecimal("254100"));
+            stubCommon(pgPayment, List.of(pgPayment));
+            stubRecalculateAndResponse();
+
+            PaymentResult successResult = PaymentResult.builder()
+                    .success(true)
+                    .pgProvider("KICC")
+                    .pgCno("CANCEL_PG_CNO_NEW")
+                    .pgTransactionId("txn-uuid-123")
+                    .pgStatusCode("TS02")
+                    .approvalNo("99887766")
+                    .build();
+            when(paymentGateway.cancelPayment(any(CancelPaymentRequest.class))).thenReturn(successResult);
+
+            // when
+            PaymentSummaryResponse result = service.cancelPgTransaction(PROPERTY_ID, RESERVATION_ID, TXN_ID);
+
+            // then
+            assertThat(result.getPaymentStatus()).isEqualTo("REFUNDED");
+
+            ArgumentCaptor<PaymentTransaction> captor = ArgumentCaptor.forClass(PaymentTransaction.class);
+            verify(transactionRepository).save(captor.capture());
+            PaymentTransaction saved = captor.getValue();
+
+            assertThat(saved.getTransactionType()).isEqualTo("REFUND");
+            assertThat(saved.getTransactionStatus()).isEqualTo("COMPLETED");
+            assertThat(saved.getPaymentChannel()).isEqualTo("PG");
+            assertThat(saved.getAmount()).isEqualByComparingTo("254100");
+            assertThat(saved.getPgCno()).isEqualTo("CANCEL_PG_CNO_NEW");
+            assertThat(saved.getPgApprovalNo()).isEqualTo("99887766");
+            assertThat(saved.getPgCardNo()).isEqualTo("9490****844");
+            assertThat(saved.getPgIssuerName()).isEqualTo("비씨카드");
+            assertThat(saved.getSubReservationId()).isEqualTo(SUB_ID);
+        }
+
+        @Test
+        @DisplayName("KICC 취소 성공 시 FULL 타입으로 요청")
+        void kiccSuccess_sendsFullCancelType() {
+            PaymentTransaction pgPayment = createPgPayment(TXN_ID, new BigDecimal("254100"));
+            stubCommon(pgPayment, List.of(pgPayment));
+            stubRecalculateAndResponse();
+
+            when(paymentGateway.cancelPayment(any(CancelPaymentRequest.class)))
+                    .thenReturn(PaymentResult.builder().success(true).pgProvider("KICC")
+                            .pgCno("C_CNO").approvalNo("A1").build());
+
+            service.cancelPgTransaction(PROPERTY_ID, RESERVATION_ID, TXN_ID);
+
+            ArgumentCaptor<CancelPaymentRequest> captor = ArgumentCaptor.forClass(CancelPaymentRequest.class);
+            verify(paymentGateway).cancelPayment(captor.capture());
+            CancelPaymentRequest req = captor.getValue();
+
+            assertThat(req.getPgCno()).isEqualTo("PG_CNO_001");
+            assertThat(req.getCancelType()).isEqualTo("FULL");
+            assertThat(req.getCancelAmount()).isEqualByComparingTo("254100");
+        }
+
+        @Test
+        @DisplayName("KICC 취소 실패 시 PG_REFUND_FAILED REFUND 생성 (재시도 가능)")
+        void kiccFailure_createsPgRefundFailed() {
+            PaymentTransaction pgPayment = createPgPayment(TXN_ID, new BigDecimal("254100"));
+            stubCommon(pgPayment, List.of(pgPayment));
+            stubRecalculateAndResponse();
+
+            PaymentResult failResult = PaymentResult.builder()
+                    .success(false)
+                    .errorMessage("카드사 거절")
+                    .build();
+            when(paymentGateway.cancelPayment(any(CancelPaymentRequest.class))).thenReturn(failResult);
+
+            service.cancelPgTransaction(PROPERTY_ID, RESERVATION_ID, TXN_ID);
+
+            ArgumentCaptor<PaymentTransaction> captor = ArgumentCaptor.forClass(PaymentTransaction.class);
+            verify(transactionRepository).save(captor.capture());
+            PaymentTransaction saved = captor.getValue();
+
+            assertThat(saved.getTransactionStatus()).isEqualTo("PG_REFUND_FAILED");
+            assertThat(saved.getPgCno()).isEqualTo("PG_CNO_001");
+            assertThat(saved.getMemo()).contains("PG실패");
+        }
+
+        @Test
+        @DisplayName("KICC 통신 예외 시 PG_REFUND_FAILED REFUND 생성")
+        void kiccException_createsPgRefundFailed() {
+            PaymentTransaction pgPayment = createPgPayment(TXN_ID, new BigDecimal("254100"));
+            stubCommon(pgPayment, List.of(pgPayment));
+            stubRecalculateAndResponse();
+
+            when(paymentGateway.cancelPayment(any(CancelPaymentRequest.class)))
+                    .thenThrow(new RuntimeException("Connection timeout"));
+
+            service.cancelPgTransaction(PROPERTY_ID, RESERVATION_ID, TXN_ID);
+
+            ArgumentCaptor<PaymentTransaction> captor = ArgumentCaptor.forClass(PaymentTransaction.class);
+            verify(transactionRepository).save(captor.capture());
+            PaymentTransaction saved = captor.getValue();
+
+            assertThat(saved.getTransactionStatus()).isEqualTo("PG_REFUND_FAILED");
+            assertThat(saved.getMemo()).contains("PG통신오류");
         }
     }
 }

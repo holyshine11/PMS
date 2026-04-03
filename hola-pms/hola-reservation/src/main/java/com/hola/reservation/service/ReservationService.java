@@ -2,6 +2,7 @@ package com.hola.reservation.service;
 
 import com.hola.reservation.dto.request.ReservationCreateRequest;
 import com.hola.reservation.dto.request.ReservationUpdateRequest;
+import com.hola.reservation.dto.response.RateChangePreviewResponse;
 import com.hola.reservation.dto.response.ReservationDetailResponse;
 import com.hola.reservation.dto.response.ReservationListResponse;
 import org.springframework.data.domain.Page;
@@ -37,4 +38,7 @@ public interface ReservationService {
 
     /** 객실 가용성 조회 */
     int checkAvailability(Long propertyId, Long roomTypeId, LocalDate checkIn, LocalDate checkOut);
+
+    /** 레이트코드 변경 시 요금 미리보기 */
+    RateChangePreviewResponse previewRateChange(Long reservationId, Long propertyId, Long newRateCodeId);
 }

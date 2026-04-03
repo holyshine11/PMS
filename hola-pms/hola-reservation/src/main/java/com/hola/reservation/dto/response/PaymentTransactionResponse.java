@@ -49,6 +49,6 @@ public class PaymentTransactionResponse {
     private String vanAcquirerName;
     private String vanSequenceNo;
 
-    /** VAN 취소 가능 여부 (VAN PAYMENT이면서 아직 REFUND가 없는 경우 true) */
+    /** 취소 가능 여부 (VAN PAYMENT: 미취소 시퀀스, PG PAYMENT: PG 환불 잔여 용량 있을 때 true) */
     private Boolean cancelable;
 }

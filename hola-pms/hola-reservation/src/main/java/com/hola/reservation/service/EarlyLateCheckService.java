@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -43,8 +44,11 @@ public class EarlyLateCheckService {
         LocalTime standardCheckIn = LocalTime.parse(property.getCheckInTime());
         LocalTime actualTime = actualCheckInTime.toLocalTime();
 
-        // 표준 체크인 시간 이후이면 얼리 아님
-        if (!actualTime.isBefore(standardCheckIn)) {
+        boolean isActuallyEarly = actualTime.isBefore(standardCheckIn);
+        boolean toggledOn = Boolean.TRUE.equals(sub.getEarlyCheckIn());
+
+        // 토글 OFF이고 실제 얼리도 아니면 요금 없음
+        if (!isActuallyEarly && !toggledOn) {
             return BigDecimal.ZERO;
         }
 
@@ -56,8 +60,10 @@ public class EarlyLateCheckService {
             return BigDecimal.ZERO;
         }
 
-        // 시간대에 해당하는 정책 찾기
-        EarlyLateFeePolicy matchedPolicy = findMatchingPolicy(policies, actualTime);
+        // 시간대에 해당하는 정책 찾기 (실제 얼리면 시간 매칭, 토글만 ON이면 첫 정책)
+        EarlyLateFeePolicy matchedPolicy = isActuallyEarly
+                ? findMatchingPolicy(policies, actualTime)
+                : policies.get(0);
         if (matchedPolicy == null) {
             return BigDecimal.ZERO;
         }
@@ -82,8 +88,11 @@ public class EarlyLateCheckService {
         LocalTime standardCheckOut = LocalTime.parse(property.getCheckOutTime());
         LocalTime actualTime = actualCheckOutTime.toLocalTime();
 
-        // 표준 체크아웃 시간 이전이면 레이트 아님
-        if (!actualTime.isAfter(standardCheckOut)) {
+        boolean isActuallyLate = actualTime.isAfter(standardCheckOut);
+        boolean toggledOn = Boolean.TRUE.equals(sub.getLateCheckOut());
+
+        // 토글 OFF이고 실제 레이트도 아니면 요금 없음
+        if (!isActuallyLate && !toggledOn) {
             return BigDecimal.ZERO;
         }
 
@@ -95,8 +104,10 @@ public class EarlyLateCheckService {
             return BigDecimal.ZERO;
         }
 
-        // 시간대에 해당하는 정책 찾기
-        EarlyLateFeePolicy matchedPolicy = findMatchingPolicy(policies, actualTime);
+        // 시간대에 해당하는 정책 찾기 (실제 레이트면 시간 매칭, 토글만 ON이면 첫 정책)
+        EarlyLateFeePolicy matchedPolicy = isActuallyLate
+                ? findMatchingPolicy(policies, actualTime)
+                : policies.get(0);
         if (matchedPolicy == null) {
             return BigDecimal.ZERO;
         }
@@ -160,4 +171,74 @@ public class EarlyLateCheckService {
         charges.sort(Comparator.comparing(DailyCharge::getChargeDate));
         return charges.get(charges.size() - 1).getSupplyPrice();
     }
+
+    /**
+     * 얼리 체크인 / 레이트 체크아웃 시간대별 예상 요금 조회
+     * @param sub 서브예약 (DailyCharge 기반 기준가 산출)
+     * @param policyType "EARLY_CHECKIN" 또는 "LATE_CHECKOUT"
+     * @return 시간대별 예상 요금 리스트
+     */
+    public List<FeeEstimate> estimateFees(SubReservation sub, String policyType) {
+        return estimateFees(sub, policyType, sub.getMasterReservation().getProperty());
+    }
+
+    /**
+     * 얼리 체크인 / 레이트 체크아웃 시간대별 예상 요금 조회 (Property 직접 전달)
+     */
+    public List<FeeEstimate> estimateFees(SubReservation sub, String policyType, Property property) {
+        List<EarlyLateFeePolicy> policies = policyRepository
+                .findAllByPropertyIdAndPolicyTypeOrderBySortOrder(property.getId(), policyType);
+
+        if (policies.isEmpty()) {
+            return List.of();
+        }
+
+        // 기준가: 얼리=첫째 날, 레이트=마지막 날
+        BigDecimal baseAmount = "EARLY_CHECKIN".equals(policyType)
+                ? getBaseRoomRate(sub) : getLastNightRoomRate(sub);
+
+        List<FeeEstimate> estimates = new ArrayList<>();
+        for (EarlyLateFeePolicy policy : policies) {
+            BigDecimal fee = calculateFee(policy, baseAmount);
+            estimates.add(new FeeEstimate(
+                    policy.getTimeFrom(), policy.getTimeTo(),
+                    policy.getFeeType(), policy.getFeeValue(), fee,
+                    policy.getDescription()));
+        }
+        return estimates;
+    }
+
+    /**
+     * 사용자 선택 정책 인덱스 기반 요금 계산 (등록 시점 즉시 확정용)
+     * @param sub 서브예약
+     * @param policyType "EARLY_CHECKIN" 또는 "LATE_CHECKOUT"
+     * @param policyIndex 정책 리스트 내 인덱스 (sortOrder 순)
+     * @return 확정 요금
+     */
+    public BigDecimal calculateFeeByPolicyIndex(SubReservation sub, String policyType, int policyIndex) {
+        Long propertyId = sub.getMasterReservation().getProperty().getId();
+        List<EarlyLateFeePolicy> policies = policyRepository
+                .findAllByPropertyIdAndPolicyTypeOrderBySortOrder(propertyId, policyType);
+
+        if (policies.isEmpty() || policyIndex < 0 || policyIndex >= policies.size()) {
+            return BigDecimal.ZERO;
+        }
+
+        EarlyLateFeePolicy policy = policies.get(policyIndex);
+        BigDecimal baseAmount = "EARLY_CHECKIN".equals(policyType)
+                ? getBaseRoomRate(sub) : getLastNightRoomRate(sub);
+        return calculateFee(policy, baseAmount);
+    }
+
+    /**
+     * 시간대별 예상 요금 DTO
+     */
+    public record FeeEstimate(
+            String timeFrom,
+            String timeTo,
+            String feeType,
+            BigDecimal feeValue,
+            BigDecimal estimatedFee,
+            String description
+    ) {}
 }

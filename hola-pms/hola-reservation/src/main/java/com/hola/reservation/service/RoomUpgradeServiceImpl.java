@@ -54,6 +54,7 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
     private final RateCodeRepository rateCodeRepository;
     private final PriceCalculationService priceCalculationService;
     private final ReservationChangeLogService changeLogService;
+    private final ReservationPaymentService paymentService;
     private final RoomAvailabilityService roomAvailabilityService;
 
     // 업그레이드 가능 상태
@@ -86,6 +87,11 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
 
     @Override
     public UpgradePreviewResponse previewUpgrade(Long subReservationId, Long toRoomTypeId) {
+        return previewUpgrade(subReservationId, toRoomTypeId, null);
+    }
+
+    @Override
+    public UpgradePreviewResponse previewUpgrade(Long subReservationId, Long toRoomTypeId, Long selectedRateCodeId) {
         SubReservation sub = findSubReservation(subReservationId);
         validateUpgradeAllowed(sub, toRoomTypeId);
 
@@ -111,7 +117,10 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
 
         // 대상 객실타입에 적용 가능한 레이트코드 탐색
         Long currentRateCodeId = sub.getMasterReservation().getRateCodeId();
-        Long targetRateCodeId = findRateCodeForRoomType(toRoomTypeId, currentRateCodeId);
+        // 관리자가 레이트코드를 선택한 경우 해당 값 사용, 아니면 자동 탐색
+        Long targetRateCodeId = selectedRateCodeId != null
+                ? selectedRateCodeId
+                : findRateCodeForRoomType(toRoomTypeId, currentRateCodeId);
 
         // 새 객실타입 요금 계산 (전체 기간, 대상 레이트코드 사용)
         BigDecimal newTotal = BigDecimal.ZERO;
@@ -150,6 +159,10 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
                 ? rateCodeRepository.findById(targetRateCodeId).map(RateCode::getRateNameKo).orElse(null)
                 : currentRateCodeName;
 
+        // 대상 객실타입에 매핑된 레이트코드 후보 목록
+        List<UpgradePreviewResponse.RateCodeOption> availableRateCodes = buildRateCodeOptions(
+                toRoomTypeId, currentRateCodeId, targetRateCodeId);
+
         return UpgradePreviewResponse.builder()
                 .fromRoomTypeId(sub.getRoomTypeId())
                 .fromRoomTypeName(fromType.getRoomTypeCode())
@@ -161,8 +174,10 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
                 .remainingNights(totalNights)
                 .dailyDiffs(dailyDiffs)
                 .currentRateCodeName(currentRateCodeName)
+                .targetRateCodeId(targetRateCodeId)
                 .targetRateCodeName(targetRateCodeName)
                 .rateCodeChanged(rateCodeChanged)
+                .availableRateCodes(availableRateCodes)
                 .build();
     }
 
@@ -225,6 +240,9 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
         log.info("객실 업그레이드 실행: subRes={}, {} → {}, type={}, diff={}",
                 subReservationId, fromType.getRoomTypeCode(), toType.getRoomTypeCode(),
                 request.getUpgradeType(), priceDiff);
+
+        // 결제 금액 재계산 (업그레이드 차액 반영)
+        paymentService.recalculatePayment(sub.getMasterReservation().getId());
 
         try {
             changeLogService.logUpgrade(sub.getMasterReservation().getId(), subReservationId,
@@ -335,6 +353,27 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
 
         // 매핑된 활성 레이트코드 없음 → 업그레이드 불가
         throw new HolaException(ErrorCode.UPGRADE_RATE_NOT_FOUND);
+    }
+
+    /**
+     * 대상 객실타입에 매핑된 활성 레이트코드 후보 목록 구성
+     */
+    private List<UpgradePreviewResponse.RateCodeOption> buildRateCodeOptions(
+            Long targetRoomTypeId, Long currentRateCodeId, Long recommendedRateCodeId) {
+        List<RateCodeRoomType> mappings = rateCodeRoomTypeRepository.findAllByRoomTypeId(targetRoomTypeId);
+        if (mappings.isEmpty()) return List.of();
+
+        return mappings.stream()
+                .map(m -> rateCodeRepository.findById(m.getRateCodeId()).orElse(null))
+                .filter(rc -> rc != null && Boolean.TRUE.equals(rc.getUseYn()))
+                .map(rc -> UpgradePreviewResponse.RateCodeOption.builder()
+                        .id(rc.getId())
+                        .rateCode(rc.getRateCode())
+                        .rateNameKo(rc.getRateNameKo())
+                        .current(rc.getId().equals(currentRateCodeId))
+                        .recommended(rc.getId().equals(recommendedRateCodeId))
+                        .build())
+                .toList();
     }
 
     /**

@@ -8,17 +8,20 @@ import com.hola.hotel.entity.RoomUnavailable;
 import com.hola.hotel.repository.MarketCodeRepository;
 import com.hola.hotel.repository.PropertyRepository;
 import com.hola.hotel.repository.RoomUnavailableRepository;
+import com.hola.rate.entity.RateCode;
 import com.hola.rate.repository.RateCodeRepository;
 import com.hola.reservation.dto.request.ReservationCreateRequest;
 import com.hola.reservation.dto.request.ReservationUpdateRequest;
 import com.hola.reservation.dto.request.SubReservationRequest;
 import com.hola.reservation.dto.response.PaymentSummaryResponse;
+import com.hola.reservation.dto.response.RateChangePreviewResponse;
 import com.hola.reservation.dto.response.ReservationDepositResponse;
 import com.hola.reservation.dto.response.ReservationDetailResponse;
 import com.hola.reservation.dto.response.ReservationListResponse;
 import com.hola.reservation.dto.response.ReservationMemoResponse;
 import com.hola.reservation.dto.response.ReservationServiceResponse;
 import com.hola.reservation.dto.response.SubReservationResponse;
+import com.hola.reservation.entity.DailyCharge;
 import com.hola.reservation.entity.MasterReservation;
 import com.hola.reservation.entity.ReservationDeposit;
 import com.hola.reservation.entity.ReservationMemo;
@@ -40,8 +43,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -73,6 +78,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationNumberGenerator numberGenerator;
     private final RoomAvailabilityService availabilityService;
     private final ReservationPaymentService paymentService;
+    private final PriceCalculationService priceCalculationService;
     private final AccessControlService accessControlService;
     private final RateIncludedServiceHelper rateIncludedServiceHelper;
     private final EntityManager entityManager;
@@ -353,6 +359,12 @@ public class ReservationServiceImpl implements ReservationService {
                         }
                     }
 
+                    // 요금에 영향을 주는 값 변경 감지 (재계산 스킵 판단용)
+                    LocalDate legPrevCheckIn = sub.getCheckIn();
+                    LocalDate legPrevCheckOut = sub.getCheckOut();
+                    int legPrevAdults = sub.getAdults();
+                    int legPrevChildren = sub.getChildren();
+
                     sub.update(subReq.getRoomTypeId(), subReq.getFloorId(), subReq.getRoomNumberId(),
                             subReq.getAdults() != null ? subReq.getAdults() : 1,
                             subReq.getChildren() != null ? subReq.getChildren() : 0,
@@ -361,7 +373,15 @@ public class ReservationServiceImpl implements ReservationService {
                             subReq.getLateCheckOut() != null ? subReq.getLateCheckOut() : false);
 
                     subCreator.updateGuests(sub, subReq.getGuests());
-                    subCreator.recalculateDailyCharges(sub, property);
+
+                    // 레이트코드/날짜/인원 변경 시에만 요금 재계산
+                    boolean datesOrGuestsChanged = !subReq.getCheckIn().equals(legPrevCheckIn)
+                            || !subReq.getCheckOut().equals(legPrevCheckOut)
+                            || sub.getAdults() != legPrevAdults
+                            || sub.getChildren() != legPrevChildren;
+                    if (rateChanged || datesOrGuestsChanged) {
+                        subCreator.recalculateDailyCharges(sub, property);
+                    }
 
                     // 레이트코드 변경 시 포함 서비스 갱신
                     if (rateChanged) {
@@ -386,10 +406,14 @@ public class ReservationServiceImpl implements ReservationService {
                     prevCheckIn, request.getMasterCheckIn(), "체크인");
             changeLogService.logFieldChange(mid, null, "RESERVATION", "masterCheckOut",
                     prevCheckOut, request.getMasterCheckOut(), "체크아웃");
+            String prevRateName = prevRateCodeId != null ? rateCodeRepository.findById(prevRateCodeId).map(rc -> rc.getRateNameKo()).orElse(String.valueOf(prevRateCodeId)) : null;
+            String newRateName = effectiveRateCodeId != null ? rateCodeRepository.findById(effectiveRateCodeId).map(rc -> rc.getRateNameKo()).orElse(String.valueOf(effectiveRateCodeId)) : null;
             changeLogService.logFieldChange(mid, null, "RATE", "rateCodeId",
-                    prevRateCodeId, effectiveRateCodeId, "레이트코드");
+                    prevRateName, newRateName, "레이트코드");
+            String prevMarketName = prevMarketCodeId != null ? marketCodeRepository.findById(prevMarketCodeId).map(mc -> mc.getMarketName()).orElse(String.valueOf(prevMarketCodeId)) : null;
+            String newMarketName = request.getMarketCodeId() != null ? marketCodeRepository.findById(request.getMarketCodeId()).map(mc -> mc.getMarketName()).orElse(String.valueOf(request.getMarketCodeId())) : null;
             changeLogService.logFieldChange(mid, null, "RESERVATION", "marketCodeId",
-                    prevMarketCodeId, request.getMarketCodeId(), "마켓코드");
+                    prevMarketName, newMarketName, "마켓코드");
             changeLogService.logFieldChange(mid, null, "RESERVATION", "guestNameKo",
                     prevGuestNameKo, request.getGuestNameKo(), "투숙객명");
         } catch (Exception e) {
@@ -429,6 +453,83 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     public int checkAvailability(Long propertyId, Long roomTypeId, LocalDate checkIn, LocalDate checkOut) {
         return availabilityService.getAvailableRoomCount(roomTypeId, checkIn, checkOut);
+    }
+
+    @Override
+    public RateChangePreviewResponse previewRateChange(Long reservationId, Long propertyId, Long newRateCodeId) {
+        MasterReservation master = finder.findMasterById(reservationId, propertyId);
+        Property property = master.getProperty();
+
+        // 현재/새 레이트코드 정보 조회
+        Long currentRateCodeId = master.getRateCodeId();
+        RateCode currentRateCode = currentRateCodeId != null
+                ? rateCodeRepository.findById(currentRateCodeId).orElse(null) : null;
+        RateCode newRateCode = rateCodeRepository.findById(newRateCodeId)
+                .orElseThrow(() -> new HolaException(ErrorCode.RATE_CODE_NOT_FOUND));
+
+        // 활성 서브 예약만 대상
+        List<SubReservation> activeSubs = master.getSubReservations().stream()
+                .filter(s -> !"CANCELED".equals(s.getRoomReservationStatus())
+                        && !"NO_SHOW".equals(s.getRoomReservationStatus()))
+                .toList();
+
+        // Leg별 요금 비교
+        BigDecimal totalCurrent = BigDecimal.ZERO;
+        BigDecimal totalNew = BigDecimal.ZERO;
+        List<RateChangePreviewResponse.LegPreview> legPreviews = new ArrayList<>();
+
+        // 객실타입명 resolve
+        Set<Long> roomTypeIds = activeSubs.stream()
+                .map(SubReservation::getRoomTypeId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        Map<Long, String> roomTypeMap = roomInfoResolver.resolveRoomTypeCodes(roomTypeIds);
+
+        for (SubReservation sub : activeSubs) {
+            // 현재 요금 합계
+            BigDecimal currentCharge = sub.getDailyCharges().stream()
+                    .map(DailyCharge::getTotal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            // 새 레이트코드로 계산 (저장하지 않음)
+            BigDecimal newCharge;
+            try {
+                List<DailyCharge> newCharges = priceCalculationService.calculateDailyCharges(
+                        newRateCodeId, property,
+                        sub.getCheckIn(), sub.getCheckOut(),
+                        sub.getAdults(), sub.getChildren(), null);
+                newCharge = newCharges.stream()
+                        .map(DailyCharge::getTotal)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            } catch (Exception e) {
+                // 요금 계산 실패 시 (커버리지 미달 등) 현재 요금 유지
+                log.warn("레이트코드 변경 미리보기 요금 계산 실패: subId={}, newRateCodeId={}", sub.getId(), newRateCodeId, e);
+                newCharge = currentCharge;
+            }
+
+            totalCurrent = totalCurrent.add(currentCharge);
+            totalNew = totalNew.add(newCharge);
+
+            legPreviews.add(RateChangePreviewResponse.LegPreview.builder()
+                    .legId(sub.getId())
+                    .roomTypeName(sub.getRoomTypeId() != null ? roomTypeMap.get(sub.getRoomTypeId()) : null)
+                    .currentCharge(currentCharge)
+                    .newCharge(newCharge)
+                    .difference(newCharge.subtract(currentCharge))
+                    .build());
+        }
+
+        return RateChangePreviewResponse.builder()
+                .currentRateCodeId(currentRateCodeId)
+                .currentRateCodeName(currentRateCode != null
+                        ? currentRateCode.getRateCode() + " - " + currentRateCode.getRateNameKo() : null)
+                .newRateCodeId(newRateCodeId)
+                .newRateCodeName(newRateCode.getRateCode() + " - " + newRateCode.getRateNameKo())
+                .currentTotal(totalCurrent)
+                .newTotal(totalNew)
+                .difference(totalNew.subtract(totalCurrent))
+                .legs(legPreviews)
+                .build();
     }
 
     // ─── private helpers ──────────────────────────

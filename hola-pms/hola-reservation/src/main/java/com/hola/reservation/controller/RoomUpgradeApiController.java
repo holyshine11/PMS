@@ -35,15 +35,16 @@ public class RoomUpgradeApiController {
                 roomUpgradeService.getAvailableTypes(subReservationId)));
     }
 
-    @Operation(summary = "업그레이드 미리보기", description = "차액 계산 결과를 반환")
+    @Operation(summary = "업그레이드 미리보기", description = "차액 계산 결과를 반환. selectedRateCodeId로 레이트코드 직접 선택 가능")
     @GetMapping("/preview")
     public ResponseEntity<HolaResponse<UpgradePreviewResponse>> previewUpgrade(
             @PathVariable Long propertyId,
             @PathVariable Long subReservationId,
-            @RequestParam Long toRoomTypeId) {
+            @RequestParam Long toRoomTypeId,
+            @RequestParam(required = false) Long selectedRateCodeId) {
         accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(
-                roomUpgradeService.previewUpgrade(subReservationId, toRoomTypeId)));
+                roomUpgradeService.previewUpgrade(subReservationId, toRoomTypeId, selectedRateCodeId)));
     }
 
     @Operation(summary = "업그레이드 실행")

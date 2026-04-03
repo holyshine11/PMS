@@ -204,4 +204,36 @@ public class SubReservation extends BaseEntity {
             this.lateCheckOutFee = lateFee;
         }
     }
+
+    /**
+     * 얼리 체크인 요금 등록 (시간대 선택 시 즉시 확정)
+     */
+    public void registerEarlyCheckInFee(BigDecimal fee) {
+        this.earlyCheckIn = true;
+        this.earlyCheckInFee = fee;
+    }
+
+    /**
+     * 얼리 체크인 요금 해제
+     */
+    public void clearEarlyCheckInFee() {
+        this.earlyCheckIn = false;
+        this.earlyCheckInFee = BigDecimal.ZERO;
+    }
+
+    /**
+     * 레이트 체크아웃 요금 등록 (시간대 선택 시 즉시 확정)
+     */
+    public void registerLateCheckOutFee(BigDecimal fee) {
+        this.lateCheckOut = true;
+        this.lateCheckOutFee = fee;
+    }
+
+    /**
+     * 레이트 체크아웃 요금 해제
+     */
+    public void clearLateCheckOutFee() {
+        this.lateCheckOut = false;
+        this.lateCheckOutFee = BigDecimal.ZERO;
+    }
 }

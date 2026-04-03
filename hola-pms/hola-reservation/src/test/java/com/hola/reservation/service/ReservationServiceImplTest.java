@@ -16,6 +16,7 @@ import com.hola.reservation.booking.service.CancellationPolicyService;
 import com.hola.reservation.booking.service.CancellationPolicyService.CancelFeeResult;
 import com.hola.reservation.dto.request.*;
 import com.hola.reservation.dto.response.*;
+import com.hola.reservation.dto.response.RateChangePreviewResponse;
 import com.hola.reservation.entity.*;
 import com.hola.reservation.mapper.ReservationMapper;
 import com.hola.reservation.repository.*;
@@ -29,11 +30,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -238,8 +242,8 @@ class ReservationServiceImplTest {
                 .subReservations(Collections.emptyList())
                 .build();
 
-        lenient().when(masterReservationRepository.findById(master.getId()))
-                .thenReturn(Optional.of(master));
+        lenient().when(finder.findMasterById(master.getId(), PROPERTY_ID))
+                .thenReturn(master);
         lenient().when(reservationMapper.toReservationDetailResponse(master))
                 .thenReturn(detailResponse);
         lenient().when(reservationDepositRepository.findByMasterReservationId(master.getId()))
@@ -289,13 +293,9 @@ class ReservationServiceImplTest {
             MasterReservation savedMaster = createMaster("RESERVED");
 
             when(propertyRepository.findById(PROPERTY_ID)).thenReturn(Optional.of(property));
-            when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(rateCode));
             when(numberGenerator.generateMasterReservationNo(property)).thenReturn("GMP260601-0001");
             when(numberGenerator.generateConfirmationNo()).thenReturn("HK4F29XP");
             when(masterReservationRepository.save(any(MasterReservation.class))).thenReturn(savedMaster);
-            when(numberGenerator.generateSubReservationNo(anyString(), anyInt())).thenReturn("GMP260601-0001-01");
-            when(subReservationRepository.save(any(SubReservation.class)))
-                    .thenReturn(createSub(savedMaster, SUB_ID, "RESERVED"));
             stubGetById(savedMaster);
 
             // when
@@ -378,16 +378,11 @@ class ReservationServiceImplTest {
         @DisplayName("레이트코드 판매기간 만료 - RESERVATION_RATE_EXPIRED")
         void create_레이트만료() {
             // given
-            RateCode expiredRate = RateCode.builder()
-                    .saleStartDate(LocalDate.of(2025, 1, 1))
-                    .saleEndDate(LocalDate.of(2025, 12, 31))
-                    .minStayDays(1)
-                    .maxStayDays(30)
-                    .build();
             ReservationCreateRequest request = createRequest();
 
             when(propertyRepository.findById(PROPERTY_ID)).thenReturn(Optional.of(property));
-            when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(expiredRate));
+            doThrow(new HolaException(ErrorCode.RESERVATION_RATE_EXPIRED))
+                    .when(subCreator).validateRateCode(eq(RATE_CODE_ID), any(), any());
 
             // when & then
             assertThatThrownBy(() -> reservationService.create(PROPERTY_ID, request))
@@ -400,17 +395,11 @@ class ReservationServiceImplTest {
         @DisplayName("최소 숙박일수 위반 - RESERVATION_STAY_DAYS_VIOLATION")
         void create_숙박일수위반() {
             // given
-            RateCode minStayRate = RateCode.builder()
-                    .saleStartDate(LocalDate.of(2026, 1, 1))
-                    .saleEndDate(LocalDate.of(2026, 12, 31))
-                    .minStayDays(5)
-                    .maxStayDays(30)
-                    .build();
-            // 2박 예약 (최소 5박 요구)
             ReservationCreateRequest request = createRequest();
 
             when(propertyRepository.findById(PROPERTY_ID)).thenReturn(Optional.of(property));
-            when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(minStayRate));
+            doThrow(new HolaException(ErrorCode.RESERVATION_STAY_DAYS_VIOLATION))
+                    .when(subCreator).validateRateCode(eq(RATE_CODE_ID), any(), any());
 
             // when & then
             assertThatThrownBy(() -> reservationService.create(PROPERTY_ID, request))
@@ -426,15 +415,13 @@ class ReservationServiceImplTest {
             ReservationCreateRequest request = createRequest();
 
             when(propertyRepository.findById(PROPERTY_ID)).thenReturn(Optional.of(property));
-            when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(rateCode));
             when(numberGenerator.generateMasterReservationNo(property)).thenReturn("GMP260601-0001");
             when(numberGenerator.generateConfirmationNo()).thenReturn("HK4F29XP");
             MasterReservation savedMaster = createMaster("RESERVED");
             when(masterReservationRepository.save(any(MasterReservation.class))).thenReturn(savedMaster);
-            // 객실 충돌 발생 (비관적 락 사용, Dayuse 시간 슬롯 인식 6-arg)
-            when(availabilityService.hasRoomConflictWithLock(eq(1L), eq(CHECK_IN), eq(CHECK_OUT), isNull(),
-                    eq(StayType.OVERNIGHT), isNull()))
-                    .thenReturn(true);
+            // subCreator.create() 내부에서 객실 충돌 발생
+            doThrow(new HolaException(ErrorCode.SUB_RESERVATION_ROOM_CONFLICT))
+                    .when(subCreator).create(any(), any(), anyInt(), any());
 
             // when & then
             assertThatThrownBy(() -> reservationService.create(PROPERTY_ID, request))
@@ -473,10 +460,10 @@ class ReservationServiceImplTest {
             SubReservation sub = createSub(master, SUB_ID, "RESERVED");
             ReservationUpdateRequest request = updateRequest();
 
-            when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
             // update() → isDayUseRateCode() → rateCodeRepository.findById()
             lenient().when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(rateCode));
-            when(subReservationRepository.findById(SUB_ID)).thenReturn(Optional.of(sub));
+            when(finder.findSubAndValidateOwnership(SUB_ID, master)).thenReturn(sub);
             when(availabilityService.hasRoomConflict(eq(1L), any(), any(), eq(SUB_ID),
                     any(), any())).thenReturn(false);
             stubGetById(master);
@@ -495,7 +482,9 @@ class ReservationServiceImplTest {
             // given
             MasterReservation master = createMaster("CHECKED_OUT");
             ReservationUpdateRequest request = updateRequest();
-            when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
+            doThrow(new HolaException(ErrorCode.RESERVATION_MODIFY_NOT_ALLOWED))
+                    .when(finder).validateModifiable(master);
 
             // when & then
             assertThatThrownBy(() -> reservationService.update(MASTER_ID, PROPERTY_ID, request))
@@ -510,7 +499,9 @@ class ReservationServiceImplTest {
             // given
             MasterReservation master = createMaster("CANCELED");
             ReservationUpdateRequest request = updateRequest();
-            when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
+            doThrow(new HolaException(ErrorCode.RESERVATION_MODIFY_NOT_ALLOWED))
+                    .when(finder).validateModifiable(master);
 
             // when & then
             assertThatThrownBy(() -> reservationService.update(MASTER_ID, PROPERTY_ID, request))
@@ -538,7 +529,7 @@ class ReservationServiceImplTest {
             setId(property, PROPERTY_ID);
 
             ReservationUpdateRequest request = updateRequest();
-            when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
 
             // when & then
             assertThatThrownBy(() -> reservationService.update(MASTER_ID, PROPERTY_ID, request))
@@ -569,12 +560,8 @@ class ReservationServiceImplTest {
                             .build()))
                     .build();
 
-            when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
-            // isDayUseRateCode(기존 rateCodeId=10) → rateCodeRepository.findById(10L)
-            lenient().when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(rateCode));
-            // validateRateCode(새 rateCodeId=20) → rateCodeRepository.findById(20L)
-            when(rateCodeRepository.findById(newRateCodeId)).thenReturn(Optional.of(rateCode));
-            when(subReservationRepository.findById(SUB_ID)).thenReturn(Optional.of(sub));
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
+            when(finder.findSubAndValidateOwnership(SUB_ID, master)).thenReturn(sub);
             when(availabilityService.hasRoomConflict(eq(1L), any(), any(), eq(SUB_ID),
                     any(), any())).thenReturn(false);
             stubGetById(master);
@@ -582,8 +569,8 @@ class ReservationServiceImplTest {
             // when
             reservationService.update(MASTER_ID, PROPERTY_ID, request);
 
-            // then - 레이트코드 변경이므로 validateRateCode 호출됨
-            verify(rateCodeRepository, atLeastOnce()).findById(newRateCodeId);
+            // then - 레이트코드 변경이므로 subCreator.validateRateCode 호출됨
+            verify(subCreator).validateRateCode(eq(newRateCodeId), any(), any());
         }
     }
 
@@ -608,7 +595,7 @@ class ReservationServiceImplTest {
                     .build();
 
             when(accessControlService.getCurrentUser()).thenReturn(superAdmin);
-            when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
 
             // when
             reservationService.deleteReservation(MASTER_ID, PROPERTY_ID);
@@ -647,7 +634,7 @@ class ReservationServiceImplTest {
                     .build();
 
             when(accessControlService.getCurrentUser()).thenReturn(superAdmin);
-            when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
 
             // when & then
             assertThatThrownBy(() -> reservationService.deleteReservation(MASTER_ID, PROPERTY_ID))
@@ -666,23 +653,13 @@ class ReservationServiceImplTest {
 
         @Test
         @DisplayName("상태별 필터링 - RESERVED만 조회")
+        @SuppressWarnings("unchecked")
         void getList_상태필터() {
             // given
             MasterReservation reserved = createMaster("RESERVED");
-            MasterReservation checkedOut = MasterReservation.builder()
-                    .property(property)
-                    .masterReservationNo("GMP260601-0002")
-                    .confirmationNo("AB1234CD")
-                    .reservationStatus("CHECKED_OUT")
-                    .masterCheckIn(CHECK_IN)
-                    .masterCheckOut(CHECK_OUT)
-                    .isOtaManaged(false)
-                    .subReservations(new ArrayList<>())
-                    .build();
-            setId(checkedOut, 101L);
 
-            when(masterReservationRepository.findByPropertyIdOrderByReservationDateDesc(PROPERTY_ID))
-                    .thenReturn(List.of(reserved, checkedOut));
+            when(masterReservationRepository.findAll(any(Specification.class), any(Sort.class)))
+                    .thenReturn(List.of(reserved));
 
             ReservationListResponse listResponse = ReservationListResponse.builder()
                     .id(MASTER_ID)
@@ -702,25 +679,13 @@ class ReservationServiceImplTest {
 
         @Test
         @DisplayName("날짜 범위 필터링")
+        @SuppressWarnings("unchecked")
         void getList_날짜범위() {
             // given
             MasterReservation inRange = createMaster("RESERVED");
-            // masterCheckIn = 2026-06-01 (범위 안)
 
-            MasterReservation outOfRange = MasterReservation.builder()
-                    .property(property)
-                    .masterReservationNo("GMP260701-0001")
-                    .confirmationNo("EF5678GH")
-                    .reservationStatus("RESERVED")
-                    .masterCheckIn(LocalDate.of(2026, 7, 1))
-                    .masterCheckOut(LocalDate.of(2026, 7, 3))
-                    .isOtaManaged(false)
-                    .subReservations(new ArrayList<>())
-                    .build();
-            setId(outOfRange, 102L);
-
-            when(masterReservationRepository.findByPropertyIdOrderByReservationDateDesc(PROPERTY_ID))
-                    .thenReturn(List.of(inRange, outOfRange));
+            when(masterReservationRepository.findAll(any(Specification.class), any(Sort.class)))
+                    .thenReturn(List.of(inRange));
 
             ReservationListResponse listResponse = ReservationListResponse.builder()
                     .id(MASTER_ID)
@@ -740,11 +705,12 @@ class ReservationServiceImplTest {
 
         @Test
         @DisplayName("키워드 필터링 - 예약번호/게스트명/전화번호")
+        @SuppressWarnings("unchecked")
         void getList_키워드() {
             // given
             MasterReservation master = createMaster("RESERVED");
 
-            when(masterReservationRepository.findByPropertyIdOrderByReservationDateDesc(PROPERTY_ID))
+            when(masterReservationRepository.findAll(any(Specification.class), any(Sort.class)))
                     .thenReturn(List.of(master));
 
             ReservationListResponse listResponse = ReservationListResponse.builder()
@@ -789,7 +755,7 @@ class ReservationServiceImplTest {
                     .subReservations(Collections.emptyList())
                     .build();
 
-            when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
             when(reservationMapper.toReservationDetailResponse(master)).thenReturn(detailResponse);
             when(reservationDepositRepository.findByMasterReservationId(MASTER_ID))
                     .thenReturn(Collections.emptyList());
@@ -811,7 +777,8 @@ class ReservationServiceImplTest {
         @DisplayName("예약 미존재 시 - RESERVATION_NOT_FOUND")
         void getById_미존재() {
             // given
-            when(masterReservationRepository.findById(999L)).thenReturn(Optional.empty());
+            when(finder.findMasterById(999L, PROPERTY_ID))
+                    .thenThrow(new HolaException(ErrorCode.RESERVATION_NOT_FOUND));
 
             // when & then
             assertThatThrownBy(() -> reservationService.getById(999L, PROPERTY_ID))
@@ -824,8 +791,8 @@ class ReservationServiceImplTest {
         @DisplayName("프로퍼티 불일치 시 - RESERVATION_NOT_FOUND")
         void getById_프로퍼티불일치() {
             // given
-            MasterReservation master = createMaster("RESERVED");
-            when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            when(finder.findMasterById(MASTER_ID, 999L))
+                    .thenThrow(new HolaException(ErrorCode.RESERVATION_NOT_FOUND));
 
             // when & then - 다른 프로퍼티 ID로 조회
             assertThatThrownBy(() -> reservationService.getById(MASTER_ID, 999L))
@@ -838,13 +805,6 @@ class ReservationServiceImplTest {
         @DisplayName("최대 숙박일수 초과 시 - RESERVATION_STAY_DAYS_VIOLATION")
         void create_최대숙박일수초과() {
             // given
-            RateCode maxStayRate = RateCode.builder()
-                    .saleStartDate(LocalDate.of(2026, 1, 1))
-                    .saleEndDate(LocalDate.of(2026, 12, 31))
-                    .minStayDays(1)
-                    .maxStayDays(2)
-                    .build();
-
             // 5박 예약 시도 (최대 2박)
             ReservationCreateRequest request = ReservationCreateRequest.builder()
                     .masterCheckIn(CHECK_IN)
@@ -857,7 +817,8 @@ class ReservationServiceImplTest {
                     .build();
 
             when(propertyRepository.findById(PROPERTY_ID)).thenReturn(Optional.of(property));
-            when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(maxStayRate));
+            doThrow(new HolaException(ErrorCode.RESERVATION_STAY_DAYS_VIOLATION))
+                    .when(subCreator).validateRateCode(eq(RATE_CODE_ID), any(), any());
 
             // when & then
             assertThatThrownBy(() -> reservationService.create(PROPERTY_ID, request))
@@ -872,13 +833,146 @@ class ReservationServiceImplTest {
             // given
             MasterReservation master = createMaster("NO_SHOW");
             ReservationUpdateRequest request = updateRequest();
-            when(masterReservationRepository.findById(MASTER_ID)).thenReturn(Optional.of(master));
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
+            doThrow(new HolaException(ErrorCode.RESERVATION_MODIFY_NOT_ALLOWED))
+                    .when(finder).validateModifiable(master);
 
             // when & then
             assertThatThrownBy(() -> reservationService.update(MASTER_ID, PROPERTY_ID, request))
                     .isInstanceOf(HolaException.class)
                     .satisfies(ex -> assertThat(((HolaException) ex).getErrorCode())
                             .isEqualTo(ErrorCode.RESERVATION_MODIFY_NOT_ALLOWED));
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    // 레이트코드 변경 미리보기 (previewRateChange)
+    // ══════════════════════════════════════════════
+    @Nested
+    @DisplayName("레이트코드 변경 미리보기 (previewRateChange)")
+    class PreviewRateChangeTests {
+
+        @Test
+        @DisplayName("정상 미리보기 - 현재/새 요금 차액 계산")
+        void previewRateChange_정상() {
+            // given
+            MasterReservation master = createMaster("RESERVED");
+            SubReservation sub = createSub(master, SUB_ID, "RESERVED");
+
+            // 현재 DailyCharge
+            DailyCharge charge1 = DailyCharge.builder()
+                    .chargeDate(CHECK_IN).supplyPrice(new BigDecimal("100000"))
+                    .tax(BigDecimal.ZERO).serviceCharge(BigDecimal.ZERO).total(new BigDecimal("100000"))
+                    .build();
+            DailyCharge charge2 = DailyCharge.builder()
+                    .chargeDate(CHECK_IN.plusDays(1)).supplyPrice(new BigDecimal("100000"))
+                    .tax(BigDecimal.ZERO).serviceCharge(BigDecimal.ZERO).total(new BigDecimal("100000"))
+                    .build();
+            sub.getDailyCharges().add(charge1);
+            sub.getDailyCharges().add(charge2);
+
+            // 현재 레이트코드
+            RateCode currentRate = RateCode.builder()
+                    .rateCode("STD").rateNameKo("스탠다드")
+                    .saleStartDate(CHECK_IN.minusMonths(1)).saleEndDate(CHECK_OUT.plusMonths(1))
+                    .build();
+            setId(currentRate, RATE_CODE_ID);
+
+            // 새 레이트코드
+            Long newRateCodeId = 20L;
+            RateCode newRate = RateCode.builder()
+                    .rateCode("DLX").rateNameKo("디럭스")
+                    .saleStartDate(CHECK_IN.minusMonths(1)).saleEndDate(CHECK_OUT.plusMonths(1))
+                    .build();
+            setId(newRate, newRateCodeId);
+
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
+            when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.of(currentRate));
+            when(rateCodeRepository.findById(newRateCodeId)).thenReturn(Optional.of(newRate));
+            when(roomInfoResolver.resolveRoomTypeCodes(any())).thenReturn(Map.of(1L, "STD"));
+
+            // 새 요금 계산 결과 (2박 × 150,000)
+            DailyCharge newCharge1 = DailyCharge.builder()
+                    .chargeDate(CHECK_IN).supplyPrice(new BigDecimal("150000"))
+                    .tax(BigDecimal.ZERO).serviceCharge(BigDecimal.ZERO).total(new BigDecimal("150000"))
+                    .build();
+            DailyCharge newCharge2 = DailyCharge.builder()
+                    .chargeDate(CHECK_IN.plusDays(1)).supplyPrice(new BigDecimal("150000"))
+                    .tax(BigDecimal.ZERO).serviceCharge(BigDecimal.ZERO).total(new BigDecimal("150000"))
+                    .build();
+            when(priceCalculationService.calculateDailyCharges(eq(newRateCodeId), any(), any(), any(),
+                    anyInt(), anyInt(), any()))
+                    .thenReturn(List.of(newCharge1, newCharge2));
+
+            // when
+            RateChangePreviewResponse result = reservationService.previewRateChange(MASTER_ID, PROPERTY_ID, newRateCodeId);
+
+            // then
+            assertThat(result.getCurrentRateCodeId()).isEqualTo(RATE_CODE_ID);
+            assertThat(result.getNewRateCodeId()).isEqualTo(newRateCodeId);
+            assertThat(result.getCurrentTotal()).isEqualByComparingTo("200000");
+            assertThat(result.getNewTotal()).isEqualByComparingTo("300000");
+            assertThat(result.getDifference()).isEqualByComparingTo("100000");
+            assertThat(result.getLegs()).hasSize(1);
+            assertThat(result.getLegs().get(0).getDifference()).isEqualByComparingTo("100000");
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 레이트코드 → RATE_CODE_NOT_FOUND")
+        void previewRateChange_레이트없음() {
+            // given
+            MasterReservation master = createMaster("RESERVED");
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
+            lenient().when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.empty());
+            when(rateCodeRepository.findById(999L)).thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> reservationService.previewRateChange(MASTER_ID, PROPERTY_ID, 999L))
+                    .isInstanceOf(HolaException.class)
+                    .satisfies(ex -> assertThat(((HolaException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.RATE_CODE_NOT_FOUND));
+        }
+
+        @Test
+        @DisplayName("취소된 Leg은 미리보기에서 제외")
+        void previewRateChange_취소Leg제외() {
+            // given
+            MasterReservation master = createMaster("RESERVED");
+            SubReservation activeSub = createSub(master, SUB_ID, "RESERVED");
+            SubReservation canceledSub = createSub(master, 300L, "CANCELED");
+
+            DailyCharge charge = DailyCharge.builder()
+                    .chargeDate(CHECK_IN).supplyPrice(new BigDecimal("100000"))
+                    .tax(BigDecimal.ZERO).serviceCharge(BigDecimal.ZERO).total(new BigDecimal("100000"))
+                    .build();
+            activeSub.getDailyCharges().add(charge);
+
+            Long newRateCodeId = 20L;
+            RateCode newRate = RateCode.builder()
+                    .rateCode("DLX").rateNameKo("디럭스")
+                    .saleStartDate(CHECK_IN.minusMonths(1)).saleEndDate(CHECK_OUT.plusMonths(1))
+                    .build();
+            setId(newRate, newRateCodeId);
+
+            when(finder.findMasterById(MASTER_ID, PROPERTY_ID)).thenReturn(master);
+            lenient().when(rateCodeRepository.findById(RATE_CODE_ID)).thenReturn(Optional.empty());
+            when(rateCodeRepository.findById(newRateCodeId)).thenReturn(Optional.of(newRate));
+            when(roomInfoResolver.resolveRoomTypeCodes(any())).thenReturn(Map.of(1L, "STD"));
+
+            DailyCharge newCharge = DailyCharge.builder()
+                    .chargeDate(CHECK_IN).supplyPrice(new BigDecimal("120000"))
+                    .tax(BigDecimal.ZERO).serviceCharge(BigDecimal.ZERO).total(new BigDecimal("120000"))
+                    .build();
+            when(priceCalculationService.calculateDailyCharges(eq(newRateCodeId), any(), any(), any(),
+                    anyInt(), anyInt(), any()))
+                    .thenReturn(List.of(newCharge));
+
+            // when
+            RateChangePreviewResponse result = reservationService.previewRateChange(MASTER_ID, PROPERTY_ID, newRateCodeId);
+
+            // then — 취소된 Leg은 제외, 활성 Leg만 포함
+            assertThat(result.getLegs()).hasSize(1);
+            assertThat(result.getLegs().get(0).getLegId()).isEqualTo(SUB_ID);
         }
     }
 }

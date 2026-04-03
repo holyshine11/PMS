@@ -35,6 +35,7 @@ public class ReservationLegServiceImpl implements ReservationLegService {
     private final RoomAvailabilityService availabilityService;
     private final RateIncludedServiceHelper rateIncludedServiceHelper;
     private final ReservationChangeLogService changeLogService;
+    private final EarlyLateCheckService earlyLateCheckService;
 
     @Override
     @Transactional
@@ -147,6 +148,46 @@ public class ReservationLegServiceImpl implements ReservationLegService {
         } catch (Exception e) {
             log.error("변경이력 기록 실패: {}", e.getMessage());
         }
+    }
+
+    @Override
+    @Transactional
+    public java.math.BigDecimal registerEarlyLateFee(Long reservationId, Long propertyId, Long legId,
+                                                      String policyType, int policyIndex) {
+        MasterReservation master = finder.findMasterById(reservationId, propertyId);
+        SubReservation sub = finder.findSubAndValidateOwnership(legId, master);
+
+        java.math.BigDecimal fee = earlyLateCheckService.calculateFeeByPolicyIndex(sub, policyType, policyIndex);
+
+        if ("EARLY_CHECKIN".equals(policyType)) {
+            sub.registerEarlyCheckInFee(fee);
+        } else {
+            sub.registerLateCheckOutFee(fee);
+        }
+
+        subReservationRepository.flush();
+        paymentService.recalculatePayment(master.getId());
+
+        log.info("얼리/레이트 요금 등록: leg={}, type={}, fee={}", sub.getSubReservationNo(), policyType, fee);
+        return fee;
+    }
+
+    @Override
+    @Transactional
+    public void removeEarlyLateFee(Long reservationId, Long propertyId, Long legId, String policyType) {
+        MasterReservation master = finder.findMasterById(reservationId, propertyId);
+        SubReservation sub = finder.findSubAndValidateOwnership(legId, master);
+
+        if ("EARLY_CHECKIN".equals(policyType)) {
+            sub.clearEarlyCheckInFee();
+        } else {
+            sub.clearLateCheckOutFee();
+        }
+
+        subReservationRepository.flush();
+        paymentService.recalculatePayment(master.getId());
+
+        log.info("얼리/레이트 요금 해제: leg={}, type={}", sub.getSubReservationNo(), policyType);
     }
 
     /**

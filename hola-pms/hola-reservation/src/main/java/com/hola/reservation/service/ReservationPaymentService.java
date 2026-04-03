@@ -55,6 +55,11 @@ public interface ReservationPaymentService {
     PaymentSummaryResponse retryPgRefund(Long propertyId, Long reservationId, Long transactionId);
 
     /**
+     * 개별 PG 결제 건 취소 (예약 유지, 해당 결제만 KICC 취소)
+     */
+    PaymentSummaryResponse cancelPgTransaction(Long propertyId, Long reservationId, Long transactionId);
+
+    /**
      * Leg별 결제 현황 계산
      * @return 각 Leg의 요금/결제/환불/잔액 정보
      */

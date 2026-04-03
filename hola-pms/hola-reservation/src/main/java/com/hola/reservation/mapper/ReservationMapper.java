@@ -254,9 +254,27 @@ public class ReservationMapper {
                     .collect(Collectors.toSet())
                 : Collections.emptySet();
 
+        // PG 취소 가능 여부: PG 환불 잔여 용량 확인 (예약 단위 — 다중 PG 결제 시
+        // 개별 트랜잭션 수준 추적은 미지원. 백엔드 cancelPgTransaction에서 최종 검증)
+        boolean hasPgRefundCapacity = false;
+        if (transactions != null) {
+            BigDecimal totalPgPaid = transactions.stream()
+                    .filter(t -> "PAYMENT".equals(t.getTransactionType()) && t.getPgCno() != null)
+                    .map(PaymentTransaction::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalPgRefunded = transactions.stream()
+                    .filter(t -> "REFUND".equals(t.getTransactionType())
+                            && "COMPLETED".equals(t.getTransactionStatus())
+                            && t.getPgProvider() != null)
+                    .map(PaymentTransaction::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            hasPgRefundCapacity = totalPgRefunded.compareTo(totalPgPaid) < 0;
+        }
+
+        final boolean pgCancelable = hasPgRefundCapacity;
         List<PaymentTransactionResponse> transactionResponses = transactions != null
                 ? transactions.stream()
-                    .map(t -> toPaymentTransactionResponse(t, cancelledVanSeqs))
+                    .map(t -> toPaymentTransactionResponse(t, cancelledVanSeqs, pgCancelable))
                     .collect(Collectors.toList())
                 : Collections.emptyList();
 
@@ -291,14 +309,20 @@ public class ReservationMapper {
     /**
      * 결제 거래 이력 → 응답 변환
      * @param cancelledVanSeqs 이미 REFUND된 VAN 시퀀스 번호 집합 (VAN 취소 버튼 표시 판단용)
+     * @param pgCancelable PG 환불 잔여 용량 존재 여부 (PG 취소 버튼 표시 판단용)
      */
     public PaymentTransactionResponse toPaymentTransactionResponse(PaymentTransaction transaction,
-                                                                     Set<String> cancelledVanSeqs) {
-        // VAN PAYMENT이면서 아직 취소되지 않은 경우에만 cancelable=true
-        boolean cancelable = "VAN".equals(transaction.getPaymentChannel())
-                && "PAYMENT".equals(transaction.getTransactionType())
-                && transaction.getVanSequenceNo() != null
-                && !cancelledVanSeqs.contains(transaction.getVanSequenceNo());
+                                                                     Set<String> cancelledVanSeqs,
+                                                                     boolean pgCancelable) {
+        boolean cancelable = false;
+        if ("PAYMENT".equals(transaction.getTransactionType())) {
+            if ("VAN".equals(transaction.getPaymentChannel())
+                    && transaction.getVanSequenceNo() != null) {
+                cancelable = !cancelledVanSeqs.contains(transaction.getVanSequenceNo());
+            } else if (transaction.getPgCno() != null) {
+                cancelable = pgCancelable;
+            }
+        }
 
         return PaymentTransactionResponse.builder()
                 .id(transaction.getId())

@@ -202,7 +202,8 @@ var ReservationPayment = {
                     legServiceTotal += Number(svc.totalPrice) || 0;
                 }
             });
-            var legTotal = legRoomSupply + legRoomTax + legSvcChg + legServiceTotal;
+            var legEarlyLateFee = (Number(sub.earlyCheckInFee) || 0) + (Number(sub.lateCheckOutFee) || 0);
+            var legTotal = legRoomSupply + legRoomTax + legSvcChg + legServiceTotal + legEarlyLateFee;
 
             // Per-Leg 결제 현황 (API legPayments 데이터 사용)
             var legPmtInfo = legPaymentMap[sub.id] || {};
@@ -332,6 +333,32 @@ var ReservationPayment = {
             html += '</div>';
             html += '</div>';
 
+            // ── 얼리/레이트 체크인·아웃 요금 ──
+            if (!isCanceled && (sub.earlyCheckIn || sub.lateCheckOut)) {
+                var earlyFee = Number(sub.earlyCheckInFee) || 0;
+                var lateFee = Number(sub.lateCheckOutFee) || 0;
+                html += '<div class="leg-section" id="earlyLateFeeSection_' + sub.id + '">';
+                if (sub.earlyCheckIn) {
+                    html += '<div class="d-flex justify-content-between align-items-center">';
+                    html += '<span class="ps-3 small">'
+                        + (earlyFee > 0 ? '얼리 체크인' : '<span class="text-muted">얼리 체크인 (미확정)</span>')
+                        + '</span>';
+                    html += '<span class="small' + (earlyFee > 0 ? '' : ' text-muted') + '">'
+                        + (earlyFee > 0 ? self.formatCurrency(earlyFee) : '-') + '</span>';
+                    html += '</div>';
+                }
+                if (sub.lateCheckOut) {
+                    html += '<div class="d-flex justify-content-between align-items-center">';
+                    html += '<span class="ps-3 small">'
+                        + (lateFee > 0 ? '레이트 체크아웃' : '<span class="text-muted">레이트 체크아웃 (미확정)</span>')
+                        + '</span>';
+                    html += '<span class="small' + (lateFee > 0 ? '' : ' text-muted') + '">'
+                        + (lateFee > 0 ? self.formatCurrency(lateFee) : '-') + '</span>';
+                    html += '</div>';
+                }
+                html += '</div>';
+            }
+
             // ── Per-Leg 결제 버튼 (해당 Leg의 잔액 > 0, 취소/노쇼/완납 아닌 경우, Leg 미취소) ──
             var showLegPayButton = !isCanceled && !isCanceledOrNoShow && !isPaymentComplete
                 && !self.isOta && legRemaining > 0;
@@ -371,6 +398,8 @@ var ReservationPayment = {
         $('#totalSupplyPrice').text(self.formatCurrency(totalSupply));
         $('#totalTaxAmount').text(self.formatCurrency(totalTax));
         $('#totalSvcChgSubtotal').text(self.formatCurrency(totalSvcChg));
+
+        // 얼리/레이트 요금은 등록 시점에 확정되므로 별도 비동기 조회 불필요
     },
 
     /**
@@ -509,6 +538,30 @@ var ReservationPayment = {
         breakdownHtml += '<div id="svcChgDetail" class="mt-2">';
         breakdownHtml += chgHtml || '<div class="charge-empty">봉사료 내역이 없습니다.</div>';
         breakdownHtml += '</div></div>';
+
+        // ── 얼리/레이트 체크인·아웃 예상 요금 ──
+        if (sub.earlyCheckIn || sub.lateCheckOut) {
+            var earlyFee = Number(sub.earlyCheckInFee) || 0;
+            var lateFee = Number(sub.lateCheckOutFee) || 0;
+            breakdownHtml += '<div class="border-bottom py-2" id="earlyLateFeeSection_' + sub.id + '">';
+            if (sub.earlyCheckIn) {
+                breakdownHtml += '<div class="d-flex justify-content-between align-items-center">';
+                breakdownHtml += '<span class="ps-3 text-muted small">얼리 체크인 결제 예정 금액</span>';
+                breakdownHtml += '<span class="text-muted small" id="earlyFeeAmount_' + sub.id + '">'
+                    + (earlyFee > 0 ? self.formatCurrency(earlyFee) : '-') + '</span>';
+                breakdownHtml += '</div>';
+            }
+            if (sub.lateCheckOut) {
+                breakdownHtml += '<div class="d-flex justify-content-between align-items-center">';
+                breakdownHtml += '<span class="ps-3 text-muted small">레이트 체크아웃 결제 예정 금액</span>';
+                breakdownHtml += '<span class="text-muted small" id="lateFeeAmount_' + sub.id + '">'
+                    + (lateFee > 0 ? self.formatCurrency(lateFee) : '-') + '</span>';
+                breakdownHtml += '</div>';
+            }
+            breakdownHtml += '<div class="ps-3 mt-1"><small class="text-secondary fst-italic">'
+                + '※ 1박 기준으로 얼리 체크인, 레이트 체크아웃 요금은 체크아웃 시 결제 처리 됩니다.</small></div>';
+            breakdownHtml += '</div>';
+        }
 
         $('#chargeBreakdown').html(breakdownHtml);
 
@@ -770,8 +823,14 @@ var ReservationPayment = {
                     + '<i class="fas fa-redo me-1"></i>PG 환불 재시도</button>';
             }
             if (txn.cancelable) {
-                contentHtml += '<br><button class="btn btn-outline-danger btn-sm mt-1 van-cancel-btn" data-txn-id="' + txn.id + '">'
-                    + '<i class="fas fa-undo me-1"></i>VAN 취소</button>';
+                var isVan = txn.paymentChannel === 'VAN';
+                var cancelBtnClass = isVan ? 'van-cancel-btn' : 'pg-cancel-btn';
+                var cancelBtnLabel = isVan ? 'VAN 취소' : 'PG 취소';
+                contentHtml = '<div class="d-flex align-items-start justify-content-between gap-2">'
+                    + '<div>' + contentHtml + '</div>'
+                    + '<button class="btn btn-danger btn-sm text-nowrap ' + cancelBtnClass + '" data-txn-id="' + txn.id + '">'
+                    + '<i class="fas fa-undo me-1"></i>' + cancelBtnLabel + '</button>'
+                    + '</div>';
             }
 
             // 단일 행
@@ -796,6 +855,14 @@ var ReservationPayment = {
         $content.off('click', '.van-cancel-btn').on('click', '.van-cancel-btn', function() {
             var txnId = $(this).data('txn-id');
             self.processVanCancel(txnId);
+        });
+
+        // PG 취소 버튼 이벤트
+        $content.off('click', '.pg-cancel-btn').on('click', '.pg-cancel-btn', function() {
+            var $btn = $(this);
+            if ($btn.prop('disabled')) return;
+            var txnId = $btn.data('txn-id');
+            self.processPgCancel(txnId, $btn);
         });
 
         // PG 환불 재시도 버튼 이벤트
@@ -1540,6 +1607,56 @@ var ReservationPayment = {
     _resetVanPaymentButton: function($btn) {
         $btn.prop('disabled', false).html('<i class="fas fa-credit-card me-1"></i>결제');
         $('#vanPaymentModal').find('.btn-close, [data-bs-dismiss]').prop('disabled', false);
+    },
+
+    /**
+     * PG 결제 취소 처리
+     */
+    processPgCancel: function(txnId, $btn) {
+        var self = this;
+
+        if (!confirm('이 PG 결제를 취소하시겠습니까?\nKICC를 통해 카드 결제가 취소됩니다.')) {
+            return;
+        }
+
+        // 더블클릭 방지
+        if ($btn) {
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+        }
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId
+                + '/payment/transactions/' + txnId + '/pg-cancel',
+            type: 'POST',
+            success: function(res) {
+                if (res.success && res.data) {
+                    // 취소 성공/실패 판단: 가장 마지막 REFUND 트랜잭션의 status 확인
+                    var txns = res.data.transactions || [];
+                    var lastRefund = null;
+                    for (var i = txns.length - 1; i >= 0; i--) {
+                        if (txns[i].transactionType === 'REFUND') { lastRefund = txns[i]; break; }
+                    }
+                    var succeeded = lastRefund && lastRefund.transactionStatus === 'COMPLETED';
+
+                    self.bindSummary(res.data);
+                    self.renderPaymentTransactions(txns);
+                    self.renderCancelInfo(res.data);
+                    HolaPms.alert(succeeded ? 'success' : 'error',
+                        succeeded ? 'PG 결제가 취소되었습니다.' : 'PG 취소에 실패했습니다. 환불 재시도를 이용해주세요.');
+                }
+            },
+            error: function(xhr) {
+                var msg = 'PG 취소 처리에 실패했습니다.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                HolaPms.alert('error', msg);
+                // 실패 시 버튼 복원
+                if ($btn) {
+                    $btn.prop('disabled', false).html('<i class="fas fa-undo me-1"></i>PG 취소');
+                }
+            }
+        });
     },
 
     /**

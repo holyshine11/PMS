@@ -92,7 +92,16 @@ public class ReservationStatusServiceImpl implements ReservationStatusService {
                 validateCheckInPrerequisites(targetSub);
             }
 
-            if ("CHECKED_OUT".equals(newStatus) && isLastActiveLeg(targetSub, master)) {
+            if ("CHECKED_OUT".equals(newStatus)) {
+                // 레이트체크아웃 요금을 먼저 계산하여 grandTotal에 반영한 뒤 잔액 검증
+                // 이미 등록된 레이트 체크아웃 요금이 있으면 재계산하지 않음
+                LocalDateTime checkOutTime = LocalDateTime.now();
+                BigDecimal lateFee = (targetSub.getLateCheckOutFee() != null && targetSub.getLateCheckOutFee().compareTo(BigDecimal.ZERO) > 0)
+                        ? targetSub.getLateCheckOutFee()
+                        : (targetSub.isDayUse() ? BigDecimal.ZERO : earlyLateCheckService.calculateLateCheckOutFee(targetSub, checkOutTime));
+                targetSub.recordCheckOut(checkOutTime, lateFee);
+                subReservationRepository.flush();
+                paymentService.recalculatePayment(master.getId());
                 validateCheckOutBalance(master);
             }
 
@@ -155,6 +164,19 @@ public class ReservationStatusServiceImpl implements ReservationStatusService {
                     }
                 }
                 if ("CHECKED_OUT".equals(newStatus)) {
+                    // 레이트체크아웃 요금을 먼저 계산하여 grandTotal에 반영한 뒤 잔액 검증
+                    // 이미 등록된 레이트 체크아웃 요금이 있으면 재계산하지 않음
+                    LocalDateTime checkOutTime = LocalDateTime.now();
+                    for (SubReservation sub : master.getSubReservations()) {
+                        if ("INHOUSE".equals(sub.getRoomReservationStatus()) && sub.getActualCheckOutTime() == null) {
+                            BigDecimal lateFee = (sub.getLateCheckOutFee() != null && sub.getLateCheckOutFee().compareTo(BigDecimal.ZERO) > 0)
+                                    ? sub.getLateCheckOutFee()
+                                    : (sub.isDayUse() ? BigDecimal.ZERO : earlyLateCheckService.calculateLateCheckOutFee(sub, checkOutTime));
+                            sub.recordCheckOut(checkOutTime, lateFee);
+                        }
+                    }
+                    subReservationRepository.flush();
+                    paymentService.recalculatePayment(master.getId());
                     validateCheckOutBalance(master);
                 }
 
@@ -415,8 +437,10 @@ public class ReservationStatusServiceImpl implements ReservationStatusService {
         LocalDateTime now = LocalDateTime.now();
 
         if ("INHOUSE".equals(newStatus) && sub.getActualCheckInTime() == null) {
-            BigDecimal earlyFee = sub.isDayUse() ? BigDecimal.ZERO
-                    : earlyLateCheckService.calculateEarlyCheckInFee(sub, now);
+            // 이미 등록된 얼리 체크인 요금이 있으면 재계산하지 않음
+            BigDecimal earlyFee = (sub.getEarlyCheckInFee() != null && sub.getEarlyCheckInFee().compareTo(BigDecimal.ZERO) > 0)
+                    ? sub.getEarlyCheckInFee()
+                    : (sub.isDayUse() ? BigDecimal.ZERO : earlyLateCheckService.calculateEarlyCheckInFee(sub, now));
             sub.recordCheckIn(now, earlyFee);
             if (sub.getRoomNumberId() != null) {
                 com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
@@ -425,9 +449,13 @@ public class ReservationStatusServiceImpl implements ReservationStatusService {
         }
 
         if ("CHECKED_OUT".equals(newStatus)) {
-            BigDecimal lateFee = sub.isDayUse() ? BigDecimal.ZERO
-                    : earlyLateCheckService.calculateLateCheckOutFee(sub, now);
-            sub.recordCheckOut(now, lateFee);
+            if (sub.getActualCheckOutTime() == null) {
+                // 이미 등록된 레이트 체크아웃 요금이 있으면 재계산하지 않음
+                BigDecimal lateFee = (sub.getLateCheckOutFee() != null && sub.getLateCheckOutFee().compareTo(BigDecimal.ZERO) > 0)
+                        ? sub.getLateCheckOutFee()
+                        : (sub.isDayUse() ? BigDecimal.ZERO : earlyLateCheckService.calculateLateCheckOutFee(sub, now));
+                sub.recordCheckOut(now, lateFee);
+            }
             if (sub.getRoomNumberId() != null) {
                 com.hola.hotel.entity.RoomNumber room = roomNumberRepository.findById(sub.getRoomNumberId()).orElse(null);
                 if (room != null) {

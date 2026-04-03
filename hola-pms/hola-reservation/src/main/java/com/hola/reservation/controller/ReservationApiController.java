@@ -19,6 +19,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,8 @@ public class ReservationApiController {
     private final ReservationLegService legService;
     private final ReservationAncillaryService ancillaryService;
     private final ReservationChangeLogService changeLogService;
+    private final EarlyLateCheckService earlyLateCheckService;
+    private final ReservationFinder reservationFinder;
 
     // ─── 뷰 ──────────────────────────
 
@@ -111,6 +114,17 @@ public class ReservationApiController {
                                                            @PathVariable Long id,
                                                            @Valid @RequestBody ReservationUpdateRequest request) {
         return HolaResponse.success(reservationService.update(id, propertyId, request));
+    }
+
+    /** 레이트코드 변경 시 요금 미리보기 */
+    @Operation(summary = "레이트코드 변경 요금 미리보기", description = "레이트코드 변경 시 현재/변경 후 요금 비교")
+    @GetMapping("/{id}/rate-change-preview")
+    @PropertyAccess
+    public HolaResponse<RateChangePreviewResponse> previewRateChange(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @RequestParam Long newRateCodeId) {
+        return HolaResponse.success(reservationService.previewRateChange(id, propertyId, newRateCodeId));
     }
 
     /** 예약 취소/노쇼 수수료 미리보기 */
@@ -202,6 +216,48 @@ public class ReservationApiController {
                                          @PathVariable Long id,
                                          @PathVariable Long legId) {
         legService.deleteLeg(id, propertyId, legId);
+        return HolaResponse.success();
+    }
+
+    /** 얼리/레이트 예상 요금 조회 */
+    @Operation(summary = "얼리/레이트 예상 요금", description = "시간대별 얼리체크인/레이트체크아웃 예상 요금 조회")
+    @GetMapping("/{id}/legs/{legId}/early-late-estimate")
+    @PropertyAccess
+    public HolaResponse<List<EarlyLateCheckService.FeeEstimate>> getEarlyLateEstimate(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @PathVariable Long legId,
+            @RequestParam String policyType) {
+        var master = reservationFinder.findMasterById(id, propertyId);
+        var sub = reservationFinder.findSubAndValidateOwnership(legId, master);
+        return HolaResponse.success(earlyLateCheckService.estimateFees(sub, policyType, master.getProperty()));
+    }
+
+    /** 얼리/레이트 요금 등록 (시간대 선택 즉시 확정) */
+    @Operation(summary = "얼리/레이트 요금 등록", description = "시간대 정책 선택 시 즉시 요금 확정 및 결제 총액 반영")
+    @PostMapping("/{id}/legs/{legId}/early-late-fee")
+    @PropertyAccess
+    public HolaResponse<Map<String, Object>> registerEarlyLateFee(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @PathVariable Long legId,
+            @RequestBody Map<String, Object> body) {
+        String policyType = (String) body.get("policyType");
+        int policyIndex = ((Number) body.get("policyIndex")).intValue();
+        BigDecimal fee = legService.registerEarlyLateFee(id, propertyId, legId, policyType, policyIndex);
+        return HolaResponse.success(Map.of("fee", fee, "policyType", policyType));
+    }
+
+    /** 얼리/레이트 요금 해제 */
+    @Operation(summary = "얼리/레이트 요금 해제", description = "얼리체크인/레이트체크아웃 요금 해제 및 결제 총액 재계산")
+    @DeleteMapping("/{id}/legs/{legId}/early-late-fee")
+    @PropertyAccess
+    public HolaResponse<Void> removeEarlyLateFee(
+            @PathVariable Long propertyId,
+            @PathVariable Long id,
+            @PathVariable Long legId,
+            @RequestParam String policyType) {
+        legService.removeEarlyLateFee(id, propertyId, legId, policyType);
         return HolaResponse.success();
     }
 

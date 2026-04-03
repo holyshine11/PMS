@@ -232,6 +232,8 @@ public enum ErrorCode {
     PG_AMOUNT_MISMATCH("HOLA-4203", "PG 승인금액이 요청금액과 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
     PG_AUTH_VERIFY_FAILED("HOLA-4204", "PG 메시지 인증값 검증에 실패했습니다.", HttpStatus.BAD_REQUEST),
     PG_COMMUNICATION_ERROR("HOLA-4205", "PG 통신 중 오류가 발생했습니다.", HttpStatus.BAD_GATEWAY),
+    PG_CANCEL_NOT_ALLOWED("HOLA-4206", "PG 취소가 불가능한 거래입니다.", HttpStatus.BAD_REQUEST),
+    PG_ALREADY_CANCELLED("HOLA-4207", "이미 전액 취소된 PG 결제입니다.", HttpStatus.BAD_REQUEST),
 
     // 간편결제 (HOLA-43xx)
     EASY_PAY_CARD_NOT_FOUND("HOLA-4300", "등록된 간편결제 카드를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

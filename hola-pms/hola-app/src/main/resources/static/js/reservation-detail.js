@@ -512,6 +512,12 @@ var ReservationDetail = {
             + '        </div>'
             + '      </div>'
             + '    </div>'
+            + '    <div class="row mb-2 early-late-estimate d-none" id="earlyLateEstimate_' + seq + '" data-leg-id="' + legId + '"'
+            + ' data-early-fee="' + earlyCheckInFee + '" data-late-fee="' + lateCheckOutFee + '">'
+            + '      <div class="col-sm-10 offset-sm-2">'
+            + '        <div class="small" id="earlyLateEstimateContent_' + seq + '"></div>'
+            + '      </div>'
+            + '    </div>'
             + '    <hr class="my-2">'
             + '    <div class="d-flex justify-content-between align-items-center mb-2">'
             + '      <span class="text-muted small collapsed" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#serviceCollapse_' + seq + '">'
@@ -564,6 +570,11 @@ var ReservationDetail = {
         // 업그레이드 이력 로드
         if (legId) {
             this.loadUpgradeHistory(seq, legId);
+        }
+
+        // 얼리/레이트 사용 시 확정 요금 또는 선택 옵션 표시
+        if (legId && (earlyCheckIn || lateCheckOut)) {
+            this.showEarlyLateConfirmedFee($('#roomLegsContainer .room-leg-card').last());
         }
     },
 
@@ -1455,28 +1466,77 @@ var ReservationDetail = {
 
         // 얼리체크인 토글 버튼 (이벤트 위임)
         $(document).on('click', '.early-checkin-toggle:not([disabled])', function() {
-            var $group = $(this).closest('.btn-group');
-            var val = $(this).data('value');
-            $group.prev('.leg-early-checkin').val(String(val));
-            $group.find('.btn').removeClass('btn-primary btn-outline-danger').addClass('btn-outline-secondary');
+            var $btn = $(this);
+            var $group = $btn.closest('.btn-group');
+            var $legCard = $btn.closest('.room-leg-card');
+            var val = $btn.data('value');
+            var legId = $legCard.data('leg-id');
+
             if (val === true) {
-                $(this).removeClass('btn-outline-secondary').addClass('btn-primary');
+                self.checkPolicyExists('EARLY_CHECKIN', function(exists) {
+                    if (!exists) {
+                        HolaPms.alert('warning', '얼리 체크인 요금 정책이 설정되어 있지 않습니다. 프로퍼티 설정에서 정책을 먼저 추가해주세요.');
+                        return;
+                    }
+                    if (legId && self.reservationId) {
+                        // 기존 Leg: 시간대 선택 후 즉시 등록
+                        self.showTimeWindowOptions($legCard, 'EARLY_CHECKIN');
+                    } else {
+                        // 신규 Leg: 저장 후 등록 가능 (기존 동작)
+                        self.applyToggle($group, $btn, '.leg-early-checkin', true);
+                    }
+                });
             } else {
-                $(this).removeClass('btn-outline-secondary').addClass('btn-outline-danger');
+                if (legId && self.reservationId) {
+                    self.removeEarlyLateFee($legCard, 'EARLY_CHECKIN', function() {
+                        self.applyToggle($group, $btn, '.leg-early-checkin', false);
+                        self.showEarlyLateConfirmedFee($legCard);
+                    });
+                } else {
+                    self.applyToggle($group, $btn, '.leg-early-checkin', false);
+                }
             }
         });
 
         // 레이트체크아웃 토글 버튼 (이벤트 위임)
         $(document).on('click', '.late-checkout-toggle:not([disabled])', function() {
-            var $group = $(this).closest('.btn-group');
-            var val = $(this).data('value');
-            $group.prev('.leg-late-checkout').val(String(val));
-            $group.find('.btn').removeClass('btn-primary btn-outline-danger').addClass('btn-outline-secondary');
+            var $btn = $(this);
+            var $group = $btn.closest('.btn-group');
+            var $legCard = $btn.closest('.room-leg-card');
+            var val = $btn.data('value');
+            var legId = $legCard.data('leg-id');
+
             if (val === true) {
-                $(this).removeClass('btn-outline-secondary').addClass('btn-primary');
+                self.checkPolicyExists('LATE_CHECKOUT', function(exists) {
+                    if (!exists) {
+                        HolaPms.alert('warning', '레이트 체크아웃 요금 정책이 설정되어 있지 않습니다. 프로퍼티 설정에서 정책을 먼저 추가해주세요.');
+                        return;
+                    }
+                    if (legId && self.reservationId) {
+                        self.showTimeWindowOptions($legCard, 'LATE_CHECKOUT');
+                    } else {
+                        self.applyToggle($group, $btn, '.leg-late-checkout', true);
+                    }
+                });
             } else {
-                $(this).removeClass('btn-outline-secondary').addClass('btn-outline-danger');
+                if (legId && self.reservationId) {
+                    self.removeEarlyLateFee($legCard, 'LATE_CHECKOUT', function() {
+                        self.applyToggle($group, $btn, '.leg-late-checkout', false);
+                        self.showEarlyLateConfirmedFee($legCard);
+                    });
+                } else {
+                    self.applyToggle($group, $btn, '.leg-late-checkout', false);
+                }
             }
+        });
+
+        // 얼리/레이트 시간대 선택 버튼 클릭 (이벤트 위임)
+        $(document).on('click', '.early-late-select-btn', function() {
+            var $btn = $(this);
+            var $legCard = $btn.closest('.room-leg-card');
+            var policyType = $btn.data('policy-type');
+            var policyIndex = $btn.data('policy-index');
+            self.registerEarlyLateFee($legCard, policyType, policyIndex);
         });
 
         // 유료 서비스 추가 폼 토글 (이벤트 위임)
@@ -1634,11 +1694,64 @@ var ReservationDetail = {
     },
 
     applyRateCode: function() {
+        var self = this;
         var selected = $('input[name="rateCodeSelect"]:checked');
         if (!selected.length) { HolaPms.alert('warning', '레이트코드를 선택해주세요.'); return; }
-        $('#rateCodeId').val(selected.val());
-        $('#rateCodeName').val(selected.data('code') + ' - ' + selected.data('name'));
-        HolaPms.modal.hide('#rateCodeModal');
+
+        var newRateCodeId = parseInt(selected.val());
+        var origRateCodeId = self.reservationData ? self.reservationData.rateCodeId : null;
+
+        // 동일 레이트코드 선택 시 바로 적용
+        if (!origRateCodeId || newRateCodeId === origRateCodeId || !self.reservationId) {
+            $('#rateCodeId').val(selected.val());
+            $('#rateCodeName').val(selected.data('code') + ' - ' + selected.data('name'));
+            HolaPms.modal.hide('#rateCodeModal');
+            return;
+        }
+
+        // 변경된 레이트코드 → 차액 미리보기 API 호출
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId
+                + '/rate-change-preview?newRateCodeId=' + newRateCodeId,
+            type: 'GET',
+            success: function(res) {
+                if (!res.success || !res.data) {
+                    // API 실패 시 단순 confirm
+                    if (confirm('레이트코드를 변경하시겠습니까?')) {
+                        $('#rateCodeId').val(selected.val());
+                        $('#rateCodeName').val(selected.data('code') + ' - ' + selected.data('name'));
+                    }
+                    HolaPms.modal.hide('#rateCodeModal');
+                    return;
+                }
+
+                var preview = res.data;
+                var fmt = function(v) { return Number(v || 0).toLocaleString('ko-KR'); };
+                var diffSign = preview.difference >= 0 ? '+' : '';
+
+                var msg = '레이트코드 변경 요금 미리보기\n\n'
+                    + '  현재: ' + (preview.currentRateCodeName || '-') + '\n'
+                    + '  변경: ' + (preview.newRateCodeName || '-') + '\n\n'
+                    + '  현재 요금: ₩' + fmt(preview.currentTotal) + '\n'
+                    + '  변경 요금: ₩' + fmt(preview.newTotal)
+                    + ' (' + diffSign + '₩' + fmt(preview.difference) + ')\n\n'
+                    + '적용하시겠습니까?';
+
+                if (confirm(msg)) {
+                    $('#rateCodeId').val(selected.val());
+                    $('#rateCodeName').val(selected.data('code') + ' - ' + selected.data('name'));
+                }
+                HolaPms.modal.hide('#rateCodeModal');
+            },
+            error: function() {
+                // 미리보기 실패 시 사용자 확인 후 적용
+                if (confirm('요금 미리보기를 불러올 수 없습니다.\n그래도 레이트코드를 변경하시겠습니까?')) {
+                    $('#rateCodeId').val(selected.val());
+                    $('#rateCodeName').val(selected.data('code') + ' - ' + selected.data('name'));
+                }
+                HolaPms.modal.hide('#rateCodeModal');
+            }
+        });
     },
 
     // ═══════════════════════════════════════════
@@ -2428,6 +2541,20 @@ var ReservationDetail = {
         var data = self.collectFormData();
         if (!self.validate(data)) return;
 
+        // 레이트코드 변경 감지 → 확인 다이얼로그
+        var origRateCodeId = self.reservationData ? self.reservationData.rateCodeId : null;
+        var newRateCodeId = data.rateCodeId || null;
+        if (origRateCodeId && newRateCodeId && origRateCodeId !== newRateCodeId) {
+            var origName = self.reservationData.rateCodeName || '(ID: ' + origRateCodeId + ')';
+            var newName = $('#rateCodeName').val() || '(ID: ' + newRateCodeId + ')';
+            if (!confirm('레이트코드가 변경되었습니다.\n\n'
+                    + '  현재: ' + origName + '\n'
+                    + '  변경: ' + newName + '\n\n'
+                    + '레이트코드를 변경하면 모든 객실의 요금이 재계산됩니다.\n계속하시겠습니까?')) {
+                return;
+            }
+        }
+
         // 1단계: 예약 정보 저장
         HolaPms.ajax({
             url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId,
@@ -2647,10 +2774,210 @@ var ReservationDetail = {
         });
     },
 
-    loadUpgradePreview: function(legId, toRoomTypeId) {
+    /**
+     * 토글 버튼 상태 적용
+     */
+    applyToggle: function($group, $btn, hiddenSelector, isOn) {
+        $group.prev(hiddenSelector).val(String(isOn));
+        $group.find('.btn').removeClass('btn-primary btn-outline-danger').addClass('btn-outline-secondary');
+        if (isOn) {
+            $btn.removeClass('btn-outline-secondary').addClass('btn-primary');
+        } else {
+            $btn.removeClass('btn-outline-secondary').addClass('btn-outline-danger');
+        }
+    },
+
+    /**
+     * 얼리/레이트 정책 존재 여부 확인
+     */
+    checkPolicyExists: function(policyType, callback) {
         var propertyId = HolaPms.context.getPropertyId();
+        if (!propertyId) {
+            callback(false);
+            return;
+        }
         HolaPms.ajax({
-            url: '/api/v1/properties/' + propertyId + '/reservations/' + legId + '/upgrade/preview?toRoomTypeId=' + toRoomTypeId,
+            url: '/api/v1/properties/' + propertyId + '/early-late-policies?policyType=' + policyType,
+            type: 'GET',
+            success: function(res) {
+                callback(res.success && res.data && res.data.length > 0);
+            },
+            error: function() {
+                callback(false);
+            }
+        });
+    },
+
+    /**
+     * 확정 요금 배지 표시 — 이미 등록된 얼리/레이트 요금 표시
+     */
+    showEarlyLateConfirmedFee: function($legCard) {
+        var seq = $legCard.data('leg-seq');
+        var $area = $('#earlyLateEstimate_' + seq);
+        var $content = $('#earlyLateEstimateContent_' + seq);
+
+        var earlyOn = $legCard.find('.leg-early-checkin').val() === 'true';
+        var lateOn = $legCard.find('.leg-late-checkout').val() === 'true';
+
+        if (!earlyOn && !lateOn) {
+            $area.addClass('d-none');
+            return;
+        }
+
+        var earlyFee = Number($area.data('early-fee')) || 0;
+        var lateFee = Number($area.data('late-fee')) || 0;
+        var parts = [];
+
+        if (earlyOn && earlyFee > 0) {
+            parts.push('<span class="badge bg-info me-2"><i class="fas fa-check me-1"></i>얼리 체크인 ₩'
+                + earlyFee.toLocaleString('ko-KR') + '</span>');
+        } else if (earlyOn) {
+            parts.push('<span class="text-muted"><i class="fas fa-clock me-1"></i>얼리 체크인 — 시간대 미선택</span>');
+        }
+
+        if (lateOn && lateFee > 0) {
+            parts.push('<span class="badge bg-danger me-2"><i class="fas fa-check me-1"></i>레이트 체크아웃 ₩'
+                + lateFee.toLocaleString('ko-KR') + '</span>');
+        } else if (lateOn) {
+            parts.push('<span class="text-muted"><i class="fas fa-clock me-1"></i>레이트 체크아웃 — 시간대 미선택</span>');
+        }
+
+        if (parts.length > 0) {
+            $content.html(parts.join(' '));
+            $area.removeClass('d-none');
+        } else {
+            $area.addClass('d-none');
+        }
+    },
+
+    /**
+     * 시간대 선택 옵션 표시 — 토글 ON 시 호출
+     */
+    showTimeWindowOptions: function($legCard, policyType) {
+        var self = this;
+        var legId = $legCard.data('leg-id');
+        var seq = $legCard.data('leg-seq');
+        var $area = $('#earlyLateEstimate_' + seq);
+        var $content = $('#earlyLateEstimateContent_' + seq);
+        var label = policyType === 'EARLY_CHECKIN' ? '얼리 체크인' : '레이트 체크아웃';
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId
+                + '/legs/' + legId + '/early-late-estimate?policyType=' + policyType,
+            type: 'GET',
+            success: function(res) {
+                if (!res.success || !res.data || res.data.length === 0) {
+                    HolaPms.alert('warning', label + ' 요금 정책이 없습니다.');
+                    return;
+                }
+
+                // 시간대가 1개면 자동 선택
+                if (res.data.length === 1) {
+                    self.registerEarlyLateFee($legCard, policyType, 0);
+                    return;
+                }
+
+                // 시간대 선택 버튼 렌더
+                var html = '<div class="mb-1"><i class="fas fa-clock text-primary me-1"></i><strong>' + label + '</strong> 시간대를 선택하세요:</div>';
+                html += '<div class="d-flex flex-wrap gap-1">';
+                res.data.forEach(function(e, idx) {
+                    var feeLabel = e.feeType === 'PERCENT'
+                        ? Number(e.feeValue) + '%'
+                        : '₩' + Number(e.feeValue).toLocaleString('ko-KR');
+                    html += '<button type="button" class="btn btn-outline-primary btn-sm early-late-select-btn"'
+                        + ' data-policy-type="' + policyType + '" data-policy-index="' + idx + '">'
+                        + e.timeFrom + '~' + e.timeTo
+                        + ' <strong>₩' + Number(e.estimatedFee).toLocaleString('ko-KR') + '</strong>'
+                        + ' <small class="text-muted">(' + feeLabel + ')</small>'
+                        + '</button>';
+                });
+                html += '</div>';
+
+                $content.html(html);
+                $area.removeClass('d-none');
+            }
+        });
+    },
+
+    /**
+     * 얼리/레이트 요금 등록 API 호출
+     */
+    registerEarlyLateFee: function($legCard, policyType, policyIndex) {
+        var self = this;
+        var legId = $legCard.data('leg-id');
+        var seq = $legCard.data('leg-seq');
+        var $area = $('#earlyLateEstimate_' + seq);
+        var isEarly = policyType === 'EARLY_CHECKIN';
+        var hiddenSelector = isEarly ? '.leg-early-checkin' : '.leg-late-checkout';
+        var toggleClass = isEarly ? '.early-checkin-toggle' : '.late-checkout-toggle';
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId
+                + '/legs/' + legId + '/early-late-fee',
+            type: 'POST',
+            data: JSON.stringify({ policyType: policyType, policyIndex: policyIndex }),
+            success: function(res) {
+                if (res.success) {
+                    var fee = Number(res.data.fee);
+                    // 토글 UI 업데이트
+                    var $group = $legCard.find(toggleClass).first().closest('.btn-group');
+                    var $onBtn = $group.find('[data-value="true"]');
+                    self.applyToggle($group, $onBtn, hiddenSelector, true);
+
+                    // 확정 요금 data 속성 업데이트
+                    if (isEarly) {
+                        $area.data('early-fee', fee);
+                    } else {
+                        $area.data('late-fee', fee);
+                    }
+
+                    // 확정 요금 표시
+                    self.showEarlyLateConfirmedFee($legCard);
+
+                    var label = isEarly ? '얼리 체크인' : '레이트 체크아웃';
+                    HolaPms.alert('success', label + ' 요금 ₩' + fee.toLocaleString('ko-KR') + ' 등록 완료');
+                }
+            }
+        });
+    },
+
+    /**
+     * 얼리/레이트 요금 해제 API 호출
+     */
+    removeEarlyLateFee: function($legCard, policyType, callback) {
+        var self = this;
+        var legId = $legCard.data('leg-id');
+        var seq = $legCard.data('leg-seq');
+        var $area = $('#earlyLateEstimate_' + seq);
+        var isEarly = policyType === 'EARLY_CHECKIN';
+
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId
+                + '/legs/' + legId + '/early-late-fee?policyType=' + policyType,
+            type: 'DELETE',
+            success: function(res) {
+                if (res.success) {
+                    // data 속성 초기화
+                    if (isEarly) {
+                        $area.data('early-fee', 0);
+                    } else {
+                        $area.data('late-fee', 0);
+                    }
+                    if (callback) callback();
+                }
+            }
+        });
+    },
+
+    loadUpgradePreview: function(legId, toRoomTypeId, selectedRateCodeId) {
+        var propertyId = HolaPms.context.getPropertyId();
+        var previewUrl = '/api/v1/properties/' + propertyId + '/reservations/' + legId
+            + '/upgrade/preview?toRoomTypeId=' + toRoomTypeId;
+        if (selectedRateCodeId) {
+            previewUrl += '&selectedRateCodeId=' + selectedRateCodeId;
+        }
+        HolaPms.ajax({
+            url: previewUrl,
             success: function(res) {
                 var p = res.data;
                 $('#previewFromType').text(p.fromRoomTypeName || '-');
@@ -2676,8 +3003,30 @@ var ReservationDetail = {
                 }
                 $('#previewDailyDiffs').html(dailyHtml);
 
-                // 레이트코드 변경 경고
-                if (p.rateCodeChanged) {
+                // 레이트코드 변경 경고 + 후보 선택
+                if (p.rateCodeChanged && p.availableRateCodes && p.availableRateCodes.length > 1) {
+                    var selectHtml = '<div class="alert alert-warning py-2 mt-2 mb-0">'
+                        + '<i class="fas fa-exclamation-triangle me-1"></i>'
+                        + '레이트코드가 변경됩니다: <strong>' + (p.currentRateCodeName || '') + '</strong> → '
+                        + '<select id="upgradeRateCodeSelect" class="form-select form-select-sm d-inline-block" style="width:auto;">';
+                    p.availableRateCodes.forEach(function(rc) {
+                        var label = rc.rateCode + ' - ' + rc.rateNameKo;
+                        if (rc.current) label += ' (현재)';
+                        selectHtml += '<option value="' + rc.id + '"'
+                            + (rc.recommended ? ' selected' : '')
+                            + '>' + HolaPms.escapeHtml(label) + '</option>';
+                    });
+                    selectHtml += '</select></div>';
+                    $('#previewRateCodeAlert').html(selectHtml).removeClass('d-none');
+
+                    // 레이트코드 선택 변경 시 미리보기 재호출
+                    $('#upgradeRateCodeSelect').off('change').on('change', function() {
+                        var selectedRateCodeId = $(this).val();
+                        var legId = $('#upgradeLegId').val();
+                        var toRoomTypeId = $('#upgradeRoomTypeId').val();
+                        self.loadUpgradePreview(legId, toRoomTypeId, selectedRateCodeId);
+                    });
+                } else if (p.rateCodeChanged) {
                     $('#previewRateCodeAlert').html(
                         '<div class="alert alert-warning py-2 mt-2 mb-0">' +
                         '<i class="fas fa-exclamation-triangle me-1"></i>' +
