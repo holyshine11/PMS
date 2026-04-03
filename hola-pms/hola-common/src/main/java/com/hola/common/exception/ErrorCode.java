@@ -46,6 +46,7 @@ public enum ErrorCode {
     MARKET_CODE_NOT_FOUND("HOLA-1040", "마켓코드를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     MARKET_CODE_DUPLICATE("HOLA-1041", "동일 프로퍼티 내 이미 존재하는 마켓코드입니다.", HttpStatus.CONFLICT),
     SETTLEMENT_NOT_FOUND("HOLA-1050", "정산정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    WORKSTATION_NOT_FOUND("HOLA-1060", "워크스테이션을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
     // 회원관리 (HOLA-06xx)
     ADMIN_NOT_FOUND("HOLA-0600", "관리자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
@@ -236,7 +237,13 @@ public enum ErrorCode {
     EASY_PAY_CARD_NOT_FOUND("HOLA-4300", "등록된 간편결제 카드를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     EASY_PAY_CARD_LIMIT_EXCEEDED("HOLA-4301", "간편결제 카드는 최대 5개까지 등록할 수 있습니다.", HttpStatus.BAD_REQUEST),
     EASY_PAY_CARD_EMAIL_MISMATCH("HOLA-4302", "카드 소유자 이메일이 일치하지 않습니다.", HttpStatus.FORBIDDEN),
-    EASY_PAY_BILLKEY_ISSUE_FAILED("HOLA-4303", "빌키 발급에 실패했습니다.", HttpStatus.BAD_GATEWAY);
+    EASY_PAY_BILLKEY_ISSUE_FAILED("HOLA-4303", "빌키 발급에 실패했습니다.", HttpStatus.BAD_GATEWAY),
+
+    // VAN 결제 (HOLA-44xx)
+    VAN_PAYMENT_FAILED("HOLA-4400", "VAN 결제가 거절되었습니다.", HttpStatus.BAD_REQUEST),
+    VAN_CANCEL_NOT_ALLOWED("HOLA-4401", "VAN 취소가 불가능한 거래입니다.", HttpStatus.BAD_REQUEST),
+    VAN_CANCEL_ALREADY_DONE("HOLA-4402", "이미 취소된 거래입니다.", HttpStatus.BAD_REQUEST),
+    VAN_TRANSACTION_NOT_FOUND("HOLA-4403", "VAN 거래를 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
 
     private final String code;
     private final String message;

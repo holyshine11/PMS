@@ -7,14 +7,20 @@ import com.hola.reservation.booking.gateway.PaymentGateway;
 import com.hola.reservation.booking.gateway.PaymentResult;
 import com.hola.reservation.dto.request.PaymentAdjustmentRequest;
 import com.hola.reservation.dto.request.PaymentProcessRequest;
+import com.hola.reservation.dto.request.VanResultPayload;
 import com.hola.reservation.dto.response.LegPaymentInfo;
 import com.hola.reservation.dto.response.PaymentAdjustmentResponse;
 import com.hola.reservation.dto.response.PaymentSummaryResponse;
+import com.hola.reservation.dto.response.VanCancelInfoResponse;
 import com.hola.reservation.entity.*;
 import com.hola.reservation.mapper.ReservationMapper;
 import com.hola.reservation.repository.*;
+import com.hola.hotel.entity.Workstation;
+import com.hola.hotel.service.WorkstationService;
 import com.hola.room.entity.RoomType;
 import com.hola.room.repository.RoomTypeRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +51,8 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
     private final RoomTypeRepository roomTypeRepository;
     private final ReservationMapper reservationMapper;
     private final PaymentGateway paymentGateway;
+    private final WorkstationService workstationService;
+    private final ObjectMapper objectMapper;
 
     @Override
     public PaymentSummaryResponse getPaymentSummary(Long propertyId, Long reservationId) {
@@ -151,21 +159,45 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         }
 
         // PaymentTransaction 생성 (subReservationId 포함)
-        PaymentTransaction transaction = PaymentTransaction.builder()
+        PaymentTransaction.PaymentTransactionBuilder txnBuilder = PaymentTransaction.builder()
                 .masterReservationId(reservationId)
                 .subReservationId(subReservationId)
                 .transactionSeq(nextSeq)
                 .paymentMethod(request.getPaymentMethod())
                 .amount(payAmount)
-                .memo(request.getMemo())
-                .build();
-        transactionRepository.save(transaction);
+                .memo(request.getMemo());
+
+        // VAN 결제 시 VAN 필드 매핑
+        if ("VAN".equals(request.getPaymentChannel()) && request.getVanResult() != null) {
+            VanResultPayload van = request.getVanResult();
+            if (!"0000".equals(van.getRespCode())) {
+                throw new HolaException(ErrorCode.VAN_PAYMENT_FAILED);
+            }
+            txnBuilder
+                    .paymentChannel("VAN")
+                    .workstationId(request.getWorkstationId())
+                    .vanProvider("KPSP")
+                    .vanAuthCode(van.getAuthCode())
+                    .vanRrn(van.getRrn())
+                    .vanPan(van.getPan())
+                    .vanIssuerCode(van.getIssuerCode())
+                    .vanIssuerName(van.getIssuerName())
+                    .vanAcquirerCode(van.getAcquirerCode())
+                    .vanAcquirerName(van.getAcquirerName())
+                    .vanTerminalId(van.getTerminalId())
+                    .vanSequenceNo(van.getSequenceNo())
+                    .vanRawResponse(toJson(van))
+                    .approvalNo(van.getAuthCode());
+        }
+
+        transactionRepository.save(txnBuilder.build());
 
         // 결제 누적 + 상태 자동 판단
         payment.addPaidAmount(payAmount);
 
-        log.info("결제 처리: reservationId={}, subReservationId={}, method={}, amount={}, totalPaid={}",
-                reservationId, subReservationId, request.getPaymentMethod(), payAmount, payment.getTotalPaidAmount());
+        String channel = request.getPaymentChannel() != null ? request.getPaymentChannel() : "MANUAL";
+        log.info("결제 처리: reservationId={}, subReservationId={}, channel={}, method={}, amount={}, totalPaid={}",
+                reservationId, subReservationId, channel, request.getPaymentMethod(), payAmount, payment.getTotalPaidAmount());
 
         List<PaymentAdjustment> adjustments = adjustmentRepository
                 .findByMasterReservationIdOrderByAdjustmentSeqAsc(reservationId);
@@ -723,9 +755,13 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
 
         // 2) 비-PG 환불 처리 (현금/카드VAN — 관리자 수동 환불 확인)
         if (nonPgRefundAmount.compareTo(BigDecimal.ZERO) > 0) {
-            String nonPgMethod = legNonPgPayments.isEmpty() ? "CASH"
-                    : legNonPgPayments.get(legNonPgPayments.size() - 1).getPaymentMethod();
-            String methodLabel = "CASH".equals(nonPgMethod) ? "현금" : "카드(VAN)";
+            PaymentTransaction lastNonPg = legNonPgPayments.isEmpty() ? null
+                    : legNonPgPayments.get(legNonPgPayments.size() - 1);
+            String nonPgMethod = lastNonPg != null ? lastNonPg.getPaymentMethod() : "CASH";
+            String nonPgChannel = lastNonPg != null ? lastNonPg.getPaymentChannel() : null;
+            String methodLabel = "CASH".equals(nonPgMethod)
+                    ? ("VAN".equals(nonPgChannel) ? "현금(VAN)" : "현금")
+                    : ("VAN".equals(nonPgChannel) ? "카드(VAN)" : "카드");
 
             PaymentTransaction nonPgRefund = PaymentTransaction.builder()
                     .masterReservationId(masterReservationId)
@@ -733,6 +769,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
                     .transactionSeq(seq)
                     .transactionType("REFUND")
                     .paymentMethod(nonPgMethod)
+                    .paymentChannel(nonPgChannel)
                     .amount(nonPgRefundAmount)
                     .transactionStatus("MANUAL_CONFIRMED")
                     .memo(memo + " [" + methodLabel + " 환불 -- 관리자 확인 완료]")
@@ -965,5 +1002,217 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         BigDecimal tax = first.getTax() != null ? first.getTax() : BigDecimal.ZERO;
         BigDecimal svc = first.getServiceCharge() != null ? first.getServiceCharge() : BigDecimal.ZERO;
         return supply.add(tax).add(svc);
+    }
+
+    // === VAN 결제 관련 메서드 ===
+
+    @Override
+    public VanCancelInfoResponse getVanCancelInfo(Long propertyId, Long reservationId, Long transactionId) {
+        MasterReservation master = findMasterById(reservationId);
+        validateReservationProperty(master, propertyId);
+
+        PaymentTransaction txn = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new HolaException(ErrorCode.VAN_TRANSACTION_NOT_FOUND));
+
+        if (!"VAN".equals(txn.getPaymentChannel())) {
+            throw new HolaException(ErrorCode.VAN_CANCEL_NOT_ALLOWED);
+        }
+        if (!txn.getMasterReservationId().equals(reservationId)) {
+            throw new HolaException(ErrorCode.VAN_TRANSACTION_NOT_FOUND);
+        }
+
+        // 이미 취소된 거래인지 확인 (같은 vanSequenceNo로 REFUND가 존재하면 취소 완료)
+        List<PaymentTransaction> allTxns = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
+        boolean alreadyCancelled = allTxns.stream()
+                .anyMatch(t -> "REFUND".equals(t.getTransactionType())
+                        && txn.getVanSequenceNo() != null
+                        && txn.getVanSequenceNo().equals(t.getVanSequenceNo()));
+        if (alreadyCancelled) {
+            throw new HolaException(ErrorCode.VAN_CANCEL_ALREADY_DONE);
+        }
+
+        // 워크스테이션 정보 조회
+        String wsNo = null;
+        String kpspHost = "localhost";
+        int kpspPort = 19090;
+        if (txn.getWorkstationId() != null) {
+            Workstation ws = workstationService.findById(txn.getWorkstationId());
+            wsNo = ws.getWsNo();
+            kpspHost = ws.getKpspHost();
+            kpspPort = ws.getKpspPort();
+        }
+
+        return VanCancelInfoResponse.builder()
+                .transactionId(txn.getId())
+                .workstationId(txn.getWorkstationId())
+                .authCode(txn.getVanAuthCode())
+                .rrn(txn.getVanRrn())
+                .amount(txn.getAmount())
+                .sequenceNo(txn.getVanSequenceNo())
+                .paymentMethod(txn.getPaymentMethod())
+                .wsNo(wsNo)
+                .kpspHost(kpspHost)
+                .kpspPort(kpspPort)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public PaymentSummaryResponse processVanCancel(Long propertyId, Long reservationId,
+                                                     Long transactionId, VanResultPayload cancelResult) {
+        MasterReservation master = findMasterById(reservationId);
+        validateReservationProperty(master, propertyId);
+
+        PaymentTransaction originalTxn = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new HolaException(ErrorCode.VAN_TRANSACTION_NOT_FOUND));
+
+        if (!"VAN".equals(originalTxn.getPaymentChannel())) {
+            throw new HolaException(ErrorCode.VAN_CANCEL_NOT_ALLOWED);
+        }
+        if (!originalTxn.getMasterReservationId().equals(reservationId)) {
+            throw new HolaException(ErrorCode.VAN_TRANSACTION_NOT_FOUND);
+        }
+
+        // VAN 취소 결과 검증
+        if (cancelResult == null || !"0000".equals(cancelResult.getRespCode())) {
+            throw new HolaException(ErrorCode.VAN_PAYMENT_FAILED);
+        }
+
+        ReservationPayment payment = paymentRepository
+                .findByMasterReservationId(reservationId)
+                .orElseThrow(() -> new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED));
+
+        // 거래 시퀀스 번호
+        List<PaymentTransaction> existingTxns = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
+        int nextSeq = existingTxns.isEmpty() ? 1 : existingTxns.get(existingTxns.size() - 1).getTransactionSeq() + 1;
+
+        // REFUND 트랜잭션 생성
+        PaymentTransaction refundTxn = PaymentTransaction.builder()
+                .masterReservationId(reservationId)
+                .subReservationId(originalTxn.getSubReservationId())
+                .transactionSeq(nextSeq)
+                .transactionType("REFUND")
+                .paymentMethod(originalTxn.getPaymentMethod())
+                .amount(originalTxn.getAmount())
+                .paymentChannel("VAN")
+                .workstationId(originalTxn.getWorkstationId())
+                .vanProvider("KPSP")
+                .vanAuthCode(cancelResult.getAuthCode())
+                .vanRrn(cancelResult.getRrn())
+                .vanPan(cancelResult.getPan())
+                .vanIssuerCode(cancelResult.getIssuerCode())
+                .vanIssuerName(cancelResult.getIssuerName())
+                .vanAcquirerCode(cancelResult.getAcquirerCode())
+                .vanAcquirerName(cancelResult.getAcquirerName())
+                .vanTerminalId(cancelResult.getTerminalId())
+                .vanSequenceNo(originalTxn.getVanSequenceNo())
+                .vanRawResponse(toJson(cancelResult))
+                .approvalNo(cancelResult.getAuthCode())
+                .memo("VAN 취소 (원거래 #" + originalTxn.getTransactionSeq() + ")")
+                .build();
+        transactionRepository.save(refundTxn);
+
+        // 환불 금액 누적
+        payment.updateCancelRefund(BigDecimal.ZERO, originalTxn.getAmount());
+
+        log.info("VAN 취소 처리: reservationId={}, originalTxnId={}, amount={}, transType={}",
+                reservationId, transactionId, originalTxn.getAmount(), cancelResult.getTransType());
+
+        List<PaymentAdjustment> adjustments = adjustmentRepository
+                .findByMasterReservationIdOrderByAdjustmentSeqAsc(reservationId);
+        List<PaymentTransaction> transactions = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
+        List<LegPaymentInfo> legPayments = calculatePerLegPayments(reservationId);
+        return reservationMapper.toPaymentSummaryResponse(payment, adjustments, transactions, legPayments);
+    }
+
+    @Override
+    @Transactional
+    public PaymentSummaryResponse processVanCancelManual(Long propertyId, Long reservationId,
+                                                           Long transactionId, VanResultPayload manualPayload) {
+        MasterReservation master = findMasterById(reservationId);
+        validateReservationProperty(master, propertyId);
+
+        PaymentTransaction originalTxn = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new HolaException(ErrorCode.VAN_TRANSACTION_NOT_FOUND));
+
+        if (!"VAN".equals(originalTxn.getPaymentChannel())) {
+            throw new HolaException(ErrorCode.VAN_CANCEL_NOT_ALLOWED);
+        }
+        if (!originalTxn.getMasterReservationId().equals(reservationId)) {
+            throw new HolaException(ErrorCode.VAN_TRANSACTION_NOT_FOUND);
+        }
+
+        // 이미 취소된 거래인지 확인
+        List<PaymentTransaction> allTxns = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
+        boolean alreadyCancelled = allTxns.stream()
+                .anyMatch(t -> "REFUND".equals(t.getTransactionType())
+                        && originalTxn.getVanSequenceNo() != null
+                        && originalTxn.getVanSequenceNo().equals(t.getVanSequenceNo()));
+        if (alreadyCancelled) {
+            throw new HolaException(ErrorCode.VAN_CANCEL_ALREADY_DONE);
+        }
+
+        ReservationPayment payment = paymentRepository
+                .findByMasterReservationId(reservationId)
+                .orElseThrow(() -> new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED));
+
+        int nextSeq = allTxns.isEmpty() ? 1 : allTxns.get(allTxns.size() - 1).getTransactionSeq() + 1;
+
+        // MANUAL_CONFIRMED REFUND 트랜잭션 생성
+        PaymentTransaction refundTxn = PaymentTransaction.builder()
+                .masterReservationId(reservationId)
+                .subReservationId(originalTxn.getSubReservationId())
+                .transactionSeq(nextSeq)
+                .transactionType("REFUND")
+                .paymentMethod(originalTxn.getPaymentMethod())
+                .amount(originalTxn.getAmount())
+                .paymentChannel("VAN")
+                .workstationId(originalTxn.getWorkstationId())
+                .vanProvider("KPSP")
+                .vanSequenceNo(originalTxn.getVanSequenceNo())
+                .transactionStatus("MANUAL_CONFIRMED")
+                .approvalNo(manualPayload != null ? manualPayload.getAuthCode() : null)
+                .memo("VAN 취소 수동 확인 (원거래 #" + originalTxn.getTransactionSeq() + ")")
+                .build();
+        transactionRepository.save(refundTxn);
+
+        payment.updateCancelRefund(BigDecimal.ZERO, originalTxn.getAmount());
+
+        log.info("VAN 취소 수동 확인: reservationId={}, originalTxnId={}, amount={}",
+                reservationId, transactionId, originalTxn.getAmount());
+
+        List<PaymentAdjustment> adjustments = adjustmentRepository
+                .findByMasterReservationIdOrderByAdjustmentSeqAsc(reservationId);
+        List<PaymentTransaction> transactions = transactionRepository
+                .findByMasterReservationIdOrderByTransactionSeqAsc(reservationId);
+        List<LegPaymentInfo> legPayments = calculatePerLegPayments(reservationId);
+        return reservationMapper.toPaymentSummaryResponse(payment, adjustments, transactions, legPayments);
+    }
+
+    @Override
+    @Transactional
+    public String generateVanSequenceNo(Long workstationId) {
+        Workstation ws = workstationService.findById(workstationId);
+        String datePart = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String wsNoPart = String.format("%-2s", ws.getWsNo()).substring(0, Math.min(2, ws.getWsNo().length()));
+
+        // DB 시퀀스로 유일한 번호 생성
+        Long seqVal = transactionRepository.getNextVanSequence();
+        String seqPart = String.format("%04d", seqVal % 10000);
+
+        return datePart + wsNoPart + seqPart;
+    }
+
+    private String toJson(Object obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            log.warn("VAN 응답 JSON 직렬화 실패", e);
+            return "{}";
+        }
     }
 }

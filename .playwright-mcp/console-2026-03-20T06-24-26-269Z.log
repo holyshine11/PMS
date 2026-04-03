@@ -1,2 +1,0 @@
-[   10124ms] TypeError: Cannot read properties of undefined (reading 'ext')
-    at http://localhost:8080/js/hola-common.js:539:16

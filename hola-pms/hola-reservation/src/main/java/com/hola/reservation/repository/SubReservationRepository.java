@@ -158,6 +158,48 @@ public interface SubReservationRepository extends JpaRepository<SubReservation, 
            "AND s.checkIn <= :date AND s.checkOut > :date")
     long countOccupiedByDate(@Param("propertyId") Long propertyId, @Param("date") LocalDate date);
 
+    // === 대시보드 벌크 집계 쿼리 (N+1 방지) ===
+
+    /**
+     * 전체 프로퍼티 판매객실 수 벌크 조회 (GROUP BY propertyId)
+     * 반환: Object[] = {propertyId (Long), count (Long)}
+     */
+    @Query("SELECT s.masterReservation.property.id, COUNT(s) FROM SubReservation s " +
+           "WHERE s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
+           "AND s.checkIn <= :date AND s.checkOut > :date " +
+           "GROUP BY s.masterReservation.property.id")
+    List<Object[]> countSoldRoomsBulk(@Param("date") LocalDate date);
+
+    /**
+     * 전체 프로퍼티 Dayuse 객실 수 벌크 조회 (GROUP BY propertyId)
+     * 반환: Object[] = {propertyId (Long), count (Long)}
+     */
+    @Query("SELECT s.masterReservation.property.id, COUNT(s) FROM SubReservation s " +
+           "WHERE s.stayType = 'DAY_USE' " +
+           "AND s.roomReservationStatus IN ('CHECK_IN', 'INHOUSE') " +
+           "AND s.checkIn <= :date AND s.checkOut > :date " +
+           "GROUP BY s.masterReservation.property.id")
+    List<Object[]> countDayUseRoomsBulk(@Param("date") LocalDate date);
+
+    /**
+     * 7일 추이 벌크: 날짜 범위 내 체류 예약 수 (GROUP BY propertyId, date)
+     * 반환: Object[] = {propertyId (Long), date (LocalDate), count (Long)}
+     * 참고: 날짜별 그룹핑 불가(체류 기간 기반)이므로 propertyId 그룹만 사용
+     */
+
+    /**
+     * 7일 추이 벌크: 특정 프로퍼티의 날짜 범위 내 날짜별 체류 예약 수
+     * 반환: Object[] = {date (LocalDate), count (Long)}
+     * - chargeDate 기반 대신 서브예약 체류기간 기반이므로, 각 날짜에 대해 개별 카운트가 필요하다.
+     *   대안으로 DailyCharge의 chargeDate 기반으로 7일 범위를 한번에 조회한다.
+     */
+    @Query("SELECT s.masterReservation.property.id, COUNT(s) FROM SubReservation s " +
+           "WHERE s.masterReservation.property.id = :propertyId " +
+           "AND s.roomReservationStatus NOT IN ('CANCELED', 'NO_SHOW') " +
+           "AND s.checkIn <= :date AND s.checkOut > :date " +
+           "GROUP BY s.masterReservation.property.id")
+    List<Object[]> countOccupiedByDateBulk(@Param("propertyId") Long propertyId, @Param("date") LocalDate date);
+
     // === 프론트데스크 리스트 쿼리 ===
 
     /**

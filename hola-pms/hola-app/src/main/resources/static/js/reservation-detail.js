@@ -64,7 +64,7 @@ var ReservationDetail = {
         // URL tab 파라미터로 탭 자동 활성화 (운영현황 등에서 특정 탭으로 이동 시)
         var urlParams = new URLSearchParams(window.location.search);
         var targetTab = urlParams.get('tab');
-        var tabMap = { detail: '#tabDetail', payment: '#tabPayment', deposit: '#tabDeposit', etc: '#tabEtc' };
+        var tabMap = { detail: '#tabDetail', payment: '#tabPayment', deposit: '#tabDeposit', history: '#tabHistory', etc: '#tabEtc' };
         var pendingTabSelector = targetTab ? tabMap[targetTab] : null;
 
         self.reload(function() {
@@ -107,6 +107,7 @@ var ReservationDetail = {
             success: function(res) {
                 if (res.success && res.data) {
                     self.bindData(res.data);
+                    self.loadChangeHistory();
                 }
                 if (callback) callback();
             }
@@ -518,7 +519,7 @@ var ReservationDetail = {
             + '        <span class="service-count-badge" id="serviceCount_' + seq + '">' + (legData && legData.services && legData.services.length > 0 ? ' (' + legData.services.length + '건)' : '') + '</span>'
             + '        <i class="fas fa-chevron-down collapse-arrow ms-1" style="font-size:10px;"></i>'
             + '      </span>'
-            + (!legTerminated ? '      <button class="btn btn-outline-primary btn-sm add-service-btn" data-leg="' + seq + '" data-leg-id="' + legId + '" type="button">'
+            + (!legTerminated && legId ? '      <button class="btn btn-outline-primary btn-sm add-service-btn" data-leg="' + seq + '" data-leg-id="' + legId + '" type="button">'
             + '        <i class="fas fa-plus me-1"></i>서비스 추가'
             + '      </button>' : '')
             + '    </div>'
@@ -747,6 +748,16 @@ var ReservationDetail = {
      */
     addServiceToLeg: function(legSeq, legId) {
         var self = this;
+
+        // legId 미존재 시 카드 DOM에서 재추출
+        if (!legId) {
+            legId = $('#roomLeg_' + legSeq).data('leg-id');
+        }
+        if (!legId) {
+            HolaPms.alert('warning', '객실을 먼저 저장한 후 서비스를 추가해주세요.');
+            return;
+        }
+
         var $form = $('#serviceAddForm_' + legSeq);
         var serviceOptionId = $form.find('.service-option-select').val();
         var quantity = parseInt($form.find('.service-qty').val()) || 1;
@@ -767,7 +778,7 @@ var ReservationDetail = {
                 return;
             }
             if (maxDate && serviceDate > maxDate) {
-                HolaPms.alert('warning', '서비스 일자는 체크아웃일(' + maxDate + ') 이전이어야 합니다.');
+                HolaPms.alert('warning', '서비스 일자는 체크아웃일(' + maxDate + ') 이내여야 합니다.');
                 return;
             }
         }
@@ -798,6 +809,10 @@ var ReservationDetail = {
      */
     removeServiceFromLeg: function(legId, serviceId, isRateIncluded) {
         var self = this;
+        if (!legId || !serviceId) {
+            HolaPms.alert('error', '서비스 정보를 찾을 수 없습니다. 페이지를 새로고침해주세요.');
+            return;
+        }
         var msg = isRateIncluded
             ? '이 서비스는 레이트 플랜에 포함된 서비스입니다. 삭제하시겠습니까?'
             : '이 서비스를 삭제하시겠습니까?';
@@ -855,7 +870,7 @@ var ReservationDetail = {
         if (self.isReadonly) {
             // VIEW 전용 모드: 모든 input/select/textarea disabled, 버튼 숨김
             $('#formContainer input, #formContainer select, #formContainer textarea').prop('disabled', true);
-            $('#saveBtn, #addRoomBtn, #addMemoBtn, #cardPaymentBtn, #cashPaymentBtn, #addAdjustmentBtn').hide();
+            $('#saveBtn, #addRoomBtn, #addMemoBtn, #vanCardPaymentBtn, #vanCashPaymentBtn, #cashPaymentBtn, #addAdjustmentBtn').hide();
             $('.leg-card-pay-btn, .leg-payment-buttons').hide();
             $('#statusChangeGroup').hide();
             $('.remove-leg-btn, .room-type-search-btn, .room-assign-btn, .room-type-clear-btn, .room-assign-clear-btn').hide();
@@ -1475,17 +1490,14 @@ var ReservationDetail = {
                 $form.find('.service-option-select').val('');
                 $form.find('.service-qty').val(1);
                 $form.find('.service-date').val('');
-                // 서비스 날짜 범위를 현재 Leg의 체크인~체크아웃-1로 동적 설정
+                // 서비스 날짜 범위를 현재 Leg의 체크인~체크아웃 당일까지 허용
+                // (체크아웃 당일 조식 등 관리자 재량 서비스 추가 가능)
                 var $card = $form.closest('.room-leg-card');
-                var checkIn = $card.find('input[name="checkIn"]').val();
-                var checkOut = $card.find('input[name="checkOut"]').val();
+                var checkIn = $card.find('.leg-check-in').val();
+                var checkOut = $card.find('.leg-check-out').val();
                 var $dateInput = $form.find('.service-date');
                 if (checkIn) $dateInput.attr('min', checkIn);
-                if (checkOut) {
-                    var maxDate = new Date(checkOut + 'T00:00:00');
-                    maxDate.setDate(maxDate.getDate() - 1);
-                    $dateInput.attr('max', maxDate.getFullYear() + '-' + String(maxDate.getMonth()+1).padStart(2,'0') + '-' + String(maxDate.getDate()).padStart(2,'0'));
-                }
+                if (checkOut) $dateInput.attr('max', checkOut);
             }
         });
 
@@ -1511,8 +1523,14 @@ var ReservationDetail = {
         });
 
         // 카드결제 버튼 (글로벌 - 싱글레그): VAN 모듈 연동 전 안내
-        $('#cardPaymentBtn').on('click', function() {
-            HolaPms.alert('info', '카드결제는 VAN 모듈 연동 후 사용 가능합니다.');
+        // VAN 카드결제 버튼
+        $('#vanCardPaymentBtn').on('click', function() {
+            ReservationPayment.openVanCardPaymentModal();
+        });
+
+        // VAN 현금결제 버튼
+        $('#vanCashPaymentBtn').on('click', function() {
+            ReservationPayment.openVanCashPaymentModal();
         });
 
         // 인보이스 출력 버튼
@@ -1520,7 +1538,7 @@ var ReservationDetail = {
             ReservationPayment.printInvoice();
         });
 
-        // 현금결제 버튼 (글로벌 - 싱글레그)
+        // 수동 현금결제 버튼 (글로벌 - 싱글레그)
         $('#cashPaymentBtn').on('click', function() {
             ReservationPayment.openCashPaymentModal();
         });
@@ -1539,8 +1557,10 @@ var ReservationDetail = {
             var method = $btn.data('pay-method');
 
             if (method === 'card') {
-                HolaPms.alert('info', '카드결제는 VAN 모듈 연동 후 사용 가능합니다.');
+                ReservationPayment.openVanCardPaymentModal(legContext);
             } else if (method === 'cash') {
+                ReservationPayment.openVanCashPaymentModal(legContext);
+            } else if (method === 'manual-cash') {
                 ReservationPayment.openCashPaymentModal(legContext);
             }
         });
@@ -2656,6 +2676,18 @@ var ReservationDetail = {
                 }
                 $('#previewDailyDiffs').html(dailyHtml);
 
+                // 레이트코드 변경 경고
+                if (p.rateCodeChanged) {
+                    $('#previewRateCodeAlert').html(
+                        '<div class="alert alert-warning py-2 mt-2 mb-0">' +
+                        '<i class="fas fa-exclamation-triangle me-1"></i>' +
+                        '레이트코드가 변경됩니다: <strong>' + (p.currentRateCodeName || '') +
+                        '</strong> → <strong>' + (p.targetRateCodeName || '') + '</strong></div>'
+                    ).removeClass('d-none');
+                } else {
+                    $('#previewRateCodeAlert').addClass('d-none').empty();
+                }
+
                 $('#upgradePreviewArea').removeClass('d-none');
             },
             error: function(xhr) {
@@ -2695,6 +2727,65 @@ var ReservationDetail = {
                 }
             });
         });
+    },
+
+    // ─── 변경이력 ──────────────────────────
+
+    loadChangeHistory: function() {
+        var self = this;
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/history',
+            type: 'GET',
+            success: function(res) {
+                self.renderChangeHistory(res.data || []);
+            },
+            error: function() {
+                $('#changeHistoryContainer').hide();
+                $('#changeHistoryEmpty').show();
+            }
+        });
+    },
+
+    renderChangeHistory: function(items) {
+        if (!items.length) {
+            $('#changeHistoryContainer').hide();
+            $('#changeHistoryEmpty').show();
+            return;
+        }
+        $('#changeHistoryEmpty').hide();
+
+        var categoryBadge = function(cat) {
+            var map = {
+                'STATUS': '<span class="badge bg-info">상태</span>',
+                'ROOM': '<span class="badge bg-primary">객실</span>',
+                'RATE': '<span class="badge bg-warning text-dark">요금</span>',
+                'UPGRADE': '<span class="badge bg-success">업그레이드</span>',
+                'SERVICE': '<span class="badge bg-secondary">서비스</span>',
+                'PAYMENT': '<span class="badge bg-dark">결제</span>',
+                'RESERVATION': '<span class="badge" style="background-color:#0582CA;">예약</span>'
+            };
+            return map[cat] || '<span class="badge bg-light text-dark">' + cat + '</span>';
+        };
+
+        var escapeHtml = function(str) {
+            if (!str) return '';
+            return $('<span>').text(str).html();
+        };
+
+        var html = '<div class="list-group list-group-flush">';
+        items.forEach(function(item) {
+            var ts = item.createdAt ? item.createdAt.replace('T', ' ').substring(0, 16) : '';
+            html += '<div class="list-group-item px-0 py-2">'
+                + '<div class="d-flex justify-content-between align-items-start">'
+                + '<div>' + categoryBadge(item.changeCategory)
+                + ' <span class="ms-1">' + escapeHtml(item.description) + '</span></div>'
+                + '<small class="text-muted text-nowrap ms-2">' + ts + '</small>'
+                + '</div>'
+                + '<small class="text-muted">' + escapeHtml(item.createdBy || '') + '</small>'
+                + '</div>';
+        });
+        html += '</div>';
+        $('#changeHistoryContainer').html(html).show();
     }
 };
 

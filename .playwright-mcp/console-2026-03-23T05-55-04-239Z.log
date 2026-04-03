@@ -1,4 +1,0 @@
-[   25401ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ http://localhost:8080/api/v1/dashboard/pickup/4:0
-[  116138ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ http://localhost:8080/api/v1/dashboard/pickup/4:0
-[  149996ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ http://localhost:8080/api/v1/dashboard/pickup/4:0
-[  216454ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ http://localhost:8080/api/v1/dashboard/pickup/4:0

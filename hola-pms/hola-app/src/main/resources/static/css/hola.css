@@ -752,21 +752,15 @@ label,
     background: none;
 }
 .txn-history-table tbody td {
-    padding: 8px;
+    padding: 10px 8px;
     border-bottom: 1px solid #f1f3f5;
     vertical-align: middle;
 }
-.txn-main-row td {
-    border-bottom: 1px solid #f1f3f5;
-}
-.txn-main-row.has-detail td {
-    border-bottom: none;
-}
-.txn-detail-row td {
-    padding-top: 0;
-    border-bottom: 1px solid #f1f3f5;
+.txn-content-cell {
     font-size: 0.75rem;
-    line-height: 1.5;
+    line-height: 1.6;
+    vertical-align: top;
+    padding-top: 10px !important;
 }
 
 /* 수동환불 배지 */

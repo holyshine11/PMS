@@ -114,6 +114,60 @@ public class PaymentTransaction {
     @Column(name = "pg_raw_response", columnDefinition = "TEXT")
     private String pgRawResponse;
 
+    // === 결제 채널 + VAN 확장 필드 ===
+
+    /** 결제 채널: PG, VAN, null(수동결제) */
+    @Column(name = "payment_channel", length = 20)
+    private String paymentChannel;
+
+    /** 워크스테이션 ID (VAN 결제 시) */
+    @Column(name = "workstation_id")
+    private Long workstationId;
+
+    /** VAN 제공자 ("KPSP") */
+    @Column(name = "van_provider", length = 20)
+    private String vanProvider;
+
+    /** VAN 승인번호 */
+    @Column(name = "van_auth_code", length = 50)
+    private String vanAuthCode;
+
+    /** VAN 승인 추적번호 */
+    @Column(name = "van_rrn", length = 50)
+    private String vanRrn;
+
+    /** 마스킹 카드번호 또는 전화번호 */
+    @Column(name = "van_pan", length = 50)
+    private String vanPan;
+
+    /** 발급사 코드 */
+    @Column(name = "van_issuer_code", length = 20)
+    private String vanIssuerCode;
+
+    /** 발급사명 */
+    @Column(name = "van_issuer_name", length = 50)
+    private String vanIssuerName;
+
+    /** 매입사 코드 */
+    @Column(name = "van_acquirer_code", length = 20)
+    private String vanAcquirerCode;
+
+    /** 매입사명 */
+    @Column(name = "van_acquirer_name", length = 50)
+    private String vanAcquirerName;
+
+    /** 단말기 ID */
+    @Column(name = "van_terminal_id", length = 50)
+    private String vanTerminalId;
+
+    /** KPSP 거래번호 (시퀀스) */
+    @Column(name = "van_sequence_no", length = 30)
+    private String vanSequenceNo;
+
+    /** VAN 원본 응답 JSON */
+    @Column(name = "van_raw_response", columnDefinition = "TEXT")
+    private String vanRawResponse;
+
     // === PG 환불 재시도용 업데이트 메서드 ===
 
     /**

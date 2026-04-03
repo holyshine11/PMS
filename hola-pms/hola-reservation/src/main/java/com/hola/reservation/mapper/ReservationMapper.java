@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -18,53 +19,6 @@ import java.util.stream.Collectors;
  */
 @Component
 public class ReservationMapper {
-
-    /**
-     * 마스터 예약 생성 요청 → 엔티티 변환
-     */
-    public MasterReservation toMasterReservationEntity(ReservationCreateRequest request, Property property) {
-        return MasterReservation.builder()
-                .property(property)
-                .masterCheckIn(request.getMasterCheckIn())
-                .masterCheckOut(request.getMasterCheckOut())
-                .guestNameKo(request.getGuestNameKo())
-                .guestFirstNameEn(request.getGuestFirstNameEn())
-                .guestMiddleNameEn(request.getGuestMiddleNameEn())
-                .guestLastNameEn(request.getGuestLastNameEn())
-                .phoneCountryCode(request.getPhoneCountryCode())
-                .phoneNumber(request.getPhoneNumber())
-                .email(request.getEmail())
-                .birthDate(request.getBirthDate())
-                .gender(request.getGender())
-                .nationality(request.getNationality())
-                .rateCodeId(request.getRateCodeId())
-                .marketCodeId(request.getMarketCodeId())
-                .reservationChannelId(request.getReservationChannelId())
-                .promotionType(request.getPromotionType())
-                .promotionCode(request.getPromotionCode())
-                .otaReservationNo(request.getOtaReservationNo())
-                .isOtaManaged(request.getIsOtaManaged() != null ? request.getIsOtaManaged() : false)
-                .customerRequest(request.getCustomerRequest())
-                .build();
-    }
-
-    /**
-     * 서브 예약 요청 → 엔티티 변환
-     */
-    public SubReservation toSubReservationEntity(SubReservationRequest request, MasterReservation masterReservation) {
-        return SubReservation.builder()
-                .masterReservation(masterReservation)
-                .roomTypeId(request.getRoomTypeId())
-                .floorId(request.getFloorId())
-                .roomNumberId(request.getRoomNumberId())
-                .adults(request.getAdults() != null ? request.getAdults() : 1)
-                .children(request.getChildren() != null ? request.getChildren() : 0)
-                .checkIn(request.getCheckIn())
-                .checkOut(request.getCheckOut())
-                .earlyCheckIn(request.getEarlyCheckIn() != null ? request.getEarlyCheckIn() : false)
-                .lateCheckOut(request.getLateCheckOut() != null ? request.getLateCheckOut() : false)
-                .build();
-    }
 
     /**
      * 투숙객 요청 → 엔티티 변환
@@ -292,9 +246,17 @@ public class ReservationMapper {
                     .collect(Collectors.toList())
                 : Collections.emptyList();
 
+        // VAN 취소 여부 판단을 위해 REFUND된 vanSequenceNo 집합 구성
+        Set<String> cancelledVanSeqs = transactions != null
+                ? transactions.stream()
+                    .filter(t -> "REFUND".equals(t.getTransactionType()) && t.getVanSequenceNo() != null)
+                    .map(PaymentTransaction::getVanSequenceNo)
+                    .collect(Collectors.toSet())
+                : Collections.emptySet();
+
         List<PaymentTransactionResponse> transactionResponses = transactions != null
                 ? transactions.stream()
-                    .map(this::toPaymentTransactionResponse)
+                    .map(t -> toPaymentTransactionResponse(t, cancelledVanSeqs))
                     .collect(Collectors.toList())
                 : Collections.emptyList();
 
@@ -328,8 +290,16 @@ public class ReservationMapper {
 
     /**
      * 결제 거래 이력 → 응답 변환
+     * @param cancelledVanSeqs 이미 REFUND된 VAN 시퀀스 번호 집합 (VAN 취소 버튼 표시 판단용)
      */
-    public PaymentTransactionResponse toPaymentTransactionResponse(PaymentTransaction transaction) {
+    public PaymentTransactionResponse toPaymentTransactionResponse(PaymentTransaction transaction,
+                                                                     Set<String> cancelledVanSeqs) {
+        // VAN PAYMENT이면서 아직 취소되지 않은 경우에만 cancelable=true
+        boolean cancelable = "VAN".equals(transaction.getPaymentChannel())
+                && "PAYMENT".equals(transaction.getTransactionType())
+                && transaction.getVanSequenceNo() != null
+                && !cancelledVanSeqs.contains(transaction.getVanSequenceNo());
+
         return PaymentTransactionResponse.builder()
                 .id(transaction.getId())
                 .subReservationId(transaction.getSubReservationId())
@@ -352,6 +322,15 @@ public class ReservationMapper {
                 .pgAcquirerName(transaction.getPgAcquirerName())
                 .pgInstallmentMonth(transaction.getPgInstallmentMonth())
                 .pgCardType(transaction.getPgCardType())
+                // VAN 확장 필드
+                .paymentChannel(transaction.getPaymentChannel())
+                .workstationId(transaction.getWorkstationId())
+                .vanAuthCode(transaction.getVanAuthCode())
+                .vanIssuerName(transaction.getVanIssuerName())
+                .vanPan(transaction.getVanPan())
+                .vanAcquirerName(transaction.getVanAcquirerName())
+                .vanSequenceNo(transaction.getVanSequenceNo())
+                .cancelable(cancelable)
                 .build();
     }
 

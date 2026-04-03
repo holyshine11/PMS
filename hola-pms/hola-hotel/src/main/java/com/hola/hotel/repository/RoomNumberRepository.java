@@ -19,6 +19,14 @@ public interface RoomNumberRepository extends JpaRepository<RoomNumber, Long> {
 
     long countByPropertyId(Long propertyId);
 
+    /**
+     * 전체 프로퍼티 객실 수 벌크 조회 (GROUP BY propertyId)
+     * 반환: Object[] = {propertyId (Long), count (Long)}
+     */
+    @Query("SELECT r.property.id, COUNT(r) FROM RoomNumber r " +
+           "GROUP BY r.property.id")
+    List<Object[]> countByPropertyIdBulk();
+
     // === 프론트데스크/Room Rack 쿼리 ===
 
     /**

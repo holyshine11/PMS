@@ -1,16 +1,17 @@
 package com.hola.reservation.service;
 
-import com.hola.reservation.dto.request.*;
-import com.hola.reservation.dto.response.*;
+import com.hola.reservation.dto.request.ReservationCreateRequest;
+import com.hola.reservation.dto.request.ReservationUpdateRequest;
+import com.hola.reservation.dto.response.ReservationDetailResponse;
+import com.hola.reservation.dto.response.ReservationListResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
 /**
- * 예약 관리 서비스 인터페이스
+ * 예약 CRUD 서비스 인터페이스
  */
 public interface ReservationService {
 
@@ -31,55 +32,9 @@ public interface ReservationService {
     /** 예약 수정 */
     ReservationDetailResponse update(Long id, Long propertyId, ReservationUpdateRequest request);
 
-    /** 예약 취소/노쇼 수수료 미리보기 (subReservationId 지정 시 해당 Leg 기준 1박 요금) */
-    AdminCancelPreviewResponse getCancelPreview(Long id, Long propertyId, boolean noShow, Long subReservationId);
-
-    /** 예약 취소 (soft delete) */
-    void cancel(Long id, Long propertyId);
-
     /** 예약 삭제 - SUPER_ADMIN 전용, CHECKED_OUT 상태만 */
     void deleteReservation(Long id, Long propertyId);
 
-    /** 예약 상태 변경 */
-    void changeStatus(Long id, Long propertyId, ReservationStatusRequest request);
-
-    /** 서브 예약(객실 레그) 추가 */
-    SubReservationResponse addLeg(Long reservationId, Long propertyId, SubReservationRequest request);
-
-    /** 서브 예약 수정 */
-    SubReservationResponse updateLeg(Long reservationId, Long propertyId, Long legId, SubReservationRequest request);
-
-    /** 서브 예약 삭제 */
-    void deleteLeg(Long reservationId, Long propertyId, Long legId);
-
     /** 객실 가용성 조회 */
     int checkAvailability(Long propertyId, Long roomTypeId, LocalDate checkIn, LocalDate checkOut);
-
-    /** 예약 메모 조회 */
-    List<ReservationMemoResponse> getMemos(Long reservationId, Long propertyId);
-
-    /** 예약 메모 등록 */
-    ReservationMemoResponse addMemo(Long reservationId, Long propertyId, String content);
-
-    /** 예치금 등록 */
-    ReservationDepositResponse addDeposit(Long reservationId, Long propertyId, ReservationDepositRequest request);
-
-    /** 예치금 수정 */
-    ReservationDepositResponse updateDeposit(Long reservationId, Long propertyId, Long depositId, ReservationDepositRequest request);
-
-    /** 유료 서비스 추가 */
-    ReservationServiceResponse addService(Long masterReservationId, Long subReservationId, Long propertyId, ReservationServiceRequest request);
-
-    /** 유료 서비스 삭제 */
-    void removeService(Long masterReservationId, Long subReservationId, Long serviceId, Long propertyId);
-
-    /** 캘린더뷰: 기간 내 예약을 날짜별로 그룹핑하여 반환 (이름 마스킹) */
-    Map<String, List<ReservationCalendarResponse>> getCalendarData(
-            Long propertyId, LocalDate startDate, LocalDate endDate,
-            String status, String keyword);
-
-    /** 타임라인뷰: 기간 내 예약을 객실별로 그룹핑하여 반환 (Y축=객실, X축=날짜) */
-    ReservationTimelineResponse getTimelineData(
-            Long propertyId, LocalDate startDate, LocalDate endDate,
-            String status, String keyword);
 }

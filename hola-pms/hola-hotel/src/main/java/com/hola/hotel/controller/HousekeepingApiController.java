@@ -5,7 +5,9 @@ import com.hola.common.security.AccessControlService;
 import com.hola.hotel.dto.request.*;
 import com.hola.hotel.dto.response.*;
 import com.hola.hotel.service.HkAssignmentService;
-import com.hola.hotel.service.HousekeepingService;
+import com.hola.hotel.service.HkConfigService;
+import com.hola.hotel.service.HkDashboardService;
+import com.hola.hotel.service.HkTaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,7 +30,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class HousekeepingApiController {
 
-    private final HousekeepingService housekeepingService;
+    private final HkDashboardService hkDashboardService;
+    private final HkTaskService hkTaskService;
+    private final HkConfigService hkConfigService;
     private final HkAssignmentService hkAssignmentService;
     private final AccessControlService accessControlService;
 
@@ -40,7 +44,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         accessControlService.validatePropertyAccess(propertyId);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.getDashboard(propertyId, date)));
+        return ResponseEntity.ok(HolaResponse.success(hkDashboardService.getDashboard(propertyId, date)));
     }
 
     // === 작업 관리 ===
@@ -55,7 +59,7 @@ public class HousekeepingApiController {
             @RequestParam(required = false) String taskType) {
         accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(
-                housekeepingService.getTasks(propertyId, date, status, assignedTo, taskType)));
+                hkTaskService.getTasks(propertyId, date, status, assignedTo, taskType)));
     }
 
     @Operation(summary = "작업 상세 조회", description = "작업 ID로 단건 조회")
@@ -64,7 +68,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
         accessControlService.validatePropertyAccess(propertyId);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTask(taskId)));
+        return ResponseEntity.ok(HolaResponse.success(hkTaskService.getTask(taskId)));
     }
 
     @Operation(summary = "작업 생성", description = "청소 작업 수동 생성 (객실, 유형, 우선순위, 담당자)")
@@ -74,7 +78,7 @@ public class HousekeepingApiController {
             @Valid @RequestBody HkTaskCreateRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(HolaResponse.success(housekeepingService.createTask(propertyId, request)));
+                .body(HolaResponse.success(hkTaskService.createTask(propertyId, request)));
     }
 
     @Operation(summary = "작업 수정", description = "작업 유형, 우선순위, 크레딧, 담당자, 메모 수정")
@@ -84,7 +88,7 @@ public class HousekeepingApiController {
             @PathVariable Long taskId,
             @Valid @RequestBody HkTaskUpdateRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.updateTask(taskId, request)));
+        return ResponseEntity.ok(HolaResponse.success(hkTaskService.updateTask(taskId, request)));
     }
 
     @Operation(summary = "작업 배정", description = "특정 작업에 담당자 배정")
@@ -94,7 +98,7 @@ public class HousekeepingApiController {
             @PathVariable Long taskId,
             @RequestBody Map<String, Long> body) {
         accessControlService.validatePropertyAccess(propertyId);
-        housekeepingService.assignTask(taskId, body.get("assignedTo"));
+        hkTaskService.assignTask(taskId, body.get("assignedTo"));
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -104,7 +108,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
         accessControlService.validatePropertyAccess(propertyId);
-        housekeepingService.unassignTask(taskId);
+        hkTaskService.unassignTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -114,7 +118,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @Valid @RequestBody HkBatchAssignRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        housekeepingService.batchAssignTasks(propertyId, request);
+        hkTaskService.batchAssignTasks(propertyId, request);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -124,7 +128,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
         accessControlService.validatePropertyAccess(propertyId);
-        housekeepingService.inspectTask(taskId);
+        hkTaskService.inspectTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -134,7 +138,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
         accessControlService.validatePropertyAccess(propertyId);
-        housekeepingService.cancelTask(taskId);
+        hkTaskService.cancelTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -146,7 +150,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
         accessControlService.validatePropertyAccess(propertyId);
-        housekeepingService.startTask(taskId);
+        hkTaskService.startTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -156,7 +160,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
         accessControlService.validatePropertyAccess(propertyId);
-        housekeepingService.pauseTask(taskId);
+        hkTaskService.pauseTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -166,7 +170,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
         accessControlService.validatePropertyAccess(propertyId);
-        housekeepingService.completeTask(taskId);
+        hkTaskService.completeTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -178,7 +182,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         accessControlService.validatePropertyAccess(propertyId);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTaskSheets(propertyId, date)));
+        return ResponseEntity.ok(HolaResponse.success(hkTaskService.getTaskSheets(propertyId, date)));
     }
 
     @Operation(summary = "작업 시트 생성", description = "하우스키퍼에게 일일 작업 시트 생성")
@@ -192,7 +196,7 @@ public class HousekeepingApiController {
         String sheetName = body.get("sheetName") != null ? body.get("sheetName").toString() : null;
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(HolaResponse.success(housekeepingService.generateTaskSheet(propertyId, date, assignedTo, sheetName)));
+                .body(HolaResponse.success(hkTaskService.generateTaskSheet(propertyId, date, assignedTo, sheetName)));
     }
 
     @Operation(summary = "작업 시트 삭제", description = "작업 시트 삭제 (soft delete)")
@@ -201,7 +205,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long sheetId) {
         accessControlService.validatePropertyAccess(propertyId);
-        housekeepingService.deleteTaskSheet(sheetId);
+        hkTaskService.deleteTaskSheet(sheetId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -213,7 +217,7 @@ public class HousekeepingApiController {
         accessControlService.validatePropertyAccess(propertyId);
         LocalDate date = (body != null && body.get("date") != null)
                 ? LocalDate.parse(body.get("date")) : LocalDate.now();
-        housekeepingService.redistributeTaskSheets(propertyId, date);
+        hkTaskService.redistributeTaskSheets(propertyId, date);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -226,10 +230,10 @@ public class HousekeepingApiController {
             @PathVariable Long taskId,
             @Valid @RequestBody HkTaskIssueCreateRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        HkTaskResponse task = housekeepingService.getTask(taskId);
+        HkTaskResponse task = hkTaskService.getTask(taskId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(HolaResponse.success(
-                        housekeepingService.createIssue(taskId, propertyId, task.getRoomNumberId(), request)));
+                        hkTaskService.createIssue(taskId, propertyId, task.getRoomNumberId(), request)));
     }
 
     @Operation(summary = "이슈 목록 조회", description = "작업에 등록된 이슈/메모 목록")
@@ -238,7 +242,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @PathVariable Long taskId) {
         accessControlService.validatePropertyAccess(propertyId);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTaskIssues(taskId)));
+        return ResponseEntity.ok(HolaResponse.success(hkTaskService.getTaskIssues(taskId)));
     }
 
     // === 설정 ===
@@ -247,7 +251,7 @@ public class HousekeepingApiController {
     @GetMapping("/config")
     public ResponseEntity<HolaResponse<HkConfigResponse>> getConfig(@PathVariable Long propertyId) {
         accessControlService.validatePropertyAccess(propertyId);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.getConfig(propertyId)));
+        return ResponseEntity.ok(HolaResponse.success(hkConfigService.getConfig(propertyId)));
     }
 
     @Operation(summary = "설정 저장", description = "검수 필수, 자동 생성, 크레딧 기본값, Rush 기준 등 설정")
@@ -256,7 +260,7 @@ public class HousekeepingApiController {
             @PathVariable Long propertyId,
             @Valid @RequestBody HkConfigUpdateRequest request) {
         accessControlService.validatePropertyAccess(propertyId);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.updateConfig(propertyId, request)));
+        return ResponseEntity.ok(HolaResponse.success(hkConfigService.updateConfig(propertyId, request)));
     }
 
     // === 하우스키퍼 목록 ===
@@ -266,7 +270,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<List<HkDashboardResponse.HousekeeperSummary>>> getHousekeepers(
             @PathVariable Long propertyId) {
         accessControlService.validatePropertyAccess(propertyId);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.getHousekeepers(propertyId)));
+        return ResponseEntity.ok(HolaResponse.success(hkDashboardService.getHousekeepers(propertyId)));
     }
 
     // === 이력 조회 ===
@@ -280,7 +284,7 @@ public class HousekeepingApiController {
             @RequestParam(required = false) Long assignedTo) {
         accessControlService.validatePropertyAccess(propertyId);
         return ResponseEntity.ok(HolaResponse.success(
-                housekeepingService.getHistory(propertyId, from, to, assignedTo)));
+                hkTaskService.getHistory(propertyId, from, to, assignedTo)));
     }
 
     // === 근태관리 캘린더 ===
@@ -436,7 +440,7 @@ public class HousekeepingApiController {
         accessControlService.validatePropertyAccess(propertyId);
         LocalDate date = (body != null && body.get("date") != null)
                 ? LocalDate.parse(body.get("date")) : LocalDate.now();
-        int count = housekeepingService.generateDailyTasks(propertyId, date);
+        int count = hkConfigService.generateDailyTasks(propertyId, date);
         return ResponseEntity.ok(HolaResponse.success(Map.of("createdCount", count)));
     }
 
@@ -447,7 +451,7 @@ public class HousekeepingApiController {
     public ResponseEntity<HolaResponse<Map<String, Object>>> transitionToDirty(
             @PathVariable Long propertyId) {
         accessControlService.validatePropertyAccess(propertyId);
-        int count = housekeepingService.transitionOccupiedRoomsToDirty(propertyId);
+        int count = hkConfigService.transitionOccupiedRoomsToDirty(propertyId);
         return ResponseEntity.ok(HolaResponse.success(Map.of("convertedCount", count)));
     }
 
@@ -459,7 +463,7 @@ public class HousekeepingApiController {
         accessControlService.validatePropertyAccess(propertyId);
         LocalDate date = (body != null && body.get("date") != null)
                 ? LocalDate.parse(body.get("date")) : LocalDate.now();
-        int count = housekeepingService.generateStayoverTasks(propertyId, date);
+        int count = hkConfigService.generateStayoverTasks(propertyId, date);
         return ResponseEntity.ok(HolaResponse.success(Map.of("createdCount", count)));
     }
 
@@ -471,7 +475,7 @@ public class HousekeepingApiController {
         accessControlService.validatePropertyAccess(propertyId);
         LocalDate date = (body != null && body.get("date") != null)
                 ? LocalDate.parse(body.get("date")) : LocalDate.now();
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.processDndRooms(propertyId, date)));
+        return ResponseEntity.ok(HolaResponse.success(hkConfigService.processDndRooms(propertyId, date)));
     }
 
     // === 자동 배정 ===

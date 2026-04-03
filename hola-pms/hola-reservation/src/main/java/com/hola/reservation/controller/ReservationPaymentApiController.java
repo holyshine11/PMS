@@ -4,8 +4,10 @@ import com.hola.common.dto.HolaResponse;
 import com.hola.common.security.AccessControlService;
 import com.hola.reservation.dto.request.PaymentAdjustmentRequest;
 import com.hola.reservation.dto.request.PaymentProcessRequest;
+import com.hola.reservation.dto.request.VanResultPayload;
 import com.hola.reservation.dto.response.PaymentAdjustmentResponse;
 import com.hola.reservation.dto.response.PaymentSummaryResponse;
+import com.hola.reservation.dto.response.VanCancelInfoResponse;
 import com.hola.reservation.service.ReservationPaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -65,5 +67,47 @@ public class ReservationPaymentApiController {
                                                                 @PathVariable Long transactionId) {
         accessControlService.validatePropertyAccess(propertyId);
         return HolaResponse.success(paymentService.retryPgRefund(propertyId, reservationId, transactionId));
+    }
+
+    /** VAN 취소에 필요한 원거래 정보 조회 */
+    @Operation(summary = "VAN 취소 정보 조회", description = "VAN 취소에 필요한 원거래 authCode, rrn, amount 조회")
+    @GetMapping("/transactions/{transactionId}/van-cancel-info")
+    public HolaResponse<VanCancelInfoResponse> getVanCancelInfo(@PathVariable Long propertyId,
+                                                                  @PathVariable Long reservationId,
+                                                                  @PathVariable Long transactionId) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(paymentService.getVanCancelInfo(propertyId, reservationId, transactionId));
+    }
+
+    /** VAN 취소 결과 저장 */
+    @Operation(summary = "VAN 취소 결과 저장", description = "브라우저가 KPSP 취소 후 결과를 백엔드에 전달")
+    @PostMapping("/transactions/{transactionId}/van-cancel")
+    public HolaResponse<PaymentSummaryResponse> processVanCancel(@PathVariable Long propertyId,
+                                                                   @PathVariable Long reservationId,
+                                                                   @PathVariable Long transactionId,
+                                                                   @RequestBody VanResultPayload cancelResult) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(paymentService.processVanCancel(propertyId, reservationId, transactionId, cancelResult));
+    }
+
+    /** VAN 취소 수동 확인 (KPSP 취소 실패 시 관리자가 단말기 확인 후 수동 처리) */
+    @Operation(summary = "VAN 취소 수동 확인", description = "KPSP 취소 실패 시 관리자가 단말기 영수증 확인 후 수동으로 REFUND 기록")
+    @PostMapping("/transactions/{transactionId}/van-cancel-manual")
+    public HolaResponse<PaymentSummaryResponse> processVanCancelManual(@PathVariable Long propertyId,
+                                                                        @PathVariable Long reservationId,
+                                                                        @PathVariable Long transactionId,
+                                                                        @RequestBody VanResultPayload manualPayload) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(paymentService.processVanCancelManual(propertyId, reservationId, transactionId, manualPayload));
+    }
+
+    /** VAN 시퀀스 번호 발급 */
+    @Operation(summary = "VAN 시퀀스 번호 발급", description = "KPSP 호출 전 고유 시퀀스 번호 생성")
+    @GetMapping("/next-van-sequence")
+    public HolaResponse<String> getNextVanSequence(@PathVariable Long propertyId,
+                                                     @PathVariable Long reservationId,
+                                                     @RequestParam Long workstationId) {
+        accessControlService.validatePropertyAccess(propertyId);
+        return HolaResponse.success(paymentService.generateVanSequenceNo(workstationId));
     }
 }

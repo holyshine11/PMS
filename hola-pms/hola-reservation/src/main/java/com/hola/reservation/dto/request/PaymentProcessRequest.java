@@ -32,6 +32,15 @@ public class PaymentProcessRequest {
     @Setter
     private Long subReservationId;
 
+    /** 결제 채널: "VAN" 또는 null(수동결제) */
+    private String paymentChannel;
+
+    /** 워크스테이션 ID (VAN 결제 시) */
+    private Long workstationId;
+
+    /** VAN 결제 결과 (브라우저가 KPSP에서 받은 응답) */
+    private VanResultPayload vanResult;
+
     /** 기존 3-arg 생성자 호환용 */
     public PaymentProcessRequest(String paymentMethod, BigDecimal amount, String memo) {
         this.paymentMethod = paymentMethod;

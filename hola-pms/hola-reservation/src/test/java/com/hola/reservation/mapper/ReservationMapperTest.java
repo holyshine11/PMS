@@ -147,8 +147,9 @@ class ReservationMapperTest {
                 .transactionStatus("COMPLETED")
                 .build();
 
-        PaymentTransactionResponse response = mapper.toPaymentTransactionResponse(tx);
+        PaymentTransactionResponse response = mapper.toPaymentTransactionResponse(tx, java.util.Collections.emptySet());
         assertThat(response.getTransactionType()).isEqualTo("PAYMENT");
         assertThat(response.getAmount()).isEqualByComparingTo("100000");
+        assertThat(response.getCancelable()).isFalse(); // VAN이 아니므로 cancelable=false
     }
 }

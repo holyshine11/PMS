@@ -20,4 +20,7 @@ public class UpgradePreviewResponse {
     private BigDecimal priceDifference;         // 차액
     private Integer remainingNights;            // 잔여 숙박일
     private List<DailyChargeDiff> dailyDiffs;   // 일자별 차액 상세
+    private String currentRateCodeName;         // 현재 레이트코드명
+    private String targetRateCodeName;          // 대상 레이트코드명
+    private boolean rateCodeChanged;            // 레이트코드 변경 여부
 }

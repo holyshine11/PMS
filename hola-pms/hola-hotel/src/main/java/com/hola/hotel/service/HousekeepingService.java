@@ -9,7 +9,11 @@ import java.util.Map;
 
 /**
  * 하우스키핑 서비스 인터페이스
+ *
+ * @deprecated 이 통합 인터페이스는 하위 호환을 위해 유지됩니다.
+ * 신규 코드는 {@link HkDashboardService}, {@link HkTaskService}, {@link HkConfigService}를 직접 사용하세요.
  */
+@Deprecated
 public interface HousekeepingService {
 
     // === 대시보드 ===

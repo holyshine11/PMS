@@ -1,9 +1,0 @@
-[     102ms] TypeError: HolaPms.formatNumber is not a function
-    at http://localhost:8080/js/rate-code-form.js:1388:53
-    at Array.forEach (<anonymous>)
-    at Object.renderDayUseRates (http://localhost:8080/js/rate-code-form.js:1385:15)
-    at Object.success (http://localhost:8080/js/rate-code-form.js:1371:26)
-    at c (https://code.jquery.com/jquery-3.7.1.min.js:2:25304)
-    at Object.fireWith [as resolveWith] (https://code.jquery.com/jquery-3.7.1.min.js:2:26053)
-    at l (https://code.jquery.com/jquery-3.7.1.min.js:2:77782)
-    at XMLHttpRequest.<anonymous> (https://code.jquery.com/jquery-3.7.1.min.js:2:80265)

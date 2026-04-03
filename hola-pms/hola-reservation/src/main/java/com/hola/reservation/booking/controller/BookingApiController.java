@@ -7,7 +7,9 @@ import com.hola.reservation.booking.dto.request.BookingSearchRequest;
 import com.hola.reservation.booking.dto.request.CancelBookingRequest;
 import com.hola.reservation.booking.dto.request.PriceCheckRequest;
 import com.hola.reservation.booking.dto.response.*;
-import com.hola.reservation.booking.service.BookingService;
+import com.hola.reservation.booking.service.BookingSearchService;
+import com.hola.reservation.booking.service.BookingCreationService;
+import com.hola.reservation.booking.service.BookingManagementService;
 import com.hola.reservation.booking.service.CardBinValidationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,7 +35,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BookingApiController {
 
-    private final BookingService bookingService;
+    private final BookingSearchService bookingSearchService;
+    private final BookingCreationService bookingCreationService;
+    private final BookingManagementService bookingManagementService;
     private final CardBinValidationService cardBinValidationService;
 
     /**
@@ -43,7 +47,7 @@ public class BookingApiController {
     @GetMapping("/properties/{propertyCode}")
     public BookingResponse<PropertyInfoResponse> getPropertyInfo(
             @PathVariable String propertyCode) {
-        return BookingResponse.success(bookingService.getPropertyInfo(propertyCode));
+        return BookingResponse.success(bookingSearchService.getPropertyInfo(propertyCode));
     }
 
     /**
@@ -56,7 +60,7 @@ public class BookingApiController {
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
             @RequestParam(defaultValue = "all") String type) {
-        return BookingResponse.success(bookingService.getCalendar(propertyCode, startDate, endDate, type));
+        return BookingResponse.success(bookingSearchService.getCalendar(propertyCode, startDate, endDate, type));
     }
 
     /**
@@ -67,7 +71,7 @@ public class BookingApiController {
     public BookingResponse<RoomDetailResponse> getRoomDetail(
             @PathVariable String propertyCode,
             @PathVariable Long roomTypeId) {
-        return BookingResponse.success(bookingService.getRoomDetail(propertyCode, roomTypeId));
+        return BookingResponse.success(bookingSearchService.getRoomDetail(propertyCode, roomTypeId));
     }
 
     /**
@@ -82,7 +86,7 @@ public class BookingApiController {
             @RequestParam(required = false, defaultValue = "2") Integer adults,
             @RequestParam(required = false, defaultValue = "0") Integer children,
             @RequestParam(required = false) String promotionCode) {
-        return BookingResponse.success(bookingService.getRatePlans(
+        return BookingResponse.success(bookingSearchService.getRatePlans(
                 propertyCode, checkIn, checkOut, adults, children, promotionCode));
     }
 
@@ -94,7 +98,7 @@ public class BookingApiController {
     public BookingResponse<RatePlanDetailResponse> getRatePlanDetail(
             @PathVariable String propertyCode,
             @PathVariable Long ratePlanId) {
-        return BookingResponse.success(bookingService.getRatePlanDetail(propertyCode, ratePlanId));
+        return BookingResponse.success(bookingSearchService.getRatePlanDetail(propertyCode, ratePlanId));
     }
 
     /**
@@ -104,7 +108,7 @@ public class BookingApiController {
     @GetMapping("/properties/{propertyCode}/terms")
     public BookingResponse<List<PropertyTermsResponse>> getTerms(
             @PathVariable String propertyCode) {
-        return BookingResponse.success(bookingService.getTerms(propertyCode));
+        return BookingResponse.success(bookingSearchService.getTerms(propertyCode));
     }
 
     /**
@@ -114,7 +118,7 @@ public class BookingApiController {
     @GetMapping("/properties/{propertyCode}/images")
     public BookingResponse<List<PropertyImageResponse>> getPropertyImages(
             @PathVariable String propertyCode) {
-        return BookingResponse.success(bookingService.getPropertyImages(propertyCode));
+        return BookingResponse.success(bookingSearchService.getPropertyImages(propertyCode));
     }
 
     /**
@@ -125,7 +129,7 @@ public class BookingApiController {
     public BookingResponse<List<PropertyImageResponse>> getRoomTypeImages(
             @PathVariable String propertyCode,
             @PathVariable Long roomTypeId) {
-        return BookingResponse.success(bookingService.getRoomTypeImages(propertyCode, roomTypeId));
+        return BookingResponse.success(bookingSearchService.getRoomTypeImages(propertyCode, roomTypeId));
     }
 
     /**
@@ -135,7 +139,7 @@ public class BookingApiController {
     @GetMapping("/properties/{propertyCode}/add-on-services")
     public BookingResponse<List<AddOnServiceResponse>> getAddOnServices(
             @PathVariable String propertyCode) {
-        return BookingResponse.success(bookingService.getAddOnServices(propertyCode));
+        return BookingResponse.success(bookingSearchService.getAddOnServices(propertyCode));
     }
 
     /**
@@ -148,7 +152,7 @@ public class BookingApiController {
             @RequestParam String code,
             @RequestParam(required = false) LocalDate checkIn,
             @RequestParam(required = false) LocalDate checkOut) {
-        return BookingResponse.success(bookingService.validatePromotionCode(propertyCode, code, checkIn, checkOut));
+        return BookingResponse.success(bookingSearchService.validatePromotionCode(propertyCode, code, checkIn, checkOut));
     }
 
     /**
@@ -159,7 +163,7 @@ public class BookingApiController {
     public BookingResponse<List<AvailableRoomTypeResponse>> searchAvailability(
             @PathVariable String propertyCode,
             @Valid @ModelAttribute BookingSearchRequest request) {
-        return BookingResponse.success(bookingService.searchAvailability(propertyCode, request));
+        return BookingResponse.success(bookingSearchService.searchAvailability(propertyCode, request));
     }
 
     /**
@@ -170,7 +174,7 @@ public class BookingApiController {
     public BookingResponse<PriceCheckResponse> calculatePrice(
             @PathVariable String propertyCode,
             @Valid @RequestBody PriceCheckRequest request) {
-        return BookingResponse.success(bookingService.calculatePrice(propertyCode, request));
+        return BookingResponse.success(bookingSearchService.calculatePrice(propertyCode, request));
     }
 
     /**
@@ -185,7 +189,7 @@ public class BookingApiController {
             HttpServletRequest httpRequest) {
         String clientIp = httpRequest.getRemoteAddr();
         String userAgent = httpRequest.getHeader("User-Agent");
-        return BookingResponse.success(bookingService.createBooking(propertyCode, request, clientIp, userAgent));
+        return BookingResponse.success(bookingCreationService.createBooking(propertyCode, request, clientIp, userAgent));
     }
 
     /**
@@ -196,7 +200,7 @@ public class BookingApiController {
     public BookingResponse<List<BookingLookupResponse>> lookupReservations(
             @RequestParam String email,
             @RequestParam String lastName) {
-        return BookingResponse.success(bookingService.lookupReservations(email, lastName));
+        return BookingResponse.success(bookingManagementService.lookupReservations(email, lastName));
     }
 
     /**
@@ -209,7 +213,7 @@ public class BookingApiController {
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String phone) {
         String verificationValue = email != null ? email : phone;
-        return BookingResponse.success(bookingService.getConfirmation(confirmationNo, verificationValue));
+        return BookingResponse.success(bookingSearchService.getConfirmation(confirmationNo, verificationValue));
     }
 
     /**
@@ -220,7 +224,7 @@ public class BookingApiController {
     public BookingResponse<BookingModifyResponse> modifyBooking(
             @PathVariable String confirmationNo,
             @Valid @RequestBody BookingModifyRequest request) {
-        return BookingResponse.success(bookingService.modifyBooking(confirmationNo, request));
+        return BookingResponse.success(bookingManagementService.modifyBooking(confirmationNo, request));
     }
 
     /**
@@ -233,7 +237,7 @@ public class BookingApiController {
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String phone) {
         String verificationValue = email != null ? email : phone;
-        return BookingResponse.success(bookingService.getCancelFeePreview(confirmationNo, verificationValue));
+        return BookingResponse.success(bookingManagementService.getCancelFeePreview(confirmationNo, verificationValue));
     }
 
     /**
@@ -249,7 +253,7 @@ public class BookingApiController {
         String userAgent = httpRequest.getHeader("User-Agent");
         String verificationValue = request.getEmail() != null ? request.getEmail() : request.getPhone();
         return ResponseEntity.ok(BookingResponse.success(
-                bookingService.cancelBooking(confirmationNo, verificationValue, clientIp, userAgent)));
+                bookingManagementService.cancelBooking(confirmationNo, verificationValue, clientIp, userAgent)));
     }
 
     /**
@@ -264,7 +268,7 @@ public class BookingApiController {
             @RequestParam LocalDate checkOut,
             @RequestParam(required = false, defaultValue = "2") Integer adults,
             @RequestParam(required = false, defaultValue = "0") Integer children) {
-        return BookingResponse.success(bookingService.getRatePlansByRoomType(
+        return BookingResponse.success(bookingSearchService.getRatePlansByRoomType(
                 propertyCode, roomTypeId, checkIn, checkOut, adults, children));
     }
 

@@ -37,6 +37,7 @@ public class ReservationApiController {
     private final ReservationViewService viewService;
     private final ReservationLegService legService;
     private final ReservationAncillaryService ancillaryService;
+    private final ReservationChangeLogService changeLogService;
 
     // ─── 뷰 ──────────────────────────
 
@@ -142,6 +143,18 @@ public class ReservationApiController {
                                                  @PathVariable Long id) {
         reservationService.deleteReservation(id, propertyId);
         return HolaResponse.success();
+    }
+
+    // ─── 변경 이력 ──────────────────────────
+
+    /** 예약 변경 이력 조회 */
+    @Operation(summary = "변경 이력 조회", description = "예약의 전체 변경 이력 타임라인")
+    @GetMapping("/{id}/history")
+    @PropertyAccess
+    public HolaResponse<List<ReservationChangeLogResponse>> getHistory(
+            @PathVariable Long propertyId,
+            @PathVariable Long id) {
+        return HolaResponse.success(changeLogService.getHistory(id));
     }
 
     // ─── 상태 변경 ──────────────────────────

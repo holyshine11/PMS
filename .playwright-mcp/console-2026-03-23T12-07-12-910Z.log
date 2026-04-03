@@ -1,9 +1,0 @@
-[  204219ms] [WARNING] Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.
-Element with focus: <div.modal fade#reservationChannelModal>
-Ancestor with aria-hidden: <div.modal fade#reservationChannelModal> @ http://localhost:8080/admin/reservation-channels:0
-[  272999ms] [WARNING] Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.
-Element with focus: <div.modal fade#editAttModal>
-Ancestor with aria-hidden: <div.modal fade#editAttModal> @ http://localhost:8080/admin/housekeeping/attendance:0
-[  297478ms] [WARNING] Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.
-Element with focus: <div.modal fade#sectionModal>
-Ancestor with aria-hidden: <div.modal fade#sectionModal> @ http://localhost:8080/admin/housekeeping/settings:0

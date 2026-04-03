@@ -343,18 +343,18 @@ var ReservationPayment = {
                     html += '결제: ' + self.formatCurrency(legPaid - legRefunded) + ' / 잔액: ' + self.formatCurrency(legRemaining);
                     html += '</div>';
                 }
+                var legBtnData = 'data-sub-id="' + sub.id + '" data-leg-index="' + legNum + '" '
+                    + 'data-leg-label="' + HolaPms.escapeHtml(legLabel) + '" data-leg-total="' + legTotal + '" '
+                    + 'data-leg-paid="' + (legPaid - legRefunded) + '" data-leg-remaining="' + legRemaining + '"';
                 html += '<button class="btn btn-primary btn-sm me-1 leg-card-pay-btn" '
-                    + 'data-sub-id="' + sub.id + '" data-leg-index="' + legNum + '" '
-                    + 'data-leg-label="' + HolaPms.escapeHtml(legLabel) + '" data-leg-total="' + legTotal + '" '
-                    + 'data-leg-paid="' + (legPaid - legRefunded) + '" data-leg-remaining="' + legRemaining + '" '
-                    + 'data-pay-method="card">'
+                    + legBtnData + ' data-pay-method="card">'
                     + '<i class="fas fa-credit-card me-1"></i>카드결제</button>';
-                html += '<button class="btn btn-success btn-sm leg-card-pay-btn" '
-                    + 'data-sub-id="' + sub.id + '" data-leg-index="' + legNum + '" '
-                    + 'data-leg-label="' + HolaPms.escapeHtml(legLabel) + '" data-leg-total="' + legTotal + '" '
-                    + 'data-leg-paid="' + (legPaid - legRefunded) + '" data-leg-remaining="' + legRemaining + '" '
-                    + 'data-pay-method="cash">'
+                html += '<button class="btn btn-success btn-sm me-1 leg-card-pay-btn" '
+                    + legBtnData + ' data-pay-method="cash">'
                     + '<i class="fas fa-money-bill-wave me-1"></i>현금결제</button>';
+                html += '<button class="btn btn-outline-secondary btn-sm leg-card-pay-btn" '
+                    + legBtnData + ' data-pay-method="manual-cash">'
+                    + '<i class="fas fa-coins me-1"></i>수동 현금</button>';
                 html += '</div>';
             }
 
@@ -688,78 +688,115 @@ var ReservationPayment = {
             });
         }
 
-        // 핵심 5컬럼 + 멀티레그 시 객실 컬럼
-        var colCount = isMultiLeg ? 6 : 5;
         var html = '<table class="table table-sm mb-0 align-middle txn-history-table">'
             + '<thead><tr>'
             + '<th class="text-center" style="width:40px">NO</th>'
-            + '<th class="text-center" style="width:70px">유형</th>';
-        if (isMultiLeg) html += '<th class="text-center">객실</th>';
-        html += '<th class="text-center" style="width:70px">수단</th>'
+            + '<th class="text-center" style="width:100px">유형</th>';
+        if (isMultiLeg) html += '<th class="text-center" style="width:120px">객실</th>';
+        html += '<th class="text-center" style="width:90px">수단</th>'
+            + '<th>내용</th>'
             + '<th class="text-end" style="width:110px">금액</th>'
             + '<th class="text-center" style="width:140px">일시</th>'
             + '</tr></thead><tbody>';
 
         transactions.forEach(function(txn, idx) {
             var methodLabel = methodLabels[txn.paymentMethod] || HolaPms.escapeHtml(txn.paymentMethod);
+            // PG/VAN 채널 구분 표시
+            if (txn.paymentMethod === 'CARD') {
+                if (txn.paymentChannel === 'VAN') {
+                    methodLabel = '카드(VAN)';
+                } else if (txn.pgCno || txn.pgApprovalNo || txn.pgIssuerName || txn.paymentChannel === 'PG') {
+                    methodLabel = '카드(PG)';
+                }
+            } else if (txn.paymentMethod === 'CASH') {
+                if (txn.paymentChannel === 'VAN') {
+                    methodLabel = '현금(VAN)';
+                }
+            }
             var createdAt = txn.createdAt ? txn.createdAt.replace('T', ' ').substring(0, 16) : '-';
             var typeLabel = typeLabels[txn.transactionType] || HolaPms.escapeHtml(txn.transactionType || '결제');
             var typeStyle = typeStyles[txn.transactionType] || '';
 
-            // 상태 배지
+            // 상태 배지 (유형 오른쪽 인라인)
             var statusHtml = '';
             if (txn.transactionStatus === 'PG_REFUND_FAILED') {
-                statusHtml = ' <span class="badge bg-danger">실패</span>';
+                statusHtml = ' <span class="badge bg-danger ms-1" style="font-size:0.65rem">실패</span>';
             } else if (txn.transactionStatus === 'MANUAL_CONFIRMED') {
-                statusHtml = ' <span class="badge badge-manual-refund">수동확인</span>';
+                statusHtml = ' <span class="badge badge-manual-refund ms-1" style="font-size:0.65rem">수동확인</span>';
             }
 
-            // PG 상세 서브행 판단 (메인행 클래스 결정에 필요)
             var hasPg = txn.pgCno || txn.pgApprovalNo || txn.pgIssuerName;
+            var hasVan = txn.paymentChannel === 'VAN';
             var hasMemo = txn.memo;
-            var hasDetailRow = hasPg || hasMemo || txn.transactionStatus === 'PG_REFUND_FAILED';
 
-            // 메인 행
-            html += '<tr class="txn-main-row' + (hasDetailRow ? ' has-detail' : '') + '">'
+            // ── 내용 컬럼 조립 ──
+            var contentParts = [];
+
+            // 거래 상세 (카드사·번호·승인번호 등)
+            var details = [];
+            if (hasVan && txn.transactionType !== 'REFUND') {
+                if (txn.vanIssuerName) details.push(HolaPms.escapeHtml(txn.vanIssuerName));
+                if (txn.vanPan) details.push(HolaPms.escapeHtml(txn.vanPan));
+                if (txn.vanAuthCode) details.push('승인 ' + HolaPms.escapeHtml(txn.vanAuthCode));
+                if (txn.vanAcquirerName) details.push(HolaPms.escapeHtml(txn.vanAcquirerName));
+            } else if (hasVan && txn.transactionType === 'REFUND') {
+                if (txn.vanIssuerName) details.push(HolaPms.escapeHtml(txn.vanIssuerName));
+                if (txn.vanAuthCode) details.push('취소승인 ' + HolaPms.escapeHtml(txn.vanAuthCode));
+            } else if (hasPg) {
+                if (txn.pgIssuerName) details.push(HolaPms.escapeHtml(txn.pgIssuerName));
+                if (txn.pgCardNo) details.push(HolaPms.escapeHtml(txn.pgCardNo));
+                if (txn.pgApprovalNo || txn.approvalNo) details.push('승인 ' + HolaPms.escapeHtml(txn.pgApprovalNo || txn.approvalNo));
+                if (txn.paymentMethod === 'CARD' && txn.pgInstallmentMonth != null) {
+                    details.push(txn.pgInstallmentMonth === 0 ? '일시불' : txn.pgInstallmentMonth + '개월');
+                }
+            }
+            if (details.length > 0) {
+                contentParts.push(details.join(' · '));
+            }
+
+            // 메모 · 처리자
+            var metaParts = [];
+            if (hasMemo) metaParts.push(HolaPms.escapeHtml(txn.memo));
+            if (txn.createdBy) metaParts.push('처리자: ' + HolaPms.escapeHtml(txn.createdBy));
+            if (metaParts.length > 0) {
+                contentParts.push(metaParts.join(' · '));
+            }
+
+            var contentHtml = '<span class="text-muted">' + contentParts.join('<br>') + '</span>';
+
+            // 액션 버튼
+            if (txn.transactionStatus === 'PG_REFUND_FAILED') {
+                contentHtml += '<br><button class="btn btn-warning btn-sm mt-1 retry-refund-btn" data-txn-id="' + txn.id + '">'
+                    + '<i class="fas fa-redo me-1"></i>PG 환불 재시도</button>';
+            }
+            if (txn.cancelable) {
+                contentHtml += '<br><button class="btn btn-outline-danger btn-sm mt-1 van-cancel-btn" data-txn-id="' + txn.id + '">'
+                    + '<i class="fas fa-undo me-1"></i>VAN 취소</button>';
+            }
+
+            // 단일 행
+            html += '<tr>'
                 + '<td class="text-center">' + (idx + 1) + '</td>'
-                + '<td class="text-center ' + typeStyle + '">' + typeLabel + statusHtml + '</td>';
+                + '<td class="text-center text-nowrap ' + typeStyle + '">' + typeLabel + statusHtml + '</td>';
             if (isMultiLeg) {
                 var legLabel = txn.subReservationId ? (subLabelMap[txn.subReservationId] || '-') : '-';
                 html += '<td class="small">' + HolaPms.escapeHtml(legLabel) + '</td>';
             }
-            html += '<td class="text-center">' + methodLabel + '</td>'
-                + '<td class="text-end fw-medium">' + self.formatCurrency(txn.amount) + '</td>'
+            html += '<td class="text-center text-nowrap">' + methodLabel + '</td>'
+                + '<td class="txn-content-cell">' + contentHtml + '</td>'
+                + '<td class="text-end fw-medium text-nowrap">' + self.formatCurrency(txn.amount) + '</td>'
                 + '<td class="text-center text-nowrap small">' + HolaPms.escapeHtml(createdAt) + '</td>'
                 + '</tr>';
-            if (hasDetailRow) {
-                html += '<tr class="txn-detail-row"><td></td><td colspan="' + (colCount - 1) + '">';
-                var details = [];
-                if (txn.pgIssuerName) details.push(HolaPms.escapeHtml(txn.pgIssuerName));
-                if (txn.pgCardNo) details.push(HolaPms.escapeHtml(txn.pgCardNo));
-                if (txn.pgApprovalNo || txn.approvalNo) details.push('승인 ' + HolaPms.escapeHtml(txn.pgApprovalNo || txn.approvalNo));
-                if (txn.pgInstallmentMonth != null) {
-                    details.push(txn.pgInstallmentMonth === 0 ? '일시불' : txn.pgInstallmentMonth + '개월');
-                }
-                if (details.length > 0) {
-                    html += '<span class="text-muted">' + details.join(' · ') + '</span>';
-                }
-                if (hasMemo) {
-                    html += (details.length > 0 ? '<br>' : '') + '<span class="text-muted">메모: ' + HolaPms.escapeHtml(txn.memo) + '</span>';
-                }
-                if (txn.createdBy) {
-                    html += (details.length > 0 || hasMemo ? ' · ' : '') + '<span class="text-muted">처리자: ' + HolaPms.escapeHtml(txn.createdBy) + '</span>';
-                }
-                // PG 환불 실패 시 재시도 버튼
-                if (txn.transactionStatus === 'PG_REFUND_FAILED') {
-                    html += '<br><button class="btn btn-warning btn-sm mt-1 retry-refund-btn" data-txn-id="' + txn.id + '">'
-                        + '<i class="fas fa-redo me-1"></i>PG 환불 재시도</button>';
-                }
-                html += '</td></tr>';
-            }
         });
 
         html += '</tbody></table>';
         $content.html(html);
+
+        // VAN 취소 버튼 이벤트
+        $content.off('click', '.van-cancel-btn').on('click', '.van-cancel-btn', function() {
+            var txnId = $(this).data('txn-id');
+            self.processVanCancel(txnId);
+        });
 
         // PG 환불 재시도 버튼 이벤트
         if (hasFailedRefund) {
@@ -995,6 +1032,13 @@ var ReservationPayment = {
         // 취소/환불 활동이 있는 Leg만 표시
         var renderTxnDetail = function(txn, typeLabel) {
             var method = methodLabels[txn.paymentMethod] || esc(txn.paymentMethod || '-');
+            // 채널 구분 라벨 (PG/VAN)
+            var channelSuffix = '';
+            if (txn.pgCno || txn.pgApprovalNo || txn.paymentChannel === 'PG') {
+                channelSuffix = '(PG)';
+            } else if (txn.paymentChannel === 'VAN') {
+                channelSuffix = '(VAN)';
+            }
             var line = '<span class="me-2">' + typeLabel + '</span>';
             if (txn.pgCno) {
                 // PG 거래
@@ -1008,10 +1052,15 @@ var ReservationPayment = {
                 }
             } else if (txn.transactionStatus === 'MANUAL_CONFIRMED') {
                 // 수동 환불 확인 완료
-                line += method + ' <strong>' + fmt(txn.amount) + '</strong>';
+                line += method + channelSuffix + ' <strong>' + fmt(txn.amount) + '</strong>';
                 line += ' <span class="badge badge-manual-refund">수동환불(확인)</span>';
+            } else if (txn.paymentChannel === 'VAN') {
+                // VAN 거래
+                line += method + '(VAN) <strong>' + fmt(txn.amount) + '</strong>';
+                if (txn.vanIssuerName) line += ' - ' + esc(txn.vanIssuerName);
+                if (txn.vanAuthCode) line += ' (승인번호: ' + esc(txn.vanAuthCode) + ')';
             } else {
-                // 현금/VAN 등
+                // 수동 현금 등
                 line += method + ' <strong>' + fmt(txn.amount) + '</strong>';
             }
             return line;
@@ -1111,5 +1160,531 @@ var ReservationPayment = {
         if (!win) {
             HolaPms.alert('warning', '팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
         }
+    },
+
+    // === VAN 결제 관련 ===
+
+    /** 캐시된 워크스테이션 목록 */
+    _workstations: null,
+
+    /**
+     * 워크스테이션 목록 로드
+     */
+    loadWorkstations: function(callback) {
+        var self = this;
+        if (self._workstations) {
+            callback(self._workstations);
+            return;
+        }
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/workstations',
+            type: 'GET',
+            success: function(res) {
+                if (res.success && res.data) {
+                    self._workstations = res.data;
+                    callback(res.data);
+                } else {
+                    callback([]);
+                }
+            },
+            error: function() {
+                callback([]);
+            }
+        });
+    },
+
+    /**
+     * 선택된 워크스테이션 가져오기 (localStorage 기반)
+     */
+    getSelectedWorkstation: function(workstations) {
+        if (!workstations || workstations.length === 0) return null;
+        if (workstations.length === 1) return workstations[0];
+
+        var savedId = localStorage.getItem('hola_workstationId');
+        if (savedId) {
+            var found = workstations.find(function(ws) { return ws.id == savedId; });
+            if (found) return found;
+        }
+        return null;
+    },
+
+    /**
+     * VAN 카드결제 모달 열기
+     */
+    openVanCardPaymentModal: function(legContext) {
+        var self = this;
+        self._currentLegContext = legContext || null;
+        self._vanPaymentType = 'CARD';
+
+        self.loadWorkstations(function(workstations) {
+            if (workstations.length === 0) {
+                HolaPms.alert('error', '등록된 워크스테이션이 없습니다. 관리자에게 문의하세요.');
+                return;
+            }
+
+            // 최신 결제 정보 재조회
+            HolaPms.ajax({
+                url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/payment',
+                type: 'GET',
+                success: function(res) {
+                    if (res.success && res.data) {
+                        self.paymentData = res.data;
+
+                        var remaining = legContext
+                            ? (legContext.legRemaining != null ? Number(legContext.legRemaining) : Number(legContext.legTotal))
+                            : Number(res.data.remainingAmount) || 0;
+
+                        if (remaining <= 0) {
+                            HolaPms.alert('warning', '결제할 잔액이 없습니다.');
+                            return;
+                        }
+
+                        // 모달 구성
+                        self._buildVanPaymentModal({
+                            title: legContext ? legContext.legLabel + ' VAN 카드결제' : 'VAN 카드결제',
+                            remaining: remaining,
+                            workstations: workstations,
+                            showCashReceipt: false
+                        });
+                    }
+                }
+            });
+        });
+    },
+
+    /**
+     * VAN 현금결제 모달 열기
+     */
+    openVanCashPaymentModal: function(legContext) {
+        var self = this;
+        self._currentLegContext = legContext || null;
+        self._vanPaymentType = 'CASH';
+
+        self.loadWorkstations(function(workstations) {
+            if (workstations.length === 0) {
+                HolaPms.alert('error', '등록된 워크스테이션이 없습니다. 관리자에게 문의하세요.');
+                return;
+            }
+
+            HolaPms.ajax({
+                url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/payment',
+                type: 'GET',
+                success: function(res) {
+                    if (res.success && res.data) {
+                        self.paymentData = res.data;
+
+                        var remaining = legContext
+                            ? (legContext.legRemaining != null ? Number(legContext.legRemaining) : Number(legContext.legTotal))
+                            : Number(res.data.remainingAmount) || 0;
+
+                        if (remaining <= 0) {
+                            HolaPms.alert('warning', '결제할 잔액이 없습니다.');
+                            return;
+                        }
+
+                        self._buildVanPaymentModal({
+                            title: legContext ? legContext.legLabel + ' VAN 현금결제' : 'VAN 현금결제',
+                            remaining: remaining,
+                            workstations: workstations,
+                            showCashReceipt: true
+                        });
+                    }
+                }
+            });
+        });
+    },
+
+    /**
+     * VAN 결제 모달 생성 (카드/현금 공통)
+     */
+    _buildVanPaymentModal: function(opts) {
+        var self = this;
+        var selectedWs = self.getSelectedWorkstation(opts.workstations);
+
+        // 기존 모달 제거
+        $('#vanPaymentModal').remove();
+
+        var wsSelectHtml = '';
+        if (opts.workstations.length > 1) {
+            wsSelectHtml = '<div class="mb-3"><label class="form-label small">워크스테이션</label>'
+                + '<select class="form-select form-select-sm" id="vanWsSelect">';
+            opts.workstations.forEach(function(ws) {
+                var selected = selectedWs && selectedWs.id === ws.id ? ' selected' : '';
+                wsSelectHtml += '<option value="' + ws.id + '"' + selected + '>'
+                    + HolaPms.escapeHtml(ws.wsName || ws.wsNo) + '</option>';
+            });
+            wsSelectHtml += '</select></div>';
+        }
+
+        var cashReceiptHtml = '';
+        if (opts.showCashReceipt) {
+            cashReceiptHtml = '<div class="mb-3">'
+                + '<div class="form-check form-switch">'
+                + '<input class="form-check-input" type="checkbox" id="vanCashReceiptToggle">'
+                + '<label class="form-check-label" for="vanCashReceiptToggle">현금영수증 발행</label>'
+                + '</div>'
+                + '</div>'
+                + '<div id="vanCashReceiptFields" class="d-none">'
+                + '<div class="mb-3"><label class="form-label small">식별번호 (전화번호 또는 사업자번호)</label>'
+                + '<input type="text" class="form-control form-control-sm" id="vanCashReceiptNo" '
+                + 'placeholder="010-0000-0000">'
+                + '</div></div>';
+        }
+
+        var modalHtml = '<div class="modal fade" id="vanPaymentModal" tabindex="-1">'
+            + '<div class="modal-dialog"><div class="modal-content">'
+            + '<div class="modal-header"><h6 class="modal-title">' + HolaPms.escapeHtml(opts.title) + '</h6>'
+            + '<button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>'
+            + '<div class="modal-body">'
+            + wsSelectHtml
+            + '<div class="mb-3"><label class="form-label small">결제 금액</label>'
+            + '<input type="number" class="form-control form-control-sm" id="vanPaymentAmount" '
+            + 'value="' + Math.floor(opts.remaining) + '"></div>'
+            + cashReceiptHtml
+            + '<div class="mb-3"><label class="form-label small">메모</label>'
+            + '<input type="text" class="form-control form-control-sm" id="vanPaymentMemo"></div>'
+            + '</div>'
+            + '<div class="modal-footer">'
+            + '<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">'
+            + '<i class="fas fa-times me-1"></i>취소</button>'
+            + '<button type="button" class="btn btn-primary btn-sm" id="vanPaymentConfirmBtn">'
+            + '<i class="fas fa-credit-card me-1"></i>결제</button>'
+            + '</div></div></div></div>';
+
+        $('body').append(modalHtml);
+
+        // 현금영수증 토글 이벤트
+        if (opts.showCashReceipt) {
+            $('#vanCashReceiptToggle').on('change', function() {
+                $('#vanCashReceiptFields').toggleClass('d-none', !this.checked);
+            });
+        }
+
+        // 워크스테이션 선택 저장
+        if (opts.workstations.length > 1) {
+            $('#vanWsSelect').on('change', function() {
+                localStorage.setItem('hola_workstationId', $(this).val());
+            });
+        }
+
+        // 결제 확인 버튼
+        $('#vanPaymentConfirmBtn').on('click', function() {
+            self._processVanPayment(opts.workstations);
+        });
+
+        HolaPms.modal.show('#vanPaymentModal');
+    },
+
+    /**
+     * VAN 결제 처리 (KPSP 직접 호출 → 백엔드 저장)
+     */
+    _processVanPayment: function(workstations) {
+        var self = this;
+        var amount = parseInt($('#vanPaymentAmount').val());
+        var memo = $.trim($('#vanPaymentMemo').val());
+
+        if (!amount || amount <= 0) {
+            HolaPms.alert('warning', '결제 금액을 입력해주세요.');
+            return;
+        }
+
+        // 현금영수증 검증
+        var issueCashReceipt = self._vanPaymentType === 'CASH' && $('#vanCashReceiptToggle').is(':checked');
+        var cashReceiptNo = '';
+        if (issueCashReceipt) {
+            cashReceiptNo = $.trim($('#vanCashReceiptNo').val());
+            if (!cashReceiptNo) {
+                HolaPms.alert('warning', '현금영수증 식별번호를 입력해주세요.');
+                return;
+            }
+        }
+
+        // 워크스테이션 결정
+        var ws;
+        if (workstations.length === 1) {
+            ws = workstations[0];
+        } else {
+            var wsId = $('#vanWsSelect').val();
+            ws = workstations.find(function(w) { return w.id == wsId; });
+        }
+        if (!ws) {
+            HolaPms.alert('error', '워크스테이션을 선택해주세요.');
+            return;
+        }
+
+        // 버튼 비활성화
+        var $btn = $('#vanPaymentConfirmBtn');
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>처리 중...');
+        // 모달 닫기 방지
+        $('#vanPaymentModal').find('.btn-close, [data-bs-dismiss]').prop('disabled', true);
+
+        // 1. 시퀀스 번호 발급
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId
+                + '/payment/next-van-sequence?workstationId=' + ws.id,
+            type: 'GET',
+            success: function(seqRes) {
+                if (!seqRes.success) {
+                    self._resetVanPaymentButton($btn);
+                    HolaPms.alert('error', '시퀀스 번호 발급에 실패했습니다.');
+                    return;
+                }
+                var sequenceNo = seqRes.data;
+
+                // 2. PMS 백엔드 프록시를 통해 KPSP 호출 (CORS 우회)
+                var proxyEndpoint = self._vanPaymentType === 'CARD' ? '/sales/card' : '/sales/cash';
+                var proxyUrl = '/api/v1/properties/' + self.propertyId + '/van/proxy' + proxyEndpoint
+                    + '?workstationId=' + ws.id;
+                var now = new Date();
+                var transDateTime = now.toISOString().split('.')[0] + '+09:00';
+
+                var kpspBody = {
+                    sequenceNo: sequenceNo,
+                    transType: 'SALE',
+                    transAmount: amount,
+                    taxAmount: Math.floor(amount / 11),
+                    transCurrency: 'KRW',
+                    transDateTime: transDateTime,
+                    siteId: 'HOLA',
+                    wsNo: ws.wsNo,
+                    operator: 'frontdesk'
+                };
+
+                // 현금영수증 시 guestNo에 전화번호
+                if (issueCashReceipt && cashReceiptNo) {
+                    kpspBody.guestNo = cashReceiptNo;
+                }
+
+                // 예약 정보 추가 (선택적 enrichment)
+                if (self.reservationData) {
+                    var subs = self.reservationData.subReservations || [];
+                    if (subs.length > 0) {
+                        kpspBody.roomNo = subs[0].roomNumber || '';
+                        kpspBody.roomType = 1;
+                    }
+                    kpspBody.guestName = self.reservationData.guestName || '';
+                    kpspBody.checkInDate = self.reservationData.checkInDate || '';
+                    kpspBody.checkOutDate = self.reservationData.checkOutDate || '';
+                }
+
+                if (self._vanPaymentType === 'CARD') {
+                    $btn.html('<span class="spinner-border spinner-border-sm me-1"></span>단말기에서 카드를 읽는 중...');
+                } else {
+                    $btn.html('<span class="spinner-border spinner-border-sm me-1"></span>현금영수증 처리 중...');
+                }
+
+                HolaPms.ajax({
+                    url: proxyUrl,
+                    type: 'POST',
+                    data: kpspBody,
+                    timeout: 65000,
+                    success: function(kpspResult) {
+                        if (!kpspResult.success || kpspResult.respCode !== '0000') {
+                            self._resetVanPaymentButton($btn);
+                            var errMsg = kpspResult.respMessage || kpspResult.respText || '결제가 거절되었습니다.';
+                            HolaPms.alert('error', errMsg);
+                            return;
+                        }
+
+                        // 3. PMS 백엔드에 결과 저장
+                        var requestData = {
+                            paymentMethod: self._vanPaymentType,
+                            amount: amount,
+                            memo: memo || null,
+                            subReservationId: (self._currentLegContext && self._currentLegContext.subId) || null,
+                            paymentChannel: 'VAN',
+                            workstationId: ws.id,
+                            vanResult: kpspResult
+                        };
+
+                        HolaPms.ajax({
+                            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId + '/payment/transactions',
+                            type: 'POST',
+                            data: requestData,
+                            success: function(res) {
+                                if (res.success) {
+                                    HolaPms.alert('success', 'VAN ' + (self._vanPaymentType === 'CARD' ? '카드' : '현금') + ' 결제가 완료되었습니다.');
+                                    HolaPms.modal.hide('#vanPaymentModal');
+                                    if (res.data) {
+                                        self.paymentData = res.data;
+                                        self.bindSummary(res.data);
+                                        self.renderChargeBreakdown();
+                                        self.renderAdjustments(res.data.adjustments || []);
+                                        self.renderPaymentTransactions(res.data.transactions || []);
+                                    }
+                                }
+                            },
+                            error: function() {
+                                localStorage.setItem('hola_van_pending_' + sequenceNo, JSON.stringify(requestData));
+                                self._resetVanPaymentButton($btn);
+                                HolaPms.alert('error', '결제는 승인되었으나 저장에 실패했습니다. 페이지를 새로고침하고 다시 시도해주세요.');
+                            }
+                        });
+                    },
+                    error: function() {
+                        self._resetVanPaymentButton($btn);
+                        HolaPms.alert('error', '단말기에 연결할 수 없습니다. KPSP 서비스 실행 상태를 확인하세요.');
+                    }
+                });
+            },
+            error: function() {
+                self._resetVanPaymentButton($btn);
+                HolaPms.alert('error', '시퀀스 번호 발급에 실패했습니다.');
+            }
+        });
+    },
+
+    /**
+     * VAN 결제 버튼 원복
+     */
+    _resetVanPaymentButton: function($btn) {
+        $btn.prop('disabled', false).html('<i class="fas fa-credit-card me-1"></i>결제');
+        $('#vanPaymentModal').find('.btn-close, [data-bs-dismiss]').prop('disabled', false);
+    },
+
+    /**
+     * VAN 취소 처리
+     */
+    processVanCancel: function(txnId) {
+        var self = this;
+
+        if (!confirm('이 거래를 취소하시겠습니까? 카드사/현금영수증 취소가 함께 진행됩니다.')) {
+            return;
+        }
+
+        // 1. 취소 정보 조회
+        HolaPms.ajax({
+            url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId
+                + '/payment/transactions/' + txnId + '/van-cancel-info',
+            type: 'GET',
+            success: function(infoRes) {
+                if (!infoRes.success || !infoRes.data) {
+                    HolaPms.alert('error', '취소 정보 조회에 실패했습니다.');
+                    return;
+                }
+                var info = infoRes.data;
+
+                // KPSP 취소 프록시 호출
+                var isCard = info.paymentMethod === 'CARD';
+                var proxyEndpoint = isCard ? '/refund/card' : '/refund/cash';
+                var proxyUrl = '/api/v1/properties/' + self.propertyId + '/van/proxy' + proxyEndpoint
+                    + '?workstationId=' + (info.workstationId || txnId);
+                var cancelTransType = isCard ? 'I1' : 'B1';
+
+                var now = new Date();
+                var transDateTime = now.toISOString().split('.')[0] + '+09:00';
+
+                var cancelBody = {
+                    sequenceNo: info.sequenceNo,
+                    transType: cancelTransType,
+                    transAmount: Number(info.amount),
+                    taxAmount: Math.floor(Number(info.amount) / 11),
+                    transCurrency: 'KRW',
+                    transDateTime: transDateTime,
+                    siteId: 'HOLA',
+                    wsNo: info.wsNo || 'ADMIN',
+                    operator: 'frontdesk'
+                };
+
+                // VAN 취소 결과를 PMS에 저장하는 공통 함수
+                var saveVanCancelResult = function(result) {
+                    HolaPms.ajax({
+                        url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId
+                            + '/payment/transactions/' + txnId + '/van-cancel',
+                        type: 'POST',
+                        data: result,
+                        success: function(res) {
+                            if (res.success) {
+                                HolaPms.alert('success', 'VAN 결제가 취소되었습니다.');
+                                if (res.data) {
+                                    self.paymentData = res.data;
+                                    self.bindSummary(res.data);
+                                    self.renderChargeBreakdown();
+                                    self.renderAdjustments(res.data.adjustments || []);
+                                    self.renderPaymentTransactions(res.data.transactions || []);
+                                    self.renderCancelInfo(res.data);
+                                }
+                            }
+                        },
+                        error: function() {
+                            localStorage.setItem('hola_van_cancel_pending_' + txnId, JSON.stringify(result));
+                            HolaPms.alert('error', '취소는 완료되었으나 시스템 저장에 실패했습니다. 관리자에게 문의하세요.');
+                        }
+                    });
+                };
+
+                // 수동 확인 처리 함수
+                var processManualConfirm = function() {
+                    if (!confirm('VAN 단말기 영수증/이력에서 취소 완료를 확인하셨습니까?\n확인 후 수동으로 환불 처리합니다.')) {
+                        return;
+                    }
+                    // 수동 확인용 payload (respCode=0000 대신 MANUAL_CONFIRMED 상태 전달)
+                    var manualPayload = {
+                        respCode: 'MANUAL',
+                        authCode: info.authCode || '',
+                        rrn: info.rrn || '',
+                        pan: '',
+                        sequenceNo: info.sequenceNo || ''
+                    };
+                    HolaPms.ajax({
+                        url: '/api/v1/properties/' + self.propertyId + '/reservations/' + self.reservationId
+                            + '/payment/transactions/' + txnId + '/van-cancel-manual',
+                        type: 'POST',
+                        data: manualPayload,
+                        success: function(res) {
+                            if (res.success) {
+                                HolaPms.alert('success', 'VAN 취소가 수동 확인 처리되었습니다.');
+                                if (res.data) {
+                                    self.paymentData = res.data;
+                                    self.bindSummary(res.data);
+                                    self.renderChargeBreakdown();
+                                    self.renderAdjustments(res.data.adjustments || []);
+                                    self.renderPaymentTransactions(res.data.transactions || []);
+                                    self.renderCancelInfo(res.data);
+                                }
+                            }
+                        }
+                    });
+                };
+
+                // 2. PMS 프록시를 통해 KPSP 취소 호출
+                HolaPms.ajax({
+                    url: proxyUrl,
+                    type: 'POST',
+                    data: cancelBody,
+                    timeout: 65000,
+                    success: function(cancelResult) {
+                        if (!cancelResult.success || cancelResult.respCode !== '0000') {
+                            // 취소 실패 — VAN측에서 이미 취소되었을 수 있으므로 수동 확인 옵션 제공
+                            var errMsg = cancelResult.respMessage || cancelResult.respText || '취소 응답 실패';
+                            var confirmManual = confirm(
+                                'VAN 취소 응답: ' + errMsg + '\n\n'
+                                + 'VAN 단말기에서 이미 취소가 완료되었을 수 있습니다.\n'
+                                + '단말기 영수증/이력을 확인 후 수동 처리하시겠습니까?\n\n'
+                                + '[확인] 수동 취소 처리  [취소] 취소 중단'
+                            );
+                            if (confirmManual) {
+                                processManualConfirm();
+                            }
+                            return;
+                        }
+
+                        // 3. 정상 취소 — PMS 백엔드에 결과 저장
+                        saveVanCancelResult(cancelResult);
+                    },
+                    error: function() {
+                        var confirmManual = confirm(
+                            '단말기에 연결할 수 없습니다.\n\n'
+                            + '이미 취소가 완료된 상태라면 수동으로 처리할 수 있습니다.\n'
+                            + '단말기 영수증/이력을 확인 후 수동 처리하시겠습니까?\n\n'
+                            + '[확인] 수동 취소 처리  [취소] 취소 중단'
+                        );
+                        if (confirmManual) {
+                            processManualConfirm();
+                        }
+                    }
+                });
+            }
+        });
     }
 };

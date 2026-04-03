@@ -14,8 +14,8 @@ import com.hola.hotel.entity.HkDailyAttendance;
 import com.hola.hotel.repository.HkDayOffRepository;
 import com.hola.hotel.repository.HkDailyAttendanceRepository;
 import com.hola.hotel.service.HkAssignmentService;
+import com.hola.hotel.service.HkTaskService;
 import com.hola.hotel.service.HousekeeperService;
-import com.hola.hotel.service.HousekeepingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
@@ -43,7 +43,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class HkMobileApiController {
 
-    private final HousekeepingService housekeepingService;
+    private final HkTaskService hkTaskService;
     private final HkAssignmentService hkAssignmentService;
     private final HousekeeperService housekeeperService;
     private final AdminUserRepository adminUserRepository;
@@ -60,7 +60,7 @@ public class HkMobileApiController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             HttpSession session) {
         Long userId = getSessionUserId(session);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.getMyTasks(userId, date)));
+        return ResponseEntity.ok(HolaResponse.success(hkTaskService.getMyTasks(userId, date)));
     }
 
     @Operation(summary = "작업 상세", description = "개별 작업 상세 조회")
@@ -71,7 +71,7 @@ public class HkMobileApiController {
             HttpSession session) {
         // 본인 배정 작업만 조회 가능 (SUPERVISOR는 전체 가능)
         validateTaskOwnership(taskId, session);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTask(taskId)));
+        return ResponseEntity.ok(HolaResponse.success(hkTaskService.getTask(taskId)));
     }
 
     @Operation(summary = "작업 시작", description = "청소 작업 시작 (미배정 작업은 시작한 사용자에게 자동 배정)")
@@ -83,7 +83,7 @@ public class HkMobileApiController {
         Long userId = getSessionUserId(session);
         String role = (String) session.getAttribute("hkUserRole");
 
-        HkTaskResponse task = housekeepingService.getTask(taskId);
+        HkTaskResponse task = hkTaskService.getTask(taskId);
 
         // HOUSEKEEPER: 본인 배정 작업만 시작 가능 / SUPERVISOR: 전체 가능 (미배정 포함)
         if (!"HOUSEKEEPING_SUPERVISOR".equals(role)) {
@@ -93,7 +93,7 @@ public class HkMobileApiController {
         }
 
         // 미배정 작업은 시작한 사용자에게 자동 배정
-        housekeepingService.startTask(taskId, userId);
+        hkTaskService.startTask(taskId, userId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -104,7 +104,7 @@ public class HkMobileApiController {
             @PathVariable Long taskId,
             HttpSession session) {
         validateTaskOwnership(taskId, session);
-        housekeepingService.pauseTask(taskId);
+        hkTaskService.pauseTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -115,7 +115,7 @@ public class HkMobileApiController {
             @PathVariable Long taskId,
             HttpSession session) {
         validateTaskOwnership(taskId, session);
-        housekeepingService.completeTask(taskId);
+        hkTaskService.completeTask(taskId);
         return ResponseEntity.ok(HolaResponse.success());
     }
 
@@ -139,7 +139,7 @@ public class HkMobileApiController {
             HttpSession session) {
         // 본인 배정 작업의 이슈만 조회 가능
         validateTaskOwnership(taskId, session);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.getTaskIssues(taskId)));
+        return ResponseEntity.ok(HolaResponse.success(hkTaskService.getTaskIssues(taskId)));
     }
 
     @Operation(summary = "이슈 등록", description = "작업 중 이슈 등록")
@@ -151,10 +151,10 @@ public class HkMobileApiController {
             HttpSession session) {
         // 본인 배정 작업에만 이슈 등록 가능
         validateTaskOwnership(taskId, session);
-        HkTaskResponse task = housekeepingService.getTask(taskId);
+        HkTaskResponse task = hkTaskService.getTask(taskId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(HolaResponse.success(
-                        housekeepingService.createIssue(taskId, propertyId, task.getRoomNumberId(), request)));
+                        hkTaskService.createIssue(taskId, propertyId, task.getRoomNumberId(), request)));
     }
 
     // === 일일 요약 ===
@@ -166,7 +166,7 @@ public class HkMobileApiController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             HttpSession session) {
         Long userId = getSessionUserId(session);
-        return ResponseEntity.ok(HolaResponse.success(housekeepingService.getMySummary(userId, date)));
+        return ResponseEntity.ok(HolaResponse.success(hkTaskService.getMySummary(userId, date)));
     }
 
     // === 휴무일 ===
@@ -367,7 +367,7 @@ public class HkMobileApiController {
         if ("HOUSEKEEPING_SUPERVISOR".equals(role)) return;
 
         Long userId = getSessionUserId(session);
-        HkTaskResponse task = housekeepingService.getTask(taskId);
+        HkTaskResponse task = hkTaskService.getTask(taskId);
         if (!userId.equals(task.getAssignedTo())) {
             throw new HolaException(ErrorCode.HK_TASK_ACCESS_DENIED);
         }

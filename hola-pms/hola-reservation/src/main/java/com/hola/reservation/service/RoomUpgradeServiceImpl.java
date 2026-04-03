@@ -53,6 +53,7 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
     private final RateCodeRoomTypeRepository rateCodeRoomTypeRepository;
     private final RateCodeRepository rateCodeRepository;
     private final PriceCalculationService priceCalculationService;
+    private final ReservationChangeLogService changeLogService;
     private final RoomAvailabilityService roomAvailabilityService;
 
     // 업그레이드 가능 상태
@@ -141,6 +142,14 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
                 })
                 .toList();
 
+        // 레이트코드 변경 정보
+        boolean rateCodeChanged = !currentRateCodeId.equals(targetRateCodeId);
+        String currentRateCodeName = rateCodeRepository.findById(currentRateCodeId)
+                .map(RateCode::getRateNameKo).orElse(null);
+        String targetRateCodeName = rateCodeChanged
+                ? rateCodeRepository.findById(targetRateCodeId).map(RateCode::getRateNameKo).orElse(null)
+                : currentRateCodeName;
+
         return UpgradePreviewResponse.builder()
                 .fromRoomTypeId(sub.getRoomTypeId())
                 .fromRoomTypeName(fromType.getRoomTypeCode())
@@ -151,6 +160,9 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
                 .priceDifference(diff)
                 .remainingNights(totalNights)
                 .dailyDiffs(dailyDiffs)
+                .currentRateCodeName(currentRateCodeName)
+                .targetRateCodeName(targetRateCodeName)
+                .rateCodeChanged(rateCodeChanged)
                 .build();
     }
 
@@ -182,7 +194,7 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
         // PAID/UPSELL인 경우 차액을 ReservationServiceItem으로 자동 부과
         if (("PAID".equals(request.getUpgradeType()) || "UPSELL".equals(request.getUpgradeType()))
                 && priceDiff.compareTo(BigDecimal.ZERO) > 0) {
-            // TC:1020 (Room Upgrade) 코드 조회 시도
+            // TC:1010 (업그레이드 차액) 코드 조회
             Long tcId = findUpgradeTransactionCodeId(sub.getMasterReservation().getProperty().getId());
             serviceItemRepository.save(ReservationServiceItem.builder()
                     .subReservation(sub)
@@ -214,6 +226,14 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
                 subReservationId, fromType.getRoomTypeCode(), toType.getRoomTypeCode(),
                 request.getUpgradeType(), priceDiff);
 
+        try {
+            changeLogService.logUpgrade(sub.getMasterReservation().getId(), subReservationId,
+                    fromType.getRoomTypeCode(), toType.getRoomTypeCode(),
+                    request.getUpgradeType(), priceDiff);
+        } catch (Exception e) {
+            log.error("변경이력 기록 실패: {}", e.getMessage());
+        }
+
         return toHistoryResponse(saved, fromType, toType);
     }
 
@@ -243,12 +263,17 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
      */
     private boolean hasApplicableRate(Long targetRoomTypeId, Long currentRateCodeId,
                                        LocalDate checkIn, LocalDate checkOut) {
-        Long rateCodeId = findRateCodeForRoomType(targetRoomTypeId, currentRateCodeId);
-        boolean covered = priceCalculationService.hasPricingCoverage(rateCodeId, checkIn, checkOut);
-        if (!covered) {
-            log.debug("업그레이드 대상 제외: roomTypeId={}, 해당 기간 요금 미설정", targetRoomTypeId);
+        try {
+            Long rateCodeId = findRateCodeForRoomType(targetRoomTypeId, currentRateCodeId);
+            boolean covered = priceCalculationService.hasPricingCoverage(rateCodeId, checkIn, checkOut);
+            if (!covered) {
+                log.debug("업그레이드 대상 제외: roomTypeId={}, 해당 기간 요금 미설정", targetRoomTypeId);
+            }
+            return covered;
+        } catch (HolaException e) {
+            log.debug("업그레이드 대상 제외: roomTypeId={}, 적용 가능한 레이트코드 없음", targetRoomTypeId);
+            return false;
         }
-        return covered;
     }
 
     private SubReservation findSubReservation(Long id) {
@@ -308,18 +333,18 @@ public class RoomUpgradeServiceImpl implements RoomUpgradeService {
             }
         }
 
-        // 3순위: 폴백
-        return currentRateCodeId;
+        // 매핑된 활성 레이트코드 없음 → 업그레이드 불가
+        throw new HolaException(ErrorCode.UPGRADE_RATE_NOT_FOUND);
     }
 
     /**
-     * 프로퍼티에서 Room Upgrade 트랜잭션 코드 ID 조회 (코드: 1020)
+     * 프로퍼티에서 업그레이드 차액 트랜잭션 코드 ID 조회 (TC:1010 Upgrade Charge)
      */
     private Long findUpgradeTransactionCodeId(Long propertyId) {
         return transactionCodeRepository
                 .findAllByPropertyIdOrderBySortOrderAscTransactionCodeAsc(propertyId)
                 .stream()
-                .filter(tc -> "1020".equals(tc.getTransactionCode()))
+                .filter(tc -> "1010".equals(tc.getTransactionCode()))
                 .map(TransactionCode::getId)
                 .findFirst()
                 .orElse(null);

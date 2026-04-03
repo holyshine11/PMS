@@ -12,10 +12,23 @@ import com.hola.rate.repository.RateCodeRepository;
 import com.hola.reservation.dto.request.ReservationCreateRequest;
 import com.hola.reservation.dto.request.ReservationUpdateRequest;
 import com.hola.reservation.dto.request.SubReservationRequest;
-import com.hola.reservation.dto.response.*;
-import com.hola.reservation.entity.*;
+import com.hola.reservation.dto.response.PaymentSummaryResponse;
+import com.hola.reservation.dto.response.ReservationDepositResponse;
+import com.hola.reservation.dto.response.ReservationDetailResponse;
+import com.hola.reservation.dto.response.ReservationListResponse;
+import com.hola.reservation.dto.response.ReservationMemoResponse;
+import com.hola.reservation.dto.response.ReservationServiceResponse;
+import com.hola.reservation.dto.response.SubReservationResponse;
+import com.hola.reservation.entity.MasterReservation;
+import com.hola.reservation.entity.ReservationDeposit;
+import com.hola.reservation.entity.ReservationMemo;
+import com.hola.reservation.entity.SubReservation;
 import com.hola.reservation.mapper.ReservationMapper;
-import com.hola.reservation.repository.*;
+import com.hola.reservation.repository.MasterReservationRepository;
+import com.hola.reservation.repository.MasterReservationSpecification;
+import com.hola.reservation.repository.ReservationDepositRepository;
+import com.hola.reservation.repository.ReservationMemoRepository;
+import com.hola.reservation.repository.SubReservationRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +42,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -59,6 +76,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final AccessControlService accessControlService;
     private final RateIncludedServiceHelper rateIncludedServiceHelper;
     private final EntityManager entityManager;
+    private final ReservationChangeLogService changeLogService;
 
     @Override
     public List<ReservationListResponse> getList(Long propertyId, String status, LocalDate checkInFrom,
@@ -289,6 +307,13 @@ public class ReservationServiceImpl implements ReservationService {
         Long effectiveRateCodeId = request.getRateCodeId() != null
                 ? request.getRateCodeId() : master.getRateCodeId();
 
+        // 변경이력용 이전 값 캡처
+        LocalDate prevCheckIn = master.getMasterCheckIn();
+        LocalDate prevCheckOut = master.getMasterCheckOut();
+        Long prevRateCodeId = master.getRateCodeId();
+        Long prevMarketCodeId = master.getMarketCodeId();
+        String prevGuestNameKo = master.getGuestNameKo();
+
         master.update(
                 request.getMasterCheckIn(), request.getMasterCheckOut(),
                 request.getGuestNameKo(), request.getGuestFirstNameEn(),
@@ -353,6 +378,23 @@ public class ReservationServiceImpl implements ReservationService {
 
         // 결제 금액 재계산
         paymentService.recalculatePayment(master.getId());
+
+        // 변경이력 기록
+        try {
+            Long mid = master.getId();
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "masterCheckIn",
+                    prevCheckIn, request.getMasterCheckIn(), "체크인");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "masterCheckOut",
+                    prevCheckOut, request.getMasterCheckOut(), "체크아웃");
+            changeLogService.logFieldChange(mid, null, "RATE", "rateCodeId",
+                    prevRateCodeId, effectiveRateCodeId, "레이트코드");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "marketCodeId",
+                    prevMarketCodeId, request.getMarketCodeId(), "마켓코드");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "guestNameKo",
+                    prevGuestNameKo, request.getGuestNameKo(), "투숙객명");
+        } catch (Exception e) {
+            log.error("변경이력 기록 실패: {}", e.getMessage());
+        }
 
         log.info("마스터 예약 수정: {}", master.getMasterReservationNo());
         return getById(id, propertyId);

@@ -22,7 +22,7 @@ import java.util.List;
 public class HkSchedulerService {
 
     private final HkConfigRepository hkConfigRepository;
-    private final HousekeepingService housekeepingService;
+    private final HkConfigService hkConfigService;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -54,7 +54,7 @@ public class HkSchedulerService {
         // 1) OC→OD 전환 시각
         String odTime = config.getOdTransitionTime() != null ? config.getOdTransitionTime() : "05:00";
         if (currentTime.equals(odTime)) {
-            int converted = housekeepingService.transitionOccupiedRoomsToDirty(propertyId);
+            int converted = hkConfigService.transitionOccupiedRoomsToDirty(propertyId);
             if (converted > 0) {
                 log.info("[스케줄러] OC→OD: propertyId={}, {}건", propertyId, converted);
             }
@@ -65,20 +65,20 @@ public class HkSchedulerService {
         if (currentTime.equals(genTime)) {
             // 스테이오버 작업 생성
             if (Boolean.TRUE.equals(config.getStayoverEnabled())) {
-                int stayover = housekeepingService.generateStayoverTasks(propertyId, today);
+                int stayover = hkConfigService.generateStayoverTasks(propertyId, today);
                 if (stayover > 0) {
                     log.info("[스케줄러] 스테이오버: propertyId={}, {}건", propertyId, stayover);
                 }
             }
 
             // 기존 일일 작업 (VD→CHECKOUT 포함)
-            int daily = housekeepingService.generateDailyTasks(propertyId, today);
+            int daily = hkConfigService.generateDailyTasks(propertyId, today);
             if (daily > 0) {
                 log.info("[스케줄러] 일일작업: propertyId={}, {}건", propertyId, daily);
             }
 
             // DND 처리
-            housekeepingService.processDndRooms(propertyId, today);
+            hkConfigService.processDndRooms(propertyId, today);
         }
     }
 }

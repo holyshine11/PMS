@@ -13,8 +13,19 @@ import com.hola.hotel.dto.response.HkAttendanceResponse;
 import com.hola.hotel.dto.response.HkDayOffResponse;
 import com.hola.hotel.dto.response.HkMonthlyAttendanceResponse;
 import com.hola.hotel.dto.response.HkSectionResponse;
-import com.hola.hotel.entity.*;
-import com.hola.hotel.repository.*;
+import com.hola.hotel.entity.Floor;
+import com.hola.hotel.entity.HkDailyAttendance;
+import com.hola.hotel.entity.HkDayOff;
+import com.hola.hotel.entity.HkSection;
+import com.hola.hotel.entity.HkSectionFloor;
+import com.hola.hotel.entity.HkSectionHousekeeper;
+import com.hola.hotel.entity.HkTask;
+import com.hola.hotel.repository.FloorRepository;
+import com.hola.hotel.repository.HkDailyAttendanceRepository;
+import com.hola.hotel.repository.HkDayOffRepository;
+import com.hola.hotel.repository.HkSectionRepository;
+import com.hola.hotel.repository.HkTaskRepository;
+import com.hola.hotel.repository.RoomNumberRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +36,15 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -47,7 +66,7 @@ public class HkAssignmentServiceImpl implements HkAssignmentService {
     private final AdminUserPropertyRepository adminUserPropertyRepository;
     private final AccessControlService accessControlService;
     private final EntityManager entityManager;
-    private final HousekeepingService housekeepingService;
+    private final HkConfigService hkConfigService;
 
     // === 구역 관리 ===
 
@@ -254,7 +273,7 @@ public class HkAssignmentServiceImpl implements HkAssignmentService {
 
         // 미배정 작업 없으면 일일 작업 자동 생성 후 재조회
         if (unassigned.isEmpty()) {
-            int generated = housekeepingService.generateDailyTasks(propertyId, targetDate);
+            int generated = hkConfigService.generateDailyTasks(propertyId, targetDate);
             if (generated > 0) {
                 log.info("HK 자동 배정: 미배정 작업 없어 일일 작업 {}건 자동 생성", generated);
                 entityManager.flush();

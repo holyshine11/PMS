@@ -3,9 +3,11 @@ package com.hola.reservation.service;
 import com.hola.reservation.booking.gateway.PaymentResult;
 import com.hola.reservation.dto.request.PaymentAdjustmentRequest;
 import com.hola.reservation.dto.request.PaymentProcessRequest;
+import com.hola.reservation.dto.request.VanResultPayload;
 import com.hola.reservation.dto.response.LegPaymentInfo;
 import com.hola.reservation.dto.response.PaymentAdjustmentResponse;
 import com.hola.reservation.dto.response.PaymentSummaryResponse;
+import com.hola.reservation.dto.response.VanCancelInfoResponse;
 import com.hola.reservation.entity.PaymentTransaction;
 
 import java.math.BigDecimal;
@@ -57,4 +59,18 @@ public interface ReservationPaymentService {
      * @return 각 Leg의 요금/결제/환불/잔액 정보
      */
     List<LegPaymentInfo> calculatePerLegPayments(Long masterReservationId);
+
+    /** VAN 취소에 필요한 원거래 정보 조회 */
+    VanCancelInfoResponse getVanCancelInfo(Long propertyId, Long reservationId, Long transactionId);
+
+    /** VAN 취소 결과 저장 */
+    PaymentSummaryResponse processVanCancel(Long propertyId, Long reservationId,
+                                             Long transactionId, VanResultPayload cancelResult);
+
+    /** VAN 취소 수동 확인 (KPSP 취소 실패 시 관리자 수동 처리) */
+    PaymentSummaryResponse processVanCancelManual(Long propertyId, Long reservationId,
+                                                    Long transactionId, VanResultPayload manualPayload);
+
+    /** VAN 시퀀스 번호 발급 */
+    String generateVanSequenceNo(Long workstationId);
 }

@@ -13,7 +13,7 @@ import com.hola.reservation.entity.SubReservation;
 import com.hola.reservation.repository.MasterReservationRepository;
 import com.hola.reservation.repository.ReservationMemoRepository;
 import com.hola.reservation.repository.SubReservationRepository;
-import com.hola.reservation.service.ReservationService;
+import com.hola.reservation.service.*;
 import com.hola.support.BaseIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,6 +56,18 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
 
     @MockBean
     private ReservationService reservationService;
+
+    @MockBean
+    private ReservationStatusService statusService;
+
+    @MockBean
+    private ReservationViewService viewService;
+
+    @MockBean
+    private ReservationLegService legService;
+
+    @MockBean
+    private ReservationAncillaryService ancillaryService;
 
     @BeforeEach
     void setUp() {
@@ -292,7 +304,7 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
                     .newStatus("CHECK_IN")
                     .build();
 
-            doNothing().when(reservationService).changeStatus(eq(1L), eq(PROPERTY_ID), any(ReservationStatusRequest.class));
+            doNothing().when(statusService).changeStatus(eq(1L), eq(PROPERTY_ID), any(ReservationStatusRequest.class));
 
             mockMvc.perform(put(BASE_URL + "/{id}/status", PROPERTY_ID, 1L)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -300,7 +312,7 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(reservationService).changeStatus(eq(1L), eq(PROPERTY_ID), any(ReservationStatusRequest.class));
+            verify(statusService).changeStatus(eq(1L), eq(PROPERTY_ID), any(ReservationStatusRequest.class));
         }
 
         @Test
@@ -312,7 +324,7 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
 
             doThrow(new com.hola.common.exception.HolaException(
                     com.hola.common.exception.ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED))
-                    .when(reservationService).changeStatus(eq(1L), eq(PROPERTY_ID), any(ReservationStatusRequest.class));
+                    .when(statusService).changeStatus(eq(1L), eq(PROPERTY_ID), any(ReservationStatusRequest.class));
 
             mockMvc.perform(put(BASE_URL + "/{id}/status", PROPERTY_ID, 1L)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -346,13 +358,13 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
         @Test
         @DisplayName("RESERVED 상태 예약 취소 시 200 OK 반환")
         void cancel_reserved_returns200() throws Exception {
-            doNothing().when(reservationService).cancel(eq(1L), eq(PROPERTY_ID));
+            doNothing().when(statusService).cancel(eq(1L), eq(PROPERTY_ID));
 
             mockMvc.perform(delete(BASE_URL + "/{id}", PROPERTY_ID, 1L))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(reservationService).cancel(1L, PROPERTY_ID);
+            verify(statusService).cancel(1L, PROPERTY_ID);
         }
 
         @Test
@@ -360,7 +372,7 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
         void cancel_inhouse_returns400() throws Exception {
             doThrow(new com.hola.common.exception.HolaException(
                     com.hola.common.exception.ErrorCode.RESERVATION_STATUS_CHANGE_NOT_ALLOWED))
-                    .when(reservationService).cancel(eq(1L), eq(PROPERTY_ID));
+                    .when(statusService).cancel(eq(1L), eq(PROPERTY_ID));
 
             mockMvc.perform(delete(BASE_URL + "/{id}", PROPERTY_ID, 1L))
                     .andExpect(status().isBadRequest())
@@ -386,7 +398,7 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
                     .children(0)
                     .build();
 
-            when(reservationService.addLeg(eq(1L), eq(PROPERTY_ID), any(SubReservationRequest.class)))
+            when(legService.addLeg(eq(1L), eq(PROPERTY_ID), any(SubReservationRequest.class)))
                     .thenReturn(com.hola.reservation.dto.response.SubReservationResponse.builder()
                             .id(10L)
                             .subReservationNo("RSV-20260314-0001-02")
@@ -410,13 +422,13 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
         @Test
         @DisplayName("서브 예약 삭제 시 200 OK 반환")
         void deleteLeg_returns200() throws Exception {
-            doNothing().when(reservationService).deleteLeg(eq(1L), eq(PROPERTY_ID), eq(10L));
+            doNothing().when(legService).deleteLeg(eq(1L), eq(PROPERTY_ID), eq(10L));
 
             mockMvc.perform(delete(BASE_URL + "/{id}/legs/{legId}", PROPERTY_ID, 1L, 10L))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(reservationService).deleteLeg(1L, PROPERTY_ID, 10L);
+            verify(legService).deleteLeg(1L, PROPERTY_ID, 10L);
         }
     }
 
@@ -455,7 +467,7 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
         @Test
         @DisplayName("메모 등록 시 201 CREATED 반환")
         void addMemo_returns201() throws Exception {
-            when(reservationService.addMemo(eq(1L), eq(PROPERTY_ID), eq("VIP 고객")))
+            when(ancillaryService.addMemo(eq(1L), eq(PROPERTY_ID), eq("VIP 고객")))
                     .thenReturn(com.hola.reservation.dto.response.ReservationMemoResponse.builder()
                             .id(100L)
                             .content("VIP 고객")
@@ -484,7 +496,7 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
             LocalDate startDate = LocalDate.now();
             LocalDate endDate = LocalDate.now().plusDays(7);
 
-            when(reservationService.getCalendarData(
+            when(viewService.getCalendarData(
                     eq(PROPERTY_ID), eq(startDate), eq(endDate), any(), any()))
                     .thenReturn(Collections.emptyMap());
 
@@ -538,7 +550,7 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
         @Test
         @DisplayName("취소 수수료 미리보기 조회 시 200 OK + 수수료 정보 반환")
         void getCancelPreview_returns200() throws Exception {
-            when(reservationService.getCancelPreview(eq(1L), eq(PROPERTY_ID), eq(false)))
+            when(statusService.getCancelPreview(eq(1L), eq(PROPERTY_ID), eq(false), any()))
                     .thenReturn(com.hola.reservation.dto.response.AdminCancelPreviewResponse.builder()
                             .reservationId(1L)
                             .masterReservationNo("RSV-20260314-0001")

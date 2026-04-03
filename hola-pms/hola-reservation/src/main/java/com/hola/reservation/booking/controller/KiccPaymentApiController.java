@@ -14,7 +14,7 @@ import com.hola.reservation.booking.gateway.RegisterRequest;
 import com.hola.reservation.booking.gateway.RegisterResult;
 import com.hola.reservation.booking.gateway.CancelPaymentRequest;
 import com.hola.reservation.booking.pg.kicc.dto.KiccBookingTempData;
-import com.hola.reservation.booking.service.BookingService;
+import com.hola.reservation.booking.service.BookingCreationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +50,7 @@ public class KiccPaymentApiController {
     private static final String RESULT_KEY_PREFIX = "kicc:result:";
     private static final Duration RESULT_TTL = Duration.ofMinutes(10);
 
-    private final BookingService bookingService;
+    private final BookingCreationService bookingCreationService;
     private final PaymentGateway paymentGateway;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -69,7 +69,7 @@ public class KiccPaymentApiController {
         String userAgent = httpRequest.getHeader("User-Agent");
 
         // 1. 부킹 검증 (Steps 1-4)
-        BookingValidationResult validation = bookingService.validateBookingRequest(propertyCode, request);
+        BookingValidationResult validation = bookingCreationService.validateBookingRequest(propertyCode, request);
 
         // 2. 주문번호 생성
         String shopOrderNo = "HOLA-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
@@ -161,7 +161,7 @@ public class KiccPaymentApiController {
                     .build());
 
             // 4. 예약 생성
-            BookingConfirmationResponse confirmation = bookingService.createBookingWithPaymentResult(
+            BookingConfirmationResponse confirmation = bookingCreationService.createBookingWithPaymentResult(
                     tempData.getPropertyCode(),
                     tempData.getBookingRequest(),
                     paymentResult,

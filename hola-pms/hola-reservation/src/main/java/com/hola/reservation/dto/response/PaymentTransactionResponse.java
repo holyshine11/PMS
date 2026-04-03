@@ -39,4 +39,16 @@ public class PaymentTransactionResponse {
     private String pgAcquirerName;
     private Integer pgInstallmentMonth;
     private String pgCardType;
+
+    // VAN 확장 필드
+    private String paymentChannel;
+    private Long workstationId;
+    private String vanAuthCode;
+    private String vanIssuerName;
+    private String vanPan;
+    private String vanAcquirerName;
+    private String vanSequenceNo;
+
+    /** VAN 취소 가능 여부 (VAN PAYMENT이면서 아직 REFUND가 없는 경우 true) */
+    private Boolean cancelable;
 }

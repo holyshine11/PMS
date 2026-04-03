@@ -4,10 +4,13 @@ import com.hola.common.exception.ErrorCode;
 import com.hola.common.exception.HolaException;
 import com.hola.hotel.entity.Hotel;
 import com.hola.hotel.entity.Property;
+import com.hola.hotel.service.WorkstationService;
 import com.hola.reservation.dto.request.PaymentAdjustmentRequest;
 import com.hola.reservation.dto.request.PaymentProcessRequest;
+import com.hola.reservation.dto.request.VanResultPayload;
 import com.hola.reservation.dto.response.PaymentAdjustmentResponse;
 import com.hola.reservation.dto.response.PaymentSummaryResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hola.reservation.entity.*;
 import com.hola.reservation.mapper.ReservationMapper;
 import com.hola.reservation.repository.*;
@@ -61,6 +64,10 @@ class ReservationPaymentServiceImplTest {
     private RoomTypeRepository roomTypeRepository;
     @Mock
     private ReservationMapper reservationMapper;
+    @Mock
+    private WorkstationService workstationService;
+    @Mock
+    private ObjectMapper objectMapper;
 
     // 공통 테스트 픽스처
     private Hotel hotel;
@@ -905,6 +912,242 @@ class ReservationPaymentServiceImplTest {
             assertThat(payment.getTotalAdjustmentAmount()).isEqualByComparingTo(new BigDecimal("25000"));
             // grandTotal = 0(room) + 0(service) + 0(serviceCharge) + 25000(adj) + 0(earlyLate) = 25000
             assertThat(payment.getGrandTotal()).isEqualByComparingTo(new BigDecimal("25000"));
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    //  VAN 결제 테스트
+    // ═══════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("processPayment - VAN 결제")
+    class VanPaymentTest {
+
+        private VanResultPayload createVanResult(String respCode, String transType) {
+            return new VanResultPayload(
+                    true, respCode, "approve", "승인완료",
+                    transType, "20260402AD0001", "12345678",
+                    "BC", "비씨카드", "KB", "국민카드",
+                    "4321****1234", "A12345", "0788888"
+            );
+        }
+
+        @Test
+        @DisplayName("VAN 카드결제 성공 - VAN 필드가 PaymentTransaction에 매핑됨")
+        void vanCardPayment_success() {
+            // given
+            stubMasterFound();
+            ReservationPayment payment = createPayment("UNPAID", new BigDecimal("100000"), BigDecimal.ZERO);
+            when(paymentRepository.findByMasterReservationId(RESERVATION_ID)).thenReturn(Optional.of(payment));
+            stubRecalculateWithTotal(90909, 9091, 0);
+            when(transactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(RESERVATION_ID))
+                    .thenReturn(Collections.emptyList());
+
+            PaymentProcessRequest request = new PaymentProcessRequest("CARD", new BigDecimal("100000"), "VAN 카드결제");
+            request.setSubReservationId(SUB_ID);
+            // VAN 필드는 리플렉션으로 설정
+            setField(request, "paymentChannel", "VAN");
+            setField(request, "workstationId", 1L);
+            setField(request, "vanResult", createVanResult("0000", "I1"));
+
+            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any(), any()))
+                    .thenReturn(PaymentSummaryResponse.builder().paymentStatus("PAID").build());
+
+            // when
+            service.processPayment(PROPERTY_ID, RESERVATION_ID, request);
+
+            // then
+            ArgumentCaptor<PaymentTransaction> captor = ArgumentCaptor.forClass(PaymentTransaction.class);
+            verify(transactionRepository).save(captor.capture());
+            PaymentTransaction saved = captor.getValue();
+
+            assertThat(saved.getPaymentChannel()).isEqualTo("VAN");
+            assertThat(saved.getVanProvider()).isEqualTo("KPSP");
+            assertThat(saved.getVanAuthCode()).isEqualTo("A12345");
+            assertThat(saved.getVanRrn()).isEqualTo("12345678");
+            assertThat(saved.getVanPan()).isEqualTo("4321****1234");
+            assertThat(saved.getVanIssuerName()).isEqualTo("비씨카드");
+            assertThat(saved.getVanAcquirerName()).isEqualTo("국민카드");
+            assertThat(saved.getWorkstationId()).isEqualTo(1L);
+            assertThat(saved.getApprovalNo()).isEqualTo("A12345");
+        }
+
+        @Test
+        @DisplayName("VAN 결제 거절 (respCode != 0000) - VAN_PAYMENT_FAILED 예외")
+        void vanPayment_declined() {
+            // given
+            stubMasterFound();
+            ReservationPayment payment = createPayment("UNPAID", new BigDecimal("100000"), BigDecimal.ZERO);
+            when(paymentRepository.findByMasterReservationId(RESERVATION_ID)).thenReturn(Optional.of(payment));
+            stubRecalculateWithTotal(90909, 9091, 0);
+            when(transactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(RESERVATION_ID))
+                    .thenReturn(Collections.emptyList());
+
+            PaymentProcessRequest request = new PaymentProcessRequest("CARD", new BigDecimal("100000"), null);
+            request.setSubReservationId(SUB_ID);
+            setField(request, "paymentChannel", "VAN");
+            setField(request, "workstationId", 1L);
+            setField(request, "vanResult", createVanResult("9999", "I1"));
+
+            // when & then
+            assertThatThrownBy(() -> service.processPayment(PROPERTY_ID, RESERVATION_ID, request))
+                    .isInstanceOf(HolaException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VAN_PAYMENT_FAILED);
+        }
+
+        @Test
+        @DisplayName("수동결제 (paymentChannel=null) - VAN 필드 없이 기존 동작 유지")
+        void manualPayment_noVanFields() {
+            // given
+            stubMasterFound();
+            ReservationPayment payment = createPayment("UNPAID", new BigDecimal("50000"), BigDecimal.ZERO);
+            when(paymentRepository.findByMasterReservationId(RESERVATION_ID)).thenReturn(Optional.of(payment));
+            stubRecalculateWithTotal(45455, 4545, 0);
+            when(transactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(RESERVATION_ID))
+                    .thenReturn(Collections.emptyList());
+
+            PaymentProcessRequest request = new PaymentProcessRequest("CASH", new BigDecimal("50000"), "수동결제");
+            request.setSubReservationId(SUB_ID);
+
+            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any(), any()))
+                    .thenReturn(PaymentSummaryResponse.builder().paymentStatus("PAID").build());
+
+            // when
+            service.processPayment(PROPERTY_ID, RESERVATION_ID, request);
+
+            // then
+            ArgumentCaptor<PaymentTransaction> captor = ArgumentCaptor.forClass(PaymentTransaction.class);
+            verify(transactionRepository).save(captor.capture());
+            PaymentTransaction saved = captor.getValue();
+
+            assertThat(saved.getPaymentChannel()).isNull();
+            assertThat(saved.getVanAuthCode()).isNull();
+            assertThat(saved.getWorkstationId()).isNull();
+        }
+
+        private void setField(Object target, String fieldName, Object value) {
+            try {
+                Field field = target.getClass().getDeclaredField(fieldName);
+                field.setAccessible(true);
+                field.set(target, value);
+            } catch (Exception e) {
+                throw new RuntimeException("setField 실패: " + fieldName, e);
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("getVanCancelInfo - VAN 취소 정보 조회")
+    class VanCancelInfoTest {
+
+        @Test
+        @DisplayName("VAN 거래의 취소 정보 정상 반환")
+        void vanCancelInfo_success() {
+            // given
+            stubMasterFound();
+            PaymentTransaction vanTxn = PaymentTransaction.builder()
+                    .masterReservationId(RESERVATION_ID)
+                    .transactionSeq(1)
+                    .paymentMethod("CARD")
+                    .amount(new BigDecimal("100000"))
+                    .paymentChannel("VAN")
+                    .vanAuthCode("A12345")
+                    .vanRrn("12345678")
+                    .vanSequenceNo("20260402AD0001")
+                    .workstationId(1L)
+                    .build();
+            setId(vanTxn, 50L);
+
+            when(transactionRepository.findById(50L)).thenReturn(Optional.of(vanTxn));
+            when(transactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(RESERVATION_ID))
+                    .thenReturn(List.of(vanTxn));
+
+            com.hola.hotel.entity.Workstation ws = com.hola.hotel.entity.Workstation.builder()
+                    .wsNo("ADMIN").kpspHost("localhost").kpspPort(19090).build();
+            when(workstationService.findById(1L)).thenReturn(ws);
+
+            // when
+            var result = service.getVanCancelInfo(PROPERTY_ID, RESERVATION_ID, 50L);
+
+            // then
+            assertThat(result.getAuthCode()).isEqualTo("A12345");
+            assertThat(result.getRrn()).isEqualTo("12345678");
+            assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("100000"));
+            assertThat(result.getWsNo()).isEqualTo("ADMIN");
+        }
+
+        @Test
+        @DisplayName("VAN이 아닌 거래 취소 시도 - VAN_CANCEL_NOT_ALLOWED 예외")
+        void vanCancelInfo_notVanTxn() {
+            // given
+            stubMasterFound();
+            PaymentTransaction manualTxn = PaymentTransaction.builder()
+                    .masterReservationId(RESERVATION_ID)
+                    .transactionSeq(1)
+                    .paymentMethod("CASH")
+                    .amount(new BigDecimal("50000"))
+                    .build();
+            setId(manualTxn, 60L);
+
+            when(transactionRepository.findById(60L)).thenReturn(Optional.of(manualTxn));
+
+            // when & then
+            assertThatThrownBy(() -> service.getVanCancelInfo(PROPERTY_ID, RESERVATION_ID, 60L))
+                    .isInstanceOf(HolaException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VAN_CANCEL_NOT_ALLOWED);
+        }
+    }
+
+    @Nested
+    @DisplayName("processVanCancel - VAN 취소 처리")
+    class VanCancelTest {
+
+        @Test
+        @DisplayName("VAN 취소 성공 - REFUND 트랜잭션 생성")
+        void vanCancel_success() {
+            // given
+            stubMasterFound();
+            ReservationPayment payment = createPayment("PAID", new BigDecimal("100000"), new BigDecimal("100000"));
+            when(paymentRepository.findByMasterReservationId(RESERVATION_ID)).thenReturn(Optional.of(payment));
+
+            PaymentTransaction originalTxn = PaymentTransaction.builder()
+                    .masterReservationId(RESERVATION_ID)
+                    .subReservationId(SUB_ID)
+                    .transactionSeq(1)
+                    .paymentMethod("CARD")
+                    .amount(new BigDecimal("100000"))
+                    .paymentChannel("VAN")
+                    .vanSequenceNo("20260402AD0001")
+                    .workstationId(1L)
+                    .build();
+            setId(originalTxn, 50L);
+
+            when(transactionRepository.findById(50L)).thenReturn(Optional.of(originalTxn));
+            when(transactionRepository.findByMasterReservationIdOrderByTransactionSeqAsc(RESERVATION_ID))
+                    .thenReturn(List.of(originalTxn));
+
+            VanResultPayload cancelResult = new VanResultPayload(
+                    true, "0000", "approve", "취소승인",
+                    "I4", "20260402AD0001", "87654321",
+                    "BC", "비씨카드", "KB", "국민카드",
+                    "4321****1234", "C67890", "0788888"
+            );
+
+            when(reservationMapper.toPaymentSummaryResponse(any(), any(), any(), any()))
+                    .thenReturn(PaymentSummaryResponse.builder().paymentStatus("REFUNDED").build());
+
+            // when
+            service.processVanCancel(PROPERTY_ID, RESERVATION_ID, 50L, cancelResult);
+
+            // then
+            ArgumentCaptor<PaymentTransaction> captor = ArgumentCaptor.forClass(PaymentTransaction.class);
+            verify(transactionRepository).save(captor.capture());
+            PaymentTransaction saved = captor.getValue();
+
+            assertThat(saved.getTransactionType()).isEqualTo("REFUND");
+            assertThat(saved.getPaymentChannel()).isEqualTo("VAN");
+            assertThat(saved.getVanAuthCode()).isEqualTo("C67890");
+            assertThat(saved.getAmount()).isEqualByComparingTo(new BigDecimal("100000"));
         }
     }
 }
