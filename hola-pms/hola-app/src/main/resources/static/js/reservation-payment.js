@@ -561,7 +561,7 @@ var ReservationPayment = {
                 breakdownHtml += '</div>';
             }
             breakdownHtml += '<div class="ps-3 mt-1"><small class="text-secondary fst-italic">'
-                + '※ 얼리 체크인 — 시간대 미선택, ● 레이트 체크아웃 — 시간대 미선택</small></div>';
+                + '※ 얼리 체크인, 레이트 체크아웃 요금은 총 청구액에 포함됩니다.</small></div>';
             breakdownHtml += '</div>';
         }
 
