@@ -929,11 +929,16 @@ class ReservationPaymentServiceImplTest {
     class VanPaymentTest {
 
         private VanResultPayload createVanResult(String respCode, String transType) {
+            return createVanResult(respCode, transType, 100000L);
+        }
+
+        private VanResultPayload createVanResult(String respCode, String transType, Long transAmount) {
             return new VanResultPayload(
                     true, respCode, "approve", "승인완료",
                     transType, "20260402AD0001", "12345678",
                     "BC", "비씨카드", "KB", "국민카드",
-                    "4321****1234", "A12345", "0788888"
+                    "4321****1234", "A12345", "0788888",
+                    transAmount
             );
         }
 
@@ -1135,7 +1140,8 @@ class ReservationPaymentServiceImplTest {
                     true, "0000", "approve", "취소승인",
                     "I4", "20260402AD0001", "87654321",
                     "BC", "비씨카드", "KB", "국민카드",
-                    "4321****1234", "C67890", "0788888"
+                    "4321****1234", "C67890", "0788888",
+                    50000L
             );
 
             when(reservationMapper.toPaymentSummaryResponse(any(), any(), any(), any()))
