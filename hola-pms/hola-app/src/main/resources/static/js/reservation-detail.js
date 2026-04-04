@@ -1528,21 +1528,37 @@ var ReservationDetail = {
             $leg.find('.room-number-display').val('');
         });
 
-        // 얼리체크인 토글 버튼 (저장 버튼으로 통합 - 토글만 변경)
+        // 얼리체크인 토글 버튼
         $(document).on('click', '.early-checkin-toggle:not([disabled])', function() {
             var $btn = $(this);
             var $group = $btn.closest('.btn-group');
             var val = $btn.data('value');
+            var $legCard = $btn.closest('.room-leg-card');
             self.applyToggle($group, $btn, '.leg-early-checkin', val);
+            if (val === true || val === 'true') {
+                self.showTimeWindowOptions($legCard, 'EARLY_CHECKIN');
+            } else {
+                self.removeEarlyLateFee($legCard, 'EARLY_CHECKIN', function() {
+                    self.showEarlyLateConfirmedFee($legCard);
+                });
+            }
             self.markDirty();
         });
 
-        // 레이트체크아웃 토글 버튼 (저장 버튼으로 통합 - 토글만 변경)
+        // 레이트체크아웃 토글 버튼
         $(document).on('click', '.late-checkout-toggle:not([disabled])', function() {
             var $btn = $(this);
             var $group = $btn.closest('.btn-group');
             var val = $btn.data('value');
+            var $legCard = $btn.closest('.room-leg-card');
             self.applyToggle($group, $btn, '.leg-late-checkout', val);
+            if (val === true || val === 'true') {
+                self.showTimeWindowOptions($legCard, 'LATE_CHECKOUT');
+            } else {
+                self.removeEarlyLateFee($legCard, 'LATE_CHECKOUT', function() {
+                    self.showEarlyLateConfirmedFee($legCard);
+                });
+            }
             self.markDirty();
         });
 
