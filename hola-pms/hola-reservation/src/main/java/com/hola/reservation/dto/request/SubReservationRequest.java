@@ -1,5 +1,6 @@
 package com.hola.reservation.dto.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -47,6 +48,7 @@ public class SubReservationRequest {
     private Integer dayUseDurationHours;
 
     // 동반 투숙객
+    @Valid
     private List<ReservationGuestRequest> guests;
 
     // 유료 서비스 선택 (Add-on)

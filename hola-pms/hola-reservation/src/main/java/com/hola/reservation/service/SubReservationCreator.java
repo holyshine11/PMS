@@ -156,7 +156,12 @@ public class SubReservationCreator {
 
         // 투숙객 등록
         if (request.getGuests() != null) {
+            int seq = 1;
             for (ReservationGuestRequest guestReq : request.getGuests()) {
+                if (guestReq.getGuestSeq() == null) {
+                    guestReq.setGuestSeq(seq);
+                }
+                seq = guestReq.getGuestSeq() + 1;
                 ReservationGuest guest = reservationMapper.toReservationGuestEntity(guestReq, sub);
                 reservationGuestRepository.save(guest);
             }
@@ -188,7 +193,12 @@ public class SubReservationCreator {
         sub.getGuests().clear();
         reservationGuestRepository.flush();
 
+        int seq = 1;
         for (ReservationGuestRequest guestReq : guestRequests) {
+            if (guestReq.getGuestSeq() == null) {
+                guestReq.setGuestSeq(seq);
+            }
+            seq = guestReq.getGuestSeq() + 1;
             ReservationGuest guest = reservationMapper.toReservationGuestEntity(guestReq, sub);
             reservationGuestRepository.save(guest);
         }

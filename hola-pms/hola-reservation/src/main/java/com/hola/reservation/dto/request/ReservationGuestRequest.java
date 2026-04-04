@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * 동반 투숙객 요청 DTO
@@ -15,6 +16,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ReservationGuestRequest {
 
+    @Setter
     private Integer guestSeq;
 
     @NotBlank(message = "투숙객 이름은 필수입니다.")
