@@ -3171,8 +3171,24 @@ var ReservationDetail = {
             return $('<span>').text(str).html();
         };
 
-        var html = '<div class="list-group list-group-flush">';
+        // 마스터/서브 동일 상태변경 중복 제거: 마스터(subReservationId=null)가 있으면 서브 건 숨김
+        var masterKeys = {};
         items.forEach(function(item) {
+            if (!item.subReservationId && item.changeCategory === 'STATUS') {
+                var key = item.description + '|' + (item.createdAt || '').substring(0, 19);
+                masterKeys[key] = true;
+            }
+        });
+        var filtered = items.filter(function(item) {
+            if (item.subReservationId && item.changeCategory === 'STATUS') {
+                var key = item.description + '|' + (item.createdAt || '').substring(0, 19);
+                return !masterKeys[key];
+            }
+            return true;
+        });
+
+        var html = '<div class="list-group list-group-flush">';
+        filtered.forEach(function(item) {
             var ts = item.createdAt ? item.createdAt.replace('T', ' ').substring(0, 19) : '';
             html += '<div class="list-group-item px-0 py-2">'
                 + '<div class="d-flex justify-content-between align-items-start">'
