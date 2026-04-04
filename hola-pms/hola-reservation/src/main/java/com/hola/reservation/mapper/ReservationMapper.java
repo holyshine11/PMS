@@ -284,6 +284,10 @@ public class ReservationMapper {
         BigDecimal cancelFee = payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO;
         // 잔액 = grandTotal - 순결제액(총결제 - 환불 - 취소수수료)
         BigDecimal netPaid = totalPaid.subtract(refund).subtract(cancelFee);
+        // 환불완료 상태에서는 잔액 0 (미수금 아님)
+        BigDecimal remaining = "REFUNDED".equals(payment.getPaymentStatus())
+                ? BigDecimal.ZERO
+                : grandTotal.subtract(netPaid).max(BigDecimal.ZERO);
 
         return PaymentSummaryResponse.builder()
                 .id(payment.getId())
@@ -297,7 +301,7 @@ public class ReservationMapper {
                 .totalPaidAmount(totalPaid)
                 .cancelFeeAmount(payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO)
                 .refundAmount(refund)
-                .remainingAmount(grandTotal.subtract(netPaid).max(BigDecimal.ZERO))
+                .remainingAmount(remaining)
                 .paymentDate(payment.getPaymentDate())
                 .paymentMethod(payment.getPaymentMethod())
                 .legPayments(legPayments)
