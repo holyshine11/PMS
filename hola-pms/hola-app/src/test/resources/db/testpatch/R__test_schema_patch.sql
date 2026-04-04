@@ -4,42 +4,7 @@
 -- V5_18_0: 서비스 타입 컬럼 확장
 ALTER TABLE rsv_reservation_service ALTER COLUMN service_type TYPE VARCHAR(20);
 
--- V6_1_0: 트랜잭션 코드 테이블
-CREATE TABLE IF NOT EXISTS rm_transaction_code_group (
-    id BIGSERIAL PRIMARY KEY,
-    property_id BIGINT NOT NULL REFERENCES htl_property(id),
-    group_code VARCHAR(20) NOT NULL,
-    group_name_ko VARCHAR(100) NOT NULL,
-    group_name_en VARCHAR(100),
-    description VARCHAR(500),
-    sort_order INTEGER DEFAULT 0,
-    use_yn BOOLEAN NOT NULL DEFAULT true,
-    deleted_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    created_by VARCHAR(100),
-    updated_by VARCHAR(100)
-);
-
-CREATE TABLE IF NOT EXISTS rm_transaction_code (
-    id BIGSERIAL PRIMARY KEY,
-    property_id BIGINT NOT NULL REFERENCES htl_property(id),
-    group_id BIGINT NOT NULL REFERENCES rm_transaction_code_group(id),
-    tc_code VARCHAR(20) NOT NULL,
-    tc_name_ko VARCHAR(100) NOT NULL,
-    tc_name_en VARCHAR(100),
-    charge_type VARCHAR(20) NOT NULL DEFAULT 'DEBIT',
-    default_price NUMERIC(15,2),
-    tax_inclusive BOOLEAN NOT NULL DEFAULT false,
-    description VARCHAR(500),
-    sort_order INTEGER DEFAULT 0,
-    use_yn BOOLEAN NOT NULL DEFAULT true,
-    deleted_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    created_by VARCHAR(100),
-    updated_by VARCHAR(100)
-);
+-- V6_1_0: 트랜잭션 코드 테이블 (V4_26_9 테스트 패치에서 생성 완료 — 여기서는 스킵)
 
 -- V6_2_0: PaidServiceOption 확장
 ALTER TABLE rm_paid_service_option ADD COLUMN IF NOT EXISTS charge_type VARCHAR(20) DEFAULT 'PER_NIGHT';

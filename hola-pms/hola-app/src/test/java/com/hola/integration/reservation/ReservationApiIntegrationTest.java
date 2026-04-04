@@ -23,6 +23,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
@@ -92,8 +95,10 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
         @Test
         @DisplayName("빈 리스트 조회 시 200 OK + 빈 배열 반환")
         void getList_empty_returns200() throws Exception {
-            when(reservationService.getList(eq(PROPERTY_ID), any(), any(), any(), any()))
-                    .thenReturn(Collections.emptyList());
+            Page<com.hola.reservation.dto.response.ReservationListResponse> emptyPage =
+                    new PageImpl<>(Collections.emptyList());
+            when(reservationService.getList(eq(PROPERTY_ID), any(), any(), any(), any(), any()))
+                    .thenReturn(emptyPage);
 
             mockMvc.perform(get(BASE_URL, PROPERTY_ID))
                     .andExpect(status().isOk())
@@ -105,15 +110,17 @@ class ReservationApiIntegrationTest extends BaseIntegrationTest {
         @Test
         @DisplayName("상태 필터 파라미터 전달 시 서비스에 정상 전달")
         void getList_withStatusFilter_passesParameter() throws Exception {
-            when(reservationService.getList(eq(PROPERTY_ID), eq("RESERVED"), any(), any(), any()))
-                    .thenReturn(Collections.emptyList());
+            Page<com.hola.reservation.dto.response.ReservationListResponse> emptyPage =
+                    new PageImpl<>(Collections.emptyList());
+            when(reservationService.getList(eq(PROPERTY_ID), eq("RESERVED"), any(), any(), any(), any()))
+                    .thenReturn(emptyPage);
 
             mockMvc.perform(get(BASE_URL, PROPERTY_ID)
                             .param("status", "RESERVED"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(reservationService).getList(eq(PROPERTY_ID), eq("RESERVED"), any(), any(), any());
+            verify(reservationService).getList(eq(PROPERTY_ID), eq("RESERVED"), any(), any(), any(), any());
         }
     }
 
