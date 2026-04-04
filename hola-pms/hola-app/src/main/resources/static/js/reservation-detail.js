@@ -1528,70 +1528,22 @@ var ReservationDetail = {
             $leg.find('.room-number-display').val('');
         });
 
-        // 얼리체크인 토글 버튼 (이벤트 위임)
+        // 얼리체크인 토글 버튼 (저장 버튼으로 통합 - 토글만 변경)
         $(document).on('click', '.early-checkin-toggle:not([disabled])', function() {
             var $btn = $(this);
             var $group = $btn.closest('.btn-group');
-            var $legCard = $btn.closest('.room-leg-card');
             var val = $btn.data('value');
-            var legId = $legCard.data('leg-id');
-
-            if (val === true) {
-                self.checkPolicyExists('EARLY_CHECKIN', function(exists) {
-                    if (!exists) {
-                        HolaPms.alert('warning', '얼리 체크인 요금 정책이 설정되어 있지 않습니다. 프로퍼티 설정에서 정책을 먼저 추가해주세요.');
-                        return;
-                    }
-                    if (legId && self.reservationId) {
-                        // 기존 Leg: 시간대 선택 후 즉시 등록
-                        self.showTimeWindowOptions($legCard, 'EARLY_CHECKIN');
-                    } else {
-                        // 신규 Leg: 저장 후 등록 가능 (기존 동작)
-                        self.applyToggle($group, $btn, '.leg-early-checkin', true);
-                    }
-                });
-            } else {
-                if (legId && self.reservationId) {
-                    self.removeEarlyLateFee($legCard, 'EARLY_CHECKIN', function() {
-                        self.applyToggle($group, $btn, '.leg-early-checkin', false);
-                        self.showEarlyLateConfirmedFee($legCard);
-                    });
-                } else {
-                    self.applyToggle($group, $btn, '.leg-early-checkin', false);
-                }
-            }
+            self.applyToggle($group, $btn, '.leg-early-checkin', val);
+            self.markDirty();
         });
 
-        // 레이트체크아웃 토글 버튼 (이벤트 위임)
+        // 레이트체크아웃 토글 버튼 (저장 버튼으로 통합 - 토글만 변경)
         $(document).on('click', '.late-checkout-toggle:not([disabled])', function() {
             var $btn = $(this);
             var $group = $btn.closest('.btn-group');
-            var $legCard = $btn.closest('.room-leg-card');
             var val = $btn.data('value');
-            var legId = $legCard.data('leg-id');
-
-            if (val === true) {
-                self.checkPolicyExists('LATE_CHECKOUT', function(exists) {
-                    if (!exists) {
-                        HolaPms.alert('warning', '레이트 체크아웃 요금 정책이 설정되어 있지 않습니다. 프로퍼티 설정에서 정책을 먼저 추가해주세요.');
-                        return;
-                    }
-                    if (legId && self.reservationId) {
-                        self.showTimeWindowOptions($legCard, 'LATE_CHECKOUT');
-                    } else {
-                        self.applyToggle($group, $btn, '.leg-late-checkout', true);
-                    }
-                });
-            } else {
-                if (legId && self.reservationId) {
-                    self.removeEarlyLateFee($legCard, 'LATE_CHECKOUT', function() {
-                        self.applyToggle($group, $btn, '.leg-late-checkout', false);
-                        self.showEarlyLateConfirmedFee($legCard);
-                    });
-                } else {
-                    self.applyToggle($group, $btn, '.leg-late-checkout', false);
-                }
-            }
+            self.applyToggle($group, $btn, '.leg-late-checkout', val);
+            self.markDirty();
         });
 
         // 얼리/레이트 시간대 선택 버튼 클릭 (이벤트 위임)

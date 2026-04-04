@@ -86,6 +86,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final RoomTypeRepository roomTypeRepository;
     private final EntityManager entityManager;
     private final ReservationChangeLogService changeLogService;
+    private final EarlyLateCheckService earlyLateCheckService;
 
     @Override
     public List<ReservationListResponse> getList(Long propertyId, String status, LocalDate checkInFrom,
@@ -431,6 +432,34 @@ public class ReservationServiceImpl implements ReservationService {
                                 legPrevLateCheckOut, subReq.getLateCheckOut() != null ? subReq.getLateCheckOut() : false, legLabel + " 레이트체크아웃");
                     } catch (Exception e) {
                         log.error("Leg 변경이력 기록 실패: {}", e.getMessage());
+                    }
+
+                    // 얼리/레이트 변경 시 fee 자동 등록/해제 (저장 버튼 통합 처리)
+                    boolean earlyChanged = !java.util.Objects.equals(legPrevEarlyCheckIn, sub.getEarlyCheckIn());
+                    boolean lateChanged = !java.util.Objects.equals(legPrevLateCheckOut, sub.getLateCheckOut());
+                    if (earlyChanged) {
+                        if (Boolean.TRUE.equals(sub.getEarlyCheckIn()) && sub.getEarlyCheckInFee() == null) {
+                            try {
+                                java.math.BigDecimal fee = earlyLateCheckService.calculateFeeByPolicyIndex(sub, "EARLY_CHECKIN", 0);
+                                sub.registerEarlyCheckInFee(fee);
+                            } catch (Exception e) {
+                                log.warn("얼리체크인 요금 자동 등록 실패 (정책 없음): {}", e.getMessage());
+                            }
+                        } else if (Boolean.FALSE.equals(sub.getEarlyCheckIn())) {
+                            sub.clearEarlyCheckInFee();
+                        }
+                    }
+                    if (lateChanged) {
+                        if (Boolean.TRUE.equals(sub.getLateCheckOut()) && sub.getLateCheckOutFee() == null) {
+                            try {
+                                java.math.BigDecimal fee = earlyLateCheckService.calculateFeeByPolicyIndex(sub, "LATE_CHECKOUT", 0);
+                                sub.registerLateCheckOutFee(fee);
+                            } catch (Exception e) {
+                                log.warn("레이트체크아웃 요금 자동 등록 실패 (정책 없음): {}", e.getMessage());
+                            }
+                        } else if (Boolean.FALSE.equals(sub.getLateCheckOut())) {
+                            sub.clearLateCheckOutFee();
+                        }
                     }
 
                     // 레이트코드/날짜/인원 변경 시에만 요금 재계산
