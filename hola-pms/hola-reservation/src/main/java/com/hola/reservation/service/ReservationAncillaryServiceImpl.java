@@ -110,8 +110,8 @@ public class ReservationAncillaryServiceImpl implements ReservationAncillaryServ
                 request.getCardExpiryDate(), request.getCardPasswordEncrypted(),
                 request.getCurrency(), request.getAmount());
         log.info("예치금 수정: depositId={}", depositId);
-        // 금액 또는 방법이 실제 변경된 경우에만 이력 기록
-        boolean depositChanged = !java.util.Objects.equals(prevAmount, request.getAmount())
+        // 금액 또는 방법이 실제 변경된 경우에만 이력 기록 (BigDecimal은 compareTo로 비교)
+        boolean depositChanged = prevAmount.compareTo(request.getAmount()) != 0
                 || !java.util.Objects.equals(prevMethod, request.getDepositMethod());
         if (depositChanged) {
             try {
