@@ -359,10 +359,10 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
                 reservationId, nextSeq, request.getAdjustmentSign(), request.getTotalAmount());
         try {
             String sign = "+".equals(request.getAdjustmentSign()) ? "추가" : "할인";
-            String desc = "금액 조정 " + sign + ": " + request.getTotalAmount().toPlainString() + "원"
+            String desc = "금액 조정 " + sign + ": " + request.getTotalAmount().stripTrailingZeros().toPlainString() + "원"
                     + (request.getComment() != null ? " (" + request.getComment() + ")" : "");
             changeLogService.log(reservationId, null, "PAYMENT", "UPDATE",
-                    "adjustment", null, request.getAdjustmentSign() + request.getTotalAmount().toPlainString(), desc);
+                    "adjustment", null, request.getAdjustmentSign() + request.getTotalAmount().stripTrailingZeros().toPlainString(), desc);
         } catch (Exception e) {
             log.error("변경이력 기록 실패: {}", e.getMessage());
         }
@@ -1382,10 +1382,10 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             String channelLabel = channel != null ? " (" + channel + ")" : "";
             boolean isRefund = "REFUND".equals(txnType);
             String desc = (isRefund ? "환불" : "결제") + ": " + methodLabel + channelLabel
-                    + " " + amount.toPlainString() + "원";
+                    + " " + amount.stripTrailingZeros().toPlainString() + "원";
             changeLogService.log(reservationId, subReservationId, "PAYMENT",
                     isRefund ? "REFUND" : "PAYMENT", "paymentTransaction",
-                    null, amount.toPlainString(), desc);
+                    null, amount.stripTrailingZeros().toPlainString(), desc);
         } catch (Exception e) {
             log.error("결제 변경이력 기록 실패: {}", e.getMessage());
         }

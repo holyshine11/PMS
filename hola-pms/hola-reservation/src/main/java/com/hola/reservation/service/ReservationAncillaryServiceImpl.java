@@ -86,8 +86,8 @@ public class ReservationAncillaryServiceImpl implements ReservationAncillaryServ
         log.info("예치금 등록: reservationId={}, 금액={}", reservationId, request.getAmount());
         try {
             changeLogService.log(master.getId(), null, "RESERVATION", "ADD_DEPOSIT",
-                    null, null, request.getAmount().toPlainString(),
-                    "보증금 등록: " + request.getDepositMethod() + " " + request.getAmount().toPlainString() + "원");
+                    null, null, request.getAmount().stripTrailingZeros().toPlainString(),
+                    "보증금 등록: " + request.getDepositMethod() + " " + request.getAmount().stripTrailingZeros().toPlainString() + "원");
         } catch (Exception e) {
             log.error("변경이력 기록 실패: {}", e.getMessage());
         }
@@ -116,9 +116,9 @@ public class ReservationAncillaryServiceImpl implements ReservationAncillaryServ
         if (depositChanged) {
             try {
                 changeLogService.log(reservationId, null, "RESERVATION", "UPDATE",
-                        "deposit", prevMethod + " " + prevAmount.toPlainString() + "원",
-                        request.getDepositMethod() + " " + request.getAmount().toPlainString() + "원",
-                        "보증금 수정: " + prevAmount.toPlainString() + "원 → " + request.getAmount().toPlainString() + "원");
+                        "deposit", prevMethod + " " + prevAmount.stripTrailingZeros().toPlainString() + "원",
+                        request.getDepositMethod() + " " + request.getAmount().stripTrailingZeros().toPlainString() + "원",
+                        "보증금 수정: " + prevAmount.stripTrailingZeros().toPlainString() + "원 → " + request.getAmount().stripTrailingZeros().toPlainString() + "원");
             } catch (Exception e) {
                 log.error("변경이력 기록 실패: {}", e.getMessage());
             }
@@ -173,7 +173,7 @@ public class ReservationAncillaryServiceImpl implements ReservationAncillaryServ
         try {
             changeLogService.log(master.getId(), sub.getId(), "SERVICE", "ADD_SERVICE",
                     null, null, option.getServiceNameKo(),
-                    "서비스 추가: " + option.getServiceNameKo() + " (" + totalPrice.toPlainString() + "원)");
+                    "서비스 추가: " + option.getServiceNameKo() + " (" + totalPrice.stripTrailingZeros().toPlainString() + "원)");
         } catch (Exception e) {
             log.error("변경이력 기록 실패: {}", e.getMessage());
         }
@@ -218,7 +218,7 @@ public class ReservationAncillaryServiceImpl implements ReservationAncillaryServ
                     : "서비스";
             changeLogService.log(master.getId(), subReservationId, "SERVICE", "REMOVE_SERVICE",
                     null, serviceName, null,
-                    "서비스 삭제: " + serviceName + " (" + serviceItem.getTotalPrice().toPlainString() + "원)");
+                    "서비스 삭제: " + serviceName + " (" + serviceItem.getTotalPrice().stripTrailingZeros().toPlainString() + "원)");
         } catch (Exception e) {
             log.error("변경이력 기록 실패: {}", e.getMessage());
         }

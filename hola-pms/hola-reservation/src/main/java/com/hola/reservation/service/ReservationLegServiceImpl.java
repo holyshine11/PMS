@@ -173,8 +173,8 @@ public class ReservationLegServiceImpl implements ReservationLegService {
             String label = "EARLY_CHECKIN".equals(policyType) ? "얼리체크인" : "레이트체크아웃";
             changeLogService.log(master.getId(), sub.getId(), "ROOM", "UPDATE",
                     "EARLY_CHECKIN".equals(policyType) ? "earlyCheckIn" : "lateCheckOut",
-                    "미사용", "사용 (₩" + fee.toPlainString() + ")",
-                    sub.getSubReservationNo() + " " + label + " 설정: ₩" + fee.toPlainString());
+                    "미사용", "사용 (₩" + fee.stripTrailingZeros().toPlainString() + ")",
+                    sub.getSubReservationNo() + " " + label + " 설정: ₩" + fee.stripTrailingZeros().toPlainString());
         } catch (Exception e) {
             log.error("변경이력 기록 실패: {}", e.getMessage());
         }

@@ -74,7 +74,7 @@ public class ReservationChangeLogServiceImpl implements ReservationChangeLogServ
         String desc = "객실 업그레이드: " + fromRoomType + " -> " + toRoomType
                 + " (" + typeLabel + ")";
         if (priceDiff != null && priceDiff.compareTo(BigDecimal.ZERO) > 0) {
-            desc += ", +" + priceDiff.toPlainString() + "원";
+            desc += ", +" + priceDiff.stripTrailingZeros().toPlainString() + "원";
         }
         log(masterReservationId, subReservationId, "UPGRADE", "UPGRADE",
                 null, fromRoomType, toRoomType, desc);
