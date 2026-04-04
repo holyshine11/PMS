@@ -18,6 +18,7 @@ var ReservationDetail = {
     reservationData: null,   // API 응답 전체 저장
     isOta: false,
     isReadonly: false,       // CHECKED_OUT / CANCELED / NO_SHOW
+    isDirty: false,          // 미저장 변경 감지
     roomLegSeq: 0,           // 객실 레그 시퀀스
     currentLegSeq: null,     // 현재 모달 대상 레그 시퀀스
 
@@ -108,6 +109,7 @@ var ReservationDetail = {
                 if (res.success && res.data) {
                     self.bindData(res.data);
                     self.loadChangeHistory();
+                    self.clearDirty();
                 }
                 if (callback) callback();
             }
@@ -441,7 +443,7 @@ var ReservationDetail = {
             });
             legActionBtn = '<div class="dropdown d-inline-block ms-2">'
                 + '<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">'
-                + '<i class="fas fa-exchange-alt me-1"></i>상태 변경</button>'
+                + '<i class="fas fa-exchange-alt me-1"></i>상태 변경 <span class="auto-save-label"><i class="fas fa-bolt"></i></span></button>'
                 + '<ul class="dropdown-menu">' + items + '</ul></div>';
         }
 
@@ -501,7 +503,7 @@ var ReservationDetail = {
             + '      <div class="col-sm-2"><input type="number" class="form-control leg-children" value="' + children + '" min="0" max="99"' + (legTerminated ? ' disabled' : '') + '></div>'
             + '    </div>'
             + '    <div class="row mb-3">'
-            + '      <label class="col-sm-2 col-form-label">얼리체크인</label>'
+            + '      <label class="col-sm-2 col-form-label">얼리체크인 <span class="auto-save-label"><i class="fas fa-bolt"></i> 즉시</span></label>'
             + '      <div class="col-sm-2">'
             + '        <input type="hidden" class="leg-early-checkin" value="' + (earlyCheckIn ? 'true' : 'false') + '">'
             + '        <div class="btn-group btn-group-sm w-100" role="group">'
@@ -511,7 +513,7 @@ var ReservationDetail = {
             + ' data-value="false"' + earlyDisabled + '>미사용</button>'
             + '        </div>'
             + '      </div>'
-            + '      <label class="col-sm-2 col-form-label">레이트체크아웃</label>'
+            + '      <label class="col-sm-2 col-form-label">레이트체크아웃 <span class="auto-save-label"><i class="fas fa-bolt"></i> 즉시</span></label>'
             + '      <div class="col-sm-2">'
             + '        <input type="hidden" class="leg-late-checkout" value="' + (lateCheckOut ? 'true' : 'false') + '">'
             + '        <div class="btn-group btn-group-sm w-100" role="group">'
@@ -531,7 +533,7 @@ var ReservationDetail = {
             + '    <hr class="my-2">'
             + '    <div class="d-flex justify-content-between align-items-center mb-2">'
             + '      <span class="text-muted small collapsed" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#serviceCollapse_' + seq + '">'
-            + '        <i class="fas fa-concierge-bell me-1"></i>유료 서비스'
+            + '        <i class="fas fa-concierge-bell me-1"></i>유료 서비스 <span class="auto-save-label"><i class="fas fa-bolt"></i> 즉시</span>'
             + '        <span class="service-count-badge" id="serviceCount_' + seq + '">' + (legData && legData.services && legData.services.length > 0 ? ' (' + legData.services.length + '건)' : '') + '</span>'
             + '        <i class="fas fa-chevron-down collapse-arrow ms-1" style="font-size:10px;"></i>'
             + '      </span>'
@@ -1399,6 +1401,18 @@ var ReservationDetail = {
 
         // 저장 버튼
         $('#saveBtn').on('click', function() { self.save(); });
+
+        // 미저장 변경 감지: 저장 버튼이 필요한 폼 필드 변경 시 dirty 표시
+        $(document).on('input change', '#tabReservation input, #tabReservation select, #tabReservation textarea, '
+            + '.leg-check-in, .leg-check-out, .leg-adults, .leg-children, .room-type-name, .room-number-display, '
+            + '#tabDeposit input, #tabDeposit select, #tabEtc textarea', function() {
+            if (!self.isReadonly) self.markDirty();
+        });
+
+        // 창 닫기 시 미저장 경고
+        $(window).on('beforeunload', function() {
+            if (self.isDirty) return '저장하지 않은 변경사항이 있습니다.';
+        });
 
         // 예약 삭제 버튼 (SUPER_ADMIN + CHECKED_OUT)
         $('#deleteReservationBtn').on('click', function() { self.deleteReservation(); });
@@ -2614,6 +2628,7 @@ var ReservationDetail = {
                 if (res.success) {
                     // 2단계: 예치금 저장
                     self.saveDeposit(function() {
+                        self.clearDirty();
                         HolaPms.popup.notifyParent('saved', self.reservationId);
                         HolaPms.alert('success', '예약이 수정되었습니다.');
                         self.loadData();
@@ -3201,6 +3216,23 @@ var ReservationDetail = {
         });
         html += '</div>';
         $('#changeHistoryContainer').html(html).show();
+    },
+
+    // ─── 미저장 변경 감지 ──────────────────────────
+
+    markDirty: function() {
+        if (this.isDirty) return;
+        this.isDirty = true;
+        var $btn = $('#saveBtn');
+        $btn.addClass('btn-save-dirty');
+        $btn.html('<i class="fas fa-save me-1"></i> 저장 <span class="badge bg-warning text-dark ms-1">미저장</span>');
+    },
+
+    clearDirty: function() {
+        this.isDirty = false;
+        var $btn = $('#saveBtn');
+        $btn.removeClass('btn-save-dirty');
+        $btn.html('<i class="fas fa-save me-1"></i> 저장');
     }
 };
 

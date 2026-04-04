@@ -4,6 +4,24 @@
       layout:decorate="~{layout/default}">
 <head>
     <title>예약 상세</title>
+    <style>
+        /* 미저장 변경 시 저장 버튼 강조 */
+        .btn-save-dirty {
+            animation: pulse-save 1.5s ease-in-out infinite;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.4);
+        }
+        @keyframes pulse-save {
+            0%, 100% { box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.4); }
+            50% { box-shadow: 0 0 0 0.4rem rgba(13, 110, 253, 0.15); }
+        }
+        /* 즉시 반영 라벨 */
+        .auto-save-label {
+            font-size: 0.65rem;
+            color: #0582CA;
+            font-weight: 500;
+            letter-spacing: -0.02em;
+        }
+    </style>
 </head>
 <body>
 <div layout:fragment="content">
