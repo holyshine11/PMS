@@ -1,5 +1,7 @@
 package com.hola.reservation.vo;
 
+import com.hola.common.exception.ErrorCode;
+import com.hola.common.exception.HolaException;
 import com.hola.hotel.entity.Property;
 
 import java.time.Duration;
@@ -13,11 +15,19 @@ public record DayUseTimeSlot(LocalTime startTime, LocalTime endTime) {
 
     /**
      * Property 운영설정 + 이용시간으로 생성
+     * 운영 종료시간을 초과하면 예외 발생
      */
     public static DayUseTimeSlot from(Property property, Integer durationHours) {
         int hours = durationHours != null ? durationHours : property.getDayUseDefaultHours();
         LocalTime start = LocalTime.parse(property.getDayUseStartTime());
         LocalTime end = start.plusHours(hours);
+
+        // 운영 종료시간 초과 검증
+        LocalTime operationEnd = LocalTime.parse(property.getDayUseEndTime());
+        if (end.isAfter(operationEnd)) {
+            throw new HolaException(ErrorCode.DAY_USE_EXCEEDS_OPERATION_HOURS);
+        }
+
         return new DayUseTimeSlot(start, end);
     }
 

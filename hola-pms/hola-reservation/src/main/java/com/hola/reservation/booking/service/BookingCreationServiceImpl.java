@@ -205,6 +205,10 @@ public class BookingCreationServiceImpl implements BookingCreationService {
 
             List<DailyCharge> dailyCharges;
             if (roomRateCode.isDayUse()) {
+                // 프로퍼티 Dayuse 허용 여부 검증
+                if (!Boolean.TRUE.equals(property.getDayUseEnabled())) {
+                    throw new HolaException(ErrorCode.DAY_USE_NOT_ENABLED);
+                }
                 List<DayUseRate> dayUseRates = dayUseRateRepository
                         .findByRateCodeIdAndUseYnTrueOrderBySortOrderAsc(room.getRateCodeId());
                 if (dayUseRates.isEmpty()) {

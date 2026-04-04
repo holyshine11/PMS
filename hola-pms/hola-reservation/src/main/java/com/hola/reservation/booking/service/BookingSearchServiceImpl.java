@@ -130,9 +130,10 @@ public class BookingSearchServiceImpl implements BookingSearchService {
                         || request.getChildren() <= rt.getMaxChildren())
                 .toList();
 
-        // 해당 기간에 적용 가능한 레이트코드 목록 조회
+        // 해당 기간에 적용 가능한 레이트코드 목록 조회 (프로퍼티 Dayuse 허용 여부 반영)
         List<RateCodeListResponse> availableRateCodes = rateCodeService.getAvailableRateCodes(
-                propertyId, request.getCheckIn(), request.getCheckOut());
+                propertyId, request.getCheckIn(), request.getCheckOut(),
+                Boolean.TRUE.equals(property.getDayUseEnabled()));
 
         List<AvailableRoomTypeResponse> result = new ArrayList<>();
 
@@ -437,9 +438,10 @@ public class BookingSearchServiceImpl implements BookingSearchService {
         final int adultsCount = (adults != null) ? adults : 2;
         final int childrenCount = (children != null) ? children : 0;
 
-        // 해당 기간 적용 가능 레이트코드 조회
+        // 해당 기간 적용 가능 레이트코드 조회 (프로퍼티 Dayuse 허용 여부 반영)
         List<RateCodeListResponse> availableRateCodes = rateCodeService.getAvailableRateCodes(
-                propertyId, checkIn, checkOut);
+                propertyId, checkIn, checkOut,
+                Boolean.TRUE.equals(property.getDayUseEnabled()));
 
         // 프로모션 코드 필터링 (있으면)
         if (promotionCode != null && !promotionCode.isBlank()) {
@@ -659,9 +661,10 @@ public class BookingSearchServiceImpl implements BookingSearchService {
                 .filter(rt -> Boolean.TRUE.equals(rt.getUseYn()))
                 .toList();
 
-        // 해당 기간에 적용 가능한 레이트코드 조회
+        // 해당 기간에 적용 가능한 레이트코드 조회 (프로퍼티 Dayuse 허용 여부 반영)
         List<RateCodeListResponse> availableRateCodes = rateCodeService.getAvailableRateCodes(
-                propertyId, startDate, endDate);
+                propertyId, startDate, endDate,
+                Boolean.TRUE.equals(property.getDayUseEnabled()));
 
         List<CalendarResponse.DateAvailability> dates = new ArrayList<>();
 
@@ -757,9 +760,10 @@ public class BookingSearchServiceImpl implements BookingSearchService {
             return List.of();
         }
 
-        // 기간 유효 레이트코드 조회
+        // 기간 유효 레이트코드 조회 (프로퍼티 Dayuse 허용 여부 반영)
         List<RateCodeListResponse> availableRateCodes = rateCodeService.getAvailableRateCodes(
-                property.getId(), checkIn, checkOut);
+                property.getId(), checkIn, checkOut,
+                Boolean.TRUE.equals(property.getDayUseEnabled()));
 
         // 교집합 필터 (해당 roomType에 매핑된 것만)
         availableRateCodes = availableRateCodes.stream()

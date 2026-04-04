@@ -3193,7 +3193,7 @@ var ReservationDetail = {
         this.isDirty = true;
         var $btn = $('#saveBtn');
         $btn.addClass('btn-save-dirty');
-        $btn.html('<i class="fas fa-save me-1"></i> 저장 <span class="badge bg-warning text-dark ms-1">미저장</span>');
+        $btn.html('<i class="fas fa-save me-1"></i> 저장');
     },
 
     clearDirty: function() {

@@ -131,6 +131,7 @@ public enum ErrorCode {
     RESERVATION_PAYMENT_MODIFY_NOT_ALLOWED("HOLA-4025", "완료된 결제는 수정할 수 없습니다.", HttpStatus.BAD_REQUEST),
     DAY_USE_NOT_ENABLED("HOLA-4032", "이 프로퍼티에서는 Dayuse가 허용되지 않습니다.", HttpStatus.BAD_REQUEST),
     DAY_USE_RATE_NOT_FOUND("HOLA-4033", "해당 이용시간에 맞는 Dayuse 요금이 없습니다.", HttpStatus.NOT_FOUND),
+    DAY_USE_EXCEEDS_OPERATION_HOURS("HOLA-4034", "이용시간이 Dayuse 운영 종료시간을 초과합니다.", HttpStatus.BAD_REQUEST),
 
     // 예약채널 (HOLA-403x)
     RESERVATION_CHANNEL_NOT_FOUND("HOLA-4030", "예약채널을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
