@@ -443,7 +443,7 @@ var ReservationDetail = {
             });
             legActionBtn = '<div class="dropdown d-inline-block ms-2">'
                 + '<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">'
-                + '<i class="fas fa-exchange-alt me-1"></i>상태 변경 <span class="auto-save-label"><i class="fas fa-bolt"></i></span></button>'
+                + '<i class="fas fa-exchange-alt me-1"></i>상태 변경</button>'
                 + '<ul class="dropdown-menu">' + items + '</ul></div>';
         }
 
@@ -503,7 +503,7 @@ var ReservationDetail = {
             + '      <div class="col-sm-2"><input type="number" class="form-control leg-children" value="' + children + '" min="0" max="99"' + (legTerminated ? ' disabled' : '') + '></div>'
             + '    </div>'
             + '    <div class="row mb-3">'
-            + '      <label class="col-sm-2 col-form-label">얼리체크인 <span class="auto-save-label"><i class="fas fa-bolt"></i> 즉시</span></label>'
+            + '      <label class="col-sm-2 col-form-label">얼리체크인</label>'
             + '      <div class="col-sm-2">'
             + '        <input type="hidden" class="leg-early-checkin" value="' + (earlyCheckIn ? 'true' : 'false') + '">'
             + '        <div class="btn-group btn-group-sm w-100" role="group">'
@@ -513,7 +513,7 @@ var ReservationDetail = {
             + ' data-value="false"' + earlyDisabled + '>미사용</button>'
             + '        </div>'
             + '      </div>'
-            + '      <label class="col-sm-2 col-form-label">레이트체크아웃 <span class="auto-save-label"><i class="fas fa-bolt"></i> 즉시</span></label>'
+            + '      <label class="col-sm-2 col-form-label">레이트체크아웃</label>'
             + '      <div class="col-sm-2">'
             + '        <input type="hidden" class="leg-late-checkout" value="' + (lateCheckOut ? 'true' : 'false') + '">'
             + '        <div class="btn-group btn-group-sm w-100" role="group">'
@@ -533,7 +533,7 @@ var ReservationDetail = {
             + '    <hr class="my-2">'
             + '    <div class="d-flex justify-content-between align-items-center mb-2">'
             + '      <span class="text-muted small collapsed" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#serviceCollapse_' + seq + '">'
-            + '        <i class="fas fa-concierge-bell me-1"></i>유료 서비스 <span class="auto-save-label"><i class="fas fa-bolt"></i> 즉시</span>'
+            + '        <i class="fas fa-concierge-bell me-1"></i>유료 서비스'
             + '        <span class="service-count-badge" id="serviceCount_' + seq + '">' + (legData && legData.services && legData.services.length > 0 ? ' (' + legData.services.length + '건)' : '') + '</span>'
             + '        <i class="fas fa-chevron-down collapse-arrow ms-1" style="font-size:10px;"></i>'
             + '      </span>'
