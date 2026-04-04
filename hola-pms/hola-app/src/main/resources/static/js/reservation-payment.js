@@ -548,20 +548,20 @@ var ReservationPayment = {
             breakdownHtml += '<div class="border-bottom py-2" id="earlyLateFeeSection_' + sub.id + '">';
             if (sub.earlyCheckIn) {
                 breakdownHtml += '<div class="d-flex justify-content-between align-items-center">';
-                breakdownHtml += '<span class="ps-3 text-muted small">얼리 체크인 결제 예정 금액</span>';
+                breakdownHtml += '<span class="ps-3 text-muted small">얼리 체크인 요금</span>';
                 breakdownHtml += '<span class="text-muted small" id="earlyFeeAmount_' + sub.id + '">'
                     + (earlyFee > 0 ? self.formatCurrency(earlyFee) : '-') + '</span>';
                 breakdownHtml += '</div>';
             }
             if (sub.lateCheckOut) {
                 breakdownHtml += '<div class="d-flex justify-content-between align-items-center">';
-                breakdownHtml += '<span class="ps-3 text-muted small">레이트 체크아웃 결제 예정 금액</span>';
+                breakdownHtml += '<span class="ps-3 text-muted small">레이트 체크아웃 요금</span>';
                 breakdownHtml += '<span class="text-muted small" id="lateFeeAmount_' + sub.id + '">'
                     + (lateFee > 0 ? self.formatCurrency(lateFee) : '-') + '</span>';
                 breakdownHtml += '</div>';
             }
             breakdownHtml += '<div class="ps-3 mt-1"><small class="text-secondary fst-italic">'
-                + '※ 1박 기준으로 얼리 체크인, 레이트 체크아웃 요금은 체크아웃 시 결제 처리 됩니다.</small></div>';
+                + '※ 얼리 체크인 — 시간대 미선택, ● 레이트 체크아웃 — 시간대 미선택</small></div>';
             breakdownHtml += '</div>';
         }
 
