@@ -102,7 +102,7 @@ public class ReservationStatusServiceImpl implements ReservationStatusService {
                 targetSub.recordCheckOut(checkOutTime, lateFee);
                 subReservationRepository.flush();
                 paymentService.recalculatePayment(master.getId());
-                validateCheckOutBalance(master);
+                validateLegCheckOutBalance(targetSub, master);
             }
 
             if ("CANCELED".equals(newStatus) || "NO_SHOW".equals(newStatus)) {
@@ -504,6 +504,32 @@ public class ReservationStatusServiceImpl implements ReservationStatusService {
             if ("DIRTY".equals(hkStatus) || "PICKUP".equals(hkStatus)) {
                 throw new HolaException(ErrorCode.FD_ROOM_NOT_CLEAN);
             }
+        }
+    }
+
+    /**
+     * Leg 단위 체크아웃 잔액 검증 — 해당 Leg 요금만 확인
+     * 마지막 Leg이면 마스터 전체 잔액도 함께 검증
+     */
+    private void validateLegCheckOutBalance(SubReservation targetSub, MasterReservation master) {
+        List<LegPaymentInfo> legPayments = paymentService.calculatePerLegPayments(master.getId());
+        LegPaymentInfo targetLeg = legPayments.stream()
+                .filter(lp -> lp.getSubReservationId().equals(targetSub.getId()))
+                .findFirst().orElse(null);
+
+        if (targetLeg != null && targetLeg.getLegRemaining().compareTo(BigDecimal.ZERO) > 0) {
+            throw new HolaException(ErrorCode.CHECKOUT_OUTSTANDING_BALANCE);
+        }
+
+        // 마지막 active Leg이면 마스터 전체 잔액도 검증 (조정금 등 미배분 금액 대비)
+        long activeLegsAfterCheckout = master.getSubReservations().stream()
+                .filter(s -> !"CHECKED_OUT".equals(s.getRoomReservationStatus())
+                          && !"CANCELED".equals(s.getRoomReservationStatus())
+                          && !"NO_SHOW".equals(s.getRoomReservationStatus()))
+                .filter(s -> !s.getId().equals(targetSub.getId()))
+                .count();
+        if (activeLegsAfterCheckout == 0) {
+            validateCheckOutBalance(master);
         }
     }
 

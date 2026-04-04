@@ -68,6 +68,10 @@ public class ReservationDetailResponse {
     // 메모
     private List<ReservationMemoResponse> memos;
 
+    // 프로퍼티 체크인/체크아웃 시간 (예: "15:00", "11:00")
+    private String propertyCheckInTime;
+    private String propertyCheckOutTime;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

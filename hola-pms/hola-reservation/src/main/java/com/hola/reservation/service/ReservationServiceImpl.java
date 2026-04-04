@@ -8,6 +8,8 @@ import com.hola.hotel.entity.RoomUnavailable;
 import com.hola.hotel.repository.MarketCodeRepository;
 import com.hola.hotel.repository.PropertyRepository;
 import com.hola.hotel.repository.RoomUnavailableRepository;
+import com.hola.room.entity.RoomType;
+import com.hola.room.repository.RoomTypeRepository;
 import com.hola.rate.entity.RateCode;
 import com.hola.rate.repository.RateCodeRepository;
 import com.hola.reservation.dto.request.ReservationCreateRequest;
@@ -81,6 +83,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final PriceCalculationService priceCalculationService;
     private final AccessControlService accessControlService;
     private final RateIncludedServiceHelper rateIncludedServiceHelper;
+    private final RoomTypeRepository roomTypeRepository;
     private final EntityManager entityManager;
     private final ReservationChangeLogService changeLogService;
 
@@ -115,6 +118,7 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     public ReservationDetailResponse getById(Long id, Long propertyId) {
         MasterReservation master = finder.findMasterById(id, propertyId);
+        Property property = master.getProperty();
         ReservationDetailResponse response = reservationMapper.toReservationDetailResponse(master);
 
         // 서브 예약의 층/호수/객실타입 이름 벌크 resolve
@@ -175,6 +179,8 @@ public class ReservationServiceImpl implements ReservationService {
                 .deposits(depositResponses)
                 .payment(paymentSummary)
                 .memos(memoResponses)
+                .propertyCheckInTime(property.getCheckInTime())
+                .propertyCheckOutTime(property.getCheckOutTime())
                 .createdAt(response.getCreatedAt())
                 .updatedAt(response.getUpdatedAt())
                 .build();
@@ -313,12 +319,25 @@ public class ReservationServiceImpl implements ReservationService {
         Long effectiveRateCodeId = request.getRateCodeId() != null
                 ? request.getRateCodeId() : master.getRateCodeId();
 
-        // 변경이력용 이전 값 캡처
+        // 변경이력용 이전 값 캡처 — 마스터 전체
         LocalDate prevCheckIn = master.getMasterCheckIn();
         LocalDate prevCheckOut = master.getMasterCheckOut();
         Long prevRateCodeId = master.getRateCodeId();
         Long prevMarketCodeId = master.getMarketCodeId();
         String prevGuestNameKo = master.getGuestNameKo();
+        String prevGuestFirstNameEn = master.getGuestFirstNameEn();
+        String prevGuestMiddleNameEn = master.getGuestMiddleNameEn();
+        String prevGuestLastNameEn = master.getGuestLastNameEn();
+        String prevPhoneCountryCode = master.getPhoneCountryCode();
+        String prevPhoneNumber = master.getPhoneNumber();
+        String prevEmail = master.getEmail();
+        LocalDate prevBirthDate = master.getBirthDate();
+        String prevGender = master.getGender();
+        String prevNationality = master.getNationality();
+        String prevPromotionType = master.getPromotionType();
+        String prevPromotionCode = master.getPromotionCode();
+        String prevOtaReservationNo = master.getOtaReservationNo();
+        String prevCustomerRequest = master.getCustomerRequest();
 
         master.update(
                 request.getMasterCheckIn(), request.getMasterCheckOut(),
@@ -359,11 +378,16 @@ public class ReservationServiceImpl implements ReservationService {
                         }
                     }
 
-                    // 요금에 영향을 주는 값 변경 감지 (재계산 스킵 판단용)
+                    // 변경이력용 이전 값 캡처 — Leg 레벨
                     LocalDate legPrevCheckIn = sub.getCheckIn();
                     LocalDate legPrevCheckOut = sub.getCheckOut();
                     int legPrevAdults = sub.getAdults();
                     int legPrevChildren = sub.getChildren();
+                    Long legPrevRoomTypeId = sub.getRoomTypeId();
+                    Long legPrevFloorId = sub.getFloorId();
+                    Long legPrevRoomNumberId = sub.getRoomNumberId();
+                    Boolean legPrevEarlyCheckIn = sub.getEarlyCheckIn();
+                    Boolean legPrevLateCheckOut = sub.getLateCheckOut();
 
                     sub.update(subReq.getRoomTypeId(), subReq.getFloorId(), subReq.getRoomNumberId(),
                             subReq.getAdults() != null ? subReq.getAdults() : 1,
@@ -373,6 +397,41 @@ public class ReservationServiceImpl implements ReservationService {
                             subReq.getLateCheckOut() != null ? subReq.getLateCheckOut() : false);
 
                     subCreator.updateGuests(sub, subReq.getGuests());
+
+                    // Leg 변경이력 기록
+                    try {
+                        Long mid = master.getId();
+                        Long sid = sub.getId();
+                        String legLabel = sub.getSubReservationNo();
+                        changeLogService.logFieldChange(mid, sid, "ROOM", "checkIn",
+                                legPrevCheckIn, subReq.getCheckIn(), legLabel + " 체크인");
+                        changeLogService.logFieldChange(mid, sid, "ROOM", "checkOut",
+                                legPrevCheckOut, subReq.getCheckOut(), legLabel + " 체크아웃");
+                        changeLogService.logFieldChange(mid, sid, "ROOM", "adults",
+                                legPrevAdults, subReq.getAdults() != null ? subReq.getAdults() : 1, legLabel + " 성인");
+                        changeLogService.logFieldChange(mid, sid, "ROOM", "children",
+                                legPrevChildren, subReq.getChildren() != null ? subReq.getChildren() : 0, legLabel + " 아동");
+                        // 객실타입 변경
+                        if (!java.util.Objects.equals(legPrevRoomTypeId, subReq.getRoomTypeId())) {
+                            String prevRtName = legPrevRoomTypeId != null ? roomTypeRepository.findById(legPrevRoomTypeId).map(RoomType::getRoomTypeCode).orElse(String.valueOf(legPrevRoomTypeId)) : null;
+                            String newRtName = subReq.getRoomTypeId() != null ? roomTypeRepository.findById(subReq.getRoomTypeId()).map(RoomType::getRoomTypeCode).orElse(String.valueOf(subReq.getRoomTypeId())) : null;
+                            changeLogService.logFieldChange(mid, sid, "ROOM", "roomTypeId",
+                                    prevRtName, newRtName, legLabel + " 객실타입");
+                        }
+                        // 객실 배정 변경
+                        if (!java.util.Objects.equals(legPrevRoomNumberId, subReq.getRoomNumberId())) {
+                            String prevRoomName = resolveRoomDisplay(legPrevFloorId, legPrevRoomNumberId);
+                            String newRoomName = resolveRoomDisplay(subReq.getFloorId(), subReq.getRoomNumberId());
+                            changeLogService.logFieldChange(mid, sid, "ROOM", "roomNumberId",
+                                    prevRoomName, newRoomName, legLabel + " 객실배정");
+                        }
+                        changeLogService.logFieldChange(mid, sid, "ROOM", "earlyCheckIn",
+                                legPrevEarlyCheckIn, subReq.getEarlyCheckIn() != null ? subReq.getEarlyCheckIn() : false, legLabel + " 얼리체크인");
+                        changeLogService.logFieldChange(mid, sid, "ROOM", "lateCheckOut",
+                                legPrevLateCheckOut, subReq.getLateCheckOut() != null ? subReq.getLateCheckOut() : false, legLabel + " 레이트체크아웃");
+                    } catch (Exception e) {
+                        log.error("Leg 변경이력 기록 실패: {}", e.getMessage());
+                    }
 
                     // 레이트코드/날짜/인원 변경 시에만 요금 재계산
                     boolean datesOrGuestsChanged = !subReq.getCheckIn().equals(legPrevCheckIn)
@@ -390,7 +449,14 @@ public class ReservationServiceImpl implements ReservationService {
                 } else {
                     // 신규 레그 추가
                     int legSeq = subReservationRepository.countAllIncludingDeleted(master.getId()) + 1;
-                    subCreator.create(master, subReq, legSeq, property);
+                    SubReservation newSub = subCreator.create(master, subReq, legSeq, property);
+                    try {
+                        changeLogService.log(master.getId(), newSub.getId(), "ROOM", "ADD_LEG",
+                                null, null, newSub.getSubReservationNo(),
+                                "객실 레그 추가: " + newSub.getSubReservationNo());
+                    } catch (Exception e) {
+                        log.error("Leg 추가 변경이력 기록 실패: {}", e.getMessage());
+                    }
                 }
             }
             syncMasterDates(master);
@@ -399,13 +465,15 @@ public class ReservationServiceImpl implements ReservationService {
         // 결제 금액 재계산
         paymentService.recalculatePayment(master.getId());
 
-        // 변경이력 기록
+        // 변경이력 기록 — 마스터 레벨 전체 필드
         try {
             Long mid = master.getId();
+            // 날짜
             changeLogService.logFieldChange(mid, null, "RESERVATION", "masterCheckIn",
                     prevCheckIn, request.getMasterCheckIn(), "체크인");
             changeLogService.logFieldChange(mid, null, "RESERVATION", "masterCheckOut",
                     prevCheckOut, request.getMasterCheckOut(), "체크아웃");
+            // 레이트코드/마켓코드
             String prevRateName = prevRateCodeId != null ? rateCodeRepository.findById(prevRateCodeId).map(rc -> rc.getRateNameKo()).orElse(String.valueOf(prevRateCodeId)) : null;
             String newRateName = effectiveRateCodeId != null ? rateCodeRepository.findById(effectiveRateCodeId).map(rc -> rc.getRateNameKo()).orElse(String.valueOf(effectiveRateCodeId)) : null;
             changeLogService.logFieldChange(mid, null, "RATE", "rateCodeId",
@@ -414,8 +482,37 @@ public class ReservationServiceImpl implements ReservationService {
             String newMarketName = request.getMarketCodeId() != null ? marketCodeRepository.findById(request.getMarketCodeId()).map(mc -> mc.getMarketName()).orElse(String.valueOf(request.getMarketCodeId())) : null;
             changeLogService.logFieldChange(mid, null, "RESERVATION", "marketCodeId",
                     prevMarketName, newMarketName, "마켓코드");
+            // 게스트 정보
             changeLogService.logFieldChange(mid, null, "RESERVATION", "guestNameKo",
                     prevGuestNameKo, request.getGuestNameKo(), "투숙객명");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "guestFirstNameEn",
+                    prevGuestFirstNameEn, request.getGuestFirstNameEn(), "영문 이름(First)");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "guestMiddleNameEn",
+                    prevGuestMiddleNameEn, request.getGuestMiddleNameEn(), "영문 이름(Middle)");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "guestLastNameEn",
+                    prevGuestLastNameEn, request.getGuestLastNameEn(), "영문 성(Last)");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "phoneNumber",
+                    (prevPhoneCountryCode != null ? prevPhoneCountryCode + " " : "") + prevPhoneNumber,
+                    (request.getPhoneCountryCode() != null ? request.getPhoneCountryCode() + " " : "") + request.getPhoneNumber(),
+                    "전화번호");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "email",
+                    prevEmail, request.getEmail(), "이메일");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "birthDate",
+                    prevBirthDate, request.getBirthDate(), "생년월일");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "gender",
+                    prevGender, request.getGender(), "성별");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "nationality",
+                    prevNationality, request.getNationality(), "국적");
+            // 프로모션/OTA
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "promotionType",
+                    prevPromotionType, request.getPromotionType(), "프로모션 유형");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "promotionCode",
+                    prevPromotionCode, request.getPromotionCode(), "프로모션 코드");
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "otaReservationNo",
+                    prevOtaReservationNo, request.getOtaReservationNo(), "OTA 예약번호");
+            // 고객 요청사항
+            changeLogService.logFieldChange(mid, null, "RESERVATION", "customerRequest",
+                    prevCustomerRequest, request.getCustomerRequest(), "고객 요청사항");
         } catch (Exception e) {
             log.error("변경이력 기록 실패: {}", e.getMessage());
         }
@@ -604,4 +701,19 @@ public class ReservationServiceImpl implements ReservationService {
         master.syncDates(earliestCheckIn, latestCheckOut);
     }
 
+    /**
+     * 층/호수 ID → "12층 / 1201" 표시용 문자열 변환
+     */
+    private String resolveRoomDisplay(Long floorId, Long roomNumberId) {
+        if (floorId == null && roomNumberId == null) return null;
+        Map<Long, String> floorMap = floorId != null
+                ? roomInfoResolver.resolveFloorNames(Set.of(floorId)) : Collections.emptyMap();
+        Map<Long, String> roomMap = roomNumberId != null
+                ? roomInfoResolver.resolveRoomNumbers(Set.of(roomNumberId)) : Collections.emptyMap();
+        String floor = floorId != null ? floorMap.get(floorId) : null;
+        String room = roomNumberId != null ? roomMap.get(roomNumberId) : null;
+        if (floor != null && room != null) return floor + " / " + room;
+        if (room != null) return room;
+        return floor;
+    }
 }

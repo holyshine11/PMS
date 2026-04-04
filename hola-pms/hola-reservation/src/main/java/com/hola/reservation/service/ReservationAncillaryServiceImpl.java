@@ -56,6 +56,13 @@ public class ReservationAncillaryServiceImpl implements ReservationAncillaryServ
                 .content(content)
                 .build();
         memo = reservationMemoRepository.save(memo);
+        try {
+            String preview = content != null && content.length() > 50 ? content.substring(0, 50) + "..." : content;
+            changeLogService.log(master.getId(), null, "RESERVATION", "ADD_MEMO",
+                    null, null, preview, "메모 추가: " + preview);
+        } catch (Exception e) {
+            log.error("변경이력 기록 실패: {}", e.getMessage());
+        }
         return reservationMapper.toReservationMemoResponse(memo);
     }
 
@@ -77,6 +84,13 @@ public class ReservationAncillaryServiceImpl implements ReservationAncillaryServ
                 .build();
         deposit = reservationDepositRepository.save(deposit);
         log.info("예치금 등록: reservationId={}, 금액={}", reservationId, request.getAmount());
+        try {
+            changeLogService.log(master.getId(), null, "RESERVATION", "ADD_DEPOSIT",
+                    null, null, request.getAmount().toPlainString(),
+                    "보증금 등록: " + request.getDepositMethod() + " " + request.getAmount().toPlainString() + "원");
+        } catch (Exception e) {
+            log.error("변경이력 기록 실패: {}", e.getMessage());
+        }
         return reservationMapper.toReservationDepositResponse(deposit);
     }
 
@@ -89,11 +103,26 @@ public class ReservationAncillaryServiceImpl implements ReservationAncillaryServ
         if (!deposit.getMasterReservation().getId().equals(reservationId)) {
             throw new HolaException(ErrorCode.DEPOSIT_NOT_FOUND);
         }
+        BigDecimal prevAmount = deposit.getAmount();
+        String prevMethod = deposit.getDepositMethod();
         deposit.update(request.getDepositMethod(), request.getCardCompany(),
                 request.getCardNumberEncrypted(), request.getCardCvcEncrypted(),
                 request.getCardExpiryDate(), request.getCardPasswordEncrypted(),
                 request.getCurrency(), request.getAmount());
         log.info("예치금 수정: depositId={}", depositId);
+        // 금액 또는 방법이 실제 변경된 경우에만 이력 기록
+        boolean depositChanged = !java.util.Objects.equals(prevAmount, request.getAmount())
+                || !java.util.Objects.equals(prevMethod, request.getDepositMethod());
+        if (depositChanged) {
+            try {
+                changeLogService.log(reservationId, null, "RESERVATION", "UPDATE",
+                        "deposit", prevMethod + " " + prevAmount.toPlainString() + "원",
+                        request.getDepositMethod() + " " + request.getAmount().toPlainString() + "원",
+                        "보증금 수정: " + prevAmount.toPlainString() + "원 → " + request.getAmount().toPlainString() + "원");
+            } catch (Exception e) {
+                log.error("변경이력 기록 실패: {}", e.getMessage());
+            }
+        }
         return reservationMapper.toReservationDepositResponse(deposit);
     }
 

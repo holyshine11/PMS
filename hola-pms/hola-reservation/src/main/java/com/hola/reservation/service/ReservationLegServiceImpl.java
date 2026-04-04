@@ -169,6 +169,15 @@ public class ReservationLegServiceImpl implements ReservationLegService {
         paymentService.recalculatePayment(master.getId());
 
         log.info("얼리/레이트 요금 등록: leg={}, type={}, fee={}", sub.getSubReservationNo(), policyType, fee);
+        try {
+            String label = "EARLY_CHECKIN".equals(policyType) ? "얼리체크인" : "레이트체크아웃";
+            changeLogService.log(master.getId(), sub.getId(), "ROOM", "UPDATE",
+                    "EARLY_CHECKIN".equals(policyType) ? "earlyCheckIn" : "lateCheckOut",
+                    "미사용", "사용 (₩" + fee.toPlainString() + ")",
+                    sub.getSubReservationNo() + " " + label + " 설정: ₩" + fee.toPlainString());
+        } catch (Exception e) {
+            log.error("변경이력 기록 실패: {}", e.getMessage());
+        }
         return fee;
     }
 
@@ -188,6 +197,15 @@ public class ReservationLegServiceImpl implements ReservationLegService {
         paymentService.recalculatePayment(master.getId());
 
         log.info("얼리/레이트 요금 해제: leg={}, type={}", sub.getSubReservationNo(), policyType);
+        try {
+            String label = "EARLY_CHECKIN".equals(policyType) ? "얼리체크인" : "레이트체크아웃";
+            changeLogService.log(master.getId(), sub.getId(), "ROOM", "UPDATE",
+                    "EARLY_CHECKIN".equals(policyType) ? "earlyCheckIn" : "lateCheckOut",
+                    "사용", "미사용",
+                    sub.getSubReservationNo() + " " + label + " 해제");
+        } catch (Exception e) {
+            log.error("변경이력 기록 실패: {}", e.getMessage());
+        }
     }
 
     /**

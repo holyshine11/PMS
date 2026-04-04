@@ -212,6 +212,10 @@ var ReservationDetail = {
         self.isDayUse = data.stayType === 'DAY_USE'
             || (subs.length > 0 && subs[0].stayType === 'DAY_USE');
 
+        // 프로퍼티 기본 체크인/체크아웃 시간
+        self.propertyCheckInTime = data.propertyCheckInTime || '15:00';
+        self.propertyCheckOutTime = data.propertyCheckOutTime || '11:00';
+
         // Dayuse 이용시간(시) — 기존 Leg에서 추출 (새 Leg 추가 시 동일 시간 적용)
         self.dayUseDurationHours = null;
         if (self.isDayUse) {
@@ -368,6 +372,8 @@ var ReservationDetail = {
         // 실제 체크인/아웃 시각 및 얼리/레이트 요금
         var actualCheckInTime = '', actualCheckOutTime = '';
         var earlyCheckInFee = 0, lateCheckOutFee = 0;
+        var dayUseStartTime = '', dayUseEndTime = '';
+        var legStayType = '';
 
         if (legData) {
             checkIn = legData.checkIn || '';
@@ -386,6 +392,9 @@ var ReservationDetail = {
             actualCheckOutTime = legData.actualCheckOutTime || '';
             earlyCheckInFee = legData.earlyCheckInFee || 0;
             lateCheckOutFee = legData.lateCheckOutFee || 0;
+            dayUseStartTime = legData.dayUseStartTime || '';
+            dayUseEndTime = legData.dayUseEndTime || '';
+            legStayType = legData.stayType || '';
             if (legData.floorName && legData.roomNumber) {
                 roomDisplay = legData.floorName + ' / ' + legData.roomNumber;
             } else if (legData.roomNumber) {
@@ -483,6 +492,7 @@ var ReservationDetail = {
             + '      <label class="col-sm-2 col-form-label">체크아웃</label>'
             + '      <div class="col-sm-4"><input type="date" class="form-control leg-check-out" value="' + checkOut + '"' + (legTerminated ? ' disabled' : '') + '></div>'
             + '    </div>'
+            + self.renderCheckTimeRow(legStayType, dayUseStartTime, dayUseEndTime)
             + self.renderActualTimeRow(actualCheckInTime, actualCheckOutTime, earlyCheckInFee, lateCheckOutFee)
             + '    <div class="row mb-3">'
             + '      <label class="col-sm-2 col-form-label">성인</label>'
@@ -579,6 +589,43 @@ var ReservationDetail = {
     },
 
     /**
+     * 체크인/체크아웃 시간 정보 행 렌더링
+     * - Dayuse: 이용시간 (시작~종료)
+     * - Overnight: 프로퍼티 기본 체크인/체크아웃 시간
+     */
+    renderCheckTimeRow: function(stayType, dayUseStartTime, dayUseEndTime) {
+        var self = this;
+        var isDayUse = stayType === 'DAY_USE' || self.isDayUse;
+
+        if (isDayUse) {
+            var startDisplay = dayUseStartTime ? dayUseStartTime.substring(0, 5) : '-';
+            var endDisplay = dayUseEndTime ? dayUseEndTime.substring(0, 5) : '-';
+            return ''
+                + '    <div class="row mb-3">'
+                + '      <label class="col-sm-2 col-form-label text-muted small">이용시간</label>'
+                + '      <div class="col-sm-10">'
+                + '        <span class="form-control-plaintext">'
+                + '<span class="badge" style="background-color:#0582CA;">' + startDisplay + ' ~ ' + endDisplay + '</span>'
+                + '        </span>'
+                + '      </div>'
+                + '    </div>';
+        }
+
+        // Overnight: 프로퍼티 기본 시간 표시
+        return ''
+            + '    <div class="row mb-3">'
+            + '      <label class="col-sm-2 col-form-label text-muted small">체크인 시간</label>'
+            + '      <div class="col-sm-4">'
+            + '        <span class="form-control-plaintext text-muted small">' + HolaPms.escapeHtml(self.propertyCheckInTime) + '</span>'
+            + '      </div>'
+            + '      <label class="col-sm-2 col-form-label text-muted small">체크아웃 시간</label>'
+            + '      <div class="col-sm-4">'
+            + '        <span class="form-control-plaintext text-muted small">' + HolaPms.escapeHtml(self.propertyCheckOutTime) + '</span>'
+            + '      </div>'
+            + '    </div>';
+    },
+
+    /**
      * 실제 체크인/아웃 시각 + 얼리/레이트 요금 행 렌더링
      */
     renderActualTimeRow: function(actualCheckInTime, actualCheckOutTime, earlyCheckInFee, lateCheckOutFee) {
@@ -587,10 +634,10 @@ var ReservationDetail = {
             return '';
         }
 
-        // 시각 포맷 (2026-03-08T13:00:00 → 2026-03-08 13:00)
+        // 시각 포맷 (2026-03-08T13:00:45 → 2026-03-08 13:00:45)
         var formatTime = function(dt) {
             if (!dt) return '-';
-            return dt.replace('T', ' ').substring(0, 16);
+            return dt.replace('T', ' ').substring(0, 19);
         };
 
         // 금액 포맷
@@ -1210,6 +1257,7 @@ var ReservationDetail = {
                 var codeTabMap = {
                     'HOLA-4029': '#tabPayment',  // 결제 잔액 → 결제정보 탭
                     'HOLA-5001': '#tabDetail',   // 객실 미배정 → 상세정보 탭
+                    'HOLA-5002': '#tabDetail',   // 객실 미청소 → 상세정보 탭
                     'HOLA-5003': '#tabDetail',   // OOO 객실 → 상세정보 탭
                     'HOLA-5010': '#tabPayment'   // 미결제 잔액 → 결제정보 탭
                 };
@@ -1265,21 +1313,23 @@ var ReservationDetail = {
                 return;
             }
 
-            // 체크아웃 시 클라이언트 잔액 검증 (서버에서도 검증하지만, 사전 차단)
+            // 체크아웃 시 Leg별 잔액 검증 (서버에서도 검증하지만, 사전 차단)
             if (newStatus === 'CHECKED_OUT') {
-                var remaining = (typeof ReservationPayment !== 'undefined' && ReservationPayment.paymentData)
-                    ? Number(ReservationPayment.paymentData.remainingAmount) || 0 : -1;
-                if (remaining > 0) {
-                    HolaPms.alert('warning', '미결제 잔액 ' + remaining.toLocaleString() + '원이 있습니다. 결제정보 탭에서 잔액을 처리해주세요.');
-                    var $tabLink = $('a[href="#tabPayment"]');
-                    if ($tabLink.length) {
-                        var tab = new bootstrap.Tab($tabLink[0]);
-                        tab.show();
+                var paymentData = (typeof ReservationPayment !== 'undefined') ? ReservationPayment.paymentData : null;
+                if (paymentData && paymentData.legPayments) {
+                    var legPayment = paymentData.legPayments.find(function(lp) { return lp.subReservationId == legId; });
+                    var legRemaining = legPayment ? Number(legPayment.legRemaining) || 0 : -1;
+                    if (legRemaining > 0) {
+                        HolaPms.alert('warning', '해당 객실의 미결제 잔액 ' + legRemaining.toLocaleString() + '원이 있습니다. 결제정보 탭에서 잔액을 처리해주세요.');
+                        var $tabLink = $('a[href="#tabPayment"]');
+                        if ($tabLink.length) {
+                            var tab = new bootstrap.Tab($tabLink[0]);
+                            tab.show();
+                        }
+                        return;
                     }
-                    return;
-                }
-                // 결제 데이터 미로드 시 (remaining=-1) 경고 후 서버 검증에 위임
-                if (remaining < 0) {
+                } else if (!paymentData) {
+                    // 결제 데이터 미로드 시 경고 후 서버 검증에 위임
                     if (!confirm('결제 정보를 확인할 수 없습니다. 체크아웃을 진행하시겠습니까?')) return;
                 }
             }
@@ -3123,7 +3173,7 @@ var ReservationDetail = {
 
         var html = '<div class="list-group list-group-flush">';
         items.forEach(function(item) {
-            var ts = item.createdAt ? item.createdAt.replace('T', ' ').substring(0, 16) : '';
+            var ts = item.createdAt ? item.createdAt.replace('T', ' ').substring(0, 19) : '';
             html += '<div class="list-group-item px-0 py-2">'
                 + '<div class="d-flex justify-content-between align-items-start">'
                 + '<div>' + categoryBadge(item.changeCategory)

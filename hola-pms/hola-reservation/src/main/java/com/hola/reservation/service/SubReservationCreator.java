@@ -130,12 +130,8 @@ public class SubReservationCreator {
             }
         }
 
-        // 서브 예약 생성 — 마스터 상태가 이미 진행 중이면 새 Leg도 동일 상태로 시작
-        String masterStatus = master.getReservationStatus();
+        // 서브 예약 생성 — 새 Leg는 항상 RESERVED로 시작 (체크인 전)
         String legStatus = "RESERVED";
-        if ("CHECK_IN".equals(masterStatus) || "INHOUSE".equals(masterStatus)) {
-            legStatus = masterStatus;
-        }
 
         String subNo = numberGenerator.generateSubReservationNo(master.getMasterReservationNo(), legSeq);
         SubReservation sub = SubReservation.builder()

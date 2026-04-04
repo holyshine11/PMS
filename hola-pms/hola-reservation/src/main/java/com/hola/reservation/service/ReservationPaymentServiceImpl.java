@@ -53,6 +53,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
     private final PaymentGateway paymentGateway;
     private final WorkstationService workstationService;
     private final ObjectMapper objectMapper;
+    private final ReservationChangeLogService changeLogService;
 
     @Override
     public PaymentSummaryResponse getPaymentSummary(Long propertyId, Long reservationId) {
@@ -205,6 +206,8 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         String channel = request.getPaymentChannel() != null ? request.getPaymentChannel() : "MANUAL";
         log.info("결제 처리: reservationId={}, subReservationId={}, channel={}, method={}, amount={}, totalPaid={}",
                 reservationId, subReservationId, channel, request.getPaymentMethod(), payAmount, payment.getTotalPaidAmount());
+        logPaymentChange(reservationId, subReservationId, "PAYMENT",
+                request.getPaymentMethod(), channel, payAmount);
 
         List<PaymentAdjustment> adjustments = adjustmentRepository
                 .findByMasterReservationIdOrderByAdjustmentSeqAsc(reservationId);
@@ -308,6 +311,8 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
                 pgResult != null ? pgResult.getPgProvider() : "N/A",
                 pgResult != null ? pgResult.getPgCno() : "N/A",
                 payAmount);
+        logPaymentChange(reservationId, request.getSubReservationId(), "PAYMENT",
+                request.getPaymentMethod(), "PG", payAmount);
 
         List<PaymentAdjustment> adjustments = adjustmentRepository
                 .findByMasterReservationIdOrderByAdjustmentSeqAsc(reservationId);
@@ -352,6 +357,15 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         adjustment = adjustmentRepository.save(adjustment);
         log.info("금액 조정 등록: reservationId={}, seq={}, {}{}",
                 reservationId, nextSeq, request.getAdjustmentSign(), request.getTotalAmount());
+        try {
+            String sign = "+".equals(request.getAdjustmentSign()) ? "추가" : "할인";
+            String desc = "금액 조정 " + sign + ": " + request.getTotalAmount().toPlainString() + "원"
+                    + (request.getComment() != null ? " (" + request.getComment() + ")" : "");
+            changeLogService.log(reservationId, null, "PAYMENT", "UPDATE",
+                    "adjustment", null, request.getAdjustmentSign() + request.getTotalAmount().toPlainString(), desc);
+        } catch (Exception e) {
+            log.error("변경이력 기록 실패: {}", e.getMessage());
+        }
 
         // 결제 금액 재계산
         recalculatePayment(reservationId);
@@ -746,6 +760,8 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             if (pmtForUpdate != null) {
                 pmtForUpdate.updateCancelRefund(BigDecimal.ZERO, cancelAmount);
             }
+            logPaymentChange(reservationId, targetTxn.getSubReservationId(), "REFUND",
+                    targetTxn.getPaymentMethod(), "PG", cancelAmount);
         }
 
         // 결제 금액 재계산
@@ -1257,6 +1273,8 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
 
         log.info("VAN 취소 처리: reservationId={}, originalTxnId={}, amount={}, transType={}",
                 reservationId, transactionId, originalTxn.getAmount(), cancelResult.getTransType());
+        logPaymentChange(reservationId, originalTxn.getSubReservationId(), "REFUND",
+                originalTxn.getPaymentMethod(), "VAN", originalTxn.getAmount());
 
         List<PaymentAdjustment> adjustments = adjustmentRepository
                 .findByMasterReservationIdOrderByAdjustmentSeqAsc(reservationId);
@@ -1351,6 +1369,25 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         } catch (JsonProcessingException e) {
             log.warn("VAN 응답 JSON 직렬화 실패", e);
             return "{}";
+        }
+    }
+
+    /**
+     * 결제/환불 변경이력 기록 헬퍼
+     */
+    private void logPaymentChange(Long reservationId, Long subReservationId,
+                                   String txnType, String method, String channel, BigDecimal amount) {
+        try {
+            String methodLabel = "CARD".equals(method) ? "카드" : "CASH".equals(method) ? "현금" : method;
+            String channelLabel = channel != null ? " (" + channel + ")" : "";
+            boolean isRefund = "REFUND".equals(txnType);
+            String desc = (isRefund ? "환불" : "결제") + ": " + methodLabel + channelLabel
+                    + " " + amount.toPlainString() + "원";
+            changeLogService.log(reservationId, subReservationId, "PAYMENT",
+                    isRefund ? "REFUND" : "PAYMENT", "paymentTransaction",
+                    null, amount.toPlainString(), desc);
+        } catch (Exception e) {
+            log.error("결제 변경이력 기록 실패: {}", e.getMessage());
         }
     }
 }
