@@ -93,7 +93,9 @@ var ReservationPayment = {
         var refund = Number(data.refundAmount) || 0;
 
         $('#summaryGrandTotal').text(this.formatCurrency(grandTotal));
-        $('#summaryPaidAmount').text(this.formatCurrency(totalPaid));
+        // 순결제액 표시 (총결제 - 환불 - 취소수수료)
+        var netPaid = totalPaid - refund - cancelFee;
+        $('#summaryPaidAmount').text(this.formatCurrency(netPaid));
 
         // 잔액 색상 분기
         var $remaining = $('#summaryRemainingAmount');
@@ -1297,9 +1299,16 @@ var ReservationPayment = {
                     if (res.success && res.data) {
                         self.paymentData = res.data;
 
-                        var remaining = legContext
-                            ? (legContext.legRemaining != null ? Number(legContext.legRemaining) : Number(legContext.legTotal))
-                            : Number(res.data.remainingAmount) || 0;
+                        // 최신 API 데이터 기준 잔액 계산 (버튼 data 속성은 stale할 수 있음)
+                        var remaining;
+                        if (legContext) {
+                            var freshLeg = (res.data.legPayments || []).find(function(lp) {
+                                return lp.subReservationId == legContext.subId;
+                            });
+                            remaining = freshLeg ? Number(freshLeg.legRemaining) : Number(legContext.legRemaining || legContext.legTotal);
+                        } else {
+                            remaining = Number(res.data.remainingAmount) || 0;
+                        }
 
                         if (remaining <= 0) {
                             HolaPms.alert('warning', '결제할 잔액이 없습니다.');
@@ -1340,9 +1349,16 @@ var ReservationPayment = {
                     if (res.success && res.data) {
                         self.paymentData = res.data;
 
-                        var remaining = legContext
-                            ? (legContext.legRemaining != null ? Number(legContext.legRemaining) : Number(legContext.legTotal))
-                            : Number(res.data.remainingAmount) || 0;
+                        // 최신 API 데이터 기준 잔액 계산 (버튼 data 속성은 stale할 수 있음)
+                        var remaining;
+                        if (legContext) {
+                            var freshLeg = (res.data.legPayments || []).find(function(lp) {
+                                return lp.subReservationId == legContext.subId;
+                            });
+                            remaining = freshLeg ? Number(freshLeg.legRemaining) : Number(legContext.legRemaining || legContext.legTotal);
+                        } else {
+                            remaining = Number(res.data.remainingAmount) || 0;
+                        }
 
                         if (remaining <= 0) {
                             HolaPms.alert('warning', '결제할 잔액이 없습니다.');
@@ -1367,6 +1383,8 @@ var ReservationPayment = {
     _buildVanPaymentModal: function(opts) {
         var self = this;
         var selectedWs = self.getSelectedWorkstation(opts.workstations);
+        // 잔액 저장 (결제 검증용)
+        self._vanPaymentRemaining = opts.remaining;
 
         // 기존 모달 제거
         $('#vanPaymentModal').remove();
@@ -1404,9 +1422,14 @@ var ReservationPayment = {
             + '<button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>'
             + '<div class="modal-body">'
             + wsSelectHtml
-            + '<div class="mb-3"><label class="form-label small">결제 금액</label>'
-            + '<input type="number" class="form-control form-control-sm" id="vanPaymentAmount" '
-            + 'value="' + Math.floor(opts.remaining) + '"></div>'
+            + '<div class="mb-3">'
+            + '<div class="d-flex justify-content-between align-items-center mb-1">'
+            + '<label class="form-label mb-0">결제 금액</label>'
+            + '<span class="text-muted small">잔액: <span class="text-primary">' + self.formatCurrency(opts.remaining) + '</span></span>'
+            + '</div>'
+            + '<input type="number" class="form-control text-end" id="vanPaymentAmount" '
+            + 'value="' + Math.floor(opts.remaining) + '" max="' + Math.floor(opts.remaining) + '" min="1" '
+            + 'style="font-size: 1.25rem; font-weight: 600;"></div>'
             + cashReceiptHtml
             + '<div class="mb-3"><label class="form-label small">메모</label>'
             + '<input type="text" class="form-control form-control-sm" id="vanPaymentMemo"></div>'
@@ -1447,11 +1470,20 @@ var ReservationPayment = {
      */
     _processVanPayment: function(workstations) {
         var self = this;
-        var amount = parseInt($('#vanPaymentAmount').val());
+        // 결제 금액: DOM에서 즉시 읽기
+        var $amountInput = $('#vanPaymentAmount');
+        var amount = parseInt($amountInput.val());
         var memo = $.trim($('#vanPaymentMemo').val());
 
         if (!amount || amount <= 0) {
             HolaPms.alert('warning', '결제 금액을 입력해주세요.');
+            return;
+        }
+
+        // 잔액 초과 검증
+        var maxAmount = self._vanPaymentRemaining || 0;
+        if (maxAmount > 0 && amount > maxAmount) {
+            HolaPms.alert('error', '결제 금액(' + self.formatCurrency(amount) + ')이 잔액(' + self.formatCurrency(maxAmount) + ')을 초과합니다.');
             return;
         }
 
@@ -1479,6 +1511,12 @@ var ReservationPayment = {
             return;
         }
 
+        // 결제 확인 다이얼로그
+        var methodLabel = self._vanPaymentType === 'CARD' ? '카드' : '현금';
+        if (!confirm(self.formatCurrency(amount) + '을(를) ' + methodLabel + ' 결제하시겠습니까?')) {
+            return;
+        }
+
         // 버튼 비활성화
         var $btn = $('#vanPaymentConfirmBtn');
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>처리 중...');
@@ -1497,6 +1535,25 @@ var ReservationPayment = {
                     return;
                 }
                 var sequenceNo = seqRes.data;
+
+                // 결제 금액을 KPSP 전송 직전에 다시 읽어 정확성 보장
+                var finalAmount = parseInt($amountInput.val());
+                if (!finalAmount || finalAmount <= 0) {
+                    self._resetVanPaymentButton($btn);
+                    HolaPms.alert('error', '결제 금액이 유효하지 않습니다.');
+                    return;
+                }
+                // 클로저의 amount와 DOM 값이 다르면 DOM 값(사용자 최종 입력)을 우선 사용
+                if (finalAmount !== amount) {
+                    console.warn('[VAN] 결제 금액 변경 감지: ' + amount + ' → ' + finalAmount);
+                    amount = finalAmount;
+                }
+                // 잔액 초과 재검증 (비동기 중 금액 변경 대비)
+                if (self._vanPaymentRemaining > 0 && amount > self._vanPaymentRemaining) {
+                    self._resetVanPaymentButton($btn);
+                    HolaPms.alert('error', '결제 금액이 잔액을 초과합니다.');
+                    return;
+                }
 
                 // 2. PMS 백엔드 프록시를 통해 KPSP 호출 (CORS 우회)
                 var proxyEndpoint = self._vanPaymentType === 'CARD' ? '/sales/card' : '/sales/cash';
@@ -1534,6 +1591,8 @@ var ReservationPayment = {
                     kpspBody.checkOutDate = self.reservationData.checkOutDate || '';
                 }
 
+                console.log('[VAN] KPSP 요청 금액: ' + amount + '원, body:', JSON.stringify(kpspBody));
+
                 if (self._vanPaymentType === 'CARD') {
                     $btn.html('<span class="spinner-border spinner-border-sm me-1"></span>단말기에서 카드를 읽는 중...');
                 } else {
@@ -1553,7 +1612,17 @@ var ReservationPayment = {
                             return;
                         }
 
-                        // 3. PMS 백엔드에 결과 저장
+                        // KPSP 응답 금액 교차 검증
+                        var kpspAmount = Number(kpspResult.transAmount);
+                        if (kpspAmount && kpspAmount !== amount) {
+                            self._resetVanPaymentButton($btn);
+                            HolaPms.alert('error', '요청 금액(' + self.formatCurrency(amount)
+                                + ')과 승인 금액(' + self.formatCurrency(kpspAmount)
+                                + ')이 불일치합니다. 관리자에게 문의하세요.');
+                            return;
+                        }
+
+                        // 3. PMS 백엔드에 결과 저장 — KPSP 원본 응답 포함
                         var requestData = {
                             paymentMethod: self._vanPaymentType,
                             amount: amount,
@@ -1561,7 +1630,8 @@ var ReservationPayment = {
                             subReservationId: (self._currentLegContext && self._currentLegContext.subId) || null,
                             paymentChannel: 'VAN',
                             workstationId: ws.id,
-                            vanResult: kpspResult
+                            vanResult: kpspResult,
+                            vanRawJson: JSON.stringify(kpspResult)
                         };
 
                         HolaPms.ajax({

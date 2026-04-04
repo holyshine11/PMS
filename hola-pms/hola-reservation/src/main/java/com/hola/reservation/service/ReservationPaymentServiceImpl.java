@@ -173,6 +173,13 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             if (!"0000".equals(van.getRespCode())) {
                 throw new HolaException(ErrorCode.VAN_PAYMENT_FAILED);
             }
+            // VAN 승인 금액 교차 검증
+            if (van.getTransAmount() != null && van.getTransAmount() != payAmount.longValue()) {
+                log.error("VAN 금액 불일치: 요청={}, 승인={}, reservationId={}", payAmount, van.getTransAmount(), reservationId);
+                throw new HolaException(ErrorCode.VAN_PAYMENT_AMOUNT_MISMATCH);
+            }
+            // KPSP 원본 응답 전체를 저장 (VanResultPayload에 매핑되지 않은 필드 포함)
+            String rawResponse = request.getVanRawJson() != null ? request.getVanRawJson() : toJson(van);
             txnBuilder
                     .paymentChannel("VAN")
                     .workstationId(request.getWorkstationId())
@@ -186,7 +193,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
                     .vanAcquirerName(van.getAcquirerName())
                     .vanTerminalId(van.getTerminalId())
                     .vanSequenceNo(van.getSequenceNo())
-                    .vanRawResponse(toJson(van))
+                    .vanRawResponse(rawResponse)
                     .approvalNo(van.getAuthCode());
         }
 

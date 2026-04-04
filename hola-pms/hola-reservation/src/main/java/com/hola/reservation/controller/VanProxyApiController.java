@@ -71,7 +71,7 @@ public class VanProxyApiController {
         Workstation ws = workstationService.findById(workstationId);
 
         String kpspUrl = "http://" + ws.getKpspHost() + ":" + ws.getKpspPort() + kpspPath;
-        log.info("KPSP 프록시: {} → {}", kpspPath, kpspUrl);
+        log.info("KPSP 프록시: {} → {}, body: {}", kpspPath, kpspUrl, body);
 
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -81,6 +81,7 @@ public class VanProxyApiController {
             ResponseEntity<String> response = vanRestTemplate.exchange(
                     kpspUrl, HttpMethod.POST, request, String.class);
 
+            log.info("KPSP 응답: {}", response.getBody());
             return ResponseEntity.ok(response.getBody());
         } catch (Exception e) {
             log.error("KPSP 프록시 실패: {}", e.getMessage());

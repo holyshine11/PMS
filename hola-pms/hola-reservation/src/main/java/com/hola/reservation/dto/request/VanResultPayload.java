@@ -45,4 +45,7 @@ public class VanResultPayload {
 
     /** 단말기 ID */
     private String terminalId;
+
+    /** 승인 금액 (교차 검증용) */
+    private Long transAmount;
 }

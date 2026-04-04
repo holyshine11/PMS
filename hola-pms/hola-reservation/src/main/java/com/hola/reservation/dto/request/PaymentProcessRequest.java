@@ -41,6 +41,9 @@ public class PaymentProcessRequest {
     /** VAN 결제 결과 (브라우저가 KPSP에서 받은 응답) */
     private VanResultPayload vanResult;
 
+    /** KPSP 원본 응답 JSON (감사 추적용, vanResult와 별도로 원본 보관) */
+    private String vanRawJson;
+
     /** 기존 3-arg 생성자 호환용 */
     public PaymentProcessRequest(String paymentMethod, BigDecimal amount, String memo) {
         this.paymentMethod = paymentMethod;

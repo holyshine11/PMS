@@ -1,2 +1,3 @@
 *.DS_Store
 .claude/skills/LibreUIUX-Claude-Code
+.gstack/

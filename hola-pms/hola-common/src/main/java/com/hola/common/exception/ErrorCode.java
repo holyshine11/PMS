@@ -245,7 +245,8 @@ public enum ErrorCode {
     VAN_PAYMENT_FAILED("HOLA-4400", "VAN 결제가 거절되었습니다.", HttpStatus.BAD_REQUEST),
     VAN_CANCEL_NOT_ALLOWED("HOLA-4401", "VAN 취소가 불가능한 거래입니다.", HttpStatus.BAD_REQUEST),
     VAN_CANCEL_ALREADY_DONE("HOLA-4402", "이미 취소된 거래입니다.", HttpStatus.BAD_REQUEST),
-    VAN_TRANSACTION_NOT_FOUND("HOLA-4403", "VAN 거래를 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
+    VAN_TRANSACTION_NOT_FOUND("HOLA-4403", "VAN 거래를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    VAN_PAYMENT_AMOUNT_MISMATCH("HOLA-4404", "VAN 요청 금액과 승인 금액이 불일치합니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;
