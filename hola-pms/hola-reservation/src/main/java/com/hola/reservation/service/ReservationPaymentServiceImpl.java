@@ -187,7 +187,7 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
                 log.error("VAN 응답에 transAmount 누락: reservationId={}", reservationId);
                 throw new HolaException(ErrorCode.VAN_PAYMENT_AMOUNT_MISMATCH);
             }
-            if (van.getTransAmount() != payAmount.longValue()) {
+            if (van.getTransAmount().longValue() != payAmount.longValue()) {
                 log.error("VAN 금액 불일치: 요청={}, 승인={}, reservationId={}", payAmount, van.getTransAmount(), reservationId);
                 throw new HolaException(ErrorCode.VAN_PAYMENT_AMOUNT_MISMATCH);
             }
