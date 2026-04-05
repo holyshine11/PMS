@@ -206,10 +206,12 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
                     .approvalNo(van.getAuthCode());
         }
 
-        transactionRepository.save(txnBuilder.build());
-
-        // 결제 누적 + 상태 자동 판단
-        payment.addPaidAmount(payAmount);
+        try {
+            transactionRepository.save(txnBuilder.build());
+            payment.addPaidAmount(payAmount);
+        } catch (OptimisticLockException | ObjectOptimisticLockingFailureException e) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_CONCURRENT_CONFLICT);
+        }
 
         String channel = request.getPaymentChannel() != null ? request.getPaymentChannel() : "MANUAL";
         log.info("결제 처리: reservationId={}, subReservationId={}, channel={}, method={}, amount={}, totalPaid={}",
@@ -310,9 +312,12 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             }
         }
 
-        transactionRepository.save(txnBuilder.build());
-
-        payment.addPaidAmount(payAmount);
+        try {
+            transactionRepository.save(txnBuilder.build());
+            payment.addPaidAmount(payAmount);
+        } catch (OptimisticLockException | ObjectOptimisticLockingFailureException e) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_CONCURRENT_CONFLICT);
+        }
 
         log.info("PG 결제 처리: reservationId={}, subReservationId={}, pgProvider={}, pgCno={}, amount={}",
                 reservationId, request.getSubReservationId(),
