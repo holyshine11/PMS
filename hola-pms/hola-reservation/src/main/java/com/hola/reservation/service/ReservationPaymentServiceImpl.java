@@ -107,6 +107,12 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
         // 룸 업그레이드/서비스 추가 후 grandTotal이 증가한 경우를 정확히 반영
         recalculateAmounts(payment, reservationId);
 
+        // 완납/과납 상태 사전 검증
+        String paymentStatus = payment.getPaymentStatus();
+        if ("PAID".equals(paymentStatus) || "OVERPAID".equals(paymentStatus)) {
+            throw new HolaException(ErrorCode.RESERVATION_PAYMENT_ALREADY_COMPLETED);
+        }
+
         // 잔액 계산: Leg 지정 시 해당 Leg 잔액, 아니면 Master 잔액
         BigDecimal remaining;
         if (request.getSubReservationId() != null) {
@@ -117,11 +123,13 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
                     .map(LegPaymentInfo::getLegRemaining)
                     .findFirst().orElse(BigDecimal.ZERO);
         } else {
-            // 전체 결제: Master 잔액
+            // 전체 결제: Master 잔액 (processPaymentWithPgResult와 동일 공식)
             BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
             BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
             BigDecimal refund = payment.getRefundAmount() != null ? payment.getRefundAmount() : BigDecimal.ZERO;
-            remaining = grandTotal.subtract(totalPaid.subtract(refund));
+            BigDecimal cancelFee = payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO;
+            BigDecimal netPaid = totalPaid.subtract(refund).subtract(cancelFee);
+            remaining = grandTotal.subtract(netPaid);
         }
 
         // 잔액이 0 이하면 결제 불필요
