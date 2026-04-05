@@ -97,6 +97,19 @@ var ReservationPayment = {
         var netPaid = totalPaid - refund - cancelFee;
         $('#summaryPaidAmount').text(this.formatCurrency(netPaid));
 
+        // 환불/수수료 발생 시: 라벨 변경 + 내역 하위 행 표시
+        var hasDeduction = refund > 0 || cancelFee > 0;
+        $('#summaryPaidAmount').closest('.payment-summary-box').find('.ps-label')
+            .text(hasDeduction ? '순결제' : '결제액');
+        if (hasDeduction) {
+            $('#summaryGrossPaid').text(this.formatCurrency(totalPaid));
+            $('#summaryRefundAmount').text(this.formatCurrency(refund));
+            $('#summaryCancelFee').text(this.formatCurrency(cancelFee));
+            $('#refundSummaryRow').removeClass('d-none');
+        } else {
+            $('#refundSummaryRow').addClass('d-none');
+        }
+
         // 잔액 색상 분기
         var $remaining = $('#summaryRemainingAmount');
         var $remainingBox = $('#summaryRemainingBox');
@@ -110,15 +123,6 @@ var ReservationPayment = {
         } else {
             $remaining.text('0원');
             $remainingBox.addClass('ps-remaining-clear');
-        }
-
-        // 환불 상태 시 추가 정보 행 표시
-        if (data.paymentStatus === 'REFUNDED') {
-            $('#summaryRefundAmount').text(this.formatCurrency(refund));
-            $('#summaryCancelFee').text(this.formatCurrency(cancelFee));
-            $('#refundSummaryRow').removeClass('d-none');
-        } else {
-            $('#refundSummaryRow').addClass('d-none');
         }
 
         // 결제 상태 배지
