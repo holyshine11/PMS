@@ -228,7 +228,12 @@ public class PriceCalculationService {
                     .filter(p -> "ADULT".equals(p.getPersonType()) && p.getPersonSeq() == targetSeq)
                     .map(RatePricingPerson::getSupplyPrice)
                     .findFirst()
-                    .orElse(BigDecimal.ZERO);
+                    .orElse(null);
+            if (adultExtra == null) {
+                log.warn("인원 추가 요금 미정의: ADULT seq={}, rateCodePricingId={} → 0원 처리",
+                        targetSeq, pricing.getId());
+                adultExtra = BigDecimal.ZERO;
+            }
             extra = extra.add(adultExtra);
         }
 
@@ -239,7 +244,12 @@ public class PriceCalculationService {
                     .filter(p -> "CHILD".equals(p.getPersonType()) && p.getPersonSeq() == targetSeq)
                     .map(RatePricingPerson::getSupplyPrice)
                     .findFirst()
-                    .orElse(BigDecimal.ZERO);
+                    .orElse(null);
+            if (childExtra == null) {
+                log.warn("인원 추가 요금 미정의: CHILD seq={}, rateCodePricingId={} → 0원 처리",
+                        targetSeq, pricing.getId());
+                childExtra = BigDecimal.ZERO;
+            }
             extra = extra.add(childExtra);
         }
 
