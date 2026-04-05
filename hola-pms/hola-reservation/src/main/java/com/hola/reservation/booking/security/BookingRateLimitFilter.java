@@ -52,7 +52,7 @@ public class BookingRateLimitFilter extends OncePerRequestFilter {
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
             response.setHeader("Retry-After", String.valueOf(windowMillis / 1000));
             response.getWriter().write(
-                    "{\"success\":false,\"code\":\"HOLA-4091\",\"message\":\"요청이 너무 많습니다. 잠시 후 다시 시도해주세요.\"}");
+                    "{\"success\":false,\"code\":\"HOLA-4095\",\"message\":\"요청이 너무 많습니다. 잠시 후 다시 시도해주세요.\"}");
             return;
         }
 
