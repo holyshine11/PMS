@@ -136,8 +136,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/properties/*/room-rack/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN")
                 // 하우스키핑 Admin API: SUPER ~ SUPERVISOR
                 .requestMatchers("/api/v1/properties/*/housekeeping/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN", "HOUSEKEEPING_SUPERVISOR")
-                // 하우스키핑 모바일 API: SUPERVISOR + HOUSEKEEPER
-                .requestMatchers("/api/v1/properties/*/hk-mobile/**").hasAnyRole("HOUSEKEEPING_SUPERVISOR", "HOUSEKEEPER")
+                // 하우스키핑 모바일 API: @Order(1) hkMobileApiFilterChain이 먼저 매칭하므로 여기서는 제외
                 // 하우스키퍼 관리 API
                 .requestMatchers("/api/v1/properties/*/housekeepers/**").hasAnyRole("SUPER_ADMIN", "HOTEL_ADMIN", "PROPERTY_ADMIN", "HOUSEKEEPING_SUPERVISOR")
                 // 호텔관리 API: SUPER_ADMIN 전용 (제너릭 경로는 마지막)
