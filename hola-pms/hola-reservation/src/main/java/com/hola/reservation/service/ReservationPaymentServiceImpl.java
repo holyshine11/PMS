@@ -182,8 +182,12 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
             if (!"0000".equals(van.getRespCode())) {
                 throw new HolaException(ErrorCode.VAN_PAYMENT_FAILED);
             }
-            // VAN 승인 금액 교차 검증
-            if (van.getTransAmount() != null && van.getTransAmount() != payAmount.longValue()) {
+            // VAN 승인 금액 교차 검증 — transAmount 필수
+            if (van.getTransAmount() == null) {
+                log.error("VAN 응답에 transAmount 누락: reservationId={}", reservationId);
+                throw new HolaException(ErrorCode.VAN_PAYMENT_AMOUNT_MISMATCH);
+            }
+            if (van.getTransAmount() != payAmount.longValue()) {
                 log.error("VAN 금액 불일치: 요청={}, 승인={}, reservationId={}", payAmount, van.getTransAmount(), reservationId);
                 throw new HolaException(ErrorCode.VAN_PAYMENT_AMOUNT_MISMATCH);
             }
@@ -1367,7 +1371,8 @@ public class ReservationPaymentServiceImpl implements ReservationPaymentService 
     public String generateVanSequenceNo(Long workstationId) {
         Workstation ws = workstationService.findById(workstationId);
         String datePart = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String wsNoPart = String.format("%-2s", ws.getWsNo()).substring(0, Math.min(2, ws.getWsNo().length()));
+        String wsNo = ws.getWsNo() != null ? ws.getWsNo() : "00";
+        String wsNoPart = String.format("%-2s", wsNo).substring(0, 2);
 
         // DB 시퀀스로 유일한 번호 생성
         Long seqVal = transactionRepository.getNextVanSequence();
