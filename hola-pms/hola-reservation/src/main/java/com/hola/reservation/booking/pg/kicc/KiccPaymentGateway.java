@@ -43,8 +43,8 @@ public class KiccPaymentGateway implements PaymentGateway {
     @Override
     public PaymentResult authorize(PaymentRequest request) {
         // KICC는 3단계 비동기 플로우이므로 동기식 authorize 미지원
-        // Phase 2에서 BookingServiceImpl이 registerTransaction → approveAfterAuth로 전환
-        throw new UnsupportedOperationException(
+        log.warn("KICC authorize() 호출됨 - 지원하지 않는 결제 경로. registerTransaction() → approveAfterAuth() 사용 필요");
+        return PaymentResult.failure("KICC", "UNSUPPORTED",
                 "KICC는 동기식 authorize를 지원하지 않습니다. registerTransaction() → approveAfterAuth() 사용");
     }
 
