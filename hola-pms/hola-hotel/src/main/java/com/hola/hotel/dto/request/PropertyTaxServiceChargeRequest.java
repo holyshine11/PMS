@@ -28,13 +28,16 @@ public class PropertyTaxServiceChargeRequest {
     private String taxRoundingMethod;
 
     // 봉사료 타입: PERCENTAGE(정률) / FIXED(정액)
+    @NotNull(message = "봉사료 타입은 필수입니다.")
     private String serviceChargeType;
 
     // 정률(%) 설정
+    @NotNull(message = "봉사료 비율은 필수입니다.")
     @DecimalMin(value = "0", message = "봉사료 비율은 0 이상이어야 합니다.")
     @DecimalMax(value = "100", message = "봉사료 비율은 100 이하이어야 합니다.")
     private BigDecimal serviceChargeRate;
 
+    @NotNull(message = "봉사료 소수점 자릿수는 필수입니다.")
     @Min(value = 0, message = "소수점 자릿수는 0 이상이어야 합니다.")
     private Integer serviceChargeDecimalPlaces;
 

@@ -231,8 +231,8 @@ public class Property extends BaseEntity {
         this.taxDecimalPlaces = taxDecimalPlaces;
         this.taxRoundingMethod = taxRoundingMethod;
         this.serviceChargeType = serviceChargeType != null ? serviceChargeType : "PERCENTAGE";
-        this.serviceChargeRate = serviceChargeRate;
-        this.serviceChargeDecimalPlaces = serviceChargeDecimalPlaces;
+        this.serviceChargeRate = serviceChargeRate != null ? serviceChargeRate : BigDecimal.ZERO;
+        this.serviceChargeDecimalPlaces = serviceChargeDecimalPlaces != null ? serviceChargeDecimalPlaces : 0;
         this.serviceChargeRoundingMethod = serviceChargeRoundingMethod;
         this.serviceChargeAmount = serviceChargeAmount != null ? serviceChargeAmount : BigDecimal.ZERO;
     }
