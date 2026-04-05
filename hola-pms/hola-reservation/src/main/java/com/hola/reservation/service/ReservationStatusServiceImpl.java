@@ -539,7 +539,10 @@ public class ReservationStatusServiceImpl implements ReservationStatusService {
         if (payment != null) {
             BigDecimal grandTotal = payment.getGrandTotal() != null ? payment.getGrandTotal() : BigDecimal.ZERO;
             BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
-            BigDecimal remaining = grandTotal.subtract(totalPaid);
+            BigDecimal refund = payment.getRefundAmount() != null ? payment.getRefundAmount() : BigDecimal.ZERO;
+            BigDecimal cancelFee = payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO;
+            BigDecimal netPaid = totalPaid.subtract(refund).subtract(cancelFee);
+            BigDecimal remaining = grandTotal.subtract(netPaid);
             if (remaining.compareTo(BigDecimal.ZERO) > 0) {
                 throw new HolaException(ErrorCode.CHECKOUT_OUTSTANDING_BALANCE);
             }
@@ -563,11 +566,14 @@ public class ReservationStatusServiceImpl implements ReservationStatusService {
 
         ReservationPayment payment = reservationPaymentRepository
                 .findByMasterReservationId(master.getId()).orElse(null);
-        BigDecimal totalPaid = BigDecimal.ZERO;
-        if (payment != null && payment.getTotalPaidAmount() != null) {
-            totalPaid = payment.getTotalPaidAmount();
+        BigDecimal netPaid = BigDecimal.ZERO;
+        if (payment != null) {
+            BigDecimal totalPaid = payment.getTotalPaidAmount() != null ? payment.getTotalPaidAmount() : BigDecimal.ZERO;
+            BigDecimal refund = payment.getRefundAmount() != null ? payment.getRefundAmount() : BigDecimal.ZERO;
+            BigDecimal existingCancelFee = payment.getCancelFeeAmount() != null ? payment.getCancelFeeAmount() : BigDecimal.ZERO;
+            netPaid = totalPaid.subtract(refund).subtract(existingCancelFee);
         }
-        if (totalPaid.compareTo(cancelFee) < 0) {
+        if (netPaid.compareTo(cancelFee) < 0) {
             throw new HolaException(ErrorCode.CANCEL_FEE_UNPAID);
         }
     }
