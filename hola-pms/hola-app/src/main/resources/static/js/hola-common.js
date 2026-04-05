@@ -101,6 +101,15 @@ const HolaPms = {
         var settings = $.extend({}, defaults, options);
         var method = (settings.type || 'GET').toUpperCase();
         settings.type = method;
+        // CSRF 토큰 자동 첨부 (GET 이외의 요청)
+        if (method !== 'GET') {
+            var csrfToken = $('meta[name="_csrf"]').attr('content');
+            var csrfHeader = $('meta[name="_csrf_header"]').attr('content');
+            if (csrfToken && csrfHeader) {
+                settings.headers = settings.headers || {};
+                settings.headers[csrfHeader] = csrfToken;
+            }
+        }
         if (settings.data && typeof settings.data === 'object' && method !== 'GET') {
             settings.data = JSON.stringify(settings.data);
         }

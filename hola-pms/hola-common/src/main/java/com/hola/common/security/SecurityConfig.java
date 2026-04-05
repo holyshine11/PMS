@@ -180,7 +180,9 @@ public class SecurityConfig {
     public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/**")
-            .csrf(AbstractHttpConfigurer::disable)
+            .csrf(csrf -> csrf
+                .ignoringRequestMatchers("/booking/**")  // 부킹엔진 게스트 페이지: 세션 미사용, CSRF 불필요
+            )
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/m/housekeeping/login", "/css/**", "/js/**", "/images/**", "/img/**", "/webjars/**", "/uploads/**",
