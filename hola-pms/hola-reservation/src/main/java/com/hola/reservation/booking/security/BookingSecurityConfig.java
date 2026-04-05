@@ -35,9 +35,16 @@ public class BookingSecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .anyRequest().permitAll()
             )
+            .addFilterBefore(bookingRateLimitFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(bookingApiKeyFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public BookingRateLimitFilter bookingRateLimitFilter() {
+        // IP당 60초 윈도우에 최대 60건 (확인번호 brute-force 방지)
+        return new BookingRateLimitFilter(60, 60);
     }
 
     @Bean
