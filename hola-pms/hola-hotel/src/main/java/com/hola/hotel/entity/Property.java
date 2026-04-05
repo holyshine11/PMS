@@ -124,6 +124,14 @@ public class Property extends BaseEntity {
     @Column(name = "service_charge_rounding_method", length = 20)
     private String serviceChargeRoundingMethod;
 
+    @Column(name = "service_charge_type", nullable = false, length = 20)
+    @Builder.Default
+    private String serviceChargeType = "PERCENTAGE";
+
+    @Column(name = "service_charge_amount", nullable = false, precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal serviceChargeAmount = BigDecimal.ZERO;
+
     // ─── Dayuse 설정 ────────────────────────────
     @Column(name = "day_use_enabled", nullable = false)
     @Builder.Default
@@ -216,13 +224,16 @@ public class Property extends BaseEntity {
 
     /** TAX/봉사료 정보 수정 */
     public void updateTaxServiceCharge(BigDecimal taxRate, Integer taxDecimalPlaces, String taxRoundingMethod,
-                                       BigDecimal serviceChargeRate, Integer serviceChargeDecimalPlaces,
-                                       String serviceChargeRoundingMethod) {
+                                       String serviceChargeType, BigDecimal serviceChargeRate,
+                                       Integer serviceChargeDecimalPlaces, String serviceChargeRoundingMethod,
+                                       BigDecimal serviceChargeAmount) {
         this.taxRate = taxRate;
         this.taxDecimalPlaces = taxDecimalPlaces;
         this.taxRoundingMethod = taxRoundingMethod;
+        this.serviceChargeType = serviceChargeType != null ? serviceChargeType : "PERCENTAGE";
         this.serviceChargeRate = serviceChargeRate;
         this.serviceChargeDecimalPlaces = serviceChargeDecimalPlaces;
         this.serviceChargeRoundingMethod = serviceChargeRoundingMethod;
+        this.serviceChargeAmount = serviceChargeAmount != null ? serviceChargeAmount : BigDecimal.ZERO;
     }
 }

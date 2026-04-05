@@ -43,9 +43,11 @@ public class PropertyResponse {
     private BigDecimal taxRate;
     private Integer taxDecimalPlaces;
     private String taxRoundingMethod;
+    private String serviceChargeType;
     private BigDecimal serviceChargeRate;
     private Integer serviceChargeDecimalPlaces;
     private String serviceChargeRoundingMethod;
+    private BigDecimal serviceChargeAmount;
     // Dayuse 설정
     private Boolean dayUseEnabled;
     private String dayUseStartTime;

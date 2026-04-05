@@ -1009,11 +1009,22 @@ const PropertyForm = {
             }
         });
 
+        // 봉사료 타입 전환
+        $('#serviceChargeType').on('change', function() {
+            self.toggleServiceChargeType($(this).val());
+        });
+
         // 숫자 입력 제한 (비율 필드: 0~100, 소수 포함)
         $('#taxRate, #serviceChargeRate').on('input', function() {
             var val = parseFloat($(this).val());
             if (val < 0) $(this).val(0);
             if (val > 100) $(this).val(100);
+        });
+
+        // 정액 필드: 0 이상
+        $('#serviceChargeAmount').on('input', function() {
+            var val = parseFloat($(this).val());
+            if (val < 0) $(this).val(0);
         });
 
         // 소수점 자릿수 필드: 정수만
@@ -1024,14 +1035,32 @@ const PropertyForm = {
         });
     },
 
+    /** 봉사료 타입별 입력 필드 전환 */
+    toggleServiceChargeType: function(type) {
+        if (type === 'FIXED') {
+            $('#scPercentageGroup').addClass('d-none').removeClass('d-flex');
+            $('#scFixedGroup').removeClass('d-none').addClass('d-flex');
+        } else {
+            $('#scPercentageGroup').removeClass('d-none').addClass('d-flex');
+            $('#scFixedGroup').addClass('d-none').removeClass('d-flex');
+        }
+    },
+
     /** TAX/봉사료 데이터 → 폼 채우기 */
     populateTaxServiceCharge: function(data) {
         if (data.taxRate != null) $('#taxRate').val(data.taxRate);
         if (data.taxDecimalPlaces != null) $('#taxDecimalPlaces').val(data.taxDecimalPlaces);
         if (data.taxRoundingMethod) $('#taxRoundingMethod').val(data.taxRoundingMethod);
+        // 봉사료 타입
+        var scType = data.serviceChargeType || 'PERCENTAGE';
+        $('#serviceChargeType').val(scType);
+        this.toggleServiceChargeType(scType);
+        // 정률 필드
         if (data.serviceChargeRate != null) $('#serviceChargeRate').val(data.serviceChargeRate);
         if (data.serviceChargeDecimalPlaces != null) $('#serviceChargeDecimalPlaces').val(data.serviceChargeDecimalPlaces);
         if (data.serviceChargeRoundingMethod) $('#serviceChargeRoundingMethod').val(data.serviceChargeRoundingMethod);
+        // 정액 필드
+        if (data.serviceChargeAmount != null) $('#serviceChargeAmount').val(data.serviceChargeAmount);
     },
 
     /** TAX/봉사료 저장 */
@@ -1042,43 +1071,71 @@ const PropertyForm = {
         }
 
         var taxRate = $('#taxRate').val();
-        var serviceChargeRate = $('#serviceChargeRate').val();
+        var scType = $('#serviceChargeType').val() || 'PERCENTAGE';
 
-        // 필수값 검증
+        // TAX 필수값 검증
         if (taxRate === '' || taxRate == null) {
             HolaPms.alert('warning', 'TAX 비율을 입력해주세요.');
             $('#taxRate').focus();
             return;
         }
-        if (serviceChargeRate === '' || serviceChargeRate == null) {
-            HolaPms.alert('warning', '봉사료 비율을 입력해주세요.');
-            $('#serviceChargeRate').focus();
-            return;
-        }
-
-        // 범위 검증
         if (parseFloat(taxRate) < 0 || parseFloat(taxRate) > 100) {
             HolaPms.alert('warning', 'TAX 비율은 0~100 사이 값을 입력해주세요.');
             $('#taxRate').focus();
             return;
         }
-        if (parseFloat(serviceChargeRate) < 0 || parseFloat(serviceChargeRate) > 100) {
-            HolaPms.alert('warning', '봉사료 비율은 0~100 사이 값을 입력해주세요.');
-            $('#serviceChargeRate').focus();
-            return;
+
+        // 봉사료 타입별 검증
+        if (scType === 'FIXED') {
+            var scAmount = $('#serviceChargeAmount').val();
+            if (scAmount === '' || scAmount == null) {
+                HolaPms.alert('warning', '봉사료 정액을 입력해주세요.');
+                $('#serviceChargeAmount').focus();
+                return;
+            }
+            if (parseFloat(scAmount) < 0) {
+                HolaPms.alert('warning', '봉사료 정액은 0 이상이어야 합니다.');
+                $('#serviceChargeAmount').focus();
+                return;
+            }
+        } else {
+            var serviceChargeRate = $('#serviceChargeRate').val();
+            if (serviceChargeRate === '' || serviceChargeRate == null) {
+                HolaPms.alert('warning', '봉사료 비율을 입력해주세요.');
+                $('#serviceChargeRate').focus();
+                return;
+            }
+            if (parseFloat(serviceChargeRate) < 0 || parseFloat(serviceChargeRate) > 100) {
+                HolaPms.alert('warning', '봉사료 비율은 0~100 사이 값을 입력해주세요.');
+                $('#serviceChargeRate').focus();
+                return;
+            }
+        }
+
+        var data = {
+            taxRate: parseFloat(taxRate),
+            taxDecimalPlaces: parseInt($('#taxDecimalPlaces').val() || '0', 10),
+            taxRoundingMethod: $('#taxRoundingMethod').val() || null,
+            serviceChargeType: scType
+        };
+
+        if (scType === 'FIXED') {
+            data.serviceChargeAmount = parseFloat($('#serviceChargeAmount').val());
+            // 정액 시 정률 필드는 기존값 유지 (0으로 초기화하지 않음)
+            data.serviceChargeRate = parseFloat($('#serviceChargeRate').val() || '0');
+            data.serviceChargeDecimalPlaces = parseInt($('#serviceChargeDecimalPlaces').val() || '0', 10);
+            data.serviceChargeRoundingMethod = $('#serviceChargeRoundingMethod').val() || null;
+        } else {
+            data.serviceChargeRate = parseFloat($('#serviceChargeRate').val());
+            data.serviceChargeDecimalPlaces = parseInt($('#serviceChargeDecimalPlaces').val() || '0', 10);
+            data.serviceChargeRoundingMethod = $('#serviceChargeRoundingMethod').val() || null;
+            data.serviceChargeAmount = parseFloat($('#serviceChargeAmount').val() || '0');
         }
 
         HolaPms.ajax({
             url: '/api/v1/properties/' + this.propertyId + '/tax-service-charge',
             type: 'PUT',
-            data: {
-                taxRate: parseFloat(taxRate),
-                taxDecimalPlaces: parseInt($('#taxDecimalPlaces').val() || '0', 10),
-                taxRoundingMethod: $('#taxRoundingMethod').val() || null,
-                serviceChargeRate: parseFloat(serviceChargeRate),
-                serviceChargeDecimalPlaces: parseInt($('#serviceChargeDecimalPlaces').val() || '0', 10),
-                serviceChargeRoundingMethod: $('#serviceChargeRoundingMethod').val() || null
-            },
+            data: data,
             success: function() {
                 HolaPms.alert('success', 'TAX/봉사료 정보가 저장되었습니다.');
             }

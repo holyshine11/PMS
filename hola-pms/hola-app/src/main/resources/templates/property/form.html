@@ -602,23 +602,37 @@
                                     </th>
                                     <td>
                                         <div class="d-flex align-items-center gap-2 flex-wrap">
-                                            <input type="number" id="serviceChargeRate" class="form-control"
-                                                   style="width:180px;" min="0" max="100" step="0.01"
-                                                   placeholder="0~100 숫자만 입력 가능">
-                                            <span>%</span>
-                                            <span class="ms-2">소수 점 :</span>
-                                            <input type="number" id="serviceChargeDecimalPlaces" class="form-control"
-                                                   style="width:100px;" min="0" max="10" step="1"
-                                                   placeholder="0~10" value="0">
-                                            <span>자리</span>
-                                            <select id="serviceChargeRoundingMethod" class="form-select" style="width:130px;">
-                                                <option value="">선택</option>
-                                                <option value="FLOOR">버림</option>
-                                                <option value="CEIL">올림</option>
-                                                <option value="HALF_DOWN">반내림</option>
-                                                <option value="HALF_UP">반올림</option>
-                                                <option value="TRUNCATE">절사</option>
+                                            <select id="serviceChargeType" class="form-select" style="width:100px;">
+                                                <option value="PERCENTAGE">정률</option>
+                                                <option value="FIXED">정액</option>
                                             </select>
+                                            <!-- 정률(%) 입력 -->
+                                            <span id="scPercentageGroup" class="d-flex align-items-center gap-2">
+                                                <input type="number" id="serviceChargeRate" class="form-control"
+                                                       style="width:180px;" min="0" max="100" step="0.01"
+                                                       placeholder="0~100 숫자만 입력 가능">
+                                                <span>%</span>
+                                                <span class="ms-2">소수 점 :</span>
+                                                <input type="number" id="serviceChargeDecimalPlaces" class="form-control"
+                                                       style="width:100px;" min="0" max="10" step="1"
+                                                       placeholder="0~10" value="0">
+                                                <span>자리</span>
+                                                <select id="serviceChargeRoundingMethod" class="form-select" style="width:130px;">
+                                                    <option value="">선택</option>
+                                                    <option value="FLOOR">버림</option>
+                                                    <option value="CEIL">올림</option>
+                                                    <option value="HALF_DOWN">반내림</option>
+                                                    <option value="HALF_UP">반올림</option>
+                                                    <option value="TRUNCATE">절사</option>
+                                                </select>
+                                            </span>
+                                            <!-- 정액(₩) 입력 -->
+                                            <span id="scFixedGroup" class="d-none align-items-center gap-2">
+                                                <input type="number" id="serviceChargeAmount" class="form-control"
+                                                       style="width:180px;" min="0" step="1"
+                                                       placeholder="금액 입력">
+                                                <span>원</span>
+                                            </span>
                                         </div>
                                     </td>
                                 </tr>

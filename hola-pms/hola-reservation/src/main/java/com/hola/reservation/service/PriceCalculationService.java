@@ -253,11 +253,19 @@ public class PriceCalculationService {
      * 숙박(일별 계산)과 Dayuse(고정가 계산) 모두에서 사용 가능
      */
     public TaxCalculationResult calculateTaxAndServiceCharge(BigDecimal supplyPrice, Property property) {
-        BigDecimal serviceCharge = supplyPrice
-                .multiply(nullToZero(property.getServiceChargeRate()))
-                .divide(BigDecimal.valueOf(100),
-                        getRoundingScale(property.getServiceChargeDecimalPlaces()),
-                        parseRoundingMode(property.getServiceChargeRoundingMethod()));
+        // 봉사료 계산: FIXED(정액) vs PERCENTAGE(정률)
+        BigDecimal serviceCharge;
+        if ("FIXED".equals(property.getServiceChargeType())) {
+            // 정액: 설정된 금액을 그대로 사용
+            serviceCharge = nullToZero(property.getServiceChargeAmount());
+        } else {
+            // 정률(기본): 공급가 × 봉사료율 / 100
+            serviceCharge = supplyPrice
+                    .multiply(nullToZero(property.getServiceChargeRate()))
+                    .divide(BigDecimal.valueOf(100),
+                            getRoundingScale(property.getServiceChargeDecimalPlaces()),
+                            parseRoundingMode(property.getServiceChargeRoundingMethod()));
+        }
 
         BigDecimal tax = supplyPrice.add(serviceCharge)
                 .multiply(nullToZero(property.getTaxRate()))

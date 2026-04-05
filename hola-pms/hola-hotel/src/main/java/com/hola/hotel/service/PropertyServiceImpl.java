@@ -214,8 +214,9 @@ public class PropertyServiceImpl implements PropertyService {
         Property property = findPropertyById(id);
         property.updateTaxServiceCharge(
                 request.getTaxRate(), request.getTaxDecimalPlaces(), request.getTaxRoundingMethod(),
+                request.getServiceChargeType(),
                 request.getServiceChargeRate(), request.getServiceChargeDecimalPlaces(),
-                request.getServiceChargeRoundingMethod());
+                request.getServiceChargeRoundingMethod(), request.getServiceChargeAmount());
         log.info("TAX/봉사료 수정: propertyId={}", id);
         return toResponseWithCounts(property);
     }
